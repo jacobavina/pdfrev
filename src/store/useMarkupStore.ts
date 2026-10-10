@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Markup, MarkupPoint, MarkupStatus } from '../types/markup';
+import { Markup, MarkupPoint, MarkupStatus, MarkupStyle, MarkupTextFormat } from '../types/markup';
 import { Command, HistoryManager } from './history/command';
 
 // Instancia compartida del gestor de historial con 50 pasos mínimo
@@ -24,6 +24,16 @@ interface MarkupState {
   addMarkup: (markup: Markup) => void;
   addMarkups: (markups: Markup[], description?: string) => void;
   updateMarkup: (id: string, updates: Partial<Markup>) => void;
+  applyPropertiesToMarkups: (
+    ids: string[],
+    updates: {
+      style?: Partial<MarkupStyle>;
+      text?: string;
+      textFormat?: MarkupTextFormat;
+      layer?: string;
+    },
+    description?: string
+  ) => void;
   updateMarkupStatus: (id: string, status: MarkupStatus) => void;
   deleteMarkup: (id: string) => void;
   deleteSelectedMarkups: () => void;
@@ -123,6 +133,102 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
         undo: () => {
           set((state) => ({
             markups: state.markups.map((m) => (m.id === id ? previous : m)),
+            isDirty: true,
+          }));
+        },
+      };
+
+      markupHistory.execute(command);
+      syncHistoryFlags();
+    },
+
+    applyPropertiesToMarkups: (
+      ids: string[],
+      updates: {
+        style?: Partial<MarkupStyle>;
+        text?: string;
+        textFormat?: MarkupTextFormat;
+        layer?: string;
+      },
+      description?: string
+    ) => {
+      if (ids.length === 0) return;
+      const currentMarkups = get().markups;
+      const targets = currentMarkups.filter((m) => ids.includes(m.id));
+      if (targets.length === 0) return;
+
+      // Comprobar si hay cambios reales en alguna de las marcas para evitar comandos innecesarios
+      let hasAnyChange = false;
+      for (const m of targets) {
+        if (updates.style) {
+          for (const [k, v] of Object.entries(updates.style)) {
+            if ((m.style as any)[k] !== v) {
+              hasAnyChange = true;
+              break;
+            }
+          }
+        }
+        if (updates.text !== undefined && m.text !== updates.text) hasAnyChange = true;
+        if (updates.layer !== undefined && m.layer !== updates.layer) hasAnyChange = true;
+        if (updates.textFormat !== undefined) {
+          if (!m.textFormat || JSON.stringify(m.textFormat) !== JSON.stringify(updates.textFormat)) {
+            hasAnyChange = true;
+          }
+        }
+        if (hasAnyChange) break;
+      }
+
+      if (!hasAnyChange) return;
+
+      // Inmutabilidad estricta: clonar marcas previas completas
+      const previousMap = new Map<string, Markup>();
+      for (const m of targets) {
+        previousMap.set(m.id, {
+          ...m,
+          style: { ...m.style },
+          textFormat: m.textFormat ? { ...m.textFormat } : undefined,
+        });
+      }
+
+      const now = new Date().toISOString();
+      const desc =
+        description ||
+        (targets.length === 1
+          ? `Aplicar propiedades a ${targets[0].type}`
+          : `Aplicar propiedades a ${targets.length} marcas`);
+
+      const command: Command = {
+        description: desc,
+        execute: () => {
+          set((state) => ({
+            markups: state.markups.map((m) => {
+              if (!ids.includes(m.id)) return m;
+              return {
+                ...m,
+                ...(updates.style ? { style: { ...m.style, ...updates.style } } : {}),
+                ...(updates.text !== undefined ? { text: updates.text } : {}),
+                ...(updates.textFormat !== undefined
+                  ? { textFormat: updates.textFormat ? { ...updates.textFormat } : undefined }
+                  : {}),
+                ...(updates.layer !== undefined ? { layer: updates.layer } : {}),
+                updatedAt: now,
+              };
+            }),
+            isDirty: true,
+          }));
+        },
+        undo: () => {
+          set((state) => ({
+            markups: state.markups.map((m) => {
+              const prev = previousMap.get(m.id);
+              return prev
+                ? {
+                    ...prev,
+                    style: { ...prev.style },
+                    textFormat: prev.textFormat ? { ...prev.textFormat } : undefined,
+                  }
+                : m;
+            }),
             isDirty: true,
           }));
         },

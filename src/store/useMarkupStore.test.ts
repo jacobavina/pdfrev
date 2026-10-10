@@ -621,4 +621,92 @@ describe('useMarkupStore Integration & History', () => {
       expect(reverted[2].points[0].x).toBeCloseTo(0.1);
     });
   });
+
+  describe('Sub-entregable B.2 / B.3: applyPropertiesToMarkups (Modo Propiedad sobre K marcas)', () => {
+    it('aplica propiedades a K > 1 marcas seleccionadas en UN SOLO COMANDO con reversión atómica (Ctrl+Z)', () => {
+      const m1 = createMockMarkup('k1', 'Marca 1');
+      const m2 = createMockMarkup('k2', 'Marca 2');
+      const m3 = createMockMarkup('k3', 'Marca 3');
+      const mUnmodified = createMockMarkup('unmod', 'No Seleccionada');
+
+      useMarkupStore.setState({
+        markups: [m1, m2, m3, mUnmodified],
+        selectedMarkupIds: ['k1', 'k2', 'k3'],
+      });
+
+      const oldMarkups = useMarkupStore.getState().markups;
+      const oldM1 = oldMarkups[0];
+      const oldM2 = oldMarkups[1];
+      const oldM3 = oldMarkups[2];
+      const oldUnmod = oldMarkups[3];
+
+      const initialUndoCount = markupHistory.getUndoCount();
+
+      // Aplicar nuevo estilo a las 3 marcas seleccionadas (K = 3)
+      const newStyle = {
+        strokeColor: '#10b981',
+        strokeWidth: 5,
+        opacity: 0.7,
+      };
+
+      useMarkupStore.getState().applyPropertiesToMarkups(
+        ['k1', 'k2', 'k3'],
+        { style: newStyle }
+      );
+
+      // Verificación 1: UN SOLO COMANDO registrado en el historial
+      expect(markupHistory.getUndoCount()).toBe(initialUndoCount + 1);
+
+      const updatedMarkups = useMarkupStore.getState().markups;
+
+      // Verificación 2: INMUTABILIDAD DEMOSTRADA
+      expect(updatedMarkups).not.toBe(oldMarkups);
+      expect(updatedMarkups[0]).not.toBe(oldM1);
+      expect(updatedMarkups[1]).not.toBe(oldM2);
+      expect(updatedMarkups[2]).not.toBe(oldM3);
+      // La marca no modificada retiene exactamente su identidad de referencia
+      expect(updatedMarkups[3]).toBe(oldUnmod);
+      // El array previo no fue alterado
+      expect(oldM1.style.strokeColor).toBe('#ff0000');
+      expect(oldM1.style.strokeWidth).toBe(2);
+
+      // Verificación 3: Las 3 marcas tienen el nuevo estilo aplicado
+      expect(updatedMarkups[0].style.strokeColor).toBe('#10b981');
+      expect(updatedMarkups[0].style.strokeWidth).toBe(5);
+      expect(updatedMarkups[1].style.strokeColor).toBe('#10b981');
+      expect(updatedMarkups[2].style.strokeColor).toBe('#10b981');
+
+      // Verificación 4: UN SOLO undo() revierte las K = 3 marcas a sus estilos originales
+      useMarkupStore.getState().undo();
+
+      const revertedMarkups = useMarkupStore.getState().markups;
+      expect(markupHistory.getUndoCount()).toBe(initialUndoCount);
+      expect(revertedMarkups[0].style.strokeColor).toBe('#ff0000');
+      expect(revertedMarkups[0].style.strokeWidth).toBe(2);
+      expect(revertedMarkups[1].style.strokeColor).toBe('#ff0000');
+      expect(revertedMarkups[2].style.strokeColor).toBe('#ff0000');
+
+      // Verificación 5: redo() las vuelve a modificar juntas
+      useMarkupStore.getState().redo();
+      const redoneMarkups = useMarkupStore.getState().markups;
+      expect(redoneMarkups[0].style.strokeColor).toBe('#10b981');
+      expect(redoneMarkups[1].style.strokeColor).toBe('#10b981');
+      expect(redoneMarkups[2].style.strokeColor).toBe('#10b981');
+    });
+
+    it('no genera comando si los valores de propiedades son idénticos a los existentes', () => {
+      const m1 = createMockMarkup('k1', 'Marca Idéntica');
+      useMarkupStore.setState({ markups: [m1], selectedMarkupIds: ['k1'] });
+
+      const initialUndoCount = markupHistory.getUndoCount();
+
+      // Aplicar exactamente el mismo estilo
+      useMarkupStore.getState().applyPropertiesToMarkups(['k1'], {
+        style: { strokeColor: '#ff0000', strokeWidth: 2, opacity: 1 },
+      });
+
+      // No debe agregar pasos al historial
+      expect(markupHistory.getUndoCount()).toBe(initialUndoCount);
+    });
+  });
 });

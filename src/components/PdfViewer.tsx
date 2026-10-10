@@ -429,6 +429,10 @@ export const PdfViewer: React.FC = () => {
           {/* Overlay interactivo SVG para anotaciones */}
           <svg
             data-testid="markup-overlay-svg"
+            width={pageViewport.width}
+            height={pageViewport.height}
+            viewBox={`0 0 ${pageViewport.width} ${pageViewport.height}`}
+            style={{ width: `${pageViewport.width}px`, height: `${pageViewport.height}px` }}
             className={`absolute inset-0 w-full h-full ${
               activeTool === 'select' ? 'cursor-default' : 'cursor-crosshair'
             }`}

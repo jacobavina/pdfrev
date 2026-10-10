@@ -57,10 +57,12 @@ export async function renderPageToCanvas(
   const page = await pdfDoc.getPage(pageNumber);
 
   const scale = options.scale ?? 1.0;
-  const rotation = options.rotation ?? 0;
+  const storeRotation = options.rotation ?? 0;
+  // Componer ambas fuentes de rotación: intrínseca del PDF (/Rotate) + rotación del store
+  const totalRotation = (((page.rotate + storeRotation) % 360) + 360) % 360;
 
-  // Viewport en píxeles CSS
-  const viewport = page.getViewport({ scale, rotation });
+  // Viewport en píxeles CSS con rotación compuesta como única fuente de verdad
+  const viewport = page.getViewport({ scale, rotation: totalRotation });
 
   // Soporte HiDPI (devicePixelRatio de la pantalla)
   const dpr = window.devicePixelRatio || 1;

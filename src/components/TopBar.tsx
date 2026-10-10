@@ -20,14 +20,27 @@ import {
   Hexagon,
   Pencil,
   Download,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useToolStore, ToolType } from '../store/useToolStore';
 import { openPdfDialog } from '../services/fileDialogService';
 import { useAutoSave } from '../hooks/useAutoSave';
+import { setBbxErrorHandler } from '../services/bbxPersistenceService';
 
 export const TopBar: React.FC = () => {
+  const [toastMessage, setToastMessage] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    setBbxErrorHandler((msg) => {
+      setToastMessage(msg);
+    });
+    return () => {
+      setBbxErrorHandler(null);
+    };
+  }, []);
   const {
     pdfBytes,
     fileName,
@@ -265,6 +278,24 @@ export const TopBar: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {toastMessage && (
+        <div
+          role="alert"
+          className="fixed top-14 right-4 z-50 flex items-center space-x-2 bg-red-900/95 border border-red-500 text-red-100 px-3.5 py-2.5 rounded shadow-2xl text-xs backdrop-blur-sm"
+        >
+          <AlertTriangle size={15} className="text-red-400 shrink-0" />
+          <span className="max-w-sm">{toastMessage}</span>
+          <button
+            onClick={() => setToastMessage(null)}
+            className="p-1 hover:text-white text-red-300 rounded ml-2"
+            title="Cerrar aviso"
+            aria-label="Cerrar aviso"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
     </header>
   );
 };

@@ -169,4 +169,37 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(exportBtn).toBeVisible();
     await expect(exportBtn).toBeEnabled();
   });
+
+  test('Sub-entregable 0.3 / 0.4: Botón "Exportar PDF" ejecuta import dinámico y genera descarga de Blob', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+
+    // Dibujar un rectángulo para asegurar que hay marcas en la exportación
+    const rectBtn = page.locator('button[title*="Rectángulo"]');
+    await rectBtn.click();
+
+    const svgBox = await overlaySvg.boundingBox();
+    expect(svgBox).not.toBeNull();
+    if (svgBox) {
+      await page.mouse.move(svgBox.x + 100, svgBox.y + 100);
+      await page.mouse.down();
+      await page.mouse.move(svgBox.x + 200, svgBox.y + 200);
+      await page.mouse.up();
+    }
+
+    const exportBtn = page.locator('button[title*="Exportar PDF"]');
+    await expect(exportBtn).toBeVisible();
+    await expect(exportBtn).toBeEnabled();
+
+    // Capturar la descarga desencadenada por el Blob y la etiqueta <a>
+    const downloadPromise = page.waitForEvent('download');
+    await exportBtn.click();
+    const download = await downloadPromise;
+
+    expect(download.suggestedFilename()).toContain('_con_marcas.pdf');
+  });
 });

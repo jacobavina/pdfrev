@@ -32,20 +32,28 @@ fn write_bbx(file_path: String, json_content: String) -> Result<(), String> {
   let tmp_path = format!("{}.tmp", file_path);
   let tmp_path_obj = Path::new(&tmp_path);
 
-  {
+  let write_result = (|| -> Result<(), String> {
     let mut file = File::create(tmp_path_obj)
       .map_err(|e| format!("Error creando archivo temporal: {}", e))?;
     file
       .write_all(json_content.as_bytes())
       .map_err(|e| format!("Error escribiendo archivo temporal: {}", e))?;
     file
-      .flush()
+      .sync_all()
       .map_err(|e| format!("Error sincronizando archivo temporal: {}", e))?;
+    Ok(())
+  })();
+
+  if let Err(e) = write_result {
+    let _ = fs::remove_file(tmp_path_obj);
+    return Err(e);
   }
 
   // Renombrar atómicamente al destino final
-  fs::rename(tmp_path_obj, path)
-    .map_err(|e| format!("Error renombrando archivo atómicamente a {}: {}", file_path, e))?;
+  if let Err(e) = fs::rename(tmp_path_obj, path) {
+    let _ = fs::remove_file(tmp_path_obj);
+    return Err(format!("Error renombrando archivo atómicamente a {}: {}", file_path, e));
+  }
 
   Ok(())
 }
@@ -72,6 +80,59 @@ fn read_bbx(file_path: String) -> Result<Option<String>, String> {
       "Error de E/S leyendo archivo {}: {}",
       file_path, e
     )),
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::env;
+
+  #[test]
+  fn test_write_bbx_rejects_relative_path() {
+    let res = write_bbx("archivo.bbx.json".to_string(), "{}".to_string());
+    assert!(res.is_err());
+    assert!(res.unwrap_err().contains("absoluta"));
+  }
+
+  #[test]
+  fn test_write_bbx_rejects_non_bbx_extension() {
+    let temp_dir = env::temp_dir();
+    let abs_path = temp_dir.join("test.txt").to_string_lossy().to_string();
+    let res = write_bbx(abs_path, "{}".to_string());
+    assert!(res.is_err());
+    assert!(res.unwrap_err().contains(".bbx.json"));
+  }
+
+  #[test]
+  fn test_write_bbx_atomic_success_and_no_tmp_residual() {
+    let temp_dir = env::temp_dir();
+    let file_path = temp_dir.join("test_atomic_success.bbx.json");
+    let file_path_str = file_path.to_string_lossy().to_string();
+    let tmp_path = format!("{}.tmp", file_path_str);
+
+    let content = r#"{"version":"1.1.0","markups":[]}"#;
+    let res = write_bbx(file_path_str.clone(), content.to_string());
+    assert!(res.is_ok());
+
+    // El archivo final existe y tiene el contenido esperado
+    assert!(file_path.exists());
+    let read_back = fs::read_to_string(&file_path).unwrap();
+    assert_eq!(read_back, content);
+
+    // No queda archivo .tmp residual
+    assert!(!Path::new(&tmp_path).exists());
+
+    // Limpieza
+    let _ = fs::remove_file(&file_path);
+  }
+
+  #[test]
+  fn test_read_bbx_nonexistent_returns_ok_none() {
+    let temp_dir = env::temp_dir();
+    let file_path = temp_dir.join("nonexistent_test_file_12345.bbx.json").to_string_lossy().to_string();
+    let res = read_bbx(file_path);
+    assert_eq!(res, Ok(None));
   }
 }
 

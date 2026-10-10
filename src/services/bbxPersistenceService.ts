@@ -7,17 +7,24 @@ export function isTauriEnvironment(): boolean {
 
 export type BbxErrorHandler = (errorMessage: string) => void;
 let onBbxError: BbxErrorHandler | null = null;
+let hasNotifiedError = false;
 
 export function setBbxErrorHandler(handler: BbxErrorHandler | null) {
   onBbxError = handler;
+  hasNotifiedError = false;
+}
+
+export function resetBbxErrorState() {
+  hasNotifiedError = false;
 }
 
 export function notifyBbxError(message: string) {
   console.error(`[BBX Error] ${message}`);
-  if (onBbxError) {
-    onBbxError(message);
-  } else if (typeof window !== 'undefined' && typeof window.alert === 'function') {
-    window.alert(`[Error de persistencia BBX] ${message}`);
+  if (!hasNotifiedError) {
+    hasNotifiedError = true;
+    if (onBbxError) {
+      onBbxError(message);
+    }
   }
 }
 
@@ -62,6 +69,7 @@ export async function loadBbxForPdf(pdfPath: string): Promise<BbxDocumentFile | 
         // Ok(None) -> archivo no existe todavía, comportamiento normal
         return null;
       }
+      resetBbxErrorState();
       return migrateBbxDocument(JSON.parse(content));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -73,6 +81,7 @@ export async function loadBbxForPdf(pdfPath: string): Promise<BbxDocumentFile | 
     try {
       const saved = localStorage.getItem(`bbx_${bbxPath}`);
       if (saved) {
+        resetBbxErrorState();
         return migrateBbxDocument(JSON.parse(saved));
       }
       return null;
@@ -113,6 +122,7 @@ export async function saveBbxForPdf(
       const { invoke } = await import('@tauri-apps/api/core');
       await invoke('write_bbx', { filePath: bbxPath, jsonContent });
       console.log(`[BBX] Guardado atómico exitoso en ${bbxPath}`);
+      resetBbxErrorState();
       return true;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -124,6 +134,7 @@ export async function saveBbxForPdf(
     try {
       localStorage.setItem(`bbx_${bbxPath}`, jsonContent);
       console.log(`[BBX] Guardado en localStorage: bbx_${bbxPath}`);
+      resetBbxErrorState();
       return true;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);

@@ -5,6 +5,7 @@ import {
   saveBbxForPdf,
   loadBbxForPdf,
   setBbxErrorHandler,
+  resetBbxErrorState,
 } from './bbxPersistenceService';
 import { Markup } from '../types/markup';
 
@@ -12,6 +13,7 @@ describe('BBX Persistence Service (.bbx.json)', () => {
   beforeEach(() => {
     localStorage.clear();
     setBbxErrorHandler(null);
+    resetBbxErrorState();
     delete (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
     vi.restoreAllMocks();
   });

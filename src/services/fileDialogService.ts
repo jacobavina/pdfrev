@@ -72,8 +72,14 @@ export async function loadPdfData(
     const numPages = pdfDoc.numPages;
 
     setDocument(filePath, fileName, bytes, numPages, pdfDoc);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    setError(`Error al procesar PDF: ${message}`);
+    return;
+  }
 
-    // Cargar automáticamente .bbx.json si existe
+  // Cargar automáticamente .bbx.json si existe (independiente del procesamiento del PDF)
+  try {
     const bbxData = await loadBbxForPdf(filePath);
     if (bbxData && Array.isArray(bbxData.markups)) {
       console.log(`[BBX] ${bbxData.markups.length} marcas cargadas automáticamente desde .bbx.json`);
@@ -81,8 +87,9 @@ export async function loadPdfData(
     } else {
       setMarkups([]);
     }
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    setError(`Error al procesar PDF: ${message}`);
+  } catch (bbxErr: unknown) {
+    const bbxMsg = bbxErr instanceof Error ? bbxErr.message : String(bbxErr);
+    console.error(`[BBX] Error al leer archivo de marcas .bbx.json: ${bbxMsg}`);
+    setMarkups([]);
   }
 }

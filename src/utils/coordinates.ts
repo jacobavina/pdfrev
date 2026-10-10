@@ -1,5 +1,45 @@
 import { MarkupPoint, Markup, BoundingBox, ViewportTransform } from '../types/markup';
 
+export interface ViewportLike {
+  width: number;
+  height: number;
+  convertToViewportPoint(x: number, y: number): number[] | [number, number];
+  convertToPdfPoint(x: number, y: number): number[] | [number, number];
+}
+
+/**
+ * Convierte un punto PDF (origen inferior-izquierdo) a coordenadas normalizadas UI (0..1)
+ * usando el PageViewport de PDF.js como fuente única de verdad.
+ * Respeta de forma unificada tanto la rotación intrínseca (/Rotate) como la rotación del store.
+ */
+export function pdfToNormalizedWithViewport(
+  pdfX: number,
+  pdfY: number,
+  viewport: ViewportLike
+): MarkupPoint {
+  const [vx, vy] = viewport.convertToViewportPoint(pdfX, pdfY);
+  return {
+    x: Math.max(0, Math.min(1, vx / viewport.width)),
+    y: Math.max(0, Math.min(1, vy / viewport.height)),
+  };
+}
+
+/**
+ * Convierte un punto normalizado UI (0..1) a coordenadas nativas PDF
+ * usando el PageViewport de PDF.js como fuente única de verdad.
+ * Respeta de forma unificada tanto la rotación intrínseca (/Rotate) como la rotación del store.
+ */
+export function normalizedToPdfWithViewport(
+  normX: number,
+  normY: number,
+  viewport: ViewportLike
+): { x: number; y: number } {
+  const vx = normX * viewport.width;
+  const vy = normY * viewport.height;
+  const [pdfX, pdfY] = viewport.convertToPdfPoint(vx, vy);
+  return { x: pdfX, y: pdfY };
+}
+
 /**
  * Convierte coordenadas nativas PDF (origen inferior-izquierdo)
  * a coordenadas normalizadas UI (0..1, origen superior-izquierdo).

@@ -143,7 +143,57 @@ describe('PDF Export Service (Sub-entregable 0.3 - H1 Vector Export)', () => {
     // Aserción directa sobre las operaciones vectoriales reales del PDF:
     // En pdf-lib, drawRectangle emite:
     // 1 0 0 1 100 150 cm (matriz de transformación afín a x=100, y=150)
-    // 0 0 m / 0 200 l / 300 200 l / 300 0 l (rectángulo de 300x200 desde el origen)
+    expect(lastStream).toContain('1 0 0 1 100 150 cm');
+    expect(lastStream).toContain('0 200 l');
+    expect(lastStream).toContain('300 200 l');
+    expect(lastStream).toContain('300 0 l');
+  });
+
+  // --------------------------------------------------------------------------------
+  // Sub-entregable 0.5: Test de oro de exportación sobre fixture rotado (/Rotate 90)
+  // --------------------------------------------------------------------------------
+  it('Sub-entregable 0.5: Test de oro de exportación sobre fixture rotado test-blueprint-rotated.pdf (/Rotate 90)', async () => {
+    const rotatedPdfPath = path.resolve(process.cwd(), 'fixtures/test-blueprint-rotated.pdf');
+    const rotatedMetaPath = path.resolve(process.cwd(), 'fixtures/test-blueprint-rotated.meta.json');
+    const rotatedBytes = fs.readFileSync(rotatedPdfPath);
+    const rotatedMeta = JSON.parse(fs.readFileSync(rotatedMetaPath, 'utf8'));
+
+    const knownNorm = rotatedMeta.knownRectangle.normalized;
+
+    const testMarkup: Markup = {
+      id: 'rotated-gold-standard-rect',
+      type: 'rectangle',
+      pageIndex: 0,
+      points: [
+        { x: knownNorm.x, y: knownNorm.y },
+        { x: knownNorm.x + knownNorm.width, y: knownNorm.y + knownNorm.height },
+      ],
+      style: {
+        strokeColor: '#d92626',
+        strokeWidth: 2,
+        fillColor: '#d9ebff',
+        opacity: 1,
+      },
+      author: 'QA Lead',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: 'pending',
+    };
+
+    const exportResult = await exportMarkupsToPdf(new Uint8Array(rotatedBytes), [testMarkup]);
+    expect(exportResult.pdfBytes.length).toBeGreaterThan(0);
+
+    const loadedDoc = await PDFDocument.load(exportResult.pdfBytes);
+    const page0 = loadedDoc.getPages()[0];
+
+    // 1. Conserva la rotación intrínseca de 90°
+    expect(page0.getRotation().angle).toBe(90);
+
+    // 2. Extrae operadores vectoriales del content stream
+    const streams = getDecompressedStreams(loadedDoc, 0);
+    const lastStream = streams[streams.length - 1] || '';
+
+    // El rectángulo en coordenadas PDF nativas está en x=100, y=150, ancho=300, alto=200
     expect(lastStream).toContain('1 0 0 1 100 150 cm');
     expect(lastStream).toContain('0 200 l');
     expect(lastStream).toContain('300 200 l');

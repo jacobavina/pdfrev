@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
+import fs from 'fs';
+import path from 'path';
+import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import {
   pdfToNormalized,
   normalizedToPdf,
+  pdfToNormalizedWithViewport,
+  normalizedToPdfWithViewport,
   normalizedToScreen,
   screenToNormalized,
   getMarkupBounds,
@@ -10,6 +15,7 @@ import {
 } from './coordinates';
 import { Markup } from '../types/markup';
 import fixtureMeta from '../../fixtures/test-blueprint.meta.json';
+import rotatedFixtureMeta from '../../fixtures/test-blueprint-rotated.meta.json';
 
 describe('Coordinate Conversion and Hit-Testing', () => {
   const { pageSize, knownRectangle } = fixtureMeta;
@@ -288,6 +294,105 @@ describe('Coordinate Conversion and Hit-Testing', () => {
 
       // Lejos de la línea (0.3, 0.6)
       expect(hitTestMarkup({ x: 0.3, y: 0.6 }, freehand, 0.015)).toBe(false);
+    });
+  });
+
+  // --------------------------------------------------------------------------------
+  // Sub-entregable 0.5: Rotación Unificada (0°, 90°, 180°, 270°) y Viewport de PDF.js
+  // --------------------------------------------------------------------------------
+  describe('Sub-entregable 0.5: Rotación Unificada (0°, 90°, 180°, 270°) y Viewport de PDF.js', () => {
+    it('contrasta la conversión en las 4 rotaciones (0, 90, 180, 270) contra page.getViewport() de PDF.js', async () => {
+      const pdfBytes = fs.readFileSync(path.resolve(process.cwd(), 'fixtures/test-blueprint.pdf'));
+      const pdfDoc = await pdfjs.getDocument({ data: new Uint8Array(pdfBytes) }).promise;
+      const page = await pdfDoc.getPage(1);
+
+      for (const rot of [0, 90, 180, 270] as const) {
+        const vp = page.getViewport({ scale: 1, rotation: rot });
+
+        // A. Verificar que el viewport intercambia dimensiones a 90° y 270°
+        if (rot === 90 || rot === 270) {
+          expect(vp.width).toBe(600);
+          expect(vp.height).toBe(800);
+        } else {
+          expect(vp.width).toBe(800);
+          expect(vp.height).toBe(600);
+        }
+
+        // B. Validar conversión de coordenadas en una malla de puntos PDF
+        for (const pdfX of [0, 100, 250, 400, 600, 800]) {
+          for (const pdfY of [0, 150, 300, 450, 600]) {
+            const [expectedVx, expectedVy] = vp.convertToViewportPoint(pdfX, pdfY);
+
+            // Coordenadas normalizadas relativas al viewport visible
+            const norm = pdfToNormalizedWithViewport(pdfX, pdfY, vp);
+            expect(norm.x).toBeCloseTo(expectedVx / vp.width, 4);
+            expect(norm.y).toBeCloseTo(expectedVy / vp.height, 4);
+
+            // Reversibilidad exacta (round-trip de vuelta a PDF)
+            const roundTripPdf = normalizedToPdfWithViewport(norm.x, norm.y, vp);
+            expect(roundTripPdf.x).toBeCloseTo(pdfX, 1);
+            expect(roundTripPdf.y).toBeCloseTo(pdfY, 1);
+          }
+        }
+      }
+    });
+
+    it('valida la rotación intrínseca (/Rotate 90) de test-blueprint-rotated.pdf', async () => {
+      const pdfBytes = fs.readFileSync(
+        path.resolve(process.cwd(), 'fixtures/test-blueprint-rotated.pdf')
+      );
+      const pdfDoc = await pdfjs.getDocument({ data: new Uint8Array(pdfBytes) }).promise;
+      const page = await pdfDoc.getPage(1);
+
+      // 1. Confirmar rotación intrínseca detectada por PDF.js
+      expect(page.rotate).toBe(90);
+
+      // 2. Viewport a rotación 0 del store (aplica rotación total compuesta: 90 intrínseca + 0 store = 90°)
+      const totalRot = (((page.rotate + 0) % 360) + 360) % 360;
+      const vp = page.getViewport({ scale: 1, rotation: totalRot });
+      expect(vp.width).toBe(600); // Intercambiado por /Rotate 90
+      expect(vp.height).toBe(800);
+
+      // 3. Rectángulo de control conocido en coords PDF
+      const known = rotatedFixtureMeta.knownRectangle;
+      const norm = pdfToNormalizedWithViewport(known.pdf.x, known.pdf.y + known.pdf.height, vp);
+
+      // Top-left en PDF para /Rotate 90 proyecta al top-left del rectángulo visible
+      const [expectedVx, expectedVy] = vp.convertToViewportPoint(
+        known.pdf.x,
+        known.pdf.y + known.pdf.height
+      );
+      expect(norm.x).toBeCloseTo(expectedVx / vp.width, 4);
+      expect(norm.y).toBeCloseTo(expectedVy / vp.height, 4);
+
+      // 4. Round-trip
+      const backPdf = normalizedToPdfWithViewport(norm.x, norm.y, vp);
+      expect(backPdf.x).toBeCloseTo(known.pdf.x, 1);
+      expect(backPdf.y).toBeCloseTo(known.pdf.y + known.pdf.height, 1);
+    });
+
+    it('compone rotación intrínseca (/Rotate 90) con rotación del visor (90°) sumando 180°', async () => {
+      const pdfBytes = fs.readFileSync(
+        path.resolve(process.cwd(), 'fixtures/test-blueprint-rotated.pdf')
+      );
+      const pdfDoc = await pdfjs.getDocument({ data: new Uint8Array(pdfBytes) }).promise;
+      const page = await pdfDoc.getPage(1);
+
+      // Total: 90 intrínseca + 90 visor = 180°
+      const totalRot180 = (((page.rotate + 90) % 360) + 360) % 360;
+      const vp180 = page.getViewport({ scale: 1, rotation: totalRot180 });
+      expect(vp180.width).toBe(800); // A 180° vuelve al ancho original
+      expect(vp180.height).toBe(600);
+
+      const norm = pdfToNormalizedWithViewport(400, 300, vp180);
+      const [expectedVx, expectedVy] = vp180.convertToViewportPoint(400, 300);
+
+      expect(norm.x).toBeCloseTo(expectedVx / 800, 4);
+      expect(norm.y).toBeCloseTo(expectedVy / 600, 4);
+
+      const roundTrip = normalizedToPdfWithViewport(norm.x, norm.y, vp180);
+      expect(roundTrip.x).toBeCloseTo(400, 1);
+      expect(roundTrip.y).toBeCloseTo(300, 1);
     });
   });
 });

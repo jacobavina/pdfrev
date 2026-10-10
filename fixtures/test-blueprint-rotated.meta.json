@@ -1,0 +1,24 @@
+{
+  "pageCount": 1,
+  "pageSize": {
+    "width": 800,
+    "height": 600
+  },
+  "knownRectangle": {
+    "pdf": {
+      "x": 100,
+      "y": 150,
+      "width": 300,
+      "height": 200
+    },
+    "normalized": {
+      "x": 0.25,
+      "y": 0.125,
+      "width": 0.3333333333333333,
+      "height": 0.375
+    },
+    "strokeColor": "#d92626",
+    "fillColor": "#d9ebff",
+    "strokeWidth": 2
+  }
+}

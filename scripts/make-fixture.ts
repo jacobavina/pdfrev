@@ -1,4 +1,4 @@
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts, degrees } from 'pdf-lib';
 import fs from 'fs';
 import path from 'path';
 
@@ -191,11 +191,104 @@ export async function generateTestPdf(outputPath: string): Promise<FixtureMeta> 
   return meta;
 }
 
+export async function generateRotatedTestPdf(outputPath: string): Promise<FixtureMeta> {
+  const pdfDoc = await PDFDocument.create();
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+  const PAGE_WIDTH = 800;
+  const PAGE_HEIGHT = 600;
+
+  // Rectángulo conocido en coordenadas nativas PDF (origen inferior-izquierdo)
+  const rectPdf = {
+    x: 100,
+    y: 150,
+    width: 300,
+    height: 200,
+  };
+
+  // Coordenadas normalizadas con rotación de 90° (viewport visible: ancho=600, alto=800)
+  // u = y_pdf / PAGE_HEIGHT = 150 / 600 = 0.25
+  // v = x_pdf / PAGE_WIDTH = 100 / 800 = 0.125
+  // normWidth = rectPdf.height / PAGE_HEIGHT = 200 / 600 = 1/3
+  // normHeight = rectPdf.width / PAGE_WIDTH = 300 / 800 = 0.375
+  const rectNormalized = {
+    x: 0.25,
+    y: 0.125,
+    width: 200 / PAGE_HEIGHT,
+    height: 300 / PAGE_WIDTH,
+  };
+
+  // PÁGINA 1: Rotada intrínsecamente a 90° (/Rotate 90)
+  const page1 = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+  page1.setRotation(degrees(90));
+
+  page1.drawRectangle({
+    x: rectPdf.x,
+    y: rectPdf.y,
+    width: rectPdf.width,
+    height: rectPdf.height,
+    borderWidth: 2,
+    borderColor: rgb(0.85, 0.15, 0.15),
+    color: rgb(0.85, 0.92, 1.0),
+    opacity: 0.8,
+  });
+
+  page1.drawText('PLANO ROTADO 90° - CALIBRACIÓN TÉCNICA (PÁGINA 1)', {
+    x: 50,
+    y: 550,
+    size: 18,
+    font: boldFont,
+    color: rgb(0.1, 0.1, 0.15),
+  });
+
+  page1.drawText('RECTÁNGULO DE CONTROL ROTADO', {
+    x: rectPdf.x + 20,
+    y: rectPdf.y + rectPdf.height - 35,
+    size: 14,
+    font: boldFont,
+    color: rgb(0.85, 0.15, 0.15),
+  });
+
+  const dir = path.dirname(outputPath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  const pdfBytes = await pdfDoc.save();
+  fs.writeFileSync(outputPath, pdfBytes);
+
+  const meta: FixtureMeta = {
+    pageCount: 1,
+    pageSize: { width: PAGE_WIDTH, height: PAGE_HEIGHT },
+    knownRectangle: {
+      pdf: rectPdf,
+      normalized: rectNormalized,
+      strokeColor: '#d92626',
+      fillColor: '#d9ebff',
+      strokeWidth: 2,
+    },
+  };
+
+  const metaPath = outputPath.replace(/\.pdf$/, '.meta.json');
+  fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2), 'utf8');
+
+  console.log(`[fixture] PDF rotado generado exitosamente en: ${outputPath}`);
+  console.log(`[fixture] Metadatos guardados en: ${metaPath}`);
+
+  return meta;
+}
+
 // Direct execution
 if (import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}`) {
-  const target = path.resolve(process.cwd(), 'fixtures/test-blueprint.pdf');
-  generateTestPdf(target).catch((err) => {
-    console.error('Error generando fixture PDF:', err);
+  const targetNormal = path.resolve(process.cwd(), 'fixtures/test-blueprint.pdf');
+  const targetRotated = path.resolve(process.cwd(), 'fixtures/test-blueprint-rotated.pdf');
+
+  Promise.all([
+    // Solo generar test-blueprint.pdf si no existe para no tocarlo innecesariamente
+    fs.existsSync(targetNormal) ? Promise.resolve() : generateTestPdf(targetNormal),
+    generateRotatedTestPdf(targetRotated),
+  ]).catch((err) => {
+    console.error('Error generando fixtures PDF:', err);
     process.exit(1);
   });
 }

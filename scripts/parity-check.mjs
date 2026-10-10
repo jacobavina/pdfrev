@@ -37,10 +37,23 @@ for (let i = 0; i < lines.length; i++) {
   const status = columns[2].replace(/`/g, '');
   const testFileRaw = columns[3].replace(/`/g, '').trim();
   const testNameRaw = columns[4].replace(/`/g, '').trim();
+  const nativeVerificationRaw = columns[5]?.trim() ?? '';
 
   // Ignorar cabecera de tabla
   if (capability.toLowerCase().includes('capacidad') || capability.startsWith('---')) {
     continue;
+  }
+
+  // Validación de Columna 5: Verificación en Ventana Nativa (Usuario)
+  if (!nativeVerificationRaw || nativeVerificationRaw === '-') {
+    mismatches.push({
+      line: i + 1,
+      capability,
+      status,
+      file: testFileRaw,
+      testName: testNameRaw,
+      reason: `Columna 5 vacía o sin declarar: debe incluir confirmación de validación nativa o 'No aplica (...)'`,
+    });
   }
 
   if (status === 'shipped') {
@@ -81,6 +94,26 @@ for (let i = 0; i < lines.length; i++) {
         reason: `El nombre de la prueba no aparece literalmente en ${testFileRaw}`,
       });
     }
+
+    // Regla de verificación nativa para filas 'shipped':
+    // Debe certificar validación del usuario ('usuario' o 'ventana nativa'),
+    // justificar no aplicabilidad ('No aplica (...)'),
+    // o declarar explícitamente revisión pendiente ('pendiente de verificación nativa').
+    const isValidNativeVerification =
+      /usuario|ventana nativa/i.test(nativeVerificationRaw) ||
+      /^no aplica\s*\([^)]+\)/i.test(nativeVerificationRaw) ||
+      /pendiente.*nativ/i.test(nativeVerificationRaw);
+
+    if (!isValidNativeVerification) {
+      mismatches.push({
+        line: i + 1,
+        capability,
+        status,
+        file: testFileRaw,
+        testName: testNameRaw,
+        reason: `Columna 5 de verificación nativa inválida: '${nativeVerificationRaw}'. Debe certificar validación por el usuario, justificar 'No aplica (...)' o declarar 'pendiente de verificación nativa'`,
+      });
+    }
   } else if (status === 'todo') {
     todoCount++;
     // En estado todo, el archivo no debe citar un archivo real como si existiera: debe ser '-'
@@ -92,6 +125,18 @@ for (let i = 0; i < lines.length; i++) {
         file: testFileRaw,
         testName: testNameRaw,
         reason: `Fila 'todo' cita archivo de test '${testFileRaw}' en vez de un guion '-'`,
+      });
+    }
+
+    const isTodoValid = /pendiente|no forma parte/i.test(nativeVerificationRaw);
+    if (!isTodoValid) {
+      mismatches.push({
+        line: i + 1,
+        capability,
+        status,
+        file: testFileRaw,
+        testName: testNameRaw,
+        reason: `Fila 'todo' debe declarar 'Pendiente de implementación' o 'No forma parte de la Fase 2' en columna 5`,
       });
     }
   }

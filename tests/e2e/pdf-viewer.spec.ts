@@ -1255,7 +1255,19 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const thumb = addedTool.locator('[data-testid="tool-vector-thumbnail-rectangle"]');
     await expect(thumb).toBeVisible();
 
-    // 6. Sub-entregable B.5: Drag & Drop desde Tool Chest al canvas con tolerancia <= 5px
+    // Sub-entregable B.5: Drag & Drop desde Tool Chest al canvas con tolerancia <= 5px
+    // =========================================================================================
+    // NOTA DE AUDITORÍA Y LIMITACIÓN DE PLAYWRIGHT:
+    // Este test E2E sintetiza los eventos DragEvent ('dragover' y 'drop') directamente en el DOM
+    // mediante page.evaluate y DataTransfer con el tipo MIME 'application/rea-tool'.
+    // Esto verifica la lógica interna del frontend: conversión de coordenadas, centrado dentro de
+    // tolerancia <= 5px, creación atómica de marca y registro en recientes a nivel de motor web.
+    // SIN EMBARGO, este test NO ejercita el pipeline OLE/nativo de arrastre del sistema operativo
+    // en WebView2/Windows. En la ventana nativa de Tauri 2, el gestor nativo de arrastre de archivos
+    // de la ventana intercepta los eventos OLE a menos que se configure explícitamente
+    // "dragDropEnabled": false en src-tauri/tauri.conf.json. Por tanto, este test en verde NO
+    // sustituye la comprobación nativa del usuario en la ventana real de Tauri.
+    // =========================================================================================
     const initialGroups = overlaySvg.locator('g[data-testid^="markup-g-"]');
     const initialCount = await initialGroups.count(); // 1 marca inicial (calibración)
 

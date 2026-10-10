@@ -182,10 +182,15 @@ ventana no aparece, y el agente puede creer que todo va bien. Está **demostrado
 - El agente aporta el comando exacto y **el usuario pega la evidencia** (consola de DevTools,
   captura, fichero en disco).
 - Toda funcionalidad que toque la ventana nativa necesita esa evidencia para darse por cerrada.
+- **Eventos del navegador vs. shell nativo:** Cuando un sub-entregable se apoye en mecanismos de
+  eventos del navegador o del shell (arrastrar y soltar, foco, selección, atajos de teclado), su
+  cierre exige **comprobación nativa explícita del usuario**, y el informe del agente debe declarar
+  con total transparencia **qué cubre el test E2E automatizado y qué no** (por ejemplo, si Playwright
+  sintetiza eventos a nivel de DOM sin ejercitar el pipeline OLE/nativo del sistema operativo).
 
 > Hito futuro, **no parte de la Fase 2**: `P2-X` — automatizar la verificación visual de la ventana
 > nativa con `tauri-driver` (WebDriver), para que el agente pueda hacer clic y capturar el PNG sin
-> depender del usuario. Se aborda **después de cerrar el Bloque A**, con su propio ADR (ADR-0007).
+> depender del usuario. Se aborda **después de cerrar el Bloque A**, con su propio ADR (ADR-0008).
 
 ---
 

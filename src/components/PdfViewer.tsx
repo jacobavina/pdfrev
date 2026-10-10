@@ -645,6 +645,7 @@ export const PdfViewer: React.FC = () => {
           layer: activeLayer,
         };
         addMarkup(newMarkup);
+        useToolChestStore.getState().recordRecent(newMarkup);
       }
       setFreehandPoints([]);
       return;
@@ -737,6 +738,7 @@ export const PdfViewer: React.FC = () => {
         };
 
         addMarkups([cloudMarkup, calloutMarkup], 'Crear Cloud+');
+        useToolChestStore.getState().recordRecent(cloudMarkup);
       } else if (activeTool === 'callout') {
         const newId = uuidv4();
         const initialText = 'Nota técnica';
@@ -780,6 +782,7 @@ export const PdfViewer: React.FC = () => {
         };
 
         addMarkup(calloutMarkup);
+        useToolChestStore.getState().recordRecent(calloutMarkup);
         setSelectedMarkupIds([newId]);
         setInlineEditing({
           markupId: newId,
@@ -830,6 +833,7 @@ export const PdfViewer: React.FC = () => {
         };
 
         addMarkup(newMarkup);
+        useToolChestStore.getState().recordRecent(newMarkup);
 
         // Si es una marca de texto, abrir inmediatamente el editor inline
         if (activeTool === 'text') {
@@ -864,6 +868,7 @@ export const PdfViewer: React.FC = () => {
           layer: activeLayer,
         };
         addMarkup(newMarkup);
+        useToolChestStore.getState().recordRecent(newMarkup);
       }
       setPolygonPoints([]);
       return;
@@ -1034,6 +1039,9 @@ export const PdfViewer: React.FC = () => {
         ? `Resaltar texto (${newMarkups.length} líneas)`
         : 'Resaltar texto'
     );
+    if (newMarkups.length > 0) {
+      useToolChestStore.getState().recordRecent(newMarkups[0]);
+    }
     setSelectedMarkupIds(newMarkups.map((m) => m.id));
 
     selection.removeAllRanges();
@@ -1053,6 +1061,7 @@ export const PdfViewer: React.FC = () => {
     const rawData = e.dataTransfer.getData('application/rea-tool');
     if (!rawData) return;
     e.preventDefault();
+    e.stopPropagation();
 
     try {
       const tool = JSON.parse(rawData) as ToolChestTool | RecentTool;
@@ -1312,6 +1321,7 @@ export const PdfViewer: React.FC = () => {
                     layer: activeLayer,
                   };
                   addMarkup(newMarkup);
+                  useToolChestStore.getState().recordRecent(newMarkup);
                   setSelectedMarkupIds([newId]);
                   setInlineEditing(null);
                   return;

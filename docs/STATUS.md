@@ -10,7 +10,7 @@
 |---|---|---|
 | **Fase 1: Motor Base y Shell CAD** | **CERRADA** | 114 tests unitarios al cierre de fase + 4 tests cargo + 3 E2E (actualmente 152 tests unitarios tras A.2). R9 validado en disco desde ventana nativa por el usuario. |
 | **Fase 2 — Bloque A: Marcado y Manipulación** | **CERRADO** | 190 tests unitarios en 9 suites + 4 tests cargo + 11/11 E2E en Playwright. Las 7 filas verificadas en ventana nativa por el usuario (filas 22 a 25 y 27 a 30 de PARITY.md). Las seis nuevas herramientas se añadieron sin subir versión de esquema .bbx.json (se mantiene en 1.1.0). |
-| **Fase 2 — Bloque B: Tool Chest** | **CERRADO** | 235 tests unitarios en 14 suites + 4 tests cargo + 12/12 E2E en Playwright. Fila 31 de PARITY.md shipped. Pipeline canónico unificado según ADR-0007, tolerancia de drag & drop <= 5px verificada, y persistencia IndexedDB con degradación ruidosa a memoria. |
+| **Fase 2 — Bloque B: Tool Chest** | **PENDIENTE DE VERIFICACIÓN NATIVA FINAL** | Modos D y P verificados por el usuario. Defecto de arrastre corregido con `dragDropEnabled: false` en `tauri.conf.json` y registro universal en Recientes para toda marca creada. 235 tests unitarios en 14 suites + 4 tests cargo + 12/12 E2E en Playwright. Cierre final supeditado a la confirmación del arrastre en ventana nativa por el usuario. |
 | **Fase 2 — Bloque C: MarkupsList Completa** | **NO EMPEZADO** | Ordenación, filtros multicriterio, columnas personalizadas, estados y reportes. Siguiente hito a iniciar. |
 | **Fase 2 — Bloque D: Capas y Sellos Dinámicos** | **NO EMPEZADO** | Capas lógicas persistidas y sellos vectoriales dinámicos. Pendiente de cierre del Bloque C. |
 
@@ -47,7 +47,7 @@
 
 ---
 
-### Fase 2: Bloque B — Tool Chest (Cerrado y Verificado)
+### Fase 2: Bloque B — Tool Chest (Pendiente de Verificación Nativa Final de Drag & Drop)
 
 | ID | Hito / Característica | Estado | Evidencia y Verificación | Notas |
 |---|---|---|---|---|
@@ -55,7 +55,7 @@
 | `P2-B.2` | Store Zustand de Tool Chest | **Cerrado** | Commit `0edeaa3`. Inmutabilidad verificada con `expect(nuevo).not.toBe(viejo)` en arrays y elementos. Modos Dibujo (D) y Propiedad (P). Aplicación de estilo sobre $K$ marcas seleccionadas como único comando atómico reversible con Ctrl+Z y guarda no-op si los estilos coinciden. 10 tests en `useToolChestStore.test.ts`. | Integración directa con `useMarkupStore`. |
 | `P2-B.3` | Miniaturas Vectoriales Canónicas | **Cerrado** | `ToolVectorThumbnail.tsx` refactorizado bajo Opción (A) según `ADR-0007`: reutiliza el pipeline canónico unificado `createSampleMarkup` + `getMarkupSvgDescriptor` + `renderSvgDescriptor`. Sin motores paralelos de dibujo. 5 tests en `ToolVectorThumbnail.test.tsx`. | Cero riesgo de divergencia visual. |
 | `P2-B.4` | Panel Lateral Tool Chest y Contexto | **Cerrado** | `ToolChestPanel.tsx` con selector de paletas, creación/eliminación interactiva, drag handle nativo HTML5, alternancia 'D'/'P', botón limpiar recientes y colapso para protección de viewport. `MarkupsList.tsx` enriquecido con menú contextual de clic derecho y botón de fila "Añadir a Tool Chest" sin tocar columnas ni filtros. 8 tests en `ToolChestPanel.test.tsx` y 2 tests en `MarkupsList.test.tsx`. | Sin alteración del layout canvas preexistente. |
-| `P2-B.5` | Drag & Drop al Canvas con Tolerancia <= 5px | **Cerrado** | `PdfViewer.tsx` con soporte `application/rea-tool` en `dragover` y `drop`. Centrado exacto del elemento respecto al cursor con tolerancia comprobada $\le 5\text{ px}$. Creación con invocación única de `addMarkup` (1 comando de historial) y registro asíncrono no bloqueante en recientes. Test 12 en `pdf-viewer.spec.ts`. | 12/12 E2E Playwright passing. |
+| `P2-B.5` | Drag & Drop al Canvas con Tolerancia <= 5px | **Pendiente de confirmación nativa** | `PdfViewer.tsx` con soporte `application/rea-tool` en `dragover` y `drop`. Centrado exacto del elemento respecto al cursor con tolerancia comprobada $\le 5\text{ px}$. Creación con invocación única de `addMarkup` (1 comando de historial) y registro asíncrono en recientes (ampliado a toda marca creada). Intercepción nativa de Windows WebView2 resuelta con `dragDropEnabled: false` en `tauri.conf.json`. Test 12 en `pdf-viewer.spec.ts`. | Modos D y P verificados por el usuario. Arrastre pendiente de confirmación en ventana nativa. |
 
 ---
 

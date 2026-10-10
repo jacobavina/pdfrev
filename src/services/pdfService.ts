@@ -21,10 +21,17 @@ export function configurePdfWorker(): void {
 // Configurar inmediatamente al importar el módulo
 configurePdfWorker();
 
+export interface RenderOptions {
+  scale?: number;
+  rotation?: number;
+  textLayerContainer?: HTMLDivElement | null;
+}
+
 export interface RenderResult {
   width: number;
   height: number;
   viewport: pdfjsLib.PageViewport;
+  hasText: boolean;
 }
 
 /**
@@ -45,13 +52,14 @@ export async function loadPdfDocument(source: Uint8Array | string): Promise<pdfj
 }
 
 /**
- * Renderiza una página en un elemento HTMLCanvasElement con soporte HiDPI/Retina.
+ * Renderiza una página en un elemento HTMLCanvasElement con soporte HiDPI/Retina
+ * y opcionalmente monta la capa de texto seleccionable (TextLayer de PDF.js 4.x).
  */
 export async function renderPageToCanvas(
   pdfDoc: pdfjsLib.PDFDocumentProxy,
   pageIndex: number,
   canvas: HTMLCanvasElement,
-  options: { scale?: number; rotation?: number } = {}
+  options: RenderOptions = {}
 ): Promise<RenderResult> {
   const pageNumber = pageIndex + 1; // PDF.js es 1-based
   const page = await pdfDoc.getPage(pageNumber);
@@ -115,6 +123,37 @@ export async function renderPageToCanvas(
     if (visibleCtx) {
       visibleCtx.drawImage(offscreenCanvas, 0, 0);
     }
+
+    // Renderizado o comprobación de la capa de texto (TextLayer de PDF.js 4.x)
+    let hasText = false;
+    const textContent = await page.getTextContent();
+    hasText = textContent.items.some(
+      (item) => 'str' in item && (item as { str: string }).str.trim().length > 0
+    );
+
+    const textContainer = options.textLayerContainer;
+    if (textContainer) {
+      textContainer.innerHTML = '';
+      textContainer.style.width = `${Math.floor(viewport.width)}px`;
+      textContainer.style.height = `${Math.floor(viewport.height)}px`;
+      textContainer.style.setProperty('--scale-factor', `${scale}`);
+
+      if (hasText) {
+        const textLayer = new pdfjsLib.TextLayer({
+          textContentSource: textContent,
+          container: textContainer,
+          viewport,
+        });
+        await textLayer.render();
+      }
+    }
+
+    return {
+      width: viewport.width,
+      height: viewport.height,
+      viewport,
+      hasText,
+    };
   } catch (err: unknown) {
     if (
       err &&
@@ -126,6 +165,7 @@ export async function renderPageToCanvas(
         width: viewport.width,
         height: viewport.height,
         viewport,
+        hasText: false,
       };
     }
     throw err;
@@ -135,12 +175,6 @@ export async function renderPageToCanvas(
     }
     offscreenCtx.restore();
   }
-
-  return {
-    width: viewport.width,
-    height: viewport.height,
-    viewport,
-  };
 }
 
 /**

@@ -969,6 +969,237 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const revertedBboxX = parseFloat((await selectionBbox.getAttribute('x'))!);
     expect(revertedBboxX).toBeCloseTo(initialBboxX, 0);
   });
+
+  test('Sub-entregable A.6: Resaltador de texto highlightText (atajo Shift+H vs H, guarda de foco, selección real con offset, cobertura geométrica, escala 200%, multilínea atómica y toast en página sin texto)', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    const markupsPanel = page.locator('[data-testid="markups-list-panel"]');
+    await expect(markupsPanel).toBeVisible();
+
+    const textLayer = page.locator('[data-testid="pdf-text-layer"]');
+    await expect(textLayer).toBeVisible();
+    const titleSpan = textLayer.locator('span').filter({ hasText: 'PLANO DE PRUEBA' }).first();
+    await expect(titleSpan).toBeVisible({ timeout: 15000 });
+
+    const textBtn = page.locator('button[title*="Resaltador de texto"]');
+    const vectorBtn = page.locator('button[title*="Resaltador vectorial"]');
+    await expect(textBtn).toBeVisible();
+    await expect(vectorBtn).toBeVisible();
+
+    // 1. Guarda de foco: con un input enfocado en MarkupsList, Shift+H y H no cambian de herramienta
+    const commentInput = markupsPanel.locator('input[type="text"]').first();
+    await commentInput.focus();
+    await page.keyboard.press('Shift+H');
+    await expect(textBtn).not.toHaveClass(/bg-cad-accent/);
+    await page.keyboard.press('h');
+    await expect(vectorBtn).not.toHaveClass(/bg-cad-accent/);
+
+    // Quitar foco haciendo clic en header
+    await page.locator('header').click();
+
+    // 2. Distinción de atajos sin foco: H activa resaltador vectorial, Shift+H activa resaltador de texto
+    await page.keyboard.press('h');
+    await expect(vectorBtn).toHaveClass(/bg-cad-accent/);
+    await expect(textBtn).not.toHaveClass(/bg-cad-accent/);
+
+    await page.keyboard.press('Shift+H');
+    await expect(textBtn).toHaveClass(/bg-cad-accent/);
+    await expect(vectorBtn).not.toHaveClass(/bg-cad-accent/);
+
+    // Colapsar panel inferior para dar espacio vertical completo al lienzo
+    const collapsePanelBtn = markupsPanel.locator('button').first();
+    await collapsePanelBtn.click();
+    await expect(markupsPanel).toHaveCSS('height', '32px');
+
+    const spanBox = (await titleSpan.boundingBox())!;
+    expect(spanBox).not.toBeNull();
+
+    const initialGroups = overlaySvg.locator('g[data-testid^="markup-g-"]');
+    const initialCount = await initialGroups.count();
+
+    // Arrastre real con ratón sobre el texto del título
+    await page.mouse.move(spanBox.x + 4, spanBox.y + spanBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(spanBox.x + spanBox.width - 4, spanBox.y + spanBox.height / 2, { steps: 5 });
+    await page.mouse.up();
+
+    // Se crea exactamente 1 marca nueva de tipo highlightText
+    await expect(initialGroups).toHaveCount(initialCount + 1);
+
+    const hlGroup = initialGroups.last();
+    const hlRect = hlGroup.locator('rect:not([data-testid="selection-bbox"])');
+    await expect(hlRect).toBeVisible();
+
+    // Condición 8: Aserción fuerte de contenido en MarkupsList (reabrir panel)
+    await collapsePanelBtn.click();
+    await expect(markupsPanel).toHaveCSS('height', '200px');
+    const newRow = markupsPanel.locator('tbody tr').last();
+    await expect(newRow).toBeVisible();
+    await expect(newRow.locator('td').nth(1)).toContainText('highlightText');
+    const textInRow = await newRow.locator('input[type="text"]').inputValue();
+    expect(textInRow).toContain('PLANO DE PRUEBA');
+
+    // Colapsar panel para continuar pruebas de lienzo
+    await collapsePanelBtn.click();
+    await expect(markupsPanel).toHaveCSS('height', '32px');
+
+    // Condición 1: Cobertura geométrica (rectángulo cubre la caja del tramo dentro de <= 8 px de tolerancia)
+    const hlBox = (await hlRect.boundingBox())!;
+    expect(Math.abs(hlBox.x - spanBox.x)).toBeLessThanOrEqual(8);
+    expect(Math.abs(hlBox.y - spanBox.y)).toBeLessThanOrEqual(8);
+    expect(Math.abs(hlBox.width - spanBox.width)).toBeLessThanOrEqual(8);
+    expect(Math.abs(hlBox.height - spanBox.height)).toBeLessThanOrEqual(8);
+
+    // 4. Escala 200% y --scale-factor (Condición 2)
+    const zoomInBtn = page.locator('button[title="Acercar (+)"]');
+    const resetZoomBtn = page.locator('button[title="Restablecer zoom a 100%"]');
+
+    // Colapsar panel lateral de páginas para dar amplitud horizontal completa al lienzo
+    const collapseThumbnailsBtn = page.locator('button[title="Colapsar panel"]');
+    await collapseThumbnailsBtn.click();
+
+    // Aumentar zoom hasta 200% (4 pasos de 0.25)
+    for (let i = 0; i < 4; i++) {
+      await zoomInBtn.click();
+    }
+    await expect(resetZoomBtn).toHaveText('200%');
+    await expect(overlaySvg).toHaveAttribute('width', '1600');
+
+    // Validar que la variable CSS --scale-factor está fijada a 2
+    const scaleFactor = await textLayer.evaluate((el) => el.style.getPropertyValue('--scale-factor'));
+    expect(scaleFactor.trim()).toBe('2');
+
+    const countBefore200 = await initialGroups.count();
+    const controlSpan = textLayer.locator('span').filter({ hasText: 'RECTÁNGULO DE CONTROL' }).first();
+    await expect(controlSpan).toBeVisible();
+    await controlSpan.scrollIntoViewIfNeeded();
+    const subBox200 = (await controlSpan.boundingBox())!;
+
+    await page.mouse.move(subBox200.x + 4, subBox200.y + subBox200.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(subBox200.x + subBox200.width - 4, subBox200.y + subBox200.height / 2, { steps: 5 });
+    await page.mouse.up();
+
+    await expect(initialGroups).toHaveCount(countBefore200 + 1);
+
+    const subHlRect = overlaySvg
+      .locator('g[data-testid^="markup-g-"]')
+      .last()
+      .locator('rect:not([data-testid="selection-bbox"])');
+    await expect(subHlRect).toBeVisible();
+    const subHlBox200 = (await subHlRect.boundingBox())!;
+
+    // Cobertura geométrica a 2x
+    expect(Math.abs(subHlBox200.x - subBox200.x)).toBeLessThanOrEqual(8);
+    expect(Math.abs(subHlBox200.y - subBox200.y)).toBeLessThanOrEqual(8);
+    expect(Math.abs(subHlBox200.width - subBox200.width)).toBeLessThanOrEqual(8);
+    expect(Math.abs(subHlBox200.height - subBox200.height)).toBeLessThanOrEqual(8);
+
+    // Restablecer zoom a 100% y verificar que la marca creada a 2x cubre el texto a 1x con la misma precisión
+    await resetZoomBtn.click();
+    await expect(resetZoomBtn).toHaveText('100%');
+    await expect(overlaySvg).toHaveAttribute('width', '800');
+
+    const subBox100 = (await controlSpan.boundingBox())!;
+    const subHlBox100 = (await subHlRect.boundingBox())!;
+
+    expect(Math.abs(subHlBox100.x - subBox100.x)).toBeLessThanOrEqual(8);
+    expect(Math.abs(subHlBox100.y - subBox100.y)).toBeLessThanOrEqual(8);
+    expect(Math.abs(subHlBox100.width - subBox100.width)).toBeLessThanOrEqual(8);
+    expect(Math.abs(subHlBox100.height - subBox100.height)).toBeLessThanOrEqual(8);
+
+    // 5. Selección multilínea atómica, arrastre conjunto y reversión (Condición 4)
+    await page.keyboard.press('Escape');
+    await textBtn.click();
+
+    const countBeforeMulti = await initialGroups.count();
+
+    // Arrastrar a través de dos líneas consecutivas (RECTÁNGULO DE CONTROL y Norm)
+    const line1Span = textLayer.locator('span').filter({ hasText: 'RECTÁNGULO DE CONTROL' }).first();
+    const line2Span = textLayer.locator('span').filter({ hasText: 'Norm: x=' }).first();
+    await expect(line1Span).toBeVisible();
+    await expect(line2Span).toBeVisible();
+
+    const span1Box = (await line1Span.boundingBox())!;
+    const span2Box = (await line2Span.boundingBox())!;
+
+    await page.mouse.move(span1Box.x + 10, span1Box.y + span1Box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(span2Box.x + span2Box.width / 2, span2Box.y + span2Box.height / 2, { steps: 5 });
+    await page.mouse.up();
+
+    const countAfterMulti = await initialGroups.count();
+    expect(countAfterMulti).toBeGreaterThan(countBeforeMulti);
+    const createdMultiCount = countAfterMulti - countBeforeMulti;
+    expect(createdMultiCount).toBeGreaterThanOrEqual(2);
+
+    // Arrastre conjunto en modo selección de las marcas del grupo
+    const selectBtn = page.locator('button[title="Seleccionar (V)"]');
+    await selectBtn.click();
+
+    const selBboxes = overlaySvg.locator('rect[data-testid="selection-bbox"]');
+    await expect(selBboxes.first()).toBeVisible();
+    const initialSelX = parseFloat((await selBboxes.first().getAttribute('x'))!);
+
+    await page.mouse.move(span1Box.x + 10, span1Box.y + span1Box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(span1Box.x + 40, span1Box.y + span1Box.height / 2);
+    await page.mouse.up();
+
+    const movedSelX = parseFloat((await selBboxes.first().getAttribute('x'))!);
+    expect(movedSelX).toBeGreaterThan(initialSelX);
+
+    // 1 Ctrl+Z deshace la traslación de todo el grupo
+    await page.keyboard.press('Control+z');
+    const revertedSelX = parseFloat((await selBboxes.first().getAttribute('x'))!);
+    expect(revertedSelX).toBeCloseTo(initialSelX, 0);
+
+    // 1 Ctrl+Z adicional deshace la creación de todas las marcas del grupo multilínea en un paso atómico
+    await page.keyboard.press('Control+z');
+    await expect(initialGroups).toHaveCount(countBeforeMulti);
+
+    // 1 Ctrl+Y restaura todas las marcas del grupo multilínea en un paso atómico
+    await page.keyboard.press('Control+y');
+    await expect(initialGroups).toHaveCount(countAfterMulti);
+
+    // 6. Página 3 (sin capa de texto) y aviso accesible (Condición 3 y 9)
+    const nextPageBtn = page.locator('button[title="Página siguiente"]');
+    await nextPageBtn.click(); // Página 2
+    await nextPageBtn.click(); // Página 3
+
+    const pageIndicator = page.locator('header span.font-mono.px-1');
+    await expect(pageIndicator).toContainText('3 / 3');
+
+    // Esperar a que la página 3 termine de renderizar con 0 texto (data-has-text="false")
+    await expect(page.locator('[data-testid="pdf-page-container"]')).toHaveAttribute(
+      'data-has-text',
+      'false'
+    );
+
+    // Intentar activar la herramienta highlightText en la página 3 dispara el toast accesible
+    await page.keyboard.press('Shift+H');
+    const toast = page.locator('[role="alert"]');
+    await expect(toast).toBeVisible();
+    await expect(toast).toHaveText(
+      'Esta página no contiene capa de texto seleccionable. Utilice el resaltador vectorial (H).'
+    );
+
+    // Clic en el lienzo con highlightText activo en página sin texto vuelve a disparar el aviso
+    await textLayer.click({ position: { x: 100, y: 100 } });
+    await expect(toast).toBeVisible();
+
+    // 0 marcas creadas y 0 comandos añadidos en página 3
+    const page3Groups = overlaySvg.locator('g[data-testid^="markup-g-"]');
+    await expect(page3Groups).toHaveCount(0);
+
+    // Guiar al usuario al resaltador vectorial (H)
+    await page.keyboard.press('h');
+    await expect(vectorBtn).toHaveClass(/bg-cad-accent/);
+  });
 });
 
 

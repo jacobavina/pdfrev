@@ -64,6 +64,7 @@ function getMarkupIcon(type: MarkupType) {
       return <StickyNote size={14} className="text-amber-400" />;
     case 'highlightVector':
     case 'highlight':
+    case 'highlightText':
       return <Highlighter size={14} className="text-yellow-400" />;
     default:
       return <HelpCircle size={14} className="text-gray-400" />;

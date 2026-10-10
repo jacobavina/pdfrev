@@ -26,6 +26,7 @@ import {
   MessageSquareText,
   StickyNote,
   Highlighter,
+  TextSelect,
 } from 'lucide-react';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
@@ -33,15 +34,20 @@ import { useToolStore, ToolType } from '../store/useToolStore';
 import { openPdfDialog } from '../services/fileDialogService';
 import { useAutoSave } from '../hooks/useAutoSave';
 import { setBbxErrorHandler } from '../services/bbxPersistenceService';
+import { registerToastListener, showToast } from '../services/toastService';
 
 export const TopBar: React.FC = () => {
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
 
   React.useEffect(() => {
+    const unsubToast = registerToastListener((msg) => {
+      setToastMessage(msg);
+    });
     setBbxErrorHandler((msg) => {
       setToastMessage(msg);
     });
     return () => {
+      unsubToast();
       setBbxErrorHandler(null);
     };
   }, []);
@@ -53,6 +59,7 @@ export const TopBar: React.FC = () => {
     currentPageIndex,
     setCurrentPage,
     scale,
+    pageHasText,
     zoomIn,
     zoomOut,
     resetZoom,
@@ -110,6 +117,7 @@ export const TopBar: React.FC = () => {
     { type: 'polygon', label: 'Polígono (P)', icon: <Hexagon size={16} /> },
     { type: 'freehand', label: 'Mano alzada (F)', icon: <Pencil size={16} /> },
     { type: 'highlightVector', label: 'Resaltador vectorial (H)', icon: <Highlighter size={16} /> },
+    { type: 'highlightText', label: 'Resaltador de texto (Shift+H)', icon: <TextSelect size={16} /> },
     { type: 'cloud', label: 'Nube de revisión (C)', icon: <Cloud size={16} /> },
     { type: 'cloudPlus', label: 'Cloud+ con leyenda (K)', icon: <MessageSquare size={16} /> },
     { type: 'callout', label: 'Nota técnica con directriz (Q)', icon: <MessageSquareText size={16} /> },
@@ -189,7 +197,14 @@ export const TopBar: React.FC = () => {
           return (
             <button
               key={btn.type}
-              onClick={() => setActiveTool(btn.type)}
+              onClick={() => {
+                if (btn.type === 'highlightText' && pageHasText[currentPageIndex] === false) {
+                  showToast(
+                    'Esta página no contiene capa de texto seleccionable. Utilice el resaltador vectorial (H).'
+                  );
+                }
+                setActiveTool(btn.type);
+              }}
               title={btn.label}
               className={`p-1.5 rounded transition-all flex items-center justify-center ${
                 isActive

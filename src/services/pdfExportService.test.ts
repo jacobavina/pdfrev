@@ -349,6 +349,111 @@ describe('PDF Export Service (Sub-entregable 0.3 - H1 Vector Export)', () => {
   });
 
   // --------------------------------------------------------------------------------
+  // Sub-entregable A.6: Resaltador de texto (highlightText) y exportación multilínea
+  // --------------------------------------------------------------------------------
+  it('TEST DE ORO (A.6): highlightText multilínea exporta N rectángulos -> N operadores con sus coordenadas exactas, /BM /Multiply y aserciones negativas', async () => {
+    const groupId = 'test-group-multiline';
+    const lines: Markup[] = [
+      {
+        id: 'hl-line-1',
+        type: 'highlightText',
+        pageIndex: 0,
+        groupId,
+        points: [
+          { x: 0.1, y: 0.1 },
+          { x: 0.4, y: 0.15 },
+        ],
+        text: 'LÍNEA UNO',
+        style: { strokeColor: 'transparent', strokeWidth: 0, opacity: HIGHLIGHT_STYLE.opacity },
+        author: 'Tester',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      },
+      {
+        id: 'hl-line-2',
+        type: 'highlightText',
+        pageIndex: 0,
+        groupId,
+        points: [
+          { x: 0.1, y: 0.16 },
+          { x: 0.5, y: 0.21 },
+        ],
+        text: 'LÍNEA DOS',
+        style: { strokeColor: 'transparent', strokeWidth: 0, opacity: HIGHLIGHT_STYLE.opacity },
+        author: 'Tester',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      },
+      {
+        id: 'hl-line-3',
+        type: 'highlightText',
+        pageIndex: 0,
+        groupId,
+        points: [
+          { x: 0.1, y: 0.22 },
+          { x: 0.35, y: 0.27 },
+        ],
+        text: 'LÍNEA TRES',
+        style: { strokeColor: 'transparent', strokeWidth: 0, opacity: HIGHLIGHT_STYLE.opacity },
+        author: 'Tester',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      },
+    ];
+
+    const res = await exportMarkupsToPdf(originalPdfBytes, lines);
+    expect(res.pdfBytes.byteLength).toBeGreaterThan(100);
+
+    const loadedDoc = await PDFDocument.load(res.pdfBytes);
+    const page = loadedDoc.getPages()[0];
+
+    // 1. /ExtGState contiene /BM /Multiply
+    const resources = loadedDoc.context.lookup(page.node.Resources()) as any;
+    const extGStateDict = loadedDoc.context.lookup(resources.lookup(PDFName.of('ExtGState'))) as any;
+    expect(extGStateDict).toBeDefined();
+
+    let foundMultiply = false;
+    for (const [, val] of extGStateDict.dict.entries()) {
+      const gs = loadedDoc.context.lookup(val) as any;
+      if (gs.toString().includes('/BM /Multiply')) {
+        foundMultiply = true;
+        break;
+      }
+    }
+    expect(foundMultiply).toBe(true);
+
+    // 2. Multiplicidad en content stream: exactamente N=3 rectángulos con sus coordenadas
+    const streams = getDecompressedStreams(loadedDoc, 0);
+    const stream = streams[streams.length - 1] || '';
+
+    // En 800x600 pt:
+    // Línea 1: normX 0.1..0.4 -> x=80, w=240; normY 0.1..0.15 -> y_pdf = 600 - 0.15*600 = 510, h=30
+    // Línea 2: normX 0.1..0.5 -> x=80, w=320; normY 0.16..0.21 -> y_pdf = 600 - 0.21*600 = 474, h=30
+    // Línea 3: normX 0.1..0.35 -> x=80, w=200; normY 0.22..0.27 -> y_pdf = 600 - 0.27*600 = 438, h=30
+    expect(stream).toContain('1 0 0 1 80 510 cm');
+    expect(stream).toContain('240 30 l');
+    expect(stream).toContain('1 0 0 1 80 474 cm');
+    expect(stream).toContain('320 30 l');
+    expect(stream).toContain('1 0 0 1 80 438 cm');
+    expect(stream).toContain('200 30 l');
+
+    const fMatches = stream.match(/\bf\b/g);
+    expect(fMatches?.length).toBeGreaterThanOrEqual(3);
+
+    // Aserciones negativas de Fase 2
+    expect(stream).not.toMatch(/\[\s*\d+[^\]]*\]\s*\d+\s+d/);
+    expect(stream).not.toMatch(/\b[Ss]\b/);
+    const annots = page.node.Annots();
+    expect(annots?.size() ?? 0).toBe(0);
+    const rawPdfText = new TextDecoder().decode(res.pdfBytes);
+    expect(rawPdfText).not.toContain('/Subtype /Highlight');
+    expect(rawPdfText).not.toContain('/Subtype /Text');
+  });
+
+  // --------------------------------------------------------------------------------
   // Criterio 5: pageTransforms no asume 0 en silencio y se deriva de pdf-lib
   // --------------------------------------------------------------------------------
   it('Criterio 5: getPageTransformFromPdfLib extrae tamaño y rotación reales de la página', async () => {
@@ -448,7 +553,7 @@ describe('PDF Export Service (Sub-entregable 0.3 - H1 Vector Export)', () => {
     const res = await exportMarkupsToPdf(originalPdfBytes, [markupOnP0]);
     const loaded = await PDFDocument.load(res.pdfBytes);
 
-    expect(loaded.getPageCount()).toBe(2);
+    expect(loaded.getPageCount()).toBe(meta.pageCount);
   });
 
   it('exportMarkupsToPdf rechaza y reporta error ante archivos PDF inválidos o cifrados', async () => {

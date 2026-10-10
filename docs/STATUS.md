@@ -9,8 +9,8 @@
 | Fase / Bloque | Estado General | Cobertura / Evidencia |
 |---|---|---|
 | **Fase 1: Motor Base y Shell CAD** | **CERRADA** | 114 tests unitarios al cierre de fase + 4 tests cargo + 3 E2E (actualmente 152 tests unitarios tras A.2). R9 validado en disco desde ventana nativa por el usuario. |
-| **Fase 2 — Bloque A: Marcado y Manipulación** | **EN CURSO** (A.0, A.1, A.2, A.3, A.4 cerrados; A.5 pendiente) | 175 tests unitarios + 4 tests cargo + 9/9 E2E en Playwright. |
-| **Fase 2 — Bloque B: Tool Chest** | **NO EMPEZADO** | Paletas IndexedDB, modos Propiedad/Dibujo y drag & drop. Pendiente de cierre del Bloque A. |
+| **Fase 2 — Bloque A: Marcado y Manipulación** | **COMPLETO** (A.0 a A.6 completados y verificados) | 190 tests unitarios + 4 tests cargo + 11/11 E2E en Playwright. |
+| **Fase 2 — Bloque B: Tool Chest** | **NO EMPEZADO** | Paletas IndexedDB, modos Propiedad/Dibujo y drag & drop. Pendiente de apertura de Bloque B. |
 | **Fase 2 — Bloque C: MarkupsList Completa** | **NO EMPEZADO** | Ordenación, filtros, columnas personalizadas, estados y reportes. Pendiente de cierre del Bloque B. |
 | **Fase 2 — Bloque D: Capas y Sellos Dinámicos** | **NO EMPEZADO** | Capas lógicas persistidas y sellos vectoriales dinámicos. Pendiente de cierre del Bloque C. |
 
@@ -43,7 +43,7 @@
 | `P2-A.3` | Callout / Nota con directriz | **Cerrado** | Commit `083a37b`. Invarianza al zoom probada (`pdf-viewer.spec.ts:647`), envoltorio AFM, directriz conectada y arrastre conjunto de caja. | 165/165 Vitest, 8/8 E2E. |
 | `P2-A.4` | Nota adhesiva técnica (`stickyNote`) | **Cerrado** | `STICKY_NOTE_SIZE_PT = 24` en puntos (cuadrado en pantalla y hit-test idéntico a dibujado), sin asunción de points[1] en SVG/exportador/clamps, dimensiones de página obligatorias sin fallback 612/792 (cero fallo silencioso), exportación vectorial pura (re/m/l/f/rg/RG midiendo 24x24 y sin 0.0001, /Subtype /Text ni /Annots), creación al confirmar (1 cmd; 0 en cancel), 4 presets de color persistidos y guarda del atajo N en inputs/textareas. | 175/175 Vitest, 9/9 E2E, fila 28 en PARITY.md. |
 | `P2-A.5` | Resaltador vectorial (`highlightVector`) | **Cerrado** | Atajo `H` con guarda de foco, umbral de creación en 4 px de pantalla invariable al zoom (`exceedsScreenThreshold`), `HIGHLIGHT_STYLE` como fuente única de verdad (#ffff00 al 50% con multiply), previsualización en vivo sin fuga de trazo discontinuo al PDF, creación atómica min/max y test de oro verificando `/BM /Multiply` y `/ca 0.5` en `/ExtGState`. | 180/180 Vitest, 10/10 E2E, fila 29 en PARITY.md. |
-| `P2-A.6` | Resaltado de texto (`highlightText` con TextLayer) | **No empezado** | — | Cierre del Bloque A. |
+| `P2-A.6` | Resaltado de texto (`highlightText` con TextLayer) | **Cerrado** | TextLayer nativo de PDF.js 4.x sincronizado con `--scale-factor: scale`, compensación de offset del contenedor, extracción multilínea atómica con `groupId` común y `text` por línea, alerta accesible `role="alert"` en página sin texto (página 3 fixture real), exportación vectorial con `/BM /Multiply` y cobertura geométrica verificada a 1x y 2x. | 190/190 Vitest, 11/11 E2E, fila 30 en PARITY.md. |
 
 ---
 
@@ -59,10 +59,10 @@
 
 ## 3. Registro de Puertas de Calidad Actual
 
-- **Pruebas Unitarias:** 171 / 171 pasadas en Vitest (`src/`).
-- **Auditoría Literal de Paridad:** Superada (16 shipped verificadas literalmente, 6 todo con guion `-`).
+- **Pruebas Unitarias:** 190 / 190 pasadas en Vitest (`src/`).
+- **Auditoría Literal de Paridad:** Superada (18 shipped verificadas literalmente, 4 todo con guion `-`).
 - **Pruebas Rust:** 4 / 4 pasadas en `cargo test` (`src-tauri/`).
 - **Compilación de Producción:** Exitosa (`tsc && vite build`).
-- **Pruebas E2E:** 9 / 9 pasadas en Playwright suite completa.
+- **Pruebas E2E:** 11 / 11 pasadas en Playwright suite completa (3 pasadas verificadas).
 - **Warnings en Consola WebView:** 0 warnings reportados.
 - **Árbol de Git:** Limpio en rama `master`.

@@ -37,6 +37,8 @@ import {
   HIGHLIGHT_STYLE,
 } from '../types/markup';
 import { InlineTextEditor } from './markup/InlineTextEditor';
+import { showToast } from '../services/toastService';
+import { extractTextForLineRect, mergeLineRects } from '../utils/textLayerUtils';
 
 export const PdfViewer: React.FC = () => {
   const {
@@ -46,6 +48,8 @@ export const PdfViewer: React.FC = () => {
     scale,
     rotation,
     setPageDimensions,
+    pageHasText,
+    setPageHasText,
     isLoading,
     error,
   } = useDocumentStore();
@@ -72,6 +76,8 @@ export const PdfViewer: React.FC = () => {
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const pageContainerRef = useRef<HTMLDivElement | null>(null);
+  const textLayerRef = useRef<HTMLDivElement | null>(null);
   const dragStateRef = useRef<DragState | null>(null);
   const markupsRef = useRef(markups);
   markupsRef.current = markups;
@@ -132,11 +138,13 @@ export const PdfViewer: React.FC = () => {
         const result = await renderPageToCanvas(pdfDoc, currentPageIndex, canvasRef.current, {
           scale,
           rotation,
+          textLayerContainer: textLayerRef.current,
         });
 
         if (!isCancelled) {
           setPageViewport({ width: result.width, height: result.height });
           setPageDimensions(currentPageIndex, result.width, result.height);
+          setPageHasText(currentPageIndex, result.hasText);
         }
       } catch (err) {
         console.error('Error renderizando página PDF:', err);
@@ -148,12 +156,16 @@ export const PdfViewer: React.FC = () => {
     return () => {
       isCancelled = true;
     };
-  }, [pdfDoc, currentPageIndex, scale, rotation, setPageDimensions]);
+  }, [pdfDoc, currentPageIndex, scale, rotation, setPageDimensions, setPageHasText]);
 
   // Manejar atajos de teclado: Escape (Criterio 3), Enter (cerrar polígono), Delete (borrar)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement)?.isContentEditable
+      ) {
         return;
       }
 
@@ -251,7 +263,19 @@ export const PdfViewer: React.FC = () => {
         return;
       }
 
-      if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'h' || e.key === 'H')) {
+      if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'h' || e.key === 'H')) {
+        e.preventDefault();
+        if (pageHasText[currentPageIndex] === false) {
+          showToast(
+            'Esta página no contiene capa de texto seleccionable. Utilice el resaltador vectorial (H).'
+          );
+        }
+        useToolStore.getState().setActiveTool('highlightText');
+        return;
+      }
+
+      if (!e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'h' || e.key === 'H')) {
+        e.preventDefault();
         useToolStore.getState().setActiveTool('highlightVector');
         return;
       }
@@ -271,6 +295,7 @@ export const PdfViewer: React.FC = () => {
     drawingStart,
     activeTool,
     currentPageIndex,
+    pageHasText,
     currentStyle,
     author,
     activeLayer,
@@ -919,6 +944,98 @@ export const PdfViewer: React.FC = () => {
     updateMarkup(markupId, { leaders: [...currentLeaders, [newAnchor]] });
   };
 
+  const handleTextLayerClick = () => {
+    if (activeTool === 'highlightText' && pageHasText[currentPageIndex] === false) {
+      showToast(
+        'Esta página no contiene capa de texto seleccionable. Utilice el resaltador vectorial (H).'
+      );
+    }
+  };
+
+  const handleTextSelectionMouseUp = () => {
+    if (activeTool !== 'highlightText') return;
+
+    if (pageHasText[currentPageIndex] === false) {
+      showToast(
+        'Esta página no contiene capa de texto seleccionable. Utilice el resaltador vectorial (H).'
+      );
+      return;
+    }
+
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    const rawRects = Array.from(range.getClientRects());
+    const validRects = mergeLineRects(rawRects);
+    if (validRects.length === 0) {
+      return;
+    }
+
+    const container = pageContainerRef.current;
+    if (!container) return;
+    const containerRect = container.getBoundingClientRect();
+
+    // Condición 4 & 6: N marcas con un groupId común en un solo addMarkups atómico
+    const groupId = validRects.length > 1 ? uuidv4() : undefined;
+    const now = new Date().toISOString();
+
+    const newMarkups: Markup[] = validRects.map((rect) => {
+      // Condición 1: Restar el offset del contenedor antes de screenToNormalized
+      const leftInPage = rect.left - containerRect.left;
+      const topInPage = rect.top - containerRect.top;
+      const rightInPage = rect.right - containerRect.left;
+      const bottomInPage = rect.bottom - containerRect.top;
+
+      const p1 = screenToNormalized(leftInPage, topInPage, viewportTransform);
+      const p2 = screenToNormalized(rightInPage, bottomInPage, viewportTransform);
+
+      const canonicalP1 = {
+        x: Math.max(0, Math.min(1, Math.min(p1.x, p2.x))),
+        y: Math.max(0, Math.min(1, Math.min(p1.y, p2.y))),
+      };
+      const canonicalP2 = {
+        x: Math.max(0, Math.min(1, Math.max(p1.x, p2.x))),
+        y: Math.max(0, Math.min(1, Math.max(p1.y, p2.y))),
+      };
+
+      const lineText =
+        extractTextForLineRect(rect, range, textLayerRef.current) || range.toString().trim();
+
+      return {
+        id: uuidv4(),
+        type: 'highlightText',
+        pageIndex: currentPageIndex,
+        groupId,
+        points: [canonicalP1, canonicalP2],
+        text: lineText,
+        style: {
+          strokeColor: 'transparent',
+          fillColor: HIGHLIGHT_STYLE.colorHex,
+          strokeWidth: 0,
+          opacity: HIGHLIGHT_STYLE.opacity,
+        },
+        author: author || 'Revisor Técnico',
+        createdAt: now,
+        updatedAt: now,
+        status: 'pending',
+        layer: activeLayer,
+      };
+    });
+
+    addMarkups(
+      newMarkups,
+      newMarkups.length > 1
+        ? `Resaltar texto (${newMarkups.length} líneas)`
+        : 'Resaltar texto'
+    );
+    setSelectedMarkupIds(newMarkups.map((m) => m.id));
+
+    selection.removeAllRanges();
+  };
+
   const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex);
 
   return (
@@ -948,7 +1065,11 @@ export const PdfViewer: React.FC = () => {
 
       {pdfBytes && (
         <div
-          className="relative shadow-2xl bg-white"
+          ref={pageContainerRef}
+          data-testid="pdf-page-container"
+          data-rendered-page={currentPageIndex}
+          data-has-text={String(pageHasText[currentPageIndex] ?? 'loading')}
+          className="relative shadow-2xl bg-white select-text"
           style={{ width: `${pageViewport.width}px`, height: `${pageViewport.height}px` }}
         >
           {/* Canvas de PDF.js */}
@@ -957,6 +1078,21 @@ export const PdfViewer: React.FC = () => {
             id="pdf-render-canvas"
             data-testid="pdf-canvas"
             className="block"
+          />
+
+          {/* TextLayer de PDF.js 4.x */}
+          <div
+            ref={textLayerRef}
+            data-testid="pdf-text-layer"
+            className="textLayer"
+            style={{
+              width: `${pageViewport.width}px`,
+              height: `${pageViewport.height}px`,
+              '--scale-factor': scale || 1.0,
+              pointerEvents: activeTool === 'highlightText' ? 'auto' : 'none',
+            } as React.CSSProperties}
+            onMouseUp={handleTextSelectionMouseUp}
+            onClick={handleTextLayerClick}
           />
 
           {/* Editor inline genérico para texto y notas (B6 y A.4) */}
@@ -1063,7 +1199,11 @@ export const PdfViewer: React.FC = () => {
             viewBox={`0 0 ${pageViewport.width} ${pageViewport.height}`}
             style={{ width: `${pageViewport.width}px`, height: `${pageViewport.height}px` }}
             className={`absolute inset-0 w-full h-full ${
-              activeTool === 'select' ? 'cursor-default' : 'cursor-crosshair'
+              activeTool === 'highlightText'
+                ? 'pointer-events-none'
+                : activeTool === 'select'
+                ? 'cursor-default'
+                : 'cursor-crosshair'
             }`}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}

@@ -16,6 +16,7 @@ interface DocumentState {
   scale: number;
   rotation: number; // 0, 90, 180, 270
   pageDimensions: Record<number, PageDimension>;
+  pageHasText: Record<number, boolean>;
   isLoading: boolean;
   error: string | null;
 
@@ -34,6 +35,7 @@ interface DocumentState {
   resetZoom: () => void;
   rotateClockwise: () => void;
   setPageDimensions: (pageIndex: number, width: number, height: number) => void;
+  setPageHasText: (pageIndex: number, hasText: boolean) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   closeDocument: () => void;
@@ -53,6 +55,7 @@ export const useDocumentStore = create<DocumentState>((set) => ({
   scale: 1.0,
   rotation: 0,
   pageDimensions: {},
+  pageHasText: {},
   isLoading: false,
   error: null,
 
@@ -67,6 +70,7 @@ export const useDocumentStore = create<DocumentState>((set) => ({
       scale: 1.0,
       rotation: 0,
       pageDimensions: {},
+      pageHasText: {},
       error: null,
       isLoading: false,
     }),
@@ -106,6 +110,14 @@ export const useDocumentStore = create<DocumentState>((set) => ({
       pageDimensions: {
         ...state.pageDimensions,
         [pageIndex]: { width, height },
+      },
+    })),
+
+  setPageHasText: (pageIndex, hasText) =>
+    set((state) => ({
+      pageHasText: {
+        ...state.pageHasText,
+        [pageIndex]: hasText,
       },
     })),
 

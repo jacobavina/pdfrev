@@ -381,4 +381,244 @@ describe('useMarkupStore Integration & History', () => {
       expect(useMarkupStore.getState().markups[0].id).toBe('sticky-cmd-1');
     });
   });
+
+  // --------------------------------------------------------------------------------
+  // Sub-entregable A.6: Modelo multilínea para highlightText con groupId común
+  // --------------------------------------------------------------------------------
+  describe('Sub-entregable A.6: Modelo multilínea para highlightText con groupId común', () => {
+    it('tres líneas -> exactamente 3 marcas con un solo groupId y exactamente 1 comando en el historial', () => {
+      useMarkupStore.setState({ markups: [], selectedMarkupIds: [] });
+      markupHistory.clear();
+
+      const groupId = 'group-hl-multiline-1';
+      const lines: Markup[] = [
+        {
+          id: 'hl-line-1',
+          type: 'highlightText',
+          pageIndex: 0,
+          groupId,
+          points: [
+            { x: 0.1, y: 0.1 },
+            { x: 0.4, y: 0.15 },
+          ],
+          text: 'Primera línea',
+          style: { strokeColor: 'transparent', strokeWidth: 0, opacity: 0.5 },
+          author: 'Revisor',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: 'pending',
+        },
+        {
+          id: 'hl-line-2',
+          type: 'highlightText',
+          pageIndex: 0,
+          groupId,
+          points: [
+            { x: 0.1, y: 0.16 },
+            { x: 0.5, y: 0.21 },
+          ],
+          text: 'Segunda línea',
+          style: { strokeColor: 'transparent', strokeWidth: 0, opacity: 0.5 },
+          author: 'Revisor',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: 'pending',
+        },
+        {
+          id: 'hl-line-3',
+          type: 'highlightText',
+          pageIndex: 0,
+          groupId,
+          points: [
+            { x: 0.1, y: 0.22 },
+            { x: 0.35, y: 0.27 },
+          ],
+          text: 'Tercera línea',
+          style: { strokeColor: 'transparent', strokeWidth: 0, opacity: 0.5 },
+          author: 'Revisor',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: 'pending',
+        },
+      ];
+
+      expect(markupHistory.getUndoCount()).toBe(0);
+      useMarkupStore.getState().addMarkups(lines, 'Resaltar texto (3 líneas)');
+
+      // Exactamente 3 marcas con el mismo groupId
+      expect(useMarkupStore.getState().markups).toHaveLength(3);
+      expect(useMarkupStore.getState().markups.every((m) => m.groupId === groupId)).toBe(true);
+
+      // Cada marca guarda el texto de su propia línea
+      expect(useMarkupStore.getState().markups.map((m) => m.text)).toEqual([
+        'Primera línea',
+        'Segunda línea',
+        'Tercera línea',
+      ]);
+
+      // Exactamente 1 comando en el historial
+      expect(markupHistory.getUndoCount()).toBe(1);
+
+      // Un solo Ctrl+Z (undo) las quita todas
+      useMarkupStore.getState().undo();
+      expect(useMarkupStore.getState().markups).toHaveLength(0);
+      expect(markupHistory.getUndoCount()).toBe(0);
+
+      // Un solo Ctrl+Y (redo) las restaura todas
+      useMarkupStore.getState().redo();
+      expect(useMarkupStore.getState().markups).toHaveLength(3);
+      expect(markupHistory.getUndoCount()).toBe(1);
+    });
+
+    it('borrar una de las marcas del grupo borra las 3 en un solo paso', () => {
+      useMarkupStore.setState({ markups: [], selectedMarkupIds: [] });
+      markupHistory.clear();
+
+      const groupId = 'group-hl-multiline-2';
+      const lines: Markup[] = [
+        {
+          id: 'hl-l1',
+          type: 'highlightText',
+          pageIndex: 0,
+          groupId,
+          points: [
+            { x: 0.1, y: 0.1 },
+            { x: 0.4, y: 0.15 },
+          ],
+          text: 'L1',
+          style: { strokeColor: 'transparent', strokeWidth: 0, opacity: 0.5 },
+          author: 'Revisor',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: 'pending',
+        },
+        {
+          id: 'hl-l2',
+          type: 'highlightText',
+          pageIndex: 0,
+          groupId,
+          points: [
+            { x: 0.1, y: 0.16 },
+            { x: 0.5, y: 0.21 },
+          ],
+          text: 'L2',
+          style: { strokeColor: 'transparent', strokeWidth: 0, opacity: 0.5 },
+          author: 'Revisor',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: 'pending',
+        },
+        {
+          id: 'hl-l3',
+          type: 'highlightText',
+          pageIndex: 0,
+          groupId,
+          points: [
+            { x: 0.1, y: 0.22 },
+            { x: 0.35, y: 0.27 },
+          ],
+          text: 'L3',
+          style: { strokeColor: 'transparent', strokeWidth: 0, opacity: 0.5 },
+          author: 'Revisor',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: 'pending',
+        },
+      ];
+
+      useMarkupStore.getState().addMarkups(lines);
+      expect(useMarkupStore.getState().markups).toHaveLength(3);
+
+      // Borrar la marca 2 por id
+      useMarkupStore.getState().deleteMarkup('hl-l2');
+      // Las 3 marcas han sido borradas porque pertenecen al mismo groupId
+      expect(useMarkupStore.getState().markups).toHaveLength(0);
+
+      // Deshacer restaura las 3
+      useMarkupStore.getState().undo();
+      expect(useMarkupStore.getState().markups).toHaveLength(3);
+    });
+
+    it('arrastrar una de las marcas mueve las 3 juntas mediante handleSelectMouseDown', () => {
+      const groupId = 'group-hl-multiline-3';
+      const lines: Markup[] = [
+        {
+          id: 'hl-m1',
+          type: 'highlightText',
+          pageIndex: 0,
+          groupId,
+          points: [
+            { x: 0.1, y: 0.1 },
+            { x: 0.4, y: 0.15 },
+          ],
+          text: 'M1',
+          style: { strokeColor: 'transparent', strokeWidth: 0, opacity: 0.5 },
+          author: 'Revisor',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: 'pending',
+        },
+        {
+          id: 'hl-m2',
+          type: 'highlightText',
+          pageIndex: 0,
+          groupId,
+          points: [
+            { x: 0.1, y: 0.16 },
+            { x: 0.5, y: 0.21 },
+          ],
+          text: 'M2',
+          style: { strokeColor: 'transparent', strokeWidth: 0, opacity: 0.5 },
+          author: 'Revisor',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: 'pending',
+        },
+        {
+          id: 'hl-m3',
+          type: 'highlightText',
+          pageIndex: 0,
+          groupId,
+          points: [
+            { x: 0.1, y: 0.22 },
+            { x: 0.35, y: 0.27 },
+          ],
+          text: 'M3',
+          style: { strokeColor: 'transparent', strokeWidth: 0, opacity: 0.5 },
+          author: 'Revisor',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: 'pending',
+        },
+      ];
+
+      // Verificamos que selectMarkup expande la selección a los 3 miembros del grupo
+      useMarkupStore.setState({ markups: lines, selectedMarkupIds: [] });
+      useMarkupStore.getState().selectMarkup('hl-m1', false);
+      expect(useMarkupStore.getState().selectedMarkupIds).toEqual(['hl-m1', 'hl-m2', 'hl-m3']);
+
+      // commitMoveMarkups traslada los 3 elementos en un solo comando
+      const moves = lines.map((m) => ({
+        id: m.id,
+        originalPoints: m.points.map((p) => ({ ...p })),
+        newPoints: m.points.map((p) => ({ x: p.x + 0.05, y: p.y + 0.05 })),
+      }));
+
+      const undoCountBefore = markupHistory.getUndoCount();
+      useMarkupStore.getState().commitMoveMarkups(moves);
+      expect(markupHistory.getUndoCount()).toBe(undoCountBefore + 1);
+
+      const updated = useMarkupStore.getState().markups;
+      expect(updated[0].points[0].x).toBeCloseTo(0.15);
+      expect(updated[1].points[0].x).toBeCloseTo(0.15);
+      expect(updated[2].points[0].x).toBeCloseTo(0.15);
+
+      // Un solo undo() revierte el movimiento conjunto de los 3
+      useMarkupStore.getState().undo();
+      const reverted = useMarkupStore.getState().markups;
+      expect(reverted[0].points[0].x).toBeCloseTo(0.1);
+      expect(reverted[1].points[0].x).toBeCloseTo(0.1);
+      expect(reverted[2].points[0].x).toBeCloseTo(0.1);
+    });
+  });
 });

@@ -160,6 +160,42 @@ export async function generateTestPdf(outputPath: string): Promise<FixtureMeta> 
     color: rgb(0.1, 0.4, 0.1),
   });
 
+  // --- PÁGINA 3: Plano puramente vectorial sin capa de texto (PÁGINA 3) ---
+  // Representa un plano escaneado o dibujo CAD sin OCR ni texto seleccionable
+  const page3 = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+  for (let x = 60; x < PAGE_WIDTH; x += 80) {
+    page3.drawLine({
+      start: { x, y: 60 },
+      end: { x, y: PAGE_HEIGHT - 60 },
+      thickness: 1,
+      color: rgb(0.75, 0.75, 0.8),
+    });
+  }
+  for (let y = 60; y < PAGE_HEIGHT; y += 80) {
+    page3.drawLine({
+      start: { x: 60, y },
+      end: { x: PAGE_WIDTH - 60, y },
+      thickness: 1,
+      color: rgb(0.75, 0.75, 0.8),
+    });
+  }
+  page3.drawRectangle({
+    x: 150,
+    y: 150,
+    width: 500,
+    height: 300,
+    borderWidth: 2,
+    borderColor: rgb(0.2, 0.3, 0.6),
+    color: rgb(0.92, 0.94, 0.98),
+  });
+  page3.drawCircle({
+    x: 400,
+    y: 300,
+    size: 60,
+    borderWidth: 2,
+    borderColor: rgb(0.7, 0.2, 0.2),
+  });
+
   // Save PDF
   const dir = path.dirname(outputPath);
   if (!fs.existsSync(dir)) {
@@ -170,7 +206,7 @@ export async function generateTestPdf(outputPath: string): Promise<FixtureMeta> 
   fs.writeFileSync(outputPath, pdfBytes);
 
   const meta: FixtureMeta = {
-    pageCount: 2,
+    pageCount: 3,
     pageSize: { width: PAGE_WIDTH, height: PAGE_HEIGHT },
     knownRectangle: {
       pdf: rectPdf,
@@ -183,6 +219,24 @@ export async function generateTestPdf(outputPath: string): Promise<FixtureMeta> 
 
   const metaPath = outputPath.replace(/\.pdf$/, '.meta.json');
   fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2), 'utf8');
+
+  // Copia automática a public/fixtures si la ruta destino está en fixtures/
+  if (outputPath.includes(path.join('fixtures', 'test-blueprint.pdf'))) {
+    const publicPdfPath = outputPath.replace(
+      path.join('fixtures', 'test-blueprint.pdf'),
+      path.join('public', 'fixtures', 'test-blueprint.pdf')
+    );
+    const publicMetaPath = metaPath.replace(
+      path.join('fixtures', 'test-blueprint.meta.json'),
+      path.join('public', 'fixtures', 'test-blueprint.meta.json')
+    );
+    const publicDir = path.dirname(publicPdfPath);
+    if (!fs.existsSync(publicDir)) {
+      fs.mkdirSync(publicDir, { recursive: true });
+    }
+    fs.writeFileSync(publicPdfPath, pdfBytes);
+    fs.writeFileSync(publicMetaPath, JSON.stringify(meta, null, 2), 'utf8');
+  }
 
   console.log(`[fixture] PDF generado exitosamente en: ${outputPath}`);
   console.log(`[fixture] Metadatos guardados en: ${metaPath}`);
@@ -284,8 +338,7 @@ if (import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}`) {
   const targetRotated = path.resolve(process.cwd(), 'fixtures/test-blueprint-rotated.pdf');
 
   Promise.all([
-    // Solo generar test-blueprint.pdf si no existe para no tocarlo innecesariamente
-    fs.existsSync(targetNormal) ? Promise.resolve() : generateTestPdf(targetNormal),
+    generateTestPdf(targetNormal),
     generateRotatedTestPdf(targetRotated),
   ]).catch((err) => {
     console.error('Error generando fixtures PDF:', err);

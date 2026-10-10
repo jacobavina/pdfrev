@@ -15,6 +15,7 @@ import {
   PageTransformInfo,
 } from './pdfExportService';
 import { Markup, HIGHLIGHT_STYLE } from '../types/markup';
+import { calculateCalloutGeometry, wrapCalloutText } from '../core/markup/render';
 
 describe('PDF Export Service (Sub-entregable 0.3 - H1 Vector Export)', () => {
   const blueprintPath = path.resolve(__dirname, '../../fixtures/test-blueprint.pdf');
@@ -554,5 +555,112 @@ describe('PDF Export Service (Sub-entregable 0.3 - H1 Vector Export)', () => {
     const res = await exportMarkupsToPdf(originalPdfBytes, allTypes);
     expect(res.pdfBytes.length).toBeGreaterThan(0);
     expect(res.warnings.replacedCharactersCount).toBe(0);
+  });
+
+  it('Sub-entregable A.3 (TEST DE ORO): Callout exporta directriz, flecha, caja y texto, con ajuste métrico garantizado', async () => {
+    const textContent = 'Verificar armado de viga segun plano E-04 y norma Eurocodigo 2';
+    const testCallout: Markup = {
+      id: 'gold-callout',
+      type: 'callout',
+      pageIndex: 0,
+      points: [
+        { x: 0.3, y: 0.2 },
+        { x: 0.6, y: 0.3 },
+      ],
+      leaders: [[{ x: 0.1, y: 0.15 }]],
+      text: textContent,
+      style: {
+        strokeColor: '#0055ff',
+        fillColor: '#ffffff',
+        strokeWidth: 1.5,
+        opacity: 1,
+        fontSize: 10,
+      },
+      author: 'Ingeniero Estructural',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: 'pending',
+    };
+
+    const res = await exportMarkupsToPdf(originalPdfBytes, [testCallout]);
+    expect(res.pdfBytes.length).toBeGreaterThan(0);
+
+    const loadedDoc = await PDFDocument.load(res.pdfBytes);
+    const helvetica = await loadedDoc.embedFont(StandardFonts.Helvetica);
+    const streams = getDecompressedStreams(loadedDoc, 0);
+    const stream = streams[streams.length - 1] || '';
+
+    // 1. Verificación de emisión vectorial en el content stream
+    // El ancla está en (0.1, 0.15) de una página 800x600 pt -> x=80, y=600 - 90 = 510
+    expect(stream).toContain('80 -510 m');
+    expect(stream).toContain('160 -450 l');
+    expect(stream).toContain('240 -450 l');
+    expect(stream).toContain('240 -480 m');
+
+    // 2. Condición 1: Verificación de que todas las líneas envueltas caben dentro de la caja dibujada
+    const lines = wrapCalloutText(textContent);
+    expect(lines.length).toBeGreaterThan(0);
+
+    const geom = calculateCalloutGeometry(
+      { x: 0.3 * 800, y: 0.2 * 600 },
+      { x: 0.6 * 800, y: 0.3 * 600 },
+      [[{ x: 0.1 * 800, y: 0.15 * 600 }]],
+      1
+    );
+
+    const maxTextWidthAllowed = geom.box.width - 12;
+    for (const line of lines) {
+      const realWidth = helvetica.widthOfTextAtSize(line, 10);
+      expect(realWidth).toBeLessThanOrEqual(maxTextWidthAllowed);
+    }
+  });
+
+  it('Sub-entregable A.3 (ROTACIÓN): Callout en PDF rotado 90° mantiene geometría visual coherente', async () => {
+    const rotatedPath = path.resolve(__dirname, '../../fixtures/test-blueprint-rotated.pdf');
+    const rotatedBytes = new Uint8Array(fs.readFileSync(rotatedPath));
+
+    // Colocamos el Callout en coordenadas visuales normalizadas
+    // Ancla en (0.1, 0.2), Caja entre (0.25, 0.125) y (0.55, 0.25)
+    const rotatedCallout: Markup = {
+      id: 'rotated-callout',
+      type: 'callout',
+      pageIndex: 0,
+      points: [
+        { x: 0.25, y: 0.125 },
+        { x: 0.55, y: 0.25 },
+      ],
+      leaders: [[{ x: 0.1, y: 0.2 }]],
+      text: 'Nota en plano rotado',
+      style: {
+        strokeColor: '#0055ff',
+        fillColor: '#ffffff',
+        strokeWidth: 1.5,
+        opacity: 1,
+        fontSize: 10,
+      },
+      author: 'Revisor',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: 'pending',
+    };
+
+    const res = await exportMarkupsToPdf(rotatedBytes, [rotatedCallout]);
+    expect(res.pdfBytes.length).toBeGreaterThan(0);
+
+    const loadedDoc = await PDFDocument.load(res.pdfBytes);
+    const page0 = loadedDoc.getPages()[0];
+    expect(page0.getRotation().angle).toBe(90);
+
+    const streams = getDecompressedStreams(loadedDoc, 0);
+    const stream = streams[streams.length - 1] || '';
+
+    // En rotación 90° de 800x600 pt:
+    // u=0.1, v=0.2 -> x_pdf = 0.2 * 800 = 160, y_pdf = 0.1 * 600 = 60
+    // En drawSvgPath con Y negada, el ancla proyecta en 160 -60 m
+    expect(stream).toContain('160 -60 m');
+
+    // La esquina superior-izquierda de la caja visual (0.25, 0.125) proyecta en:
+    // x_pdf = 0.125 * 800 = 100, y_pdf = 0.25 * 600 = 150 -> 100 -150 m
+    expect(stream).toContain('100 -150 m');
   });
 });

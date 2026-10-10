@@ -24,7 +24,7 @@ Este documento registra la paridad funcional real implementada en REA, vinculand
 | **Cloud+ como grupo indivisible (arrastre, borrado y undo atómico)** | `shipped` | `tests/e2e/pdf-viewer.spec.ts` | `Sub-entregable A.1: Cloud+ como grupo (creación atómica, arrastre conjunto de nube y directriz, y borrado/deshacer en un paso)` | PENDIENTE DE VERIFICAR |
 | **Multiselección con Marquee por intersección y traslación conjunta** | `shipped` | `tests/e2e/pdf-viewer.spec.ts` | `Sub-entregable A.2: Multiselección con Marquee por intersección, verificación de lista intacta, arrastre conjunto y undo atómico` | PENDIENTE DE VERIFICAR |
 | **Prefiltro O(N) para Marquee en tiempo real (< 10ms)** | `shipped` | `src/utils/coordinates.test.ts` | `Condición 5 (Rendimiento): selectMarkupsInRect filtra 500 marcas en menos de 10ms` | No aplica (benchmarking unitario) |
-| **Callout / Nota técnica con directriz conectada** | `todo` | `-` | `Pendiente de plan de implementación (P2-A.3)` | Pendiente de implementación |
+| **Callout / Nota técnica con directriz conectada** | `shipped` | `tests/e2e/pdf-viewer.spec.ts` | `Sub-entregable A.3: Creación de Callout con directriz, edición inline, movimiento independiente de ancla y arrastre conjunto de caja` | PENDIENTE DE VERIFICAR |
 | **Nota adhesiva técnica (`stickyNote`)** | `todo` | `-` | `Pendiente de implementación (P2-A.4)` | Pendiente de implementación |
 | **Resaltador vectorial (`highlightVector`)** | `todo` | `-` | `Pendiente de implementación (P2-A.5)` | Pendiente de implementación |
 | **Resaltado de texto (`highlightText` con TextLayer)** | `todo` | `-` | `Pendiente de implementación (P2-A.6)` | Pendiente de implementación |

@@ -25,6 +25,7 @@ import {
   getMarkupSvgDescriptor,
   renderSvgDescriptor,
   DEFAULT_ARC_STEP,
+  estimateCalloutBoxNormalizedSize,
 } from '../core/markup/render';
 import { Markup, MarkupPoint, MarkupType } from '../types/markup';
 import { InlineTextEditor } from './markup/InlineTextEditor';
@@ -64,6 +65,18 @@ export const PdfViewer: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const dragStateRef = useRef<DragState | null>(null);
+  const markupsRef = useRef(markups);
+  markupsRef.current = markups;
+
+  const anchorDragRef = useRef<{
+    markupId: string;
+    leaderIndex: number;
+    initialLeaders: MarkupPoint[][];
+    startScreenX: number;
+    startScreenY: number;
+    hasMoved: boolean;
+  } | null>(null);
+
   const marqueeStateRef = useRef<{
     start: MarkupPoint;
     current: MarkupPoint;
@@ -149,6 +162,16 @@ export const PdfViewer: React.FC = () => {
           setMarkupsTransient(initial);
           return;
         }
+        if (anchorDragRef.current) {
+          e.preventDefault();
+          const { markupId, initialLeaders } = anchorDragRef.current;
+          anchorDragRef.current = null;
+          const target = markupsRef.current.find((m) => m.id === markupId);
+          if (target) {
+            setMarkupsTransient([{ ...target, leaders: initialLeaders }]);
+          }
+          return;
+        }
         if (polygonPoints.length > 0 || freehandPoints.length > 0 || drawingStart) {
           e.preventDefault();
           setPolygonPoints([]);
@@ -204,6 +227,11 @@ export const PdfViewer: React.FC = () => {
       if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) {
         e.preventDefault();
         if (canRedo) redo();
+        return;
+      }
+
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'q' || e.key === 'Q')) {
+        useToolStore.getState().setActiveTool('callout');
         return;
       }
     };
@@ -262,6 +290,25 @@ export const PdfViewer: React.FC = () => {
           commitMoveMarkups(result.moves);
         } else if (result.restoredMarkups) {
           setMarkupsTransient(result.restoredMarkups);
+        }
+      }
+      if (anchorDragRef.current) {
+        const { markupId, initialLeaders, hasMoved } = anchorDragRef.current;
+        anchorDragRef.current = null;
+        if (hasMoved) {
+          const currentMarkups = useMarkupStore.getState().markups;
+          const target = currentMarkups.find((m) => m.id === markupId);
+          if (target && target.leaders) {
+            commitMoveMarkups([
+              {
+                id: markupId,
+                originalPoints: target.points.map((p) => ({ ...p })),
+                newPoints: target.points.map((p) => ({ ...p })),
+                originalLeaders: initialLeaders,
+                newLeaders: target.leaders,
+              },
+            ]);
+          }
         }
       }
     };
@@ -371,6 +418,24 @@ export const PdfViewer: React.FC = () => {
     const pt = getEventPoint(e);
     setMouseCursorPoint(pt);
 
+    // Arrastre independiente de ancla de directriz (Callout)
+    if (anchorDragRef.current) {
+      const { markupId, leaderIndex } = anchorDragRef.current;
+      anchorDragRef.current.hasMoved = true;
+      const clampedPt = {
+        x: Math.max(0, Math.min(1, pt.x)),
+        y: Math.max(0, Math.min(1, pt.y)),
+      };
+      const target = markupsRef.current.find((m) => m.id === markupId);
+      if (target && target.leaders) {
+        const updatedLeaders = target.leaders.map((lead, idx) =>
+          idx === leaderIndex ? [clampedPt, ...lead.slice(1)] : lead
+        );
+        setMarkupsTransient([{ ...target, leaders: updatedLeaders }]);
+      }
+      return;
+    }
+
     // Arrastre interactivo o Marquee en modo selección
     if (activeTool === 'select') {
       if (dragStateRef.current) {
@@ -435,6 +500,27 @@ export const PdfViewer: React.FC = () => {
   };
 
   const handleMouseUp = (_e: React.MouseEvent<SVGSVGElement>) => {
+    // Finalización de arrastre de ancla de directriz
+    if (anchorDragRef.current) {
+      const { markupId, initialLeaders, hasMoved } = anchorDragRef.current;
+      anchorDragRef.current = null;
+      if (hasMoved) {
+        const target = markupsRef.current.find((m) => m.id === markupId);
+        if (target && target.leaders) {
+          commitMoveMarkups([
+            {
+              id: markupId,
+              originalPoints: target.points.map((p) => ({ ...p })),
+              newPoints: target.points.map((p) => ({ ...p })),
+              originalLeaders: initialLeaders,
+              newLeaders: target.leaders,
+            },
+          ]);
+        }
+      }
+      return;
+    }
+
     // Finalización de arrastre o Marquee en modo selección
     if (activeTool === 'select') {
       if (marqueeStateRef.current) {
@@ -560,6 +646,53 @@ export const PdfViewer: React.FC = () => {
         };
 
         addMarkups([cloudMarkup, calloutMarkup], 'Crear Cloud+');
+      } else if (activeTool === 'callout') {
+        const newId = uuidv4();
+        const initialText = 'Nota técnica';
+        const normSize = estimateCalloutBoxNormalizedSize(
+          initialText,
+          10,
+          pageViewport.width,
+          pageViewport.height
+        );
+        const boxP1 = {
+          x: Math.max(0, Math.min(1 - normSize.width, currentDrawPoint.x)),
+          y: Math.max(0, Math.min(1 - normSize.height, currentDrawPoint.y)),
+        };
+        const boxP2 = {
+          x: boxP1.x + normSize.width,
+          y: boxP1.y + normSize.height,
+        };
+
+        const calloutMarkup: Markup = {
+          id: newId,
+          type: 'callout',
+          pageIndex: currentPageIndex,
+          points: [boxP1, boxP2],
+          leaders: [[{ x: drawingStart.x, y: drawingStart.y }]],
+          style: {
+            ...currentStyle,
+            fillColor:
+              currentStyle.fillColor && currentStyle.fillColor !== 'transparent'
+                ? currentStyle.fillColor
+                : '#ffffff',
+            strokeWidth: currentStyle.strokeWidth || 1.5,
+          },
+          text: initialText,
+          author: author || 'Revisor',
+          createdAt: now,
+          updatedAt: now,
+          status: 'pending',
+          layer: activeLayer,
+        };
+
+        addMarkup(calloutMarkup);
+        setSelectedMarkupIds([newId]);
+        setInlineEditing({
+          markupId: newId,
+          initialText,
+          position: boxP1,
+        });
       } else {
         const newId = uuidv4();
         const customFields = activeTool === 'cloud' ? { arcStep: DEFAULT_ARC_STEP } : undefined;
@@ -618,20 +751,74 @@ export const PdfViewer: React.FC = () => {
       return;
     }
 
-    // Doble clic sobre texto existente para editar inline
+    // Doble clic sobre texto o callout existente para editar inline
     const pt = getEventPoint(e);
     const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex);
-    const textHit = [...pageMarkups]
+    const hit = [...pageMarkups]
       .reverse()
-      .find((m) => m.type === 'text' && hitTestMarkup(pt, m));
+      .find((m) => (m.type === 'text' || m.type === 'callout') && hitTestMarkup(pt, m));
 
-    if (textHit) {
+    if (hit) {
       setInlineEditing({
-        markupId: textHit.id,
-        initialText: textHit.text || '',
-        position: textHit.points[0],
+        markupId: hit.id,
+        initialText: hit.text || '',
+        position: hit.points[0],
       });
+      return;
     }
+  };
+
+  const handleAnchorMouseDown = (
+    e: React.MouseEvent<SVGCircleElement>,
+    markupId: string,
+    leaderIndex: number
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const target = markupsRef.current.find((m) => m.id === markupId);
+    if (!target || !target.leaders) return;
+
+    anchorDragRef.current = {
+      markupId,
+      leaderIndex,
+      initialLeaders: target.leaders.map((lead) => lead.map((p) => ({ ...p }))),
+      startScreenX: e.clientX,
+      startScreenY: e.clientY,
+      hasMoved: false,
+    };
+  };
+
+  const handleAnchorContextMenu = (
+    e: React.MouseEvent<SVGCircleElement>,
+    markupId: string,
+    leaderIndex: number
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const target = markupsRef.current.find((m) => m.id === markupId);
+    if (!target || !target.leaders) return;
+    if (target.leaders.length <= 1) {
+      // Invariante de mínimo 1 directriz: si leaders.length === 1, es no-op
+      return;
+    }
+    const remaining = target.leaders.filter((_, idx) => idx !== leaderIndex);
+    updateMarkup(markupId, { leaders: remaining });
+  };
+
+  const handleAddLeader = (e: React.MouseEvent, markupId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const target = markupsRef.current.find((m) => m.id === markupId);
+    if (!target) return;
+    const boxP1 = target.points[0];
+    const newAnchorX = boxP1.x > 0.15 ? boxP1.x - 0.08 : boxP1.x + 0.15;
+    const newAnchorY = boxP1.y > 0.15 ? boxP1.y - 0.08 : boxP1.y + 0.15;
+    const newAnchor = {
+      x: Math.max(0.01, Math.min(0.99, newAnchorX)),
+      y: Math.max(0.01, Math.min(0.99, newAnchorY)),
+    };
+    const currentLeaders = target.leaders || [];
+    updateMarkup(markupId, { leaders: [...currentLeaders, [newAnchor]] });
   };
 
   const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex);
@@ -681,7 +868,30 @@ export const PdfViewer: React.FC = () => {
               position={inlineEditing.position}
               transform={viewportTransform}
               onCommit={(newText) => {
-                updateMarkup(inlineEditing.markupId, { text: newText });
+                const targetMarkup = markupsRef.current.find((m) => m.id === inlineEditing.markupId);
+                if (targetMarkup) {
+                  // Condición 4: Si el texto es idéntico al actual, evitar comando de historial vacío
+                  if (targetMarkup.text === newText) {
+                    setInlineEditing(null);
+                    return;
+                  }
+                  if (targetMarkup.type === 'callout') {
+                    const normSize = estimateCalloutBoxNormalizedSize(
+                      newText,
+                      10,
+                      pageViewport.width,
+                      pageViewport.height
+                    );
+                    const p1 = targetMarkup.points[0];
+                    const p2 = {
+                      x: Math.min(1, p1.x + normSize.width),
+                      y: Math.min(1, p1.y + normSize.height),
+                    };
+                    updateMarkup(targetMarkup.id, { text: newText, points: [p1, p2] });
+                  } else {
+                    updateMarkup(targetMarkup.id, { text: newText });
+                  }
+                }
                 setInlineEditing(null);
               }}
               onCancel={() => setInlineEditing(null)}
@@ -755,6 +965,62 @@ export const PdfViewer: React.FC = () => {
                     }
                     return null;
                   })()}
+
+                  {/* Tiradores interactivos para Callout seleccionado */}
+                  {isSelected && markup.type === 'callout' && (
+                    <g className="callout-handles">
+                      {/* Tiradores de ancla (punta de flecha) */}
+                      {markup.leaders?.map((leader, lIdx) => {
+                        if (!leader || leader.length === 0) return null;
+                        const anchorScr = normalizedToScreen(leader[0], viewportTransform);
+                        return (
+                          <circle
+                            key={`callout-anchor-${markup.id}-${lIdx}`}
+                            data-testid={`callout-anchor-handle-${lIdx}`}
+                            cx={anchorScr.x}
+                            cy={anchorScr.y}
+                            r={6}
+                            fill="#ffffff"
+                            stroke="#0284c7"
+                            strokeWidth={2}
+                            className="cursor-move"
+                            onMouseDown={(e) => handleAnchorMouseDown(e, markup.id, lIdx)}
+                            onContextMenu={(e) => handleAnchorContextMenu(e, markup.id, lIdx)}
+                          />
+                        );
+                      })}
+
+                      {/* Tirador para añadir directriz (+) */}
+                      {(() => {
+                        const p1Scr = normalizedToScreen(markup.points[0], viewportTransform);
+                        const p2Scr = normalizedToScreen(markup.points[1], viewportTransform);
+                        const boxRight = Math.max(p1Scr.x, p2Scr.x);
+                        const boxTop = Math.min(p1Scr.y, p2Scr.y);
+                        const addX = boxRight + 12;
+                        const addY = boxTop + 10;
+                        return (
+                          <g
+                            data-testid="callout-add-leader-handle"
+                            className="cursor-pointer"
+                            onClick={(e) => handleAddLeader(e, markup.id)}
+                          >
+                            <circle cx={addX} cy={addY} r={8} fill="#0284c7" stroke="#ffffff" strokeWidth={1.5} />
+                            <text
+                              x={addX}
+                              y={addY + 3.5}
+                              textAnchor="middle"
+                              fill="#ffffff"
+                              fontSize="11"
+                              fontWeight="bold"
+                              className="select-none pointer-events-none"
+                            >
+                              +
+                            </text>
+                          </g>
+                        );
+                      })()}
+                    </g>
+                  )}
                 </g>
               );
             })}
@@ -887,6 +1153,41 @@ export const PdfViewer: React.FC = () => {
                         fill="#fffbe8"
                         strokeDasharray="3 3"
                       />
+                    );
+                  }
+
+                  if (activeTool === 'callout') {
+                    const normSize = estimateCalloutBoxNormalizedSize(
+                      'Nota técnica',
+                      10,
+                      pageViewport.width,
+                      pageViewport.height
+                    );
+                    const boxW = normSize.width * viewportTransform.width;
+                    const boxH = normSize.height * viewportTransform.height;
+                    return (
+                      <g>
+                        <line
+                          x1={p1.x}
+                          y1={p1.y}
+                          x2={p2.x}
+                          y2={p2.y}
+                          stroke={currentStyle.strokeColor}
+                          strokeWidth={currentStyle.strokeWidth || 1.5}
+                          strokeDasharray="4 2"
+                        />
+                        <circle cx={p1.x} cy={p1.y} r={4} fill={currentStyle.strokeColor} />
+                        <rect
+                          x={p2.x}
+                          y={p2.y}
+                          width={boxW}
+                          height={boxH}
+                          stroke={currentStyle.strokeColor}
+                          strokeWidth={1}
+                          fill="rgba(255, 255, 255, 0.85)"
+                          strokeDasharray="3 3"
+                        />
+                      </g>
                     );
                   }
 

@@ -7,9 +7,15 @@ import {
   RGB,
   BlendMode,
   LineCapStyle,
+  degrees,
 } from 'pdf-lib';
 import { Markup, MarkupPoint, HIGHLIGHT_STYLE } from '../types/markup';
-import { generateCloudPath, DEFAULT_ARC_STEP } from '../core/markup/render';
+import {
+  generateCloudPath,
+  DEFAULT_ARC_STEP,
+  calculateCalloutGeometry,
+  wrapCalloutText,
+} from '../core/markup/render';
 
 export interface PageTransformInfo {
   rotation: 0 | 90 | 180 | 270;
@@ -569,50 +575,112 @@ export async function exportMarkupsToPdf(
           break;
         }
 
-        // 10. Callout (Llamada con directriz)
+        // 10. Callout (Nota técnica con directriz conectada)
         case 'callout': {
-          const p1 = normalizedToPdfCoordinates(markup.points[0] || { x: 0, y: 0 }, transform);
-          const p2 = normalizedToPdfCoordinates(
-            markup.points[1] || markup.points[0] || { x: 0, y: 0 },
-            transform
-          );
-          const x = Math.min(p1.x, p2.x);
-          const y = Math.min(p1.y, p2.y);
-          const width = Math.max(80, Math.abs(p2.x - p1.x));
-          const height = Math.max(26, Math.abs(p2.y - p1.y));
+          if (!markup.points || markup.points.length === 0) break;
 
-          // Caja de texto
-          page.drawRectangle({
-            x,
-            y,
-            width,
-            height,
-            color: fillColorParsed.color ?? rgb(1, 1, 1),
-            borderColor: strokeColorParsed.color,
-            borderWidth: strokeWidth,
+          const isRotated90or270 = transform.rotation === 90 || transform.rotation === 270;
+          const visualWidthPt = isRotated90or270 ? transform.heightPt : transform.widthPt;
+          const visualHeightPt = isRotated90or270 ? transform.widthPt : transform.heightPt;
+
+          const p1Norm = markup.points[0];
+          const p2Norm = markup.points[1] || p1Norm;
+
+          const boxP1Vis = { x: p1Norm.x * visualWidthPt, y: p1Norm.y * visualHeightPt };
+          const boxP2Vis = { x: p2Norm.x * visualWidthPt, y: p2Norm.y * visualHeightPt };
+
+          const leadersVis = (markup.leaders || []).map((lead) =>
+            lead.map((pt) => ({ x: pt.x * visualWidthPt, y: pt.y * visualHeightPt }))
+          );
+
+          // Geometría unificada usando la función pura calculateCalloutGeometry (escala 1 pt)
+          const geom = calculateCalloutGeometry(boxP1Vis, boxP2Vis, leadersVis, 1);
+
+          const toNorm = (ptVis: { x: number; y: number }): MarkupPoint => ({
+            x: ptVis.x / visualWidthPt,
+            y: ptVis.y / visualHeightPt,
           });
 
-          // Flecha directriz (de leader a centro de caja)
-          if (markup.leaders && markup.leaders[0] && markup.leaders[0][0]) {
-            const arrowHead = normalizedToPdfCoordinates(markup.leaders[0][0], transform);
-            page.drawLine({
-              start: { x: arrowHead.x, y: arrowHead.y },
-              end: { x: x, y: y + height / 2 },
-              thickness: strokeWidth,
+          // 1. Dibujar directrices (al fondo detrás de la caja)
+          for (const leader of geom.leaders) {
+            const pdfArrowHead = normalizedToPdfCoordinates(toNorm(leader.arrowHead), transform);
+            const pdfElbow = normalizedToPdfCoordinates(toNorm(leader.elbow), transform);
+            const pdfBoxAttachment = normalizedToPdfCoordinates(toNorm(leader.boxAttachment), transform);
+
+            // Línea con quiebre (codo + hombro)
+            const leaderD = `M ${pdfArrowHead.x.toFixed(2)} ${(-pdfArrowHead.y).toFixed(2)} L ${pdfElbow.x.toFixed(2)} ${(-pdfElbow.y).toFixed(2)} L ${pdfBoxAttachment.x.toFixed(2)} ${(-pdfBoxAttachment.y).toFixed(2)}`;
+            page.drawSvgPath(leaderD, {
+              x: 0,
+              y: 0,
+              borderColor: strokeColorParsed.color,
+              borderWidth: strokeWidth,
+              borderOpacity: strokeColorParsed.opacity ?? opacity,
+            });
+
+            // Cabeza de flecha poligonal en el objetivo
+            const [tip, b1, b2] = leader.arrowPoints;
+            const pdfTip = normalizedToPdfCoordinates(toNorm(tip), transform);
+            const pdfB1 = normalizedToPdfCoordinates(toNorm(b1), transform);
+            const pdfB2 = normalizedToPdfCoordinates(toNorm(b2), transform);
+
+            const arrowD = `M ${pdfTip.x.toFixed(2)} ${(-pdfTip.y).toFixed(2)} L ${pdfB1.x.toFixed(2)} ${(-pdfB1.y).toFixed(2)} L ${pdfB2.x.toFixed(2)} ${(-pdfB2.y).toFixed(2)} Z`;
+            page.drawSvgPath(arrowD, {
+              x: 0,
+              y: 0,
               color: strokeColorParsed.color,
+              borderColor: strokeColorParsed.color,
+              borderWidth: 1,
+              opacity: strokeColorParsed.opacity ?? opacity,
             });
           }
 
+          // 2. Dibujar caja de llamada (cubriendo la entrada de las directrices)
+          const normTL = toNorm({ x: geom.box.x, y: geom.box.y });
+          const normTR = toNorm({ x: geom.box.x + geom.box.width, y: geom.box.y });
+          const normBR = toNorm({ x: geom.box.x + geom.box.width, y: geom.box.y + geom.box.height });
+          const normBL = toNorm({ x: geom.box.x, y: geom.box.y + geom.box.height });
+
+          const pdfTL = normalizedToPdfCoordinates(normTL, transform);
+          const pdfTR = normalizedToPdfCoordinates(normTR, transform);
+          const pdfBR = normalizedToPdfCoordinates(normBR, transform);
+          const pdfBL = normalizedToPdfCoordinates(normBL, transform);
+
+          const boxD = `M ${pdfTL.x.toFixed(2)} ${(-pdfTL.y).toFixed(2)} L ${pdfTR.x.toFixed(2)} ${(-pdfTR.y).toFixed(2)} L ${pdfBR.x.toFixed(2)} ${(-pdfBR.y).toFixed(2)} L ${pdfBL.x.toFixed(2)} ${(-pdfBL.y).toFixed(2)} Z`;
+          page.drawSvgPath(boxD, {
+            x: 0,
+            y: 0,
+            color: fillColorParsed.color ?? rgb(1, 1, 1),
+            borderColor: strokeColorParsed.color,
+            borderWidth: strokeWidth,
+            borderOpacity: strokeColorParsed.opacity ?? opacity,
+            opacity: opacity,
+          });
+
+          // 3. Dibujar texto técnico alineado dentro de la caja
           if (markup.text) {
             const sanitized = sanitizeTextToWinAnsi(markup.text);
             totalReplacedCharacters += sanitized.replacedCount;
-            page.drawText(sanitized.text, {
-              x: x + 6,
-              y: y + height - 14,
-              size: 10,
-              font: helveticaFont,
-              color: rgb(0.1, 0.1, 0.1),
-            });
+
+            const lines = wrapCalloutText(sanitized.text);
+            const fontSize = markup.style.fontSize ?? 10;
+            const lineHeight = fontSize + 3;
+
+            for (let i = 0; i < lines.length; i++) {
+              const textPosVis = {
+                x: geom.box.x + 6,
+                y: geom.box.y + 14 + i * lineHeight,
+              };
+              const textPdfPos = normalizedToPdfCoordinates(toNorm(textPosVis), transform);
+
+              page.drawText(lines[i], {
+                x: textPdfPos.x,
+                y: textPdfPos.y,
+                size: fontSize,
+                font: helveticaFont,
+                color: rgb(0.12, 0.16, 0.22),
+                rotate: transform.rotation === 0 ? undefined : degrees((360 - transform.rotation) % 360),
+              });
+            }
           }
           break;
         }

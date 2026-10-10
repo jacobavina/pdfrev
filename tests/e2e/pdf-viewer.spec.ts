@@ -511,5 +511,138 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     expect(rect2RestoredX).toBeCloseTo(rect2InitialX, 0);
     expect(rect2RestoredY).toBeCloseTo(rect2InitialY, 0);
   });
+
+  test('Sub-entregable A.3: Creación de Callout con directriz, edición inline, movimiento independiente de ancla y arrastre conjunto de caja', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+
+    const markupsPanel = page.locator('[data-testid="markups-list-panel"]');
+    await expect(markupsPanel).toBeVisible();
+
+    const svgBox = await overlaySvg.boundingBox();
+    expect(svgBox).not.toBeNull();
+    if (!svgBox) return;
+
+    // 1. Seleccionar herramienta Callout (Nota técnica con directriz)
+    const calloutBtn = page.locator('button[title*="directriz"]');
+    await calloutBtn.click();
+
+    // 2. Crear Callout arrastrando en el lienzo:
+    // Desde el objetivo/ancla (140, 140) hasta la posición de la caja (260, 220)
+    await page.mouse.move(svgBox.x + 140, svgBox.y + 140);
+    await page.mouse.down();
+    await page.mouse.move(svgBox.x + 260, svgBox.y + 220);
+    await page.mouse.up();
+
+    // 3. Verificar que el editor inline se abre automáticamente
+    const editorInput = page.locator('[data-testid="inline-text-editor-input"]');
+    await expect(editorInput).toBeVisible();
+
+    // Obtener referencias de la caja y texto del callout
+    const calloutGroup = overlaySvg.locator('g[data-testid^="markup-g-"]').last();
+    const calloutBox = calloutGroup.locator('rect:not([data-testid="selection-bbox"])');
+    await expect(calloutBox).toBeVisible();
+    const initialBoxWidth = parseFloat((await calloutBox.getAttribute('width'))!);
+
+    // 4. Escribir texto técnico extenso y confirmar con Enter
+    const newTechnicalText = 'Tubería de impulsión DN200 según plano de fontanería';
+    await editorInput.fill(newTechnicalText);
+    await page.keyboard.press('Enter');
+
+    // El editor inline debe cerrarse
+    await expect(editorInput).toHaveCount(0);
+
+    // El texto debe reflejarse en el SVG y la caja debe haberse expandido
+    const textElem = calloutGroup.locator('text').first();
+    await expect(textElem).toContainText('Tubería de impulsión');
+    const expandedBoxWidth = parseFloat((await calloutBox.getAttribute('width'))!);
+    expect(expandedBoxWidth).toBeGreaterThan(initialBoxWidth);
+    await expect(markupsPanel).toContainText('callout');
+
+    // 5. Cambiar a herramienta Seleccionar (V)
+    const selectBtn = page.locator('button[title*="Seleccionar"]');
+    await selectBtn.click();
+
+    // El tirador de ancla del callout seleccionado debe estar visible
+    const anchorHandle = overlaySvg.locator('[data-testid="callout-anchor-handle-0"]');
+    await expect(anchorHandle).toBeVisible();
+
+    const initAnchorCx = parseFloat((await anchorHandle.getAttribute('cx'))!);
+    const initAnchorCy = parseFloat((await anchorHandle.getAttribute('cy'))!);
+    const initBoxX = parseFloat((await calloutBox.getAttribute('x'))!);
+    const initBoxY = parseFloat((await calloutBox.getAttribute('y'))!);
+
+    // 6. Arrastrar el tirador del ancla de forma independiente (Paso 4 del plan aprobado):
+    // El ancla se desplaza mientras que la caja permanece estacionaria
+    await page.mouse.move(svgBox.x + initAnchorCx, svgBox.y + initAnchorCy);
+    await page.mouse.down();
+    await page.mouse.move(svgBox.x + initAnchorCx - 40, svgBox.y + initAnchorCy - 30);
+    await page.mouse.up();
+
+    const movedAnchorCx = parseFloat((await anchorHandle.getAttribute('cx'))!);
+    const movedAnchorCy = parseFloat((await anchorHandle.getAttribute('cy'))!);
+    expect(movedAnchorCx).toBeCloseTo(initAnchorCx - 40, 0);
+    expect(movedAnchorCy).toBeCloseTo(initAnchorCy - 30, 0);
+
+    const boxXAfterAnchorDrag = parseFloat((await calloutBox.getAttribute('x'))!);
+    const boxYAfterAnchorDrag = parseFloat((await calloutBox.getAttribute('y'))!);
+    expect(boxXAfterAnchorDrag).toBeCloseTo(initBoxX, 0);
+    expect(boxYAfterAnchorDrag).toBeCloseTo(initBoxY, 0);
+
+    // 7. Arrastre de la caja del callout (Resolución del BLOQUEANTE - Paso 5 del plan aprobado):
+    // Arrastrar la caja debe desplazar la caja Y la directriz por el EXACTO MISMO delta
+    const boxClickX = svgBox.x + boxXAfterAnchorDrag + 30;
+    const boxClickY = svgBox.y + boxYAfterAnchorDrag + 15;
+
+    await page.mouse.move(boxClickX, boxClickY);
+    await page.mouse.down();
+    await page.mouse.move(boxClickX + 60, boxClickY + 40);
+    await page.mouse.up();
+
+    const finalBoxX = parseFloat((await calloutBox.getAttribute('x'))!);
+    const finalBoxY = parseFloat((await calloutBox.getAttribute('y'))!);
+    const finalAnchorCx = parseFloat((await anchorHandle.getAttribute('cx'))!);
+    const finalAnchorCy = parseFloat((await anchorHandle.getAttribute('cy'))!);
+
+    const deltaBoxX = finalBoxX - boxXAfterAnchorDrag;
+    const deltaBoxY = finalBoxY - boxYAfterAnchorDrag;
+    const deltaAnchorX = finalAnchorCx - movedAnchorCx;
+    const deltaAnchorY = finalAnchorCy - movedAnchorCy;
+
+    expect(deltaBoxX).toBeGreaterThanOrEqual(50);
+    expect(deltaBoxX).toBeLessThanOrEqual(70);
+    expect(deltaBoxY).toBeGreaterThanOrEqual(30);
+    expect(deltaBoxY).toBeLessThanOrEqual(50);
+
+    // Directriz y caja se trasladan por el mismo delta exacto
+    expect(deltaAnchorX).toBeCloseTo(deltaBoxX, 0);
+    expect(deltaAnchorY).toBeCloseTo(deltaBoxY, 0);
+
+    // 8. Deshacer atómico con Ctrl+Z del arrastre de la caja:
+    await page.keyboard.press('Control+z');
+
+    const restoredBoxX = parseFloat((await calloutBox.getAttribute('x'))!);
+    const restoredBoxY = parseFloat((await calloutBox.getAttribute('y'))!);
+    const restoredAnchorCx = parseFloat((await anchorHandle.getAttribute('cx'))!);
+    const restoredAnchorCy = parseFloat((await anchorHandle.getAttribute('cy'))!);
+
+    expect(restoredBoxX).toBeCloseTo(boxXAfterAnchorDrag, 0);
+    expect(restoredBoxY).toBeCloseTo(boxYAfterAnchorDrag, 0);
+    expect(restoredAnchorCx).toBeCloseTo(movedAnchorCx, 0);
+    expect(restoredAnchorCy).toBeCloseTo(movedAnchorCy, 0);
+
+    // 9. Segundo Deshacer con Ctrl+Z del movimiento independiente de ancla:
+    await page.keyboard.press('Control+z');
+
+    const initialRestoredAnchorCx = parseFloat((await anchorHandle.getAttribute('cx'))!);
+    const initialRestoredAnchorCy = parseFloat((await anchorHandle.getAttribute('cy'))!);
+    expect(initialRestoredAnchorCx).toBeCloseTo(initAnchorCx, 0);
+    expect(initialRestoredAnchorCy).toBeCloseTo(initAnchorCy, 0);
+  });
 });
+
 

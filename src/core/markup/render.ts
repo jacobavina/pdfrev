@@ -228,6 +228,44 @@ export function getCalloutGeometryFromMarkup(
   return calculateCalloutGeometry(p1, p2, leadersRaw, transform.scale);
 }
 
+export const CALLOUT_MAX_CHARS_PER_LINE = 36;
+
+/**
+ * Condición 1 (A.3): Fuente única para medir y envolver el texto de notas y llamadas.
+ * Divide el texto en líneas envolviendo por palabras respetando saltos de línea explícitos,
+ * con un límite conservador de caracteres por línea.
+ */
+export function wrapCalloutText(
+  text: string,
+  maxCharsPerLine = CALLOUT_MAX_CHARS_PER_LINE
+): string[] {
+  const paragraphs = (text || '').split(/\r?\n/);
+  const lines: string[] = [];
+
+  for (const para of paragraphs) {
+    const trimmed = para.trim();
+    if (!trimmed) {
+      lines.push('');
+      continue;
+    }
+    const words = trimmed.split(/\s+/);
+    let currentLine = '';
+
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      if (testLine.length <= maxCharsPerLine || !currentLine) {
+        currentLine = testLine;
+      } else {
+        lines.push(currentLine);
+        currentLine = word;
+      }
+    }
+    if (currentLine) lines.push(currentLine);
+  }
+
+  return lines.length > 0 ? lines : [''];
+}
+
 /**
  * Calcula las dimensiones normalizadas requeridas por la caja para alojar el texto indicado.
  * Permite que points[1] sea la fuente única de verdad para render, export y hit-testing.
@@ -238,7 +276,7 @@ export function estimateCalloutBoxNormalizedSize(
   pageWidthPt = 800,
   pageHeightPt = 600
 ): { width: number; height: number } {
-  const lines = (text || '').split(/\r?\n/);
+  const lines = wrapCalloutText(text);
   const longestLine = Math.max(...lines.map((l) => l.length), 4);
   const charWidthPt = fontSizePt * 0.6;
   const paddingPt = 14;
@@ -605,19 +643,25 @@ export function getMarkupSvgDescriptor(
         },
       });
 
-      // 3. Texto de la llamada (capa superior dentro de la caja)
-      children.push({
-        tag: 'text',
-        attrs: {
-          x: geom.box.x + 6,
-          y: geom.box.y + 16,
-          fontSize: style.fontSize || 12,
-          fill: '#1f2937',
-          fontFamily: style.fontFamily || 'sans-serif',
-          className: 'font-medium pointer-events-none',
-        },
-        textNode: markup.text || '',
-      });
+      // 3. Texto de la llamada (capa superior dentro de la caja, multilínea unificada)
+      const calloutLines = wrapCalloutText(markup.text || '');
+      const fontSize = style.fontSize || 12;
+      const lineHeight = fontSize + 3;
+
+      for (let i = 0; i < calloutLines.length; i++) {
+        children.push({
+          tag: 'text',
+          attrs: {
+            x: geom.box.x + 6,
+            y: geom.box.y + 16 + i * lineHeight,
+            fontSize,
+            fill: '#1f2937',
+            fontFamily: style.fontFamily || 'sans-serif',
+            className: 'font-medium pointer-events-none',
+          },
+          textNode: calloutLines[i],
+        });
+      }
 
       return {
         tag: 'g',

@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ToolVectorThumbnail } from './ToolVectorThumbnail';
-import { MarkupStyle } from '../../types/markup';
+import { ToolVectorThumbnail, createSampleMarkup } from './ToolVectorThumbnail';
+import { MarkupStyle, VALID_MARKUP_TYPES } from '../../types/markup';
+import { getMarkupSvgDescriptor } from '../../core/markup/render';
 
-describe('ToolVectorThumbnail (Miniaturas Vectoriales B.3)', () => {
+describe('ToolVectorThumbnail (Canal Único de Renderizado ADR-0007 / B.3)', () => {
   const baseStyle: MarkupStyle = {
     strokeColor: '#2563eb',
     fillColor: 'rgba(37, 99, 235, 0.2)',
@@ -12,7 +13,7 @@ describe('ToolVectorThumbnail (Miniaturas Vectoriales B.3)', () => {
     dashArray: [4, 4],
   };
 
-  it('renderiza miniatura para rectángulo con estilos aplicados', () => {
+  it('renderiza miniatura para rectángulo con estilos aplicados mediante pipeline canónico', () => {
     render(<ToolVectorThumbnail type="rectangle" style={baseStyle} mode="drawing" />);
 
     const thumbnail = screen.getByTestId('tool-vector-thumbnail-rectangle');
@@ -26,7 +27,7 @@ describe('ToolVectorThumbnail (Miniaturas Vectoriales B.3)', () => {
     expect(rect).toBeInTheDocument();
     expect(rect?.getAttribute('stroke')).toBe('#2563eb');
     expect(rect?.getAttribute('fill')).toBe('rgba(37, 99, 235, 0.2)');
-    expect(rect?.getAttribute('stroke-dasharray')).toBe('4,4');
+    expect(rect?.getAttribute('stroke-dasharray')).toMatch(/^4[ ,]4$/);
   });
 
   it('renderiza badge "P" para Modo Propiedad y "D" para Modo Dibujo', () => {
@@ -58,14 +59,17 @@ describe('ToolVectorThumbnail (Miniaturas Vectoriales B.3)', () => {
     expect(screen.queryByTestId('tool-mode-badge-properties')).toBeNull();
   });
 
-  it('renderiza geometrías vectoriales específicas para tipos avanzados', () => {
+  it('renderiza geometrías vectoriales del pipeline canónico para tipos complejos', () => {
     const { rerender } = render(
       <ToolVectorThumbnail type="callout" style={baseStyle} />
     );
-    expect(screen.getByTestId('tool-vector-thumbnail-callout').querySelector('polygon')).toBeInTheDocument();
+    const calloutEl = screen.getByTestId('tool-vector-thumbnail-callout');
+    expect(calloutEl.querySelector('polygon')).toBeInTheDocument(); // Saeta de la directriz
+    expect(calloutEl.querySelector('polyline')).toBeInTheDocument(); // Codo de la directriz
+    expect(calloutEl.querySelector('rect')).toBeInTheDocument(); // Caja de texto
 
     rerender(<ToolVectorThumbnail type="cloudPlus" style={baseStyle} />);
-    expect(screen.getByTestId('tool-vector-thumbnail-cloudPlus').querySelector('polyline')).toBeInTheDocument();
+    expect(screen.getByTestId('tool-vector-thumbnail-cloudPlus').querySelector('path')).toBeInTheDocument();
 
     rerender(
       <ToolVectorThumbnail
@@ -75,6 +79,7 @@ describe('ToolVectorThumbnail (Miniaturas Vectoriales B.3)', () => {
     );
     const sticky = screen.getByTestId('tool-vector-thumbnail-stickyNote');
     expect(sticky.querySelector('rect')?.getAttribute('fill')).toBe('#fef08a');
+    expect(sticky.querySelectorAll('line').length).toBe(3); // 3 líneas de nota técnica
 
     rerender(
       <ToolVectorThumbnail
@@ -83,5 +88,27 @@ describe('ToolVectorThumbnail (Miniaturas Vectoriales B.3)', () => {
       />
     );
     expect(screen.getByTestId('tool-vector-thumbnail-highlightVector')).toBeInTheDocument();
+  });
+
+  it('createSampleMarkup genera marcas válidas para los 14 tipos de VALID_MARKUP_TYPES', () => {
+    const dummyTransform = {
+      width: 100,
+      height: 100,
+      scale: 1,
+      offsetX: 0,
+      offsetY: 0,
+      rotation: 0,
+    };
+
+    for (const type of VALID_MARKUP_TYPES) {
+      const sample = createSampleMarkup(type, baseStyle);
+      expect(sample.type).toBe(type);
+      expect(sample.points.length).toBeGreaterThan(0);
+
+      // El descriptor del pipeline canónico debe generarse sin errores para los 14 tipos
+      const descriptor = getMarkupSvgDescriptor(sample, dummyTransform);
+      expect(descriptor).toBeDefined();
+      expect(['rect', 'ellipse', 'line', 'polygon', 'path', 'g']).toContain(descriptor.tag);
+    }
   });
 });

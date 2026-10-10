@@ -1200,6 +1200,177 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.keyboard.press('h');
     await expect(vectorBtn).toHaveClass(/bg-cad-accent/);
   });
+
+  test('Sub-entregable B.4 / B.5: Tool Chest (panel lateral, paletas, miniaturas vectoriales, drag & drop al canvas con tolerancia <= 5px, modo propiedad sobre K marcas y contexto en lista de marcas)', async ({
+    page,
+  }) => {
+    // 1. Cargar la aplicación
+    await page.goto('/');
+
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+
+    const toolChestPanel = page.locator('[data-testid="tool-chest-panel"]');
+    await expect(toolChestPanel).toBeVisible();
+
+    // 2. Expandir el panel de Tool Chest si está colapsado
+    const expandBtn = page.locator('[data-testid="expand-tool-chest-btn"]');
+    if (await expandBtn.isVisible()) {
+      await expandBtn.click();
+    }
+    await expect(toolChestPanel).toHaveAttribute('data-collapsed', 'false');
+
+    // 3. Verificar paleta por defecto "Mis Herramientas" y sección de recientes
+    const paletteSelect = page.locator('[data-testid="palette-select"]');
+    await expect(paletteSelect).toBeVisible();
+    await expect(paletteSelect).toHaveValue('default-palette');
+
+    const recentSection = page.locator('[data-testid="recent-tools-section"]');
+    await expect(recentSection).toBeVisible();
+
+    // 4. Añadir la marca de calibración al Tool Chest mediante el botón en la lista de marcas
+    const markupsPanel = page.locator('[data-testid="markups-list-panel"]');
+    await expect(markupsPanel).toBeVisible();
+
+    const calibRow = page.locator('[data-testid="markup-row-calibration-markup-1"]');
+    await expect(calibRow).toBeVisible();
+
+    // Añadir al Tool Chest mediante clic derecho (menú contextual)
+    await calibRow.click({ button: 'right' });
+    const contextMenu = page.locator('[data-testid="markups-list-context-menu"]');
+    await expect(contextMenu).toBeVisible();
+
+    const addToToolChestItem = page.locator('[data-testid="context-menu-add-to-toolchest"]');
+    await addToToolChestItem.click();
+
+    // 5. Verificar que la herramienta aparece en la paleta activa con su miniatura vectorial
+    const toolItems = toolChestPanel.locator('[data-testid^="tool-item-"]');
+    await expect(toolItems).toHaveCount(1);
+    const addedTool = toolItems.first();
+    await expect(addedTool).toBeVisible();
+    await expect(addedTool).toHaveAttribute('data-tool-type', 'rectangle');
+    await expect(addedTool).toHaveAttribute('data-tool-mode', 'drawing');
+
+    // La miniatura vectorial utiliza el pipeline canónico
+    const thumb = addedTool.locator('[data-testid="tool-vector-thumbnail-rectangle"]');
+    await expect(thumb).toBeVisible();
+
+    // 6. Sub-entregable B.5: Drag & Drop desde Tool Chest al canvas con tolerancia <= 5px
+    const initialGroups = overlaySvg.locator('g[data-testid^="markup-g-"]');
+    const initialCount = await initialGroups.count(); // 1 marca inicial (calibración)
+
+    const svgBox = (await overlaySvg.boundingBox())!;
+    const dropTargetX = Math.round(svgBox.x + 200);
+    const dropTargetY = Math.round(svgBox.y + 250);
+
+    // Obtener ID de la herramienta añadida
+    const toolTestId = await addedTool.getAttribute('data-testid');
+    const toolId = toolTestId ? toolTestId.replace('tool-item-', '') : 'fallback-id';
+    const toolPayload = {
+      id: toolId,
+      paletteId: 'default-palette',
+      name: 'Rectángulo Dropped',
+      type: 'rectangle',
+      style: { strokeColor: '#db2777', fillColor: 'rgba(219,39,119,0.2)', strokeWidth: 3, opacity: 1 },
+      mode: 'drawing',
+    };
+
+    // Despachar eventos nativos DragEvent con tipo MIME 'application/rea-tool'
+    await page.evaluate(
+      ({ selector, payload, clientX, clientY }) => {
+        const target = document.querySelector(selector);
+        if (!target) throw new Error('Target not found: ' + selector);
+
+        const dt = new DataTransfer();
+        dt.setData('application/rea-tool', JSON.stringify(payload));
+
+        const dragOver = new DragEvent('dragover', {
+          bubbles: true,
+          cancelable: true,
+          clientX,
+          clientY,
+          dataTransfer: dt,
+        });
+        target.dispatchEvent(dragOver);
+
+        const drop = new DragEvent('drop', {
+          bubbles: true,
+          cancelable: true,
+          clientX,
+          clientY,
+          dataTransfer: dt,
+        });
+        target.dispatchEvent(drop);
+      },
+      {
+        selector: '[data-testid="pdf-page-container"]',
+        payload: toolPayload,
+        clientX: dropTargetX,
+        clientY: dropTargetY,
+      }
+    );
+
+    // Invocación única de addMarkup: el conteo debe incrementar en exactamente 1
+    await expect(initialGroups).toHaveCount(initialCount + 1);
+
+    // Verificar tolerancia <= 5px entre el cursor de drop y el centro de la marca creada
+    const droppedGroup = initialGroups.last();
+    const droppedRect = droppedGroup.locator('rect:not([data-testid="selection-bbox"])');
+    await expect(droppedRect).toBeVisible();
+
+    const droppedBox = (await droppedRect.boundingBox())!;
+    const droppedCenterX = droppedBox.x + droppedBox.width / 2;
+    const droppedCenterY = droppedBox.y + droppedBox.height / 2;
+
+    expect(Math.abs(droppedCenterX - dropTargetX)).toBeLessThanOrEqual(5);
+    expect(Math.abs(droppedCenterY - dropTargetY)).toBeLessThanOrEqual(5);
+
+    // La herramienta se añadió automáticamente a Herramientas Recientes
+    const recentItems = toolChestPanel.locator('[data-testid^="recent-tool-"]');
+    await expect(recentItems).toHaveCount(1);
+
+    // 7. Probar Modo Propiedad sobre K marcas seleccionadas (un único comando atómico)
+    // Cambiar la herramienta a Modo Propiedad ('P')
+    const modeToggleBtn = addedTool.locator('[data-testid^="tool-mode-toggle-"]');
+    await modeToggleBtn.click();
+    await expect(addedTool).toHaveAttribute('data-tool-mode', 'properties');
+    await expect(modeToggleBtn).toHaveText('P');
+
+    // Seleccionar ambas marcas en el lienzo mediante Shift+Click
+    const calibGroup = initialGroups.first();
+    const calibRect = calibGroup.locator('rect:not([data-testid="selection-bbox"])');
+    const calibBox = (await calibRect.boundingBox())!;
+
+    // Clic en herramienta de selección
+    const selectBtn = page.locator('button[title*="Seleccionar"]');
+    await selectBtn.click();
+
+    // Seleccionar primera marca y con Shift la segunda
+    await page.mouse.click(calibBox.x + calibBox.width / 2, calibBox.y + calibBox.height / 2);
+    await page.keyboard.down('Shift');
+    await page.mouse.click(droppedCenterX, droppedCenterY);
+    await page.keyboard.up('Shift');
+
+    // Dos marcas seleccionadas
+    const selBboxes = overlaySvg.locator('rect[data-testid="selection-bbox"]');
+    await expect(selBboxes).toHaveCount(2);
+
+    // Aplicar estilo de herramienta en Modo Propiedad haciendo clic sobre ella en Tool Chest
+    await addedTool.click();
+
+    // Ambas marcas reciben el estilo de la herramienta (strokeColor = #0284c7)
+    await expect(calibRect).toHaveAttribute('stroke', '#0284c7');
+    await expect(droppedRect).toHaveAttribute('stroke', '#0284c7');
+
+    // Reversión con un único Ctrl+Z revierte la marca dropped a su color original (#db2777)
+    await page.keyboard.press('Control+z');
+    await expect(droppedRect).toHaveAttribute('stroke', '#db2777');
+
+    // 8. Colapsar el panel lateral para mantener el layout limpio
+    const collapseBtn = page.locator('[data-testid="collapse-tool-chest-btn"]');
+    await collapseBtn.click();
+    await expect(toolChestPanel).toHaveAttribute('data-collapsed', 'true');
+  });
 });
 
 

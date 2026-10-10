@@ -11,7 +11,10 @@ import {
   selectMarkupsInRect,
   getMarkupBounds,
   exceedsScreenThreshold,
+  getStickyNoteNormalizedSize,
 } from '../utils/coordinates';
+import { useToolChestStore } from '../store/useToolChestStore';
+import { ToolChestTool, RecentTool } from '../types/toolChest';
 import {
   handleSelectMouseDown,
   handleSelectMouseMove,
@@ -1038,6 +1041,185 @@ export const PdfViewer: React.FC = () => {
 
   const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex);
 
+  // Sub-entregable B.5: Arrastre y colocación de herramientas del Tool Chest sobre el lienzo
+  const handleDragOver = (e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes('application/rea-tool')) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    const rawData = e.dataTransfer.getData('application/rea-tool');
+    if (!rawData) return;
+    e.preventDefault();
+
+    try {
+      const tool = JSON.parse(rawData) as ToolChestTool | RecentTool;
+      if (!tool || !tool.type) return;
+
+      const pageEl = pageContainerRef.current;
+      if (!pageEl) return;
+      const rect = pageEl.getBoundingClientRect();
+
+      const screenX = e.clientX - rect.left;
+      const screenY = e.clientY - rect.top;
+
+      // Convertir punto de caída a coordenadas normalizadas [0..1]
+      const normCenter = screenToNormalized(screenX, screenY, viewportTransform);
+
+      const unscaledW = pageViewport.width / (scale || 1.0);
+      const unscaledH = pageViewport.height / (scale || 1.0);
+
+      // Dimensiones estándar en pantalla (120x60 px) proyectadas a espacio normalizado
+      const widthNorm = 120 / (viewportTransform.width * (viewportTransform.scale || 1.0));
+      const heightNorm = 60 / (viewportTransform.height * (viewportTransform.scale || 1.0));
+
+      let points: MarkupPoint[] = [];
+      let leaders: MarkupPoint[][] | undefined = undefined;
+
+      switch (tool.type) {
+        case 'rectangle':
+        case 'circle':
+        case 'highlight':
+        case 'highlightVector':
+        case 'highlightText':
+        case 'stamp': {
+          const halfW = widthNorm / 2;
+          const halfH = heightNorm / 2;
+          points = [
+            { x: Math.max(0, normCenter.x - halfW), y: Math.max(0, normCenter.y - halfH) },
+            { x: Math.min(1, normCenter.x + halfW), y: Math.min(1, normCenter.y + halfH) },
+          ];
+          break;
+        }
+
+        case 'line': {
+          const halfW = widthNorm / 2;
+          const halfH = heightNorm / 2;
+          points = [
+            { x: Math.max(0, normCenter.x - halfW), y: Math.max(0, normCenter.y + halfH) },
+            { x: Math.min(1, normCenter.x + halfW), y: Math.max(0, normCenter.y - halfH) },
+          ];
+          break;
+        }
+
+        case 'cloud':
+        case 'cloudPlus': {
+          const halfW = widthNorm / 2;
+          const halfH = heightNorm / 2;
+          points = [
+            { x: Math.max(0, normCenter.x - halfW), y: Math.max(0, normCenter.y - halfH) },
+            { x: Math.min(1, normCenter.x + halfW), y: Math.min(1, normCenter.y + halfH) },
+          ];
+          break;
+        }
+
+        case 'stickyNote': {
+          const normSize = getStickyNoteNormalizedSize({ width: unscaledW, height: unscaledH });
+          points = [
+            {
+              x: Math.max(0, normCenter.x - normSize.width / 2),
+              y: Math.max(0, normCenter.y - normSize.height / 2),
+            },
+          ];
+          break;
+        }
+
+        case 'callout': {
+          const boxW = Math.max(0.12, widthNorm);
+          const boxH = Math.max(0.04, heightNorm);
+          const boxP1 = {
+            x: Math.min(1 - boxW, normCenter.x + 0.04),
+            y: Math.max(0, normCenter.y - boxH - 0.02),
+          };
+          const boxP2 = { x: boxP1.x + boxW, y: boxP1.y + boxH };
+          points = [boxP1, boxP2];
+          leaders = [[{ x: normCenter.x, y: normCenter.y }]];
+          break;
+        }
+
+        case 'text': {
+          const halfW = widthNorm / 2;
+          const textHeightNorm = 30 / (viewportTransform.height * (viewportTransform.scale || 1.0));
+          const halfH = textHeightNorm / 2;
+          points = [
+            { x: Math.max(0, normCenter.x - halfW), y: Math.max(0, normCenter.y - halfH) },
+            { x: Math.min(1, normCenter.x + halfW), y: Math.min(1, normCenter.y + halfH) },
+          ];
+          break;
+        }
+
+        case 'polygon': {
+          const rW = widthNorm / 2;
+          const rH = heightNorm / 2;
+          points = [
+            { x: normCenter.x, y: normCenter.y - rH },
+            { x: normCenter.x + rW, y: normCenter.y },
+            { x: normCenter.x, y: normCenter.y + rH },
+            { x: normCenter.x - rW, y: normCenter.y },
+          ];
+          break;
+        }
+
+        case 'freehand': {
+          const rW = widthNorm / 2;
+          const strokeCurveNorm = 10 / (viewportTransform.height * (viewportTransform.scale || 1.0));
+          points = [
+            { x: normCenter.x - rW, y: normCenter.y },
+            { x: normCenter.x - rW / 2, y: normCenter.y - strokeCurveNorm },
+            { x: normCenter.x + rW / 2, y: normCenter.y + strokeCurveNorm },
+            { x: normCenter.x + rW, y: normCenter.y },
+          ];
+          break;
+        }
+
+        default: {
+          const halfW = widthNorm / 2;
+          const halfH = heightNorm / 2;
+          points = [
+            { x: Math.max(0, normCenter.x - halfW), y: Math.max(0, normCenter.y - halfH) },
+            { x: Math.min(1, normCenter.x + halfW), y: Math.min(1, normCenter.y + halfH) },
+          ];
+          break;
+        }
+      }
+
+      const now = new Date().toISOString();
+      const newId = uuidv4();
+      const newMarkup: Markup = {
+        id: newId,
+        type: tool.type,
+        pageIndex: currentPageIndex,
+        points,
+        leaders,
+        text:
+          tool.text ||
+          (tool.type === 'callout'
+            ? 'Nota técnica'
+            : tool.type === 'text'
+            ? 'Texto'
+            : undefined),
+        textFormat: tool.textFormat ? { ...tool.textFormat } : undefined,
+        style: { ...tool.style },
+        author: author || 'Revisor',
+        createdAt: now,
+        updatedAt: now,
+        status: 'pending',
+        layer: activeLayer,
+      };
+
+      // Invocación única de addMarkup (genera un único comando de historial reversible con Ctrl+Z)
+      addMarkup(newMarkup);
+      setSelectedMarkupIds([newId]);
+
+      // Registro asíncrono no bloqueante en Herramientas Recientes
+      useToolChestStore.getState().recordRecent(newMarkup);
+    } catch (err) {
+      console.error('Error al soltar herramienta en el lienzo:', err);
+    }
+  };
+
   return (
     <div
       ref={containerRef}
@@ -1071,6 +1253,8 @@ export const PdfViewer: React.FC = () => {
           data-has-text={String(pageHasText[currentPageIndex] ?? 'loading')}
           className="relative shadow-2xl bg-white select-text"
           style={{ width: `${pageViewport.width}px`, height: `${pageViewport.height}px` }}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
         >
           {/* Canvas de PDF.js */}
           <canvas
@@ -1209,6 +1393,8 @@ export const PdfViewer: React.FC = () => {
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onDoubleClick={handleDoubleClick}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
           >
             {/* Anotaciones guardadas en la página actual */}
             {pageMarkups.map((markup) => {

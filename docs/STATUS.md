@@ -10,8 +10,8 @@
 |---|---|---|
 | **Fase 1: Motor Base y Shell CAD** | **CERRADA** | 114 tests unitarios al cierre de fase + 4 tests cargo + 3 E2E (actualmente 152 tests unitarios tras A.2). R9 validado en disco desde ventana nativa por el usuario. |
 | **Fase 2 — Bloque A: Marcado y Manipulación** | **CERRADO** | 190 tests unitarios en 9 suites + 4 tests cargo + 11/11 E2E en Playwright. Las 7 filas verificadas en ventana nativa por el usuario (filas 22 a 25 y 27 a 30 de PARITY.md). Las seis nuevas herramientas se añadieron sin subir versión de esquema .bbx.json (se mantiene en 1.1.0). |
-| **Fase 2 — Bloque B: Tool Chest** | **EN CURSO (B.1 Servicio IndexedDB en desarrollo)** | Paletas IndexedDB, modos Propiedad/Dibujo, herramientas recientes (desacopladas) y drag & drop. B.1 en desarrollo con fake-indexeddb y migración de esquema. |
-| **Fase 2 — Bloque C: MarkupsList Completa** | **NO EMPEZADO** | Ordenación, filtros, columnas personalizadas, estados y reportes. Pendiente de cierre del Bloque B. |
+| **Fase 2 — Bloque B: Tool Chest** | **CERRADO** | 235 tests unitarios en 14 suites + 4 tests cargo + 12/12 E2E en Playwright. Fila 31 de PARITY.md shipped. Pipeline canónico unificado según ADR-0007, tolerancia de drag & drop <= 5px verificada, y persistencia IndexedDB con degradación ruidosa a memoria. |
+| **Fase 2 — Bloque C: MarkupsList Completa** | **NO EMPEZADO** | Ordenación, filtros multicriterio, columnas personalizadas, estados y reportes. Siguiente hito a iniciar. |
 | **Fase 2 — Bloque D: Capas y Sellos Dinámicos** | **NO EMPEZADO** | Capas lógicas persistidas y sellos vectoriales dinámicos. Pendiente de cierre del Bloque C. |
 
 ---
@@ -47,22 +47,33 @@
 
 ---
 
-### Fase 2: Bloques B, C y D
+### Fase 2: Bloque B — Tool Chest (Cerrado y Verificado)
+
+| ID | Hito / Característica | Estado | Evidencia y Verificación | Notas |
+|---|---|---|---|---|
+| `P2-B.1` | Servicio de Persistencia IndexedDB | **Cerrado** | Commit `d48d132`. DB `rea_toolchest_db` con almacenes `palettes`, `tools`, `recent_tools`. Migración v1->v2 con recreación controlada de objectStores. Fallback a memoria ruidoso en consola y alerta visual en UI. Herramientas Recientes desacopladas con política FIFO (tope 10) que jamás abortan la creación de marcas. 18 tests en `toolChestService.test.ts`. | `fake-indexeddb` 6.2.5 en devDependencies sin impacto en bundle. |
+| `P2-B.2` | Store Zustand de Tool Chest | **Cerrado** | Commit `0edeaa3`. Inmutabilidad verificada con `expect(nuevo).not.toBe(viejo)` en arrays y elementos. Modos Dibujo (D) y Propiedad (P). Aplicación de estilo sobre $K$ marcas seleccionadas como único comando atómico reversible con Ctrl+Z y guarda no-op si los estilos coinciden. 10 tests en `useToolChestStore.test.ts`. | Integración directa con `useMarkupStore`. |
+| `P2-B.3` | Miniaturas Vectoriales Canónicas | **Cerrado** | `ToolVectorThumbnail.tsx` refactorizado bajo Opción (A) según `ADR-0007`: reutiliza el pipeline canónico unificado `createSampleMarkup` + `getMarkupSvgDescriptor` + `renderSvgDescriptor`. Sin motores paralelos de dibujo. 5 tests en `ToolVectorThumbnail.test.tsx`. | Cero riesgo de divergencia visual. |
+| `P2-B.4` | Panel Lateral Tool Chest y Contexto | **Cerrado** | `ToolChestPanel.tsx` con selector de paletas, creación/eliminación interactiva, drag handle nativo HTML5, alternancia 'D'/'P', botón limpiar recientes y colapso para protección de viewport. `MarkupsList.tsx` enriquecido con menú contextual de clic derecho y botón de fila "Añadir a Tool Chest" sin tocar columnas ni filtros. 8 tests en `ToolChestPanel.test.tsx` y 2 tests en `MarkupsList.test.tsx`. | Sin alteración del layout canvas preexistente. |
+| `P2-B.5` | Drag & Drop al Canvas con Tolerancia <= 5px | **Cerrado** | `PdfViewer.tsx` con soporte `application/rea-tool` en `dragover` y `drop`. Centrado exacto del elemento respecto al cursor con tolerancia comprobada $\le 5\text{ px}$. Creación con invocación única de `addMarkup` (1 comando de historial) y registro asíncrono no bloqueante en recientes. Test 12 en `pdf-viewer.spec.ts`. | 12/12 E2E Playwright passing. |
+
+---
+
+### Fase 2: Bloques C y D
 
 | Bloque | Descripción | Estado | Prerrequisito |
 |---|---|---|---|
-| **Bloque B (Tool Chest)** | Paletas de estilos definidas por el usuario en IndexedDB, modos Propiedad y Dibujo, herramientas recientes y drag & drop al lienzo. | **En curso** (B.1 Servicio IndexedDB) | Bloque A cerrado y verificado por el usuario. |
-| **Bloque C (MarkupsList Completa)** | Ordenación, filtros multicriterio, columnas personalizadas con lista blanca, menú contextual de estados y exportación de reportes (PDF/Excel/CSV). | **No empezado** | Cierre total y auditado del Bloque B. |
+| **Bloque C (MarkupsList Completa)** | Ordenación, filtros multicriterio, columnas personalizadas con lista blanca, menú contextual de estados y exportación de reportes (PDF/Excel/CSV). | **Siguiente Hito** | Bloque B cerrado y verificado. |
 | **Bloque D (Capas y Sellos Dinámicos)** | Capas lógicas CAD con visibilidad persistida y sellos dinámicos basados en primitivas vectoriales limpias. | **No empezado** | Cierre total y auditado del Bloque C. |
 
 ---
 
 ## 3. Registro de Puertas de Calidad Actual
 
-- **Pruebas Unitarias:** 190 / 190 pasadas en Vitest (`src/`).
-- **Auditoría Literal de Paridad:** Superada (18 shipped verificadas literalmente, 4 todo con guion `-`).
+- **Pruebas Unitarias:** 235 / 235 pasadas en Vitest (`src/`) distribuidas en 14 suites.
+- **Auditoría Literal de Paridad:** Superada (19 shipped verificadas literalmente, 3 todo con guion `-`).
 - **Pruebas Rust:** 4 / 4 pasadas en `cargo test` (`src-tauri/`).
-- **Compilación de Producción:** Exitosa (`tsc && vite build`).
-- **Pruebas E2E:** 11 / 11 pasadas en Playwright suite completa (3 pasadas verificadas).
-- **Warnings en Consola WebView:** 0 warnings reportados.
-- **Árbol de Git:** Limpio en rama `master`.
+- **Compilación de Producción:** Exitosa (`tsc && vite build`), bundle limpio.
+- **Pruebas E2E:** 12 / 12 pasadas en Playwright suite completa (1 worker, Chromium).
+- **Warnings en Consola:** 0 warnings reportados.
+- **Árbol de Git:** Listo para commit en rama `master`.

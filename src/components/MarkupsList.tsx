@@ -11,9 +11,11 @@ import {
   HelpCircle,
   Highlighter,
   StickyNote,
+  Briefcase,
 } from 'lucide-react';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useDocumentStore } from '../store/useDocumentStore';
+import { useToolChestStore } from '../store/useToolChestStore';
 import { Markup, MarkupStatus, MarkupType } from '../types/markup';
 
 const STATUS_CONFIG: Record<
@@ -85,6 +87,17 @@ export const MarkupsList: React.FC = () => {
   const { currentPageIndex, setCurrentPage } = useDocumentStore();
   const [isExpanded, setIsExpanded] = useState(true);
   const [filterPageOnly, setFilterPageOnly] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    markup: Markup;
+  } | null>(null);
+
+  React.useEffect(() => {
+    const handleGlobalClick = () => setContextMenu(null);
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
+  }, []);
 
   const displayedMarkups = filterPageOnly
     ? markups.filter((m) => m.pageIndex === currentPageIndex)
@@ -185,6 +198,15 @@ export const MarkupsList: React.FC = () => {
                     <tr
                       key={markup.id}
                       onClick={(e) => handleRowClick(markup, e)}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        selectMarkup(markup.id, false);
+                        setContextMenu({
+                          x: e.clientX,
+                          y: e.clientY,
+                          markup,
+                        });
+                      }}
                       data-testid={`markup-row-${markup.id}`}
                       className={`cursor-pointer transition-colors ${
                         isSelected
@@ -257,7 +279,21 @@ export const MarkupsList: React.FC = () => {
                       </td>
 
                       {/* Acciones */}
-                      <td className="py-1 px-2 text-center" onClick={(e) => e.stopPropagation()}>
+                      <td className="py-1 px-2 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={async () => {
+                            const store = useToolChestStore.getState();
+                            const activePaletteId = store.activePaletteId || store.palettes[0]?.id;
+                            if (activePaletteId) {
+                              await store.createToolFromMarkup(activePaletteId, markup);
+                            }
+                          }}
+                          className="p-1 text-gray-400 hover:text-blue-400 rounded transition-colors mr-1"
+                          title="Añadir a Tool Chest"
+                          data-testid={`add-to-toolchest-btn-${markup.id}`}
+                        >
+                          <Briefcase size={13} />
+                        </button>
                         <button
                           onClick={() => deleteMarkup(markup.id)}
                           className="p-1 text-gray-400 hover:text-rose-400 rounded transition-colors"
@@ -272,6 +308,32 @@ export const MarkupsList: React.FC = () => {
               </tbody>
             </table>
           )}
+        </div>
+      )}
+
+      {/* Menú contextual: Añadir a Tool Chest */}
+      {contextMenu && (
+        <div
+          data-testid="markups-list-context-menu"
+          className="fixed z-50 bg-cad-panel border border-cad-border shadow-2xl rounded py-1 text-xs text-gray-200 min-w-[160px]"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            data-testid="context-menu-add-to-toolchest"
+            onClick={async () => {
+              const store = useToolChestStore.getState();
+              const activePaletteId = store.activePaletteId || store.palettes[0]?.id;
+              if (activePaletteId) {
+                await store.createToolFromMarkup(activePaletteId, contextMenu.markup);
+              }
+              setContextMenu(null);
+            }}
+            className="w-full text-left px-3 py-1.5 hover:bg-cad-hover flex items-center space-x-2 text-gray-200 hover:text-white transition-colors cursor-pointer"
+          >
+            <Briefcase size={13} className="text-blue-400" />
+            <span>Añadir a Tool Chest</span>
+          </button>
         </div>
       )}
     </section>

@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { TopBar } from './components/TopBar';
 import { ThumbnailsSidebar } from './components/ThumbnailsSidebar';
 import { PdfViewer } from './components/PdfViewer';
+import { ToolChestPanel } from './components/toolchest/ToolChestPanel';
 import { MarkupsList } from './components/MarkupsList';
 import { useDocumentStore } from './store/useDocumentStore';
 import { useMarkupStore } from './store/useMarkupStore';
@@ -70,10 +71,11 @@ export const App: React.FC = () => {
       {/* 1. Barra Superior (Herramientas, archivo, zoom) */}
       <TopBar />
 
-      {/* 2. Área Central (Miniaturas a la izquierda + Visor al centro) */}
+      {/* 2. Área Central (Miniaturas a la izquierda + Visor al centro + Tool Chest a la derecha) */}
       <div className="flex-1 flex overflow-hidden relative">
         <ThumbnailsSidebar />
         <PdfViewer />
+        <ToolChestPanel />
       </div>
 
       {/* 3. Panel Inferior (Lista de marcas técnica con sincronización bidireccional) */}

@@ -67,18 +67,17 @@ export async function renderPageToCanvas(
   // Soporte HiDPI (devicePixelRatio de la pantalla)
   const dpr = window.devicePixelRatio || 1;
   const outputScale = dpr;
+  const bufferWidth = Math.floor(viewport.width * outputScale);
+  const bufferHeight = Math.floor(viewport.height * outputScale);
 
-  // Dimensiones del buffer del canvas
-  canvas.width = Math.floor(viewport.width * outputScale);
-  canvas.height = Math.floor(viewport.height * outputScale);
+  // Doble buffer con canvas offscreen: elimina ventana en blanco y parpadeo al cambiar página/zoom
+  const offscreenCanvas = document.createElement('canvas');
+  offscreenCanvas.width = bufferWidth;
+  offscreenCanvas.height = bufferHeight;
 
-  // Dimensiones de estilo CSS en la página
-  canvas.style.width = `${Math.floor(viewport.width)}px`;
-  canvas.style.height = `${Math.floor(viewport.height)}px`;
-
-  const ctx = canvas.getContext('2d', { alpha: false });
-  if (!ctx) {
-    throw new Error('No se pudo obtener el contexto 2D del canvas');
+  const offscreenCtx = offscreenCanvas.getContext('2d', { alpha: false });
+  if (!offscreenCtx) {
+    throw new Error('No se pudo obtener el contexto 2D del canvas offscreen');
   }
 
   const activeTask = (canvas as unknown as { _currentRenderTask?: pdfjsLib.RenderTask })._currentRenderTask;
@@ -90,11 +89,11 @@ export async function renderPageToCanvas(
     }
   }
 
-  ctx.save();
-  ctx.scale(outputScale, outputScale);
+  offscreenCtx.save();
+  offscreenCtx.scale(outputScale, outputScale);
 
   const renderContext = {
-    canvasContext: ctx,
+    canvasContext: offscreenCtx,
     viewport: viewport,
   };
 
@@ -103,6 +102,19 @@ export async function renderPageToCanvas(
 
   try {
     await renderTask.promise;
+
+    // Volcar atómicamente al canvas visible al terminar el render
+    if (canvas.width !== bufferWidth || canvas.height !== bufferHeight) {
+      canvas.width = bufferWidth;
+      canvas.height = bufferHeight;
+    }
+    canvas.style.width = `${Math.floor(viewport.width)}px`;
+    canvas.style.height = `${Math.floor(viewport.height)}px`;
+
+    const visibleCtx = canvas.getContext('2d', { alpha: false });
+    if (visibleCtx) {
+      visibleCtx.drawImage(offscreenCanvas, 0, 0);
+    }
   } catch (err: unknown) {
     if (
       err &&
@@ -121,7 +133,7 @@ export async function renderPageToCanvas(
     if ((canvas as unknown as { _currentRenderTask?: pdfjsLib.RenderTask })._currentRenderTask === renderTask) {
       delete (canvas as unknown as { _currentRenderTask?: pdfjsLib.RenderTask })._currentRenderTask;
     }
-    ctx.restore();
+    offscreenCtx.restore();
   }
 
   return {

@@ -12,14 +12,35 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(page.locator('[data-testid="pdf-viewer-container"]')).toBeVisible(); // Canvas container
     await expect(page.locator('[data-testid="markups-list-panel"]')).toBeVisible(); // Bottom panel
 
-    // 3. Esperar a que el canvas de PDF.js aparezca y tenga dimensiones renderizadas
+    // 3. Esperar a que el canvas de PDF.js aparezca y tenga píxeles reales rasterizados
     const canvas = page.locator('[data-testid="pdf-canvas"]');
     await expect(canvas).toBeVisible({ timeout: 15000 });
 
+    // Esperar a que el canvas no solo tenga dimensiones, sino que PDF.js haya volcado píxeles reales
     await page.waitForFunction(
       () => {
         const el = document.querySelector('[data-testid="pdf-canvas"]') as HTMLCanvasElement;
-        return el && el.width > 400 && el.height > 300;
+        if (!el || el.width < 400 || el.height < 300) return false;
+        const ctx = el.getContext('2d');
+        if (!ctx) return false;
+        try {
+          const imgData = ctx.getImageData(0, 0, el.width, el.height);
+          const data = imgData.data;
+          let nonWhite = 0;
+          for (let i = 0; i < data.length; i += 16) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            const a = data[i + 3];
+            if (a > 0 && !(r >= 250 && g >= 250 && b >= 250)) {
+              nonWhite++;
+              if (nonWhite > 200) return true;
+            }
+          }
+          return false;
+        } catch {
+          return false;
+        }
       },
       { timeout: 15000 }
     );

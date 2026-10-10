@@ -60,7 +60,7 @@ export async function openPdfDialog(): Promise<void> {
  * Carga los bytes del PDF, inicializa el visor y busca el archivo .bbx.json asociado
  */
 export async function loadPdfData(
-  filePath: string,
+  filePath: string | null,
   fileName: string,
   bytes: Uint8Array
 ): Promise<void> {
@@ -75,6 +75,11 @@ export async function loadPdfData(
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     setError(`Error al procesar PDF: ${message}`);
+    return;
+  }
+
+  // Modo demo o archivo sin ruta en disco: no intentar cargar .bbx.json
+  if (!filePath) {
     return;
   }
 

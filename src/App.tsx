@@ -23,7 +23,7 @@ export const App: React.FC = () => {
         if (res.ok) {
           const buffer = await res.arrayBuffer();
           await loadPdfData(
-            '/fixtures/test-blueprint.pdf',
+            null,
             'test-blueprint.pdf',
             new Uint8Array(buffer)
           );

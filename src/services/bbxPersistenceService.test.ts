@@ -6,6 +6,7 @@ import {
   loadBbxForPdf,
   setBbxErrorHandler,
   resetBbxErrorState,
+  isAbsolutePath,
 } from './bbxPersistenceService';
 import { Markup } from '../types/markup';
 
@@ -149,6 +150,76 @@ describe('BBX Persistence Service (.bbx.json)', () => {
 
       await expect(loadBbxForPdf('C:/proyectos/corrupto.pdf')).rejects.toThrow('Fallo de lectura de disco');
       expect(errorHandler).toHaveBeenCalledWith(expect.stringContaining('Fallo de lectura de disco'));
+    });
+
+    it('guarda defensiva: con Tauri y ruta no absoluta, saveBbxForPdf devuelve false y loadBbxForPdf devuelve null sin invocar ni notificar', async () => {
+      const invokeMock = vi.fn().mockResolvedValue(undefined);
+
+      (window as unknown as { __TAURI_INTERNALS__: { invoke: typeof invokeMock } }).__TAURI_INTERNALS__ = {
+        invoke: invokeMock,
+      };
+
+      const errorHandler = vi.fn();
+      setBbxErrorHandler(errorHandler);
+
+      // 1. Ruta relativa tipo demo '/fixtures/test-blueprint.pdf'
+      const saveResult = await saveBbxForPdf('/fixtures/test-blueprint.pdf', []);
+      expect(saveResult).toBe(false);
+      expect(invokeMock).not.toHaveBeenCalled();
+      expect(errorHandler).not.toHaveBeenCalled();
+
+      // 2. Lectura con ruta relativa
+      const loadResult = await loadBbxForPdf('/fixtures/test-blueprint.pdf');
+      expect(loadResult).toBeNull();
+      expect(invokeMock).not.toHaveBeenCalled();
+      expect(errorHandler).not.toHaveBeenCalled();
+
+      // 3. Con filePath null
+      expect(await saveBbxForPdf(null, [])).toBe(false);
+      expect(await loadBbxForPdf(null)).toBeNull();
+      expect(invokeMock).not.toHaveBeenCalled();
+      expect(errorHandler).not.toHaveBeenCalled();
+    });
+
+    it('throttle de errores es por operacion: fallo en lectura no silencia fallo en escritura', async () => {
+      const invokeMock = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('Error de lectura en disco'))
+        .mockRejectedValueOnce(new Error('Error de escritura en disco'));
+
+      (window as unknown as { __TAURI_INTERNALS__: { invoke: typeof invokeMock } }).__TAURI_INTERNALS__ = {
+        invoke: invokeMock,
+      };
+
+      const errorHandler = vi.fn();
+      setBbxErrorHandler(errorHandler);
+
+      // 1. Falla la lectura
+      await expect(loadBbxForPdf('C:/proyectos/doc.pdf')).rejects.toThrow('Error de lectura');
+      expect(errorHandler).toHaveBeenCalledTimes(1);
+      expect(errorHandler).toHaveBeenLastCalledWith(expect.stringContaining('Error de lectura'));
+
+      // 2. Falla la escritura: NO debe quedar silenciada por el fallo de lectura previo
+      const saveResult = await saveBbxForPdf('C:/proyectos/doc.pdf', []);
+      expect(saveResult).toBe(false);
+      expect(errorHandler).toHaveBeenCalledTimes(2);
+      expect(errorHandler).toHaveBeenLastCalledWith(expect.stringContaining('Error de escritura'));
+    });
+  });
+
+  describe('isAbsolutePath (semántica compatible con std::path::Path::is_absolute de Rust)', () => {
+    it('reconoce letras de unidad Windows y rutas UNC como absolutas', () => {
+      expect(isAbsolutePath('C:/proyectos/puente.bbx.json')).toBe(true);
+      expect(isAbsolutePath('d:\\planos\\viga.bbx.json')).toBe(true);
+      expect(isAbsolutePath('\\\\servidor\\share\\archivo.bbx.json')).toBe(true);
+      expect(isAbsolutePath('//servidor/share/archivo.bbx.json')).toBe(true);
+    });
+
+    it('rechaza rutas relativas y rutas sin letra de unidad en Windows', () => {
+      expect(isAbsolutePath('/fixtures/test-blueprint.pdf')).toBe(false);
+      expect(isAbsolutePath('fixtures/test-blueprint.pdf')).toBe(false);
+      expect(isAbsolutePath('test-blueprint.bbx.json')).toBe(false);
+      expect(isAbsolutePath('')).toBe(false);
     });
   });
 });

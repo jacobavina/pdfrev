@@ -42,6 +42,7 @@ export const TopBar: React.FC = () => {
     };
   }, []);
   const {
+    filePath,
     pdfBytes,
     fileName,
     numPages,
@@ -125,17 +126,23 @@ export const TopBar: React.FC = () => {
 
         <button
           onClick={() => saveNow()}
-          disabled={!isDirty}
+          disabled={!isDirty || !filePath}
           className={`flex items-center space-x-1.5 px-3 py-1.5 rounded border text-xs font-medium transition-colors ${
-            isDirty
+            isDirty && filePath
               ? 'bg-amber-600 hover:bg-amber-500 text-white border-amber-500 animate-pulse'
               : 'bg-cad-subtle/50 text-gray-400 border-cad-border cursor-not-allowed'
           }`}
-          title={isDirty ? 'Guardar cambios en .bbx.json (Autoguardado en 30s)' : 'Sin cambios pendientes'}
+          title={
+            !filePath
+              ? 'Modo demostración (sin autoguardado). Abra un PDF para guardar.'
+              : isDirty
+              ? 'Guardar cambios en .bbx.json (Autoguardado en 30s)'
+              : 'Sin cambios pendientes'
+          }
         >
           <Save size={15} />
           <span>Guardar</span>
-          {isDirty && <span className="w-2 h-2 rounded-full bg-amber-300"></span>}
+          {isDirty && filePath && <span className="w-2 h-2 rounded-full bg-amber-300"></span>}
         </button>
 
         <button
@@ -153,11 +160,16 @@ export const TopBar: React.FC = () => {
         </button>
 
         {fileName && (
-          <div className="flex items-center space-x-1.5 ml-2 pl-3 border-l border-cad-border text-xs text-gray-300 max-w-xs truncate">
+          <div className="flex items-center space-x-1.5 ml-2 pl-3 border-l border-cad-border text-xs text-gray-300 max-w-sm truncate">
             <FileCheck size={14} className="text-emerald-400 shrink-0" />
             <span className="truncate font-mono" title={fileName}>
               {fileName}
             </span>
+            {!filePath && (
+              <span className="text-[11px] text-amber-400 font-sans shrink-0 ml-1">
+                (Demostración - sin autoguardado)
+              </span>
+            )}
           </div>
         )}
       </div>

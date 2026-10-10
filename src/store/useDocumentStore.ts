@@ -21,7 +21,7 @@ interface DocumentState {
 
   // Actions
   setDocument: (
-    filePath: string,
+    filePath: string | null,
     fileName: string,
     bytes: Uint8Array,
     numPages: number,

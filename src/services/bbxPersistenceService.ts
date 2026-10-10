@@ -5,27 +5,67 @@ export function isTauriEnvironment(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 }
 
+export type BbxOperation = 'read' | 'write';
 export type BbxErrorHandler = (errorMessage: string) => void;
+
 let onBbxError: BbxErrorHandler | null = null;
-let hasNotifiedError = false;
+let hasNotifiedReadError = false;
+let hasNotifiedWriteError = false;
 
 export function setBbxErrorHandler(handler: BbxErrorHandler | null) {
   onBbxError = handler;
-  hasNotifiedError = false;
+  hasNotifiedReadError = false;
+  hasNotifiedWriteError = false;
 }
 
-export function resetBbxErrorState() {
-  hasNotifiedError = false;
+export function resetBbxErrorState(op?: BbxOperation) {
+  if (!op || op === 'read') {
+    hasNotifiedReadError = false;
+  }
+  if (!op || op === 'write') {
+    hasNotifiedWriteError = false;
+  }
 }
 
-export function notifyBbxError(message: string) {
-  console.error(`[BBX Error] ${message}`);
-  if (!hasNotifiedError) {
-    hasNotifiedError = true;
+export function notifyBbxError(message: string, op: BbxOperation = 'write') {
+  console.error(`[BBX Error (${op})] ${message}`);
+  const hasNotified = op === 'read' ? hasNotifiedReadError : hasNotifiedWriteError;
+  if (!hasNotified) {
+    if (op === 'read') {
+      hasNotifiedReadError = true;
+    } else {
+      hasNotifiedWriteError = true;
+    }
     if (onBbxError) {
       onBbxError(message);
     }
   }
+}
+
+/**
+ * Comprueba si una ruta es absoluta (incluyendo letras de unidad Windows y rutas UNC \\servidor\ o //servidor/).
+ * Coincide con std::path::Path::is_absolute() de Rust.
+ */
+export function isAbsolutePath(p: string): boolean {
+  if (!p || typeof p !== 'string') return false;
+  const trimmed = p.trim();
+
+  // 1. Prefijo de unidad Windows (ej. C:\ o C:/)
+  if (/^[a-zA-Z]:[/\\]/.test(trimmed)) {
+    return true;
+  }
+
+  // 2. Ruta UNC (ej. \\servidor\share o //servidor/share)
+  if (/^(\\\\[^\\]+|\/\/[^/]+)/.test(trimmed)) {
+    return true;
+  }
+
+  // 3. Ruta absoluta POSIX (cuando no se ejecuta en Windows nativo)
+  if (typeof process !== 'undefined' && process.platform !== 'win32' && trimmed.startsWith('/')) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -57,11 +97,21 @@ export function validateBbxPath(pdfPath: string, bbxPath: string): boolean {
 /**
  * Carga el archivo .bbx.json asociado al PDF si existe.
  * Distingue archivo inexistente (retorna null) de errores reales de E/S (notifica y lanza error).
+ * En Tauri, si la ruta no es absoluta, no invoca IPC y retorna null sin lanzar.
  */
-export async function loadBbxForPdf(pdfPath: string): Promise<BbxDocumentFile | null> {
+export async function loadBbxForPdf(pdfPath: string | null): Promise<BbxDocumentFile | null> {
+  if (!pdfPath || typeof pdfPath !== 'string') {
+    return null;
+  }
+
   const bbxPath = getBbxPath(pdfPath);
 
   if (isTauriEnvironment()) {
+    // Guarda defensiva: si la ruta no es absoluta, NO invocar IPC de Tauri y retornar null
+    if (!isAbsolutePath(bbxPath)) {
+      return null;
+    }
+
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       const content = await invoke<string | null>('read_bbx', { filePath: bbxPath });
@@ -69,11 +119,11 @@ export async function loadBbxForPdf(pdfPath: string): Promise<BbxDocumentFile | 
         // Ok(None) -> archivo no existe todavía, comportamiento normal
         return null;
       }
-      resetBbxErrorState();
+      resetBbxErrorState('read');
       return migrateBbxDocument(JSON.parse(content));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      notifyBbxError(`Error de E/S leyendo anotaciones: ${msg}`);
+      notifyBbxError(`Error de E/S leyendo anotaciones: ${msg}`, 'read');
       throw new Error(`Error al leer archivo BBX (${bbxPath}): ${msg}`);
     }
   } else {
@@ -81,13 +131,13 @@ export async function loadBbxForPdf(pdfPath: string): Promise<BbxDocumentFile | 
     try {
       const saved = localStorage.getItem(`bbx_${bbxPath}`);
       if (saved) {
-        resetBbxErrorState();
+        resetBbxErrorState('read');
         return migrateBbxDocument(JSON.parse(saved));
       }
       return null;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      notifyBbxError(`Error leyendo de almacenamiento local: ${msg}`);
+      notifyBbxError(`Error leyendo de almacenamiento local: ${msg}`, 'read');
       return null;
     }
   }
@@ -95,17 +145,18 @@ export async function loadBbxForPdf(pdfPath: string): Promise<BbxDocumentFile | 
 
 /**
  * Guarda las marcas actuales en el archivo .bbx.json junto al PDF de manera atómica.
+ * En Tauri, si la ruta no es absoluta, no invoca IPC y retorna false sin lanzar ni notificar.
  */
 export async function saveBbxForPdf(
-  pdfPath: string,
+  pdfPath: string | null,
   markups: Markup[],
   author = 'Usuario'
 ): Promise<boolean> {
-  const bbxPath = getBbxPath(pdfPath);
-  if (!validateBbxPath(pdfPath, bbxPath)) {
-    notifyBbxError(`Ruta inválida: ${bbxPath} no es la ruta hermana válida de ${pdfPath}`);
+  if (!pdfPath || typeof pdfPath !== 'string') {
     return false;
   }
+
+  const bbxPath = getBbxPath(pdfPath);
 
   const data: BbxDocumentFile = {
     version: '1.1.0',
@@ -118,15 +169,20 @@ export async function saveBbxForPdf(
   const jsonContent = JSON.stringify(data, null, 2);
 
   if (isTauriEnvironment()) {
+    // Guarda defensiva: si la ruta no es absoluta, NO invocar IPC y retornar false sin error
+    if (!isAbsolutePath(bbxPath)) {
+      return false;
+    }
+
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       await invoke('write_bbx', { filePath: bbxPath, jsonContent });
       console.log(`[BBX] Guardado atómico exitoso en ${bbxPath}`);
-      resetBbxErrorState();
+      resetBbxErrorState('write');
       return true;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      notifyBbxError(`Fallo al guardar archivo .bbx.json: ${msg}`);
+      notifyBbxError(`Fallo al guardar archivo .bbx.json: ${msg}`, 'write');
       return false;
     }
   } else {
@@ -134,11 +190,11 @@ export async function saveBbxForPdf(
     try {
       localStorage.setItem(`bbx_${bbxPath}`, jsonContent);
       console.log(`[BBX] Guardado en localStorage: bbx_${bbxPath}`);
-      resetBbxErrorState();
+      resetBbxErrorState('write');
       return true;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      notifyBbxError(`Error guardando en almacenamiento local: ${msg}`);
+      notifyBbxError(`Error guardando en almacenamiento local: ${msg}`, 'write');
       return false;
     }
   }

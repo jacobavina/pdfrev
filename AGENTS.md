@@ -145,6 +145,14 @@ pegada**. Prohibido "listo", "verificado", "funciona" o "3 passed" sin la salida
   en disco, los píxeles del canvas.
 - Las afirmaciones de estado se contrastan con el disco: `git log`, `git status`, rutas y ficheros
   que existen de verdad.
+- **Evidencia literal:** Toda salida de comando incluida en un informe se copia literalmente del
+  terminal o se lee de un archivo de log persistido en disco, e indica la ruta de ese log. Si una
+  salida llega truncada (por ejemplo, desde el estado de una tarea en segundo plano), se lee el
+  archivo completo; NUNCA se reconstruyen los tramos que faltan de memoria ni desde notas de
+  plantilla. Una salida reconstruida no es evidencia: invalida la entrega completa.
+- **El conteo de tests no baja sin justificación:** Si un commit reduce el número de tests de
+  cualquier suite, el informe explica qué tests se eliminaron y por qué. Borrar asserts no rompe
+  ninguna suite, así que es la forma más silenciosa de perder cobertura.
 
 ---
 

@@ -9,8 +9,8 @@
 | Fase / Bloque | Estado General | Cobertura / Evidencia |
 |---|---|---|
 | **Fase 1: Motor Base y Shell CAD** | **CERRADA** | 114 tests unitarios al cierre de fase + 4 tests cargo + 3 E2E (actualmente 152 tests unitarios tras A.2). R9 validado en disco desde ventana nativa por el usuario. |
-| **Fase 2 — Bloque A: Marcado y Manipulación** | **EN CURSO (Completo en código y suites; verificación nativa de A.6 pendiente)** | 190 tests unitarios + 4 tests cargo + 11/11 E2E en Playwright. Filas 28 y 29 verificadas por el usuario; fila 30 pendiente de prueba nativa. |
-| **Fase 2 — Bloque B: Tool Chest** | **NO EMPEZADO** | Paletas IndexedDB, modos Propiedad/Dibujo y drag & drop. Pendiente de verificación nativa y cierre del Bloque A. |
+| **Fase 2 — Bloque A: Marcado y Manipulación** | **CERRADO** | 190 tests unitarios en 9 suites + 4 tests cargo + 11/11 E2E en Playwright. Las 7 filas verificadas en ventana nativa por el usuario (filas 22 a 25 y 27 a 30 de PARITY.md). Las seis nuevas herramientas se añadieron sin subir versión de esquema .bbx.json (se mantiene en 1.1.0). |
+| **Fase 2 — Bloque B: Tool Chest** | **EN CURSO (B.1 Servicio IndexedDB en desarrollo)** | Paletas IndexedDB, modos Propiedad/Dibujo, herramientas recientes (desacopladas) y drag & drop. B.1 en desarrollo con fake-indexeddb y migración de esquema. |
 | **Fase 2 — Bloque C: MarkupsList Completa** | **NO EMPEZADO** | Ordenación, filtros, columnas personalizadas, estados y reportes. Pendiente de cierre del Bloque B. |
 | **Fase 2 — Bloque D: Capas y Sellos Dinámicos** | **NO EMPEZADO** | Capas lógicas persistidas y sellos vectoriales dinámicos. Pendiente de cierre del Bloque C. |
 
@@ -38,20 +38,20 @@
 | ID | Hito / Característica | Estado | Evidencia y Verificación | Notas |
 |---|---|---|---|---|
 | `P2-A.0` | Move y Transform con umbral 4px y clamp | **Cerrado** | Commit `6e7f0e3`. Test E2E traslada 50 px, descarta temblores de 2 px y revierte con un solo `Ctrl+Z`. | Clamp estricto 0..1 en `coordinates.ts`. |
-| `P2-A.1` | Nubes de revisión, arcStep y Cloud+ como grupo | **Cerrado** | Commit `b2ee813`. Inmutabilidad de `arcStep=20` en `.bbx.json`, abombamiento determinista por área firmada, Cloud+ con undo/delete en bloque. | Confirmación visual de la curvatura en ventana nativa: **PENDIENTE DE VERIFICAR**. |
+| `P2-A.1` | Nubes de revisión, arcStep y Cloud+ como grupo | **Cerrado** | Commit `b2ee813`. Inmutabilidad de `arcStep=20` en `.bbx.json`, abombamiento determinista por área firmada, Cloud+ con undo/delete en bloque. | Confirmación visual de la curvatura verificada por el usuario en ventana nativa, 2026-10-10. |
 | `P2-A.2` | Multiselección con Marquee y traslación conjunta | **Cerrado** | Commit `d525990`. 152/152 Vitest, 6/6 E2E en 3 pasadas consecutivas. Marquee por cruce/intersección, 0 marcas creadas, arrastre conjunto de $K$ marcas y 1 solo `Ctrl+Z` revierte ambas. | Prefiltro $O(N)$ probado con 500 marcas en menos de 10 ms. |
 | `P2-A.3` | Callout / Nota con directriz | **Cerrado** | Commit `083a37b`. Invarianza al zoom probada (`pdf-viewer.spec.ts:647`), envoltorio AFM, directriz conectada y arrastre conjunto de caja. | 165/165 Vitest, 8/8 E2E. |
 | `P2-A.4` | Nota adhesiva técnica (`stickyNote`) | **Cerrado** | `STICKY_NOTE_SIZE_PT = 24` en puntos (cuadrado en pantalla y hit-test idéntico a dibujado), sin asunción de points[1] en SVG/exportador/clamps, dimensiones de página obligatorias sin fallback 612/792 (cero fallo silencioso), exportación vectorial pura (re/m/l/f/rg/RG midiendo 24x24 y sin 0.0001, /Subtype /Text ni /Annots), creación al confirmar (1 cmd; 0 en cancel), 4 presets de color persistidos y guarda del atajo N en inputs/textareas. | Verificado por el usuario en ventana nativa, 2026-10-10 (fila 28 de PARITY.md). |
 | `P2-A.5` | Resaltador vectorial (`highlightVector`) | **Cerrado** | Atajo `H` con guarda de foco, umbral de creación en 4 px de pantalla invariable al zoom (`exceedsScreenThreshold`), `HIGHLIGHT_STYLE` como fuente única de verdad (#ffff00 al 50% con multiply), previsualización en vivo sin fuga de trazo discontinuo al PDF, creación atómica min/max y test de oro verificando `/BM /Multiply` y `/ca 0.5` en `/ExtGState`. | Verificado por el usuario en ventana nativa, 2026-10-10 (fila 29 de PARITY.md). |
-| `P2-A.6` | Resaltado de texto (`highlightText` con TextLayer) | **Completo (Pendiente Verif. Nativa)** | TextLayer nativo de PDF.js 4.x sincronizado con `--scale-factor: scale`, compensación de offset del contenedor, extracción multilínea atómica con `groupId` común y `text` por línea, alerta accesible `role="alert"` en página sin texto (página 3 fixture real), exportación vectorial con `/BM /Multiply` y cobertura geométrica verificada a 1x y 2x. | 190/190 Vitest, 11/11 E2E, fila 30 en PARITY.md (PENDIENTE DE VERIFICAR por usuario). |
+| `P2-A.6` | Resaltado de texto (`highlightText` con TextLayer) | **Cerrado** | TextLayer nativo de PDF.js 4.x sincronizado con `--scale-factor: scale`, compensación de offset del contenedor, extracción multilínea atómica con `groupId` común y `text` por línea, alerta accesible `role="alert"` en página sin texto (página 3 fixture real), exportación vectorial con `/BM /Multiply` y cobertura geométrica verificada a 1x y 2x. | 190/190 Vitest, 11/11 E2E, fila 30 en PARITY.md verificada por el usuario en ventana nativa, 2026-10-10. |
 
 ---
 
-### Fase 2: Bloques B, C y D (No Empezados)
+### Fase 2: Bloques B, C y D
 
 | Bloque | Descripción | Estado | Prerrequisito |
 |---|---|---|---|
-| **Bloque B (Tool Chest)** | Paletas de estilos definidas por el usuario en IndexedDB, modos Propiedad y Dibujo, y drag & drop al lienzo. | **No empezado** | Cierre total del Bloque A tras verificación nativa de A.6. |
+| **Bloque B (Tool Chest)** | Paletas de estilos definidas por el usuario en IndexedDB, modos Propiedad y Dibujo, herramientas recientes y drag & drop al lienzo. | **En curso** (B.1 Servicio IndexedDB) | Bloque A cerrado y verificado por el usuario. |
 | **Bloque C (MarkupsList Completa)** | Ordenación, filtros multicriterio, columnas personalizadas con lista blanca, menú contextual de estados y exportación de reportes (PDF/Excel/CSV). | **No empezado** | Cierre total y auditado del Bloque B. |
 | **Bloque D (Capas y Sellos Dinámicos)** | Capas lógicas CAD con visibilidad persistida y sellos dinámicos basados en primitivas vectoriales limpias. | **No empezado** | Cierre total y auditado del Bloque C. |
 

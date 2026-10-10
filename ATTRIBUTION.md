@@ -43,6 +43,11 @@ Este documento es la **fuente única de verdad** sobre los activos no-código in
   - **Origen:** https://github.com/lucide-icons/lucide
   - **Licencia:** ISC License (`https://github.com/lucide-icons/lucide/blob/main/LICENSE`).
   - **Uso:** Iconos SVG renderizados como componentes React en la barra de herramientas (`TopBar.tsx`), miniaturas (`ThumbnailsSidebar.tsx`) y tabla técnica (`MarkupsList.tsx`).
+- **Simulador en Memoria de IndexedDB para Pruebas Unitarias (`fake-indexeddb`):**
+  - **Autor:** Jeremy Scheff (dumbmatter) y colaboradores.
+  - **Origen:** https://github.com/dumbmatter/fakeIndexedDB
+  - **Licencia:** Apache-2.0 (`https://github.com/dumbmatter/fakeIndexedDB/blob/master/LICENSE.md`).
+  - **Uso:** Implementación pura en JavaScript de la API de IndexedDB utilizada como `devDependency` en Vitest para ejecutar flujos reales de IndexedDB (`onupgradeneeded`, transacciones ACID, almacenes de objetos, cursores e índices) sin depender de un navegador real ni caer en mocks simplistas con mapas en memoria.
 
 ---
 

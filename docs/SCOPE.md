@@ -33,11 +33,14 @@
   - `P2-A.3`: Callout / Nota técnica con directriz conectada y cuadro de texto plano interactivo. **[CERRADO]**
   - `P2-A.4`: Nota adhesiva técnica (`stickyNote`) con tamaño único cuadrado de 24 pt (`STICKY_NOTE_SIZE_PT = 24`), normalización por eje (`getStickyNoteNormalizedSize`), 4 presets de color (`yellow`, `green`, `pink`, `blue`), creación en confirmación (1 comando; 0 en cancelación), atajo `N` con guarda de inputs y exportación vectorial plana (operadores `re/m/l/f/rg/RG` sin `/Subtype /Text` ni `/Annots`). **[CERRADO]**
   - `P2-A.5`: Resaltador vectorial (`highlightVector`) con atajo `H` con guarda de foco, umbral de creación en 4 px de pantalla invariable al zoom (`exceedsScreenThreshold`), `HIGHLIGHT_STYLE` único (#ffff00 al 50% con blendMode multiply), previsualización en vivo sin fuga de líneas punteadas al PDF, puntos canónicos min/max, exportación vectorial pura con `/BM /Multiply` y `/ca 0.5` en `/ExtGState` y reversión atómica. **[CERRADO]**
-  - `P2-A.6`: Resaltado de texto (`highlightText` con TextLayer de PDF.js, rectángulos normalizados y aviso en páginas sin capa de texto). **[NO EMPEZADO]**
+  - `P2-A.6`: Resaltado de texto (`highlightText` con TextLayer de PDF.js, rectángulos normalizados, selección multilinea con groupId atómico, guarda de foco y aviso accesible en páginas sin capa de texto). **[CERRADO]**
 - **Bloque B: Tool Chest**
-  - Paletas de estilos definidas por el usuario persistidas en IndexedDB.
-  - Modos Propiedad y Dibujo.
-  - Arrastrar y soltar (drag & drop) de herramientas y estilos al lienzo.
+  - Paletas de estilos definidas por el usuario persistidas en IndexedDB (esquema versionado y migrable).
+  - Herramientas Recientes (FIFO con desacoplamiento seguro: el registro de recientes nunca aborta la creación de marcas ni escala excepciones al lienzo).
+  - Modos Propiedad y Dibujo (modo Propiedad sobre $K$ marcas seleccionadas genera un único paso deshacible de historial).
+  - Arrastrar y soltar (drag & drop) de herramientas y estilos al lienzo (ejecuta `addMarkup` una sola vez dentro de tolerancia $\pm 5$ px).
+  - Menú contextual de `MarkupsList`: única acción permitida "Añadir a Tool Chest" (columnas, filtros y ordenación quedan reservados para Bloque C).
+  - Resiliencia y fallback ruidoso: notificación visible en UI ante fallo de persistencia o cuota agotada de IndexedDB sin interrumpir la operatividad en memoria.
 - **Bloque C: MarkupsList Completa**
   - Ordenación y filtros avanzados por estado, autor, tipo y capa.
   - Columnas personalizadas con parser propio de lista blanca.

@@ -22,6 +22,7 @@ import {
   Download,
   AlertTriangle,
   X,
+  MessageSquare,
 } from 'lucide-react';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
@@ -106,6 +107,7 @@ export const TopBar: React.FC = () => {
     { type: 'polygon', label: 'Polígono (P)', icon: <Hexagon size={16} /> },
     { type: 'freehand', label: 'Mano alzada (F)', icon: <Pencil size={16} /> },
     { type: 'cloud', label: 'Nube de revisión (C)', icon: <Cloud size={16} /> },
+    { type: 'cloudPlus', label: 'Cloud+ con leyenda (K)', icon: <MessageSquare size={16} /> },
     { type: 'text', label: 'Nota / Texto (T)', icon: <Type size={16} /> },
   ];
 

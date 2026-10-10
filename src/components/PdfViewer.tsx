@@ -45,6 +45,7 @@ export const PdfViewer: React.FC = () => {
     selectMarkup,
     deselectAll,
     addMarkup,
+    addMarkups,
     updateMarkup,
     deleteSelectedMarkups,
     setMarkupsTransient,
@@ -409,30 +410,100 @@ export const PdfViewer: React.FC = () => {
 
     // Evitar crear marcas accidentales con un microclic
     if (dist > 0.005 && activeTool !== 'select' && activeTool !== 'pan' && activeTool !== 'polygon') {
-      const newId = uuidv4();
-      const newMarkup: Markup = {
-        id: newId,
-        type: activeTool as MarkupType,
-        pageIndex: currentPageIndex,
-        points: [drawingStart, currentDrawPoint],
-        style: { ...currentStyle },
-        text: activeTool === 'text' ? 'Nota técnica' : undefined,
-        author: author || 'Revisor',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        status: 'pending',
-        layer: activeLayer,
-      };
+      const now = new Date().toISOString();
 
-      addMarkup(newMarkup);
+      if (activeTool === 'cloudPlus') {
+        const groupId = uuidv4();
+        const cloudId = uuidv4();
+        const calloutId = uuidv4();
 
-      // Si es una marca de texto, abrir inmediatamente el editor inline
-      if (activeTool === 'text') {
-        setInlineEditing({
-          markupId: newId,
-          initialText: 'Nota técnica',
-          position: drawingStart,
-        });
+        const minX = Math.min(drawingStart.x, currentDrawPoint.x);
+        const maxX = Math.max(drawingStart.x, currentDrawPoint.x);
+        const minY = Math.min(drawingStart.y, currentDrawPoint.y);
+        const maxY = Math.max(drawingStart.y, currentDrawPoint.y);
+
+        const calloutWidth = 0.12;
+        const calloutHeight = 0.04;
+        let boxX = maxX + 0.03;
+        if (boxX + calloutWidth > 0.99) {
+          boxX = Math.max(0.01, minX - calloutWidth - 0.03);
+        }
+        let boxY = minY - 0.04;
+        if (boxY < 0.01) {
+          boxY = Math.min(0.95, maxY + 0.03);
+        }
+
+        const boxP1 = {
+          x: Math.max(0, Math.min(0.99 - calloutWidth, boxX)),
+          y: Math.max(0, Math.min(0.99 - calloutHeight, boxY)),
+        };
+        const boxP2 = { x: boxP1.x + calloutWidth, y: boxP1.y + calloutHeight };
+        const arrowTarget = { x: maxX, y: minY };
+
+        const cloudMarkup: Markup = {
+          id: cloudId,
+          type: 'cloudPlus',
+          pageIndex: currentPageIndex,
+          points: [drawingStart, currentDrawPoint],
+          style: { ...currentStyle },
+          author: author || 'Revisor',
+          createdAt: now,
+          updatedAt: now,
+          status: 'pending',
+          layer: activeLayer,
+          groupId,
+          customFields: { arcStep: 20 },
+        };
+
+        const calloutMarkup: Markup = {
+          id: calloutId,
+          type: 'callout',
+          pageIndex: currentPageIndex,
+          points: [boxP1, boxP2],
+          leaders: [[arrowTarget]],
+          style: {
+            ...currentStyle,
+            fillColor: '#ffffff',
+            strokeWidth: 1.5,
+          },
+          text: 'Nota Cloud+',
+          author: author || 'Revisor',
+          createdAt: now,
+          updatedAt: now,
+          status: 'pending',
+          layer: activeLayer,
+          groupId,
+        };
+
+        addMarkups([cloudMarkup, calloutMarkup], 'Crear Cloud+');
+      } else {
+        const newId = uuidv4();
+        const customFields = activeTool === 'cloud' ? { arcStep: 20 } : undefined;
+        const newMarkup: Markup = {
+          id: newId,
+          type: activeTool as MarkupType,
+          pageIndex: currentPageIndex,
+          points: [drawingStart, currentDrawPoint],
+          style: { ...currentStyle },
+          text: activeTool === 'text' ? 'Nota técnica' : undefined,
+          author: author || 'Revisor',
+          createdAt: now,
+          updatedAt: now,
+          status: 'pending',
+          layer: activeLayer,
+          customFields,
+        };
+
+        addMarkup(newMarkup);
+
+        // Si es una marca de texto, abrir inmediatamente el editor inline
+        if (activeTool === 'text') {
+          setInlineEditing({
+            markupId: newId,
+            initialText: 'Nota técnica',
+            position: drawingStart,
+          });
+        }
       }
     }
 
@@ -563,7 +634,13 @@ export const PdfViewer: React.FC = () => {
 
                   {/* Bounding box de selección activa */}
                   {isSelected && (() => {
-                    const b = markup.points.reduce(
+                    const allPts = [...markup.points];
+                    if (markup.leaders) {
+                      for (const l of markup.leaders) {
+                        allPts.push(...l);
+                      }
+                    }
+                    const b = allPts.reduce(
                       (acc, pt) => {
                         const scr = normalizedToScreen(pt, viewportTransform);
                         return {
@@ -694,7 +771,7 @@ export const PdfViewer: React.FC = () => {
                     );
                   }
 
-                  if (activeTool === 'cloud') {
+                  if (activeTool === 'cloud' || activeTool === 'cloudPlus') {
                     return (
                       <path
                         d={generateCloudPath(

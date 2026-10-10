@@ -172,4 +172,157 @@ describe('useMarkupStore Integration & History', () => {
     // Pila de historial intacta (no se ensucia con movimientos transitorios)
     expect(markupHistory.getUndoCount()).toBe(undoCountBefore);
   });
+
+  // --------------------------------------------------------------------------------
+  // Sub-entregable A.1: Cloud+ como GRUPO (creación, selección, movimiento y borrado atómicos)
+  // --------------------------------------------------------------------------------
+  describe('Sub-entregable A.1: Cloud+ como GRUPO', () => {
+    const createCloudPlusGroup = () => {
+      const groupId = 'group-cp-1';
+      const cloudMarkup: Markup = {
+        id: 'cloud-1',
+        type: 'cloudPlus',
+        pageIndex: 0,
+        points: [
+          { x: 0.2, y: 0.2 },
+          { x: 0.5, y: 0.4 },
+        ],
+        style: { strokeColor: '#10b981', strokeWidth: 2, opacity: 1 },
+        author: 'Revisor',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+        groupId,
+        customFields: { arcStep: 20 },
+      };
+
+      const calloutMarkup: Markup = {
+        id: 'callout-1',
+        type: 'callout',
+        pageIndex: 0,
+        points: [
+          { x: 0.55, y: 0.15 },
+          { x: 0.7, y: 0.22 },
+        ],
+        leaders: [[{ x: 0.5, y: 0.2 }]],
+        style: { strokeColor: '#10b981', strokeWidth: 1.5, opacity: 1 },
+        text: 'Nota Cloud+',
+        author: 'Revisor',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+        groupId,
+      };
+
+      return { groupId, cloudMarkup, calloutMarkup };
+    };
+
+    it('addMarkups crea nube y callout en UN solo comando atómico de historial', () => {
+      const { cloudMarkup, calloutMarkup } = createCloudPlusGroup();
+      const undoCountBefore = markupHistory.getUndoCount();
+
+      useMarkupStore.getState().addMarkups([cloudMarkup, calloutMarkup], 'Crear Cloud+');
+
+      expect(useMarkupStore.getState().markups).toHaveLength(2);
+      expect(useMarkupStore.getState().selectedMarkupIds).toEqual(['cloud-1', 'callout-1']);
+      expect(markupHistory.getUndoCount()).toBe(undoCountBefore + 1);
+
+      // Un solo undo() elimina AMBOS elementos del grupo
+      useMarkupStore.getState().undo();
+      expect(useMarkupStore.getState().markups).toHaveLength(0);
+      expect(useMarkupStore.getState().selectedMarkupIds).toEqual([]);
+
+      // Un solo redo() restaura AMBOS elementos del grupo
+      useMarkupStore.getState().redo();
+      expect(useMarkupStore.getState().markups).toHaveLength(2);
+      expect(useMarkupStore.getState().selectedMarkupIds).toEqual(['cloud-1', 'callout-1']);
+    });
+
+    it('selectMarkup selecciona y deselecciona todos los miembros del grupo juntos', () => {
+      const { cloudMarkup, calloutMarkup } = createCloudPlusGroup();
+      useMarkupStore.getState().addMarkups([cloudMarkup, calloutMarkup]);
+
+      useMarkupStore.getState().deselectAll();
+      expect(useMarkupStore.getState().selectedMarkupIds).toEqual([]);
+
+      // Seleccionar cloud selecciona automáticamente callout
+      useMarkupStore.getState().selectMarkup('cloud-1', false);
+      expect(useMarkupStore.getState().selectedMarkupIds).toContain('cloud-1');
+      expect(useMarkupStore.getState().selectedMarkupIds).toContain('callout-1');
+
+      // Toggling multi-select deselecciona ambos
+      useMarkupStore.getState().selectMarkup('callout-1', true);
+      expect(useMarkupStore.getState().selectedMarkupIds).toEqual([]);
+    });
+
+    it('deleteMarkup borra todos los miembros del grupo con UN solo comando de historial', () => {
+      const { cloudMarkup, calloutMarkup } = createCloudPlusGroup();
+      useMarkupStore.getState().addMarkups([cloudMarkup, calloutMarkup]);
+      const undoCountBefore = markupHistory.getUndoCount();
+
+      // Borrar solo especificando el id de la nube
+      useMarkupStore.getState().deleteMarkup('cloud-1');
+      expect(useMarkupStore.getState().markups).toHaveLength(0);
+      expect(markupHistory.getUndoCount()).toBe(undoCountBefore + 1);
+
+      // Deshacer restaura tanto la nube como el callout
+      useMarkupStore.getState().undo();
+      expect(useMarkupStore.getState().markups).toHaveLength(2);
+      expect(useMarkupStore.getState().markups.map((m) => m.id)).toEqual(['cloud-1', 'callout-1']);
+    });
+
+    it('deleteSelectedMarkups expande la selección a todos los miembros del grupo', () => {
+      const { cloudMarkup, calloutMarkup } = createCloudPlusGroup();
+      useMarkupStore.getState().addMarkups([cloudMarkup, calloutMarkup]);
+
+      // Supongamos que solo 'callout-1' estaba en selectedMarkupIds
+      useMarkupStore.setState({ selectedMarkupIds: ['callout-1'] });
+
+      useMarkupStore.getState().deleteSelectedMarkups();
+      // Ambos miembros son eliminados
+      expect(useMarkupStore.getState().markups).toHaveLength(0);
+
+      // Undo restaura ambos
+      useMarkupStore.getState().undo();
+      expect(useMarkupStore.getState().markups).toHaveLength(2);
+    });
+
+    it('commitMoveMarkups traslada grupo completo (incluyendo directrices) y lo revierte atómicamente', () => {
+      const { cloudMarkup, calloutMarkup } = createCloudPlusGroup();
+      useMarkupStore.getState().addMarkups([cloudMarkup, calloutMarkup]);
+      const undoCountBefore = markupHistory.getUndoCount();
+
+      const cloudNew = [{ x: 0.25, y: 0.25 }, { x: 0.55, y: 0.45 }];
+      const calloutNew = [{ x: 0.6, y: 0.2 }, { x: 0.75, y: 0.27 }];
+      const leaderNew = [[{ x: 0.55, y: 0.25 }]];
+
+      useMarkupStore.getState().commitMoveMarkups([
+        {
+          id: 'cloud-1',
+          originalPoints: cloudMarkup.points,
+          newPoints: cloudNew,
+        },
+        {
+          id: 'callout-1',
+          originalPoints: calloutMarkup.points,
+          newPoints: calloutNew,
+          originalLeaders: calloutMarkup.leaders,
+          newLeaders: leaderNew,
+        },
+      ]);
+
+      const stateMoved = useMarkupStore.getState();
+      expect(stateMoved.markups.find((m) => m.id === 'cloud-1')?.points).toEqual(cloudNew);
+      expect(stateMoved.markups.find((m) => m.id === 'callout-1')?.points).toEqual(calloutNew);
+      expect(stateMoved.markups.find((m) => m.id === 'callout-1')?.leaders).toEqual(leaderNew);
+      expect(markupHistory.getUndoCount()).toBe(undoCountBefore + 1);
+
+      // Revertir con un solo undo
+      useMarkupStore.getState().undo();
+      const stateReverted = useMarkupStore.getState();
+      expect(stateReverted.markups.find((m) => m.id === 'cloud-1')?.points).toEqual(cloudMarkup.points);
+      expect(stateReverted.markups.find((m) => m.id === 'callout-1')?.points).toEqual(calloutMarkup.points);
+      expect(stateReverted.markups.find((m) => m.id === 'callout-1')?.leaders).toEqual(calloutMarkup.leaders);
+    });
+  });
 });

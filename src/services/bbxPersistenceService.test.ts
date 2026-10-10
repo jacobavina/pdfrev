@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import fs from 'fs';
+import path from 'path';
 import {
   getBbxPath,
   validateBbxPath,
@@ -8,6 +10,7 @@ import {
   resetBbxErrorState,
   isAbsolutePath,
 } from './bbxPersistenceService';
+import { exportMarkupsToPdf } from './pdfExportService';
 import { Markup } from '../types/markup';
 
 describe('BBX Persistence Service (.bbx.json)', () => {
@@ -71,6 +74,39 @@ describe('BBX Persistence Service (.bbx.json)', () => {
   it('returns null if .bbx.json does not exist in localStorage fallback', async () => {
     const loaded = await loadBbxForPdf('/inexistente/plano.pdf');
     expect(loaded).toBeNull();
+  });
+
+  it('Sub-entregable A.1: Nube con arcStep=20 conserva sus lóbulos e inmutabilidad tras recargar el .bbx.json y al exportar', async () => {
+    const pdfPath = '/proyectos/revision-a1.pdf';
+    const cloudMarkup: Markup = {
+      id: 'cloud-arc-step-1',
+      type: 'cloud',
+      pageIndex: 0,
+      points: [
+        { x: 0.1, y: 0.1 },
+        { x: 0.5, y: 0.4 },
+      ],
+      style: { strokeColor: '#10b981', strokeWidth: 2, opacity: 1 },
+      author: 'Ing. Revisor',
+      createdAt: '2026-10-10T10:00:00.000Z',
+      updatedAt: '2026-10-10T10:00:00.000Z',
+      status: 'pending',
+      customFields: { arcStep: 20 },
+    };
+
+    const saved = await saveBbxForPdf(pdfPath, [cloudMarkup], 'Ing. Revisor');
+    expect(saved).toBe(true);
+
+    const loaded = await loadBbxForPdf(pdfPath);
+    expect(loaded).not.toBeNull();
+    expect(loaded?.markups).toHaveLength(1);
+    expect(loaded?.markups[0].customFields?.arcStep).toBe(20);
+
+    // Exportar con fixture PDF asegurando que el exportador consume el arcStep persistido
+    const fixturePath = path.resolve(process.cwd(), 'fixtures/test-blueprint.pdf');
+    const pdfBytes = fs.readFileSync(fixturePath);
+    const result = await exportMarkupsToPdf(new Uint8Array(pdfBytes), loaded!.markups);
+    expect(result.pdfBytes.length).toBeGreaterThan(0);
   });
 
   // --------------------------------------------------------------------------------

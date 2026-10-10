@@ -8,6 +8,9 @@ import {
   getMarkupSvgDescriptor,
   normalizeSvgAttrs,
   renderSvgDescriptor,
+  calculateSignedArea,
+  DEFAULT_ARC_STEP,
+  MIN_SAGITTA,
 } from './render';
 import { Markup } from '../../types/markup';
 
@@ -220,5 +223,190 @@ describe('Pure Markup Rendering (src/core/markup/render.ts - Criterio 1)', () =>
     expect(el.props['font-size']).toBeUndefined();
     expect(el.props['stroke-width']).toBeUndefined();
     expect(el.props['text-anchor']).toBeUndefined();
+  });
+
+  // --------------------------------------------------------------------------------
+  // Sub-entregable A.1: Nubes de Revisión Poligonales, Lóbulos, Zoom Invariance y Cloud+
+  // --------------------------------------------------------------------------------
+  describe('Sub-entregable A.1: Cloud y CloudPlus Specs', () => {
+    it('calculates signed area correctly (CW > 0, CCW < 0 in SVG space)', () => {
+      expect(DEFAULT_ARC_STEP).toBe(20);
+      // CW en SVG (Y hacia abajo): (0,0) -> (100,0) -> (100,100) -> (0,100)
+      const cwPoints = [
+        { x: 0, y: 0 },
+        { x: 100, y: 0 },
+        { x: 100, y: 100 },
+        { x: 0, y: 100 },
+      ];
+      expect(calculateSignedArea(cwPoints)).toBeGreaterThan(0);
+
+      // CCW en SVG: (0,0) -> (0,100) -> (100,100) -> (100,0)
+      const ccwPoints = [
+        { x: 0, y: 0 },
+        { x: 0, y: 100 },
+        { x: 100, y: 100 },
+        { x: 100, y: 0 },
+      ];
+      expect(calculateSignedArea(ccwPoints)).toBeLessThan(0);
+    });
+
+    it('generates exact number of lobes per edge based on step Pt', () => {
+      const pageSize = { width: 1000, height: 1000 };
+      const step = 20;
+
+      // Triángulo con aristas de longitudes conocidas:
+      // A (0.1, 0.1) -> B (0.2, 0.1): dx = 100 pt, dy = 0 pt -> len = 100 pt -> 100/20 = 5 arcos
+      // B (0.2, 0.1) -> C (0.2, 0.13): dx = 0 pt, dy = 30 pt -> len = 30 pt -> round(30/20) = 2 arcos
+      // C (0.2, 0.13) -> A (0.1, 0.1): hipotenusa Math.hypot(100, 30) = 104.4 pt -> round(104.4/20) = 5 arcos
+      const triangle = [
+        { x: 0.1, y: 0.1 },
+        { x: 0.2, y: 0.1 },
+        { x: 0.2, y: 0.13 },
+      ];
+
+      const d = generateCloudPath(triangle, pageSize, step);
+      // Contar comandos Q en la cadena resultante
+      const qMatches = d.match(/Q /g);
+      expect(qMatches).not.toBeNull();
+      // Total de arcos = 5 + 2 + 5 = 12
+      expect(qMatches?.length).toBe(12);
+    });
+
+    it('enforces MIN_SAGITTA = 4 on short edges so arcs never become flat', () => {
+      const pageSize = { width: 1000, height: 1000 };
+      // Arista muy corta: 10 pt (0.01 * 1000)
+      const shortPoly = [
+        { x: 0.1, y: 0.1 },
+        { x: 0.11, y: 0.1 }, // len = 10 pt
+        { x: 0.11, y: 0.11 },
+        { x: 0.1, y: 0.11 },
+      ];
+
+      const d = generateCloudPath(shortPoly, pageSize, 20);
+      expect(d).toContain('Q');
+
+      // Extraer coordenadas de control de la primera arista horizontal (de y=100)
+      // Debe tener sagitta de al menos MIN_SAGITTA = 4 hacia arriba (Y <= 96)
+      const match = d.match(/Q ([\d.]+) ([\d.]+)/);
+      expect(match).not.toBeNull();
+      const ctrlY = parseFloat(match![2]);
+      // Si el punto base está en y=100, y el abombamiento exterior es hacia arriba (-sagitta):
+      // ctrlY debe ser <= 100 - MIN_SAGITTA = 96
+      expect(ctrlY).toBeLessThanOrEqual(100 - MIN_SAGITTA);
+    });
+
+    it('outward bulge is always directed outside the polygon for both CW and CCW orders', () => {
+      const pageSize = { width: 800, height: 600 };
+      const step = 25;
+
+      // Cuadrado CW en coordenadas normalizadas (0.2 a 0.6 en X, 0.2 a 0.6 en Y)
+      // X: 160 a 480 pt, Y: 120 a 360 pt
+      const cwSquare = [
+        { x: 0.2, y: 0.2 }, // Top-Left
+        { x: 0.6, y: 0.2 }, // Top-Right
+        { x: 0.6, y: 0.6 }, // Bottom-Right
+        { x: 0.2, y: 0.6 }, // Bottom-Left
+      ];
+
+      const dCW = generateCloudPath(cwSquare, pageSize, step);
+      // El borde superior va de (160, 120) a (480, 120). El exterior está en Y < 120.
+      const firstQ_CW = dCW.match(/Q ([\d.]+) ([\d.]+)/);
+      expect(firstQ_CW).not.toBeNull();
+      const ctrlY_CW = parseFloat(firstQ_CW![2]);
+      expect(ctrlY_CW).toBeLessThan(120); // Abomba hacia afuera (hacia arriba)
+
+      // Cuadrado CCW invertido
+      const ccwSquare = [
+        { x: 0.2, y: 0.2 }, // Top-Left
+        { x: 0.2, y: 0.6 }, // Bottom-Left
+        { x: 0.6, y: 0.6 }, // Bottom-Right
+        { x: 0.6, y: 0.2 }, // Top-Right
+      ];
+
+      const dCCW = generateCloudPath(ccwSquare, pageSize, step);
+      // El primer borde va de (160, 120) a (160, 360) hacia abajo.
+      // El exterior está a la izquierda (X < 160).
+      const firstQ_CCW = dCCW.match(/Q ([\d.]+) ([\d.]+)/);
+      expect(firstQ_CCW).not.toBeNull();
+      const ctrlX_CCW = parseFloat(firstQ_CCW![1]);
+      expect(ctrlX_CCW).toBeLessThan(160); // Abomba hacia afuera (hacia la izquierda)
+    });
+
+    it('preserves exact backward compatibility for 2-point rectangular clouds', () => {
+      const p1 = { x: 0.1, y: 0.2 };
+      const p2 = { x: 0.6, y: 0.7 };
+      const pageSize = { width: 800, height: 600 };
+
+      const legacyCall = generateCloudPath(p1, p2, pageSize, 20);
+      const arrayCall = generateCloudPath([p1, p2], pageSize, 20);
+
+      expect(legacyCall).toBe(arrayCall);
+      expect(legacyCall).toContain('M 80.00 120.00');
+    });
+
+    it('ensures zoom invariance: number of lobes in SVG descriptor is identical across scale 1.0 and 2.5', () => {
+      const cloudMarkup: Markup = {
+        id: 'cloud-zoom',
+        type: 'cloud',
+        pageIndex: 0,
+        points: [
+          { x: 0.1, y: 0.1 },
+          { x: 0.5, y: 0.1 },
+          { x: 0.5, y: 0.5 },
+          { x: 0.1, y: 0.5 },
+        ],
+        style: { strokeColor: '#10b981', strokeWidth: 2, opacity: 1 },
+        customFields: { arcStep: 20 },
+        author: 'Tester',
+        createdAt: '',
+        updatedAt: '',
+        status: 'pending',
+      };
+
+      const desc1 = getMarkupSvgDescriptor(cloudMarkup, { ...transform, scale: 1.0 });
+      const desc2 = getMarkupSvgDescriptor(cloudMarkup, { ...transform, scale: 2.5 });
+
+      const d1 = desc1.attrs.d as string;
+      const d2 = desc2.attrs.d as string;
+
+      const lobes1 = d1.match(/Q /g)?.length;
+      const lobes2 = d2.match(/Q /g)?.length;
+
+      expect(lobes1).toBeDefined();
+      expect(lobes2).toBeDefined();
+      expect(lobes1).toBe(lobes2);
+    });
+
+    it('returns a complete SvgRenderDescriptor for callout markup (leader + text box)', () => {
+      const calloutMarkup: Markup = {
+        id: 'callout-1',
+        type: 'callout',
+        pageIndex: 0,
+        points: [
+          { x: 0.4, y: 0.2 },
+          { x: 0.6, y: 0.28 },
+        ],
+        leaders: [[{ x: 0.35, y: 0.15 }]],
+        style: { strokeColor: '#0284c7', strokeWidth: 1.5, opacity: 1, fillColor: '#ffffff' },
+        text: 'Detalle de armadura',
+        author: 'Ingeniero',
+        createdAt: '',
+        updatedAt: '',
+        status: 'pending',
+      };
+
+      const desc = getMarkupSvgDescriptor(calloutMarkup, transform);
+      expect(desc.tag).toBe('g');
+      expect(desc.children).toBeDefined();
+
+      const tags = desc.children?.map((c) => c.tag);
+      expect(tags).toContain('line');
+      expect(tags).toContain('ellipse');
+      expect(tags).toContain('rect');
+      expect(tags).toContain('text');
+
+      const textChild = desc.children?.find((c) => c.tag === 'text');
+      expect(textChild?.textNode).toBe('Detalle de armadura');
+    });
   });
 });

@@ -22,6 +22,7 @@ interface MarkupState {
 
   // Acciones
   addMarkup: (markup: Markup) => void;
+  addMarkups: (markups: Markup[], description?: string) => void;
   updateMarkup: (id: string, updates: Partial<Markup>) => void;
   updateMarkupStatus: (id: string, status: MarkupStatus) => void;
   deleteMarkup: (id: string) => void;
@@ -55,19 +56,29 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
     canRedo: false,
 
     addMarkup: (markup: Markup) => {
+      get().addMarkups([markup], `Añadir ${markup.type}`);
+    },
+
+    addMarkups: (newMarkups: Markup[], description?: string) => {
+      if (newMarkups.length === 0) return;
+      const ids = newMarkups.map((m) => m.id);
+      const desc =
+        description ||
+        (newMarkups.length === 1 ? `Añadir ${newMarkups[0].type}` : `Crear ${newMarkups.length} marcas`);
+
       const command: Command = {
-        description: `Añadir ${markup.type}`,
+        description: desc,
         execute: () => {
           set((state) => ({
-            markups: [...state.markups, markup],
-            selectedMarkupIds: [markup.id],
+            markups: [...state.markups, ...newMarkups],
+            selectedMarkupIds: ids,
             isDirty: true,
           }));
         },
         undo: () => {
           set((state) => ({
-            markups: state.markups.filter((m) => m.id !== markup.id),
-            selectedMarkupIds: state.selectedMarkupIds.filter((id) => id !== markup.id),
+            markups: state.markups.filter((m) => !ids.includes(m.id)),
+            selectedMarkupIds: state.selectedMarkupIds.filter((id) => !ids.includes(id)),
             isDirty: true,
           }));
         },
@@ -128,19 +139,26 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
       const target = get().markups.find((m) => m.id === id);
       if (!target) return;
 
+      // Si target pertenece a un grupo, incluir a todos los miembros de ese grupo
+      const targetsToDelete = target.groupId
+        ? get().markups.filter((m) => m.groupId === target.groupId)
+        : [target];
+      const targetIds = targetsToDelete.map((m) => m.id);
+      const desc = targetsToDelete.length > 1 ? 'Eliminar grupo' : `Eliminar ${target.type}`;
+
       const command: Command = {
-        description: `Eliminar ${target.type}`,
+        description: desc,
         execute: () => {
           set((state) => ({
-            markups: state.markups.filter((m) => m.id !== id),
-            selectedMarkupIds: state.selectedMarkupIds.filter((selId) => selId !== id),
+            markups: state.markups.filter((m) => !targetIds.includes(m.id)),
+            selectedMarkupIds: state.selectedMarkupIds.filter((selId) => !targetIds.includes(selId)),
             isDirty: true,
           }));
         },
         undo: () => {
           set((state) => ({
-            markups: [...state.markups, target],
-            selectedMarkupIds: [target.id],
+            markups: [...state.markups, ...targetsToDelete],
+            selectedMarkupIds: targetIds,
             isDirty: true,
           }));
         },
@@ -154,14 +172,23 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
       const selectedIds = get().selectedMarkupIds;
       if (selectedIds.length === 0) return;
 
-      const targets = get().markups.filter((m) => selectedIds.includes(m.id));
+      // Expandir cualquier grupo presente en la selección
+      const selectedMarkups = get().markups.filter((m) => selectedIds.includes(m.id));
+      const groupIds = new Set(
+        selectedMarkups.map((m) => m.groupId).filter((gid): gid is string => Boolean(gid))
+      );
+
+      const targets = get().markups.filter(
+        (m) => selectedIds.includes(m.id) || (m.groupId && groupIds.has(m.groupId))
+      );
       if (targets.length === 0) return;
+      const targetIds = targets.map((m) => m.id);
 
       const command: Command = {
-        description: `Eliminar ${targets.length} marca(s)`,
+        description: targets.length > 1 ? `Eliminar ${targets.length} marca(s)` : `Eliminar marca`,
         execute: () => {
           set((state) => ({
-            markups: state.markups.filter((m) => !selectedIds.includes(m.id)),
+            markups: state.markups.filter((m) => !targetIds.includes(m.id)),
             selectedMarkupIds: [],
             isDirty: true,
           }));
@@ -169,7 +196,7 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
         undo: () => {
           set((state) => ({
             markups: [...state.markups, ...targets],
-            selectedMarkupIds: targets.map((t) => t.id),
+            selectedMarkupIds: targetIds,
             isDirty: true,
           }));
         },
@@ -180,16 +207,21 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
     },
 
     selectMarkup: (id: string, multi = false) => {
+      const target = get().markups.find((m) => m.id === id);
+      const targetIds = target?.groupId
+        ? get().markups.filter((m) => m.groupId === target.groupId).map((m) => m.id)
+        : [id];
+
       set((state) => {
         if (multi) {
-          const exists = state.selectedMarkupIds.includes(id);
+          const anyExists = targetIds.some((tid) => state.selectedMarkupIds.includes(tid));
           return {
-            selectedMarkupIds: exists
-              ? state.selectedMarkupIds.filter((item) => item !== id)
-              : [...state.selectedMarkupIds, id],
+            selectedMarkupIds: anyExists
+              ? state.selectedMarkupIds.filter((item) => !targetIds.includes(item))
+              : [...state.selectedMarkupIds, ...targetIds],
           };
         }
-        return { selectedMarkupIds: [id] };
+        return { selectedMarkupIds: targetIds };
       });
     },
 

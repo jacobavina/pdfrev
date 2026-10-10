@@ -370,6 +370,12 @@ export function hitTestMarkup(
     // Si cae en alguna de sus directrices
     if (markup.leaders && Array.isArray(markup.leaders)) {
       for (const leader of markup.leaders) {
+        if (leader.length === 1) {
+          const boxCenter = { x: minX, y: (minY + maxY) / 2 };
+          if (distanceToSegment(point, leader[0], boxCenter) <= tolerance) {
+            return true;
+          }
+        }
         for (let i = 1; i < leader.length; i++) {
           if (distanceToSegment(point, leader[i - 1], leader[i]) <= tolerance) {
             return true;

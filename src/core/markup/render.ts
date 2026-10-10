@@ -86,52 +86,165 @@ export function pointsToFreehandPathD(
   return d;
 }
 
+export const DEFAULT_ARC_STEP = 20;
+export const MIN_SAGITTA = 4;
+export const DEFAULT_SAGITTA_RATIO = 0.4;
+
+/**
+ * Calcula el área firmada 2D de una polilínea cerrada en coordenadas de pantalla / SVG (y hacia abajo).
+ * Retorna > 0 para sentido horario (CW), < 0 para antihorario (CCW).
+ */
+export function calculateSignedArea(points: { x: number; y: number }[]): number {
+  let area2 = 0;
+  const n = points.length;
+  for (let i = 0; i < n; i++) {
+    const next = (i + 1) % n;
+    area2 += points[i].x * points[next].y - points[next].x * points[i].y;
+  }
+  return area2 / 2;
+}
+
 /**
  * C2: Genera el camino SVG para nubes de revisión técnica en unidades de página (puntos).
- * Entrada: puntos normalizados (0..1) y dimensiones de la página.
+ * Soporta de forma determinista:
+ * 1. Nubes rectangulares de 2 puntos (compatibilidad retroactiva exacta con la salida vectorial previa).
+ * 2. Nubes poligonales de N >= 3 puntos con abombamiento determinista hacia el exterior
+ *    calculado mediante el área firmada de la figura (independiente del sentido de giro CW / CCW).
+ * 3. Sagitta mínima (MIN_SAGITTA = 4) para evitar aplanamiento de aristas cortas.
  * Salida: comando path SVG ("M... Q... Z") en unidades de página (independiente del zoom).
  */
 export function generateCloudPath(
-  p1: MarkupPoint,
-  p2: MarkupPoint,
-  pageSize: { width: number; height: number },
-  stepPt = 20
+  p1OrPoints: MarkupPoint | MarkupPoint[],
+  p2OrPageSize: MarkupPoint | { width: number; height: number },
+  pageSizeOrStep?: { width: number; height: number } | number,
+  stepPt = DEFAULT_ARC_STEP
 ): string {
-  const left = Math.min(p1.x, p2.x) * pageSize.width;
-  const top = Math.min(p1.y, p2.y) * pageSize.height;
-  const width = Math.max(0.0001, Math.abs(p2.x - p1.x) * pageSize.width);
-  const height = Math.max(0.0001, Math.abs(p2.y - p1.y) * pageSize.height);
+  let points: MarkupPoint[];
+  let pageSize: { width: number; height: number };
+  let step: number;
 
-  const stepsX = Math.max(2, Math.round(width / stepPt));
-  const stepsY = Math.max(2, Math.round(height / stepPt));
-  const stepW = width / stepsX;
-  const stepH = height / stepsY;
+  if (Array.isArray(p1OrPoints)) {
+    points = p1OrPoints;
+    pageSize = p2OrPageSize as { width: number; height: number };
+    step = typeof pageSizeOrStep === 'number' ? pageSizeOrStep : stepPt;
+  } else {
+    points = [p1OrPoints, p2OrPageSize as MarkupPoint];
+    pageSize = pageSizeOrStep as { width: number; height: number };
+    step = typeof stepPt === 'number' ? stepPt : DEFAULT_ARC_STEP;
+  }
 
-  let d = `M ${left.toFixed(2)} ${top.toFixed(2)}`;
-  // Borde superior
-  for (let i = 0; i < stepsX; i++) {
-    const x1 = left + i * stepW;
-    const x2 = x1 + stepW;
-    d += ` Q ${(x1 + stepW / 2).toFixed(2)} ${(top - 8).toFixed(2)} ${x2.toFixed(2)} ${top.toFixed(2)}`;
+  if (points.length === 0) return '';
+
+  // Caso A: Nube rectangular de 2 puntos (o polígono con menos de 3 puntos)
+  if (points.length <= 2) {
+    const p1 = points[0];
+    const p2 = points[1] || p1;
+
+    const left = Math.min(p1.x, p2.x) * pageSize.width;
+    const top = Math.min(p1.y, p2.y) * pageSize.height;
+    const width = Math.max(0.0001, Math.abs(p2.x - p1.x) * pageSize.width);
+    const height = Math.max(0.0001, Math.abs(p2.y - p1.y) * pageSize.height);
+
+    const stepsX = Math.max(2, Math.round(width / step));
+    const stepsY = Math.max(2, Math.round(height / step));
+    const stepW = width / stepsX;
+    const stepH = height / stepsY;
+
+    const sagittaX = Math.max(MIN_SAGITTA, stepW * DEFAULT_SAGITTA_RATIO);
+    const sagittaY = Math.max(MIN_SAGITTA, stepH * DEFAULT_SAGITTA_RATIO);
+
+    let d = `M ${left.toFixed(2)} ${top.toFixed(2)}`;
+    // Borde superior (abombamiento exterior hacia arriba -sagittaX)
+    for (let i = 0; i < stepsX; i++) {
+      const x1 = left + i * stepW;
+      const x2 = x1 + stepW;
+      d += ` Q ${(x1 + stepW / 2).toFixed(2)} ${(top - sagittaX).toFixed(2)} ${x2.toFixed(2)} ${top.toFixed(2)}`;
+    }
+    // Borde derecho (abombamiento exterior hacia derecha +sagittaY)
+    for (let i = 0; i < stepsY; i++) {
+      const y1 = top + i * stepH;
+      const y2 = y1 + stepH;
+      d += ` Q ${(left + width + sagittaY).toFixed(2)} ${(y1 + stepH / 2).toFixed(2)} ${(left + width).toFixed(2)} ${y2.toFixed(2)}`;
+    }
+    // Borde inferior (abombamiento exterior hacia abajo +sagittaX)
+    for (let i = stepsX; i > 0; i--) {
+      const x2 = left + i * stepW;
+      const x1 = x2 - stepW;
+      d += ` Q ${(x1 + stepW / 2).toFixed(2)} ${(top + height + sagittaX).toFixed(2)} ${x1.toFixed(2)} ${(top + height).toFixed(2)}`;
+    }
+    // Borde izquierdo (abombamiento exterior hacia izquierda -sagittaY)
+    for (let i = stepsY; i > 0; i--) {
+      const y2 = top + i * stepH;
+      const y1 = y2 - stepH;
+      d += ` Q ${(left - sagittaY).toFixed(2)} ${(y1 + stepH / 2).toFixed(2)} ${left.toFixed(2)} ${y1.toFixed(2)}`;
+    }
+    d += ' Z';
+    return d;
   }
-  // Borde derecho
-  for (let i = 0; i < stepsY; i++) {
-    const y1 = top + i * stepH;
-    const y2 = y1 + stepH;
-    d += ` Q ${(left + width + 8).toFixed(2)} ${(y1 + stepH / 2).toFixed(2)} ${(left + width).toFixed(2)} ${y2.toFixed(2)}`;
+
+  // Caso B: Nube poligonal de N >= 3 puntos
+  const polyPts = points.map((p) => ({
+    x: p.x * pageSize.width,
+    y: p.y * pageSize.height,
+  }));
+
+  const signedArea = calculateSignedArea(polyPts);
+  // En SVG (eje Y hacia abajo), signedArea > 0 significa sentido horario (CW)
+  const isCW = signedArea >= 0;
+
+  const n = polyPts.length;
+  let d = '';
+
+  for (let i = 0; i < n; i++) {
+    const nextIdx = (i + 1) % n;
+    const a = polyPts[i];
+    const b = polyPts[nextIdx];
+
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy);
+
+    if (len < 1e-4) continue;
+
+    // Normal unitaria exterior:
+    // Si CW, el exterior está a la izquierda del vector de avance: (dy / len, -dx / len)
+    // Si CCW, el exterior está a la derecha del vector de avance: (-dy / len, dx / len)
+    const outNx = isCW ? dy / len : -dy / len;
+    const outNy = isCW ? -dx / len : dx / len;
+
+    const numArcs = Math.max(1, Math.round(len / step));
+    const chordLen = len / numArcs;
+    const sagitta = Math.max(MIN_SAGITTA, chordLen * DEFAULT_SAGITTA_RATIO);
+
+    const stepDx = dx / numArcs;
+    const stepDy = dy / numArcs;
+
+    for (let j = 0; j < numArcs; j++) {
+      const pStart = {
+        x: a.x + j * stepDx,
+        y: a.y + j * stepDy,
+      };
+      const pEnd = {
+        x: a.x + (j + 1) * stepDx,
+        y: a.y + (j + 1) * stepDy,
+      };
+
+      if (d === '') {
+        d = `M ${pStart.x.toFixed(2)} ${pStart.y.toFixed(2)}`;
+      }
+
+      const pMid = {
+        x: (pStart.x + pEnd.x) / 2,
+        y: (pStart.y + pEnd.y) / 2,
+      };
+
+      const ctrlX = pMid.x + sagitta * outNx;
+      const ctrlY = pMid.y + sagitta * outNy;
+
+      d += ` Q ${ctrlX.toFixed(2)} ${ctrlY.toFixed(2)} ${pEnd.x.toFixed(2)} ${pEnd.y.toFixed(2)}`;
+    }
   }
-  // Borde inferior
-  for (let i = stepsX; i > 0; i--) {
-    const x2 = left + i * stepW;
-    const x1 = x2 - stepW;
-    d += ` Q ${(x1 + stepW / 2).toFixed(2)} ${(top + height + 8).toFixed(2)} ${x1.toFixed(2)} ${(top + height).toFixed(2)}`;
-  }
-  // Borde izquierdo
-  for (let i = stepsY; i > 0; i--) {
-    const y2 = top + i * stepH;
-    const y1 = y2 - stepH;
-    d += ` Q ${(left - 8).toFixed(2)} ${(y1 + stepH / 2).toFixed(2)} ${left.toFixed(2)} ${y1.toFixed(2)}`;
-  }
+
   d += ' Z';
   return d;
 }
@@ -262,13 +375,15 @@ export function getMarkupSvgDescriptor(
     // C2: Nube con pasos derivados en unidades de página independientes del zoom
     case 'cloud':
     case 'cloudPlus': {
-      const p1Norm = markup.points[0] || { x: 0, y: 0 };
-      const p2Norm = markup.points[1] || p1Norm;
+      const arcStep =
+        typeof markup.customFields?.arcStep === 'number'
+          ? markup.customFields.arcStep
+          : DEFAULT_ARC_STEP;
+
       const pathD = generateCloudPath(
-        p1Norm,
-        p2Norm,
+        markup.points,
         { width: transform.width * transform.scale, height: transform.height * transform.scale },
-        20 * transform.scale
+        arcStep * transform.scale
       );
       return {
         tag: 'path',
@@ -277,6 +392,80 @@ export function getMarkupSvgDescriptor(
           fill: style.fillColor || 'rgba(230, 240, 255, 0.2)',
           d: pathD,
         },
+      };
+    }
+
+    // Callout (Llamada con directriz y caja de texto)
+    case 'callout': {
+      const rect = getRectGeometry(p1Screen, p2Screen);
+      const width = Math.max(80, rect.width);
+      const height = Math.max(26, rect.height);
+
+      const children: SvgRenderDescriptor[] = [];
+
+      // Flecha / directriz hacia el punto objetivo
+      if (markup.leaders && markup.leaders[0] && markup.leaders[0][0]) {
+        const arrowHead = normalizedToScreen(markup.leaders[0][0], transform);
+        const boxTarget = { x: rect.x, y: rect.y + height / 2 };
+
+        children.push({
+          tag: 'line',
+          attrs: {
+            x1: arrowHead.x,
+            y1: arrowHead.y,
+            x2: boxTarget.x,
+            y2: boxTarget.y,
+            stroke: style.strokeColor,
+            strokeWidth: style.strokeWidth || 1.5,
+          },
+        });
+
+        // Punto/círculo en el extremo de la directriz
+        children.push({
+          tag: 'ellipse',
+          attrs: {
+            cx: arrowHead.x,
+            cy: arrowHead.y,
+            rx: 3,
+            ry: 3,
+            fill: style.strokeColor,
+          },
+        });
+      }
+
+      // Caja de texto
+      children.push({
+        tag: 'rect',
+        attrs: {
+          x: rect.x,
+          y: rect.y,
+          width,
+          height,
+          fill: style.fillColor || '#ffffff',
+          stroke: style.strokeColor,
+          strokeWidth: style.strokeWidth || 1.5,
+          rx: 2,
+        },
+      });
+
+      // Texto de la llamada
+      children.push({
+        tag: 'text',
+        attrs: {
+          x: rect.x + 6,
+          y: rect.y + 16,
+          fontSize: style.fontSize || 12,
+          fill: '#1f2937',
+          fontFamily: style.fontFamily || 'sans-serif',
+          className: 'font-medium pointer-events-none',
+        },
+        textNode: markup.text || 'Nota Cloud+',
+      });
+
+      return {
+        tag: 'g',
+        attrs: { className: 'cursor-pointer' },
+        children,
       };
     }
 

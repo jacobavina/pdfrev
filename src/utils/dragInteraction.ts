@@ -57,13 +57,27 @@ export function handleSelectMouseDown({
   if (!isAlreadySelected) {
     // Condición 2: Clic sobre marca no seleccionada -> seleccionar Y arrastrar
     selectMarkup(hit.id, false);
-    markupsToDrag = [hit];
+    markupsToDrag = hit.groupId
+      ? pageMarkups.filter((m) => m.groupId === hit.groupId)
+      : [hit];
   } else {
     // Marca ya seleccionada -> arrastrar todas las marcas seleccionadas de la página
     markupsToDrag = pageMarkups.filter((m) => selectedMarkupIds.includes(m.id));
     if (markupsToDrag.length === 0) {
-      markupsToDrag = [hit];
+      markupsToDrag = hit.groupId
+        ? pageMarkups.filter((m) => m.groupId === hit.groupId)
+        : [hit];
     }
+  }
+
+  // Expandir grupos en markupsToDrag para mover miembros del grupo juntos
+  const groupIds = new Set(
+    markupsToDrag.map((m) => m.groupId).filter((gid): gid is string => Boolean(gid))
+  );
+  if (groupIds.size > 0) {
+    markupsToDrag = pageMarkups.filter(
+      (m) => markupsToDrag.some((d) => d.id === m.id) || (m.groupId && groupIds.has(m.groupId))
+    );
   }
 
   return {

@@ -307,4 +307,87 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const finalX = parseFloat((await newRect.getAttribute('x'))!);
     expect(finalX).toBeCloseTo(origX, 0);
   });
+
+  test('Sub-entregable A.1: Cloud+ como grupo (creación atómica, arrastre conjunto de nube y directriz, y borrado/deshacer en un paso)', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+
+    // 1. Activar herramienta Cloud+
+    const cloudPlusBtn = page.locator('button[title*="Cloud+"]');
+    await expect(cloudPlusBtn).toBeVisible();
+    await cloudPlusBtn.click();
+
+    const svgBox = await overlaySvg.boundingBox();
+    expect(svgBox).not.toBeNull();
+    if (!svgBox) return;
+
+    const startX = svgBox.x + 150;
+    const startY = svgBox.y + 150;
+    const endX = svgBox.x + 300;
+    const endY = svgBox.y + 250;
+
+    // 2. Trazar Cloud+ arrastrando el ratón
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(endX, endY);
+    await page.mouse.up();
+
+    // 3. Comprobar que en el SVG overlay se crearon los elementos de la nube y del callout
+    const cloudPath = overlaySvg.locator('path[d*="Q"]').last();
+    await expect(cloudPath).toBeVisible();
+
+    const calloutText = overlaySvg.locator('text:has-text("Nota Cloud+")').last();
+    await expect(calloutText).toBeVisible();
+
+    // Comprobar que en la lista de marcas aparecen cloudPlus y callout
+    const markupsPanel = page.locator('[data-testid="markups-list-panel"]');
+    await expect(markupsPanel).toContainText('cloudPlus');
+    await expect(markupsPanel).toContainText('callout');
+
+    // 4. Cambiar a herramienta Seleccionar (V)
+    const selectBtn = page.locator('button[title*="Seleccionar"]');
+    await selectBtn.click();
+
+    // Guardar posición inicial del texto del callout
+    const initialTextX = parseFloat((await calloutText.getAttribute('x'))!);
+    const initialTextY = parseFloat((await calloutText.getAttribute('y'))!);
+
+    // 5. Clic sobre la nube para arrastrar el grupo (interior de la nube en 200, 200)
+    const dragClickX = startX + 50;
+    const dragClickY = startY + 50;
+
+    await page.mouse.move(dragClickX, dragClickY);
+    await page.mouse.down();
+    await page.mouse.move(dragClickX + 60, dragClickY + 40);
+    await page.mouse.up();
+
+    // 6. Verificar que tanto la nube como el callout se movieron juntos
+    const movedTextX = parseFloat((await calloutText.getAttribute('x'))!);
+    const movedTextY = parseFloat((await calloutText.getAttribute('y'))!);
+    expect(movedTextX).toBeGreaterThanOrEqual(initialTextX + 50);
+    expect(movedTextX).toBeLessThanOrEqual(initialTextX + 70);
+    expect(movedTextY).toBeGreaterThanOrEqual(initialTextY + 30);
+    expect(movedTextY).toBeLessThanOrEqual(initialTextY + 50);
+
+    // 7. Deshacer atómico con Ctrl+Z: un solo paso regresa todo el grupo a su posición original
+    await page.keyboard.press('Control+z');
+    const restoredTextX = parseFloat((await calloutText.getAttribute('x'))!);
+    const restoredTextY = parseFloat((await calloutText.getAttribute('y'))!);
+    expect(restoredTextX).toBeCloseTo(initialTextX, 0);
+    expect(restoredTextY).toBeCloseTo(initialTextY, 0);
+
+    // 8. Borrado conjunto: pulsar Delete con el grupo seleccionado elimina nube y callout juntos
+    await page.keyboard.press('Delete');
+    await expect(overlaySvg.locator('text:has-text("Nota Cloud+")')).toHaveCount(0);
+
+    // 9. Deshacer el borrado con Ctrl+Z: un solo paso restaura el grupo completo
+    await page.keyboard.press('Control+z');
+    await expect(overlaySvg.locator('text:has-text("Nota Cloud+")').last()).toBeVisible();
+    await expect(markupsPanel).toContainText('cloudPlus');
+    await expect(markupsPanel).toContainText('callout');
+  });
 });

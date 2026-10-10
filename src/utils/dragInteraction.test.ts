@@ -301,4 +301,93 @@ describe('Sub-entregable A.0: Interacción de Selección y Arrastre (dragInterac
     expect(moveResult.updatedMarkups![0].points[0].y).toBeCloseTo(0.0, 4);
     expect(moveResult.updatedMarkups![0].points[1].y).toBeCloseTo(0.2, 4);
   });
+
+  it('Cloud+ como GRUPO: arrastrar un miembro arrastra todos los miembros del grupo con clamp de bbox conjunto', () => {
+    const groupId = 'group-cp-drag';
+    const cloud: Markup = {
+      id: 'cloud-m1',
+      type: 'cloudPlus',
+      pageIndex: 0,
+      points: [
+        { x: 0.1, y: 0.1 },
+        { x: 0.4, y: 0.3 },
+      ],
+      style: { strokeColor: '#10b981', strokeWidth: 2, opacity: 1 },
+      author: 'Tester',
+      createdAt: '',
+      updatedAt: '',
+      status: 'pending',
+      groupId,
+      customFields: { arcStep: 20 },
+    };
+
+    const callout: Markup = {
+      id: 'callout-m1',
+      type: 'callout',
+      pageIndex: 0,
+      points: [
+        { x: 0.45, y: 0.05 },
+        { x: 0.6, y: 0.12 },
+      ],
+      leaders: [[{ x: 0.4, y: 0.1 }]],
+      style: { strokeColor: '#10b981', strokeWidth: 1.5, opacity: 1 },
+      text: 'Nota',
+      author: 'Tester',
+      createdAt: '',
+      updatedAt: '',
+      status: 'pending',
+      groupId,
+    };
+
+    const selectMarkup = vi.fn();
+    const deselectAll = vi.fn();
+
+    // Clic sobre la nube
+    const dragState = handleSelectMouseDown({
+      point: { x: 0.2, y: 0.2 },
+      screenX: 200,
+      screenY: 160,
+      isCtrl: false,
+      pageMarkups: [cloud, callout],
+      selectedMarkupIds: [],
+      selectMarkup,
+      deselectAll,
+    });
+
+    expect(dragState).not.toBeNull();
+    // initialMarkups debe contener AMBOS miembros del grupo
+    expect(dragState?.initialMarkups).toHaveLength(2);
+    expect(dragState?.initialMarkups.map((m) => m.id)).toEqual(['cloud-m1', 'callout-m1']);
+
+    // Arrastrar 50 px en X e Y
+    const moveResult = handleSelectMouseMove({
+      screenX: 250,
+      screenY: 210,
+      dragState: dragState!,
+      viewportTransform: mockTransform,
+    });
+
+    expect(moveResult.hasMovedPastThreshold).toBe(true);
+    expect(moveResult.updatedMarkups).toHaveLength(2);
+    // dxScreen = 50 / 1000 = 0.05, dyScreen = 50 / 800 = 0.0625
+    expect(moveResult.clampedDelta?.x).toBeCloseTo(0.05, 4);
+    expect(moveResult.clampedDelta?.y).toBeCloseTo(0.0625, 4);
+
+    // Comprobar que la directriz del callout también se trasladó
+    const movedCallout = moveResult.updatedMarkups!.find((m) => m.id === 'callout-m1');
+    expect(movedCallout?.leaders?.[0][0].x).toBeCloseTo(0.4 + 0.05, 4);
+    expect(movedCallout?.leaders?.[0][0].y).toBeCloseTo(0.1 + 0.0625, 4);
+
+    // Finalizar arrastre con mouseUp
+    const upResult = handleSelectMouseUp({
+      screenX: 250,
+      screenY: 210,
+      dragState: dragState!,
+      viewportTransform: mockTransform,
+    });
+
+    expect(upResult.moves).toHaveLength(2);
+    expect(upResult.moves?.[0].id).toBe('cloud-m1');
+    expect(upResult.moves?.[1].id).toBe('callout-m1');
+  });
 });

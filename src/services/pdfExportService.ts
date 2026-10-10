@@ -9,7 +9,7 @@ import {
   LineCapStyle,
 } from 'pdf-lib';
 import { Markup, MarkupPoint, HIGHLIGHT_STYLE } from '../types/markup';
-import { generateCloudPath } from '../core/markup/render';
+import { generateCloudPath, DEFAULT_ARC_STEP } from '../core/markup/render';
 
 export interface PageTransformInfo {
   rotation: 0 | 90 | 180 | 270;
@@ -451,12 +451,19 @@ export async function exportMarkupsToPdf(
 
         // 7. Nube de revisión técnica
         case 'cloud': {
-          const p1Norm = markup.points[0] || { x: 0, y: 0 };
-          const p2Norm = markup.points[1] || p1Norm;
-          const cloudD = generateCloudPath(p1Norm, p2Norm, {
-            width: transform.widthPt,
-            height: transform.heightPt,
-          });
+          const arcStep =
+            typeof markup.customFields?.arcStep === 'number'
+              ? markup.customFields.arcStep
+              : DEFAULT_ARC_STEP;
+
+          const cloudD = generateCloudPath(
+            markup.points,
+            {
+              width: transform.widthPt,
+              height: transform.heightPt,
+            },
+            arcStep
+          );
 
           page.drawSvgPath(cloudD, {
             x: transform.originX,
@@ -472,12 +479,19 @@ export async function exportMarkupsToPdf(
 
         // 8. Cloud+ (Nube con directriz y caja de texto)
         case 'cloudPlus': {
-          const p1Norm = markup.points[0] || { x: 0, y: 0 };
-          const p2Norm = markup.points[1] || p1Norm;
-          const cloudD = generateCloudPath(p1Norm, p2Norm, {
-            width: transform.widthPt,
-            height: transform.heightPt,
-          });
+          const arcStep =
+            typeof markup.customFields?.arcStep === 'number'
+              ? markup.customFields.arcStep
+              : DEFAULT_ARC_STEP;
+
+          const cloudD = generateCloudPath(
+            markup.points,
+            {
+              width: transform.widthPt,
+              height: transform.heightPt,
+            },
+            arcStep
+          );
 
           page.drawSvgPath(cloudD, {
             x: transform.originX,
@@ -492,7 +506,10 @@ export async function exportMarkupsToPdf(
           if (markup.text) {
             const sanitized = sanitizeTextToWinAnsi(markup.text);
             totalReplacedCharacters += sanitized.replacedCount;
-            const p1 = normalizedToPdfCoordinates(p1Norm, transform);
+            const p1 = normalizedToPdfCoordinates(
+              markup.points[0] || { x: 0, y: 0 },
+              transform
+            );
             page.drawText(sanitized.text, {
               x: p1.x + 8,
               y: p1.y - 14,

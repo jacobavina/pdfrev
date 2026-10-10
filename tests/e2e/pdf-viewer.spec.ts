@@ -643,6 +643,105 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     expect(initialRestoredAnchorCx).toBeCloseTo(initAnchorCx, 0);
     expect(initialRestoredAnchorCy).toBeCloseTo(initAnchorCy, 0);
   });
+
+  test('Sub-entregable A.3: Invarianza al zoom de la caja de Callout (mismo tamaño en unidades de página a 100% y 200%)', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+
+    const calloutBtn = page.locator('button[title*="directriz"]');
+    const zoomInBtn = page.locator('button[title*="Acercar"]');
+    const resetZoomBtn = page.locator('button[title*="Restablecer zoom"]');
+    await expect(resetZoomBtn).toHaveText('100%');
+
+    const sampleText = 'VIGA ESTRUCTURAL B-12';
+    const editorInput = page.locator('[data-testid="inline-text-editor-input"]');
+
+    // Punto del plano normalizado (cerca del centro para visibilidad a 100% y 200% con scroll)
+    const normAnchor = { x: 0.45, y: 0.45 };
+    const normBox = { x: 0.55, y: 0.52 };
+
+    // 1. Crear Callout al 100% de zoom
+    const svgBox100 = await overlaySvg.boundingBox();
+    expect(svgBox100).not.toBeNull();
+    if (!svgBox100) return;
+
+    await calloutBtn.click();
+    await page.mouse.move(
+      svgBox100.x + svgBox100.width * normAnchor.x,
+      svgBox100.y + svgBox100.height * normAnchor.y
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      svgBox100.x + svgBox100.width * normBox.x,
+      svgBox100.y + svgBox100.height * normBox.y
+    );
+    await page.mouse.up();
+
+    await expect(editorInput).toBeVisible();
+    await editorInput.fill(sampleText);
+    await page.keyboard.press('Enter');
+    await expect(editorInput).toHaveCount(0);
+
+    const callout1Group = overlaySvg.locator('g[data-testid^="markup-g-"]').last();
+    const callout1Box = callout1Group.locator('rect:not([data-testid="selection-bbox"])');
+    await expect(callout1Box).toBeVisible();
+    const width100Screen = parseFloat((await callout1Box.getAttribute('width'))!);
+    const width100PageUnits = width100Screen / 1.0;
+
+    // Eliminar Callout 1 con Delete para permitir recrearlo en el mismo punto exacto a 200%
+    await page.keyboard.press('Delete');
+    await expect(overlaySvg.locator('g[data-testid^="markup-g-"]')).toHaveCount(1);
+
+    // 2. Acercar zoom al 200% (4 clics de 25%)
+    for (let i = 0; i < 4; i++) {
+      await zoomInBtn.click();
+    }
+    await expect(resetZoomBtn).toHaveText('200%');
+    await expect(overlaySvg).toHaveAttribute('width', '1600');
+
+    // 3. Crear Callout al 200% de zoom en el mismo punto exacto de página y con el mismo texto
+    await calloutBtn.click();
+    const svgBox200 = await overlaySvg.boundingBox();
+    expect(svgBox200).not.toBeNull();
+    if (!svgBox200) return;
+
+    await page.mouse.move(
+      svgBox200.x + svgBox200.width * normAnchor.x,
+      svgBox200.y + svgBox200.height * normAnchor.y
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      svgBox200.x + svgBox200.width * normBox.x,
+      svgBox200.y + svgBox200.height * normBox.y
+    );
+    await page.mouse.up();
+
+    await expect(editorInput).toBeVisible();
+    await editorInput.fill(sampleText);
+    await page.keyboard.press('Enter');
+    await expect(editorInput).toHaveCount(0);
+
+    const callout2Group = overlaySvg.locator('g[data-testid^="markup-g-"]').last();
+    const callout2Box = callout2Group.locator('rect:not([data-testid="selection-bbox"])');
+    await expect(callout2Box).toBeVisible();
+    const width200Screen = parseFloat((await callout2Box.getAttribute('width'))!);
+    const width200PageUnits = width200Screen / 2.0;
+
+    // En unidades de página (pt), la caja debe tener exactamente el mismo ancho
+    expect(width200PageUnits).toBeCloseTo(width100PageUnits, 1);
+
+    // 4. Restablecer zoom a 100% y verificar que la caja mide exactamente lo mismo en pantalla
+    await resetZoomBtn.click();
+    await expect(resetZoomBtn).toHaveText('100%');
+    await expect(overlaySvg).toHaveAttribute('width', '800');
+
+    const finalWidthScreen = parseFloat((await callout2Box.getAttribute('width'))!);
+    expect(finalWidthScreen).toBeCloseTo(width100Screen, 1);
+  });
 });
 
 

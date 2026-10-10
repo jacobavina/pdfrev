@@ -481,27 +481,6 @@ describe('Pure Markup Rendering (src/core/markup/render.ts - Criterio 1)', () =>
         expect(longSize.width).toBeGreaterThan(shortSize.width);
         expect(shortSize.width).toBeGreaterThanOrEqual(CALLOUT_MIN_BOX_WIDTH / 800);
         expect(shortSize.height).toBeGreaterThanOrEqual(CALLOUT_MIN_BOX_HEIGHT / 600);
-      });
-
-      it('Defecto 1 (Zoom Invariant): estimateCalloutBoxNormalizedSize con dimensiones desescaladas produce exactamente el mismo tamaño normalizado a escala 0.5, 1.0 y 2.0', () => {
-        const text = 'REVISIÓN ESTRUCTURAL VIGA B-12';
-        const basePageWidthPt = 800;
-        const basePageHeightPt = 600;
-
-        const scales = [0.5, 1.0, 2.0];
-        const results = scales.map((s) => {
-          const scaledViewportWidth = basePageWidthPt * s;
-          const scaledViewportHeight = basePageHeightPt * s;
-          const unscaledWidth = scaledViewportWidth / s;
-          const unscaledHeight = scaledViewportHeight / s;
-          return estimateCalloutBoxNormalizedSize(text, 10, unscaledWidth, unscaledHeight);
-        });
-
-        expect(results[0].width).toBeCloseTo(results[1].width, 6);
-        expect(results[0].height).toBeCloseTo(results[1].height, 6);
-        expect(results[2].width).toBeCloseTo(results[1].width, 6);
-        expect(results[2].height).toBeCloseTo(results[1].height, 6);
-      });
     });
   });
 });

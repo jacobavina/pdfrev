@@ -25,7 +25,6 @@ import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useToolStore, ToolType } from '../store/useToolStore';
 import { openPdfDialog } from '../services/fileDialogService';
-import { exportMarkupsToPdf } from '../services/pdfExportService';
 import { useAutoSave } from '../hooks/useAutoSave';
 
 export const TopBar: React.FC = () => {
@@ -52,6 +51,7 @@ export const TopBar: React.FC = () => {
       return;
     }
     try {
+      const { exportMarkupsToPdf } = await import('../services/pdfExportService');
       const result = await exportMarkupsToPdf(pdfBytes, markups);
       const blob = new Blob([result.pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);

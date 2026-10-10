@@ -137,7 +137,9 @@ export function parseCssColor(colorStr: string | undefined): {
     return { color: rgb(r, g, b), opacity: 1 };
   }
 
-  return { color: rgb(0, 0, 0), opacity: 1 };
+  // Fallback: advertir y devolver undefined en vez de negro sólido en silencio
+  console.warn(`[parseCssColor] Formato de color desconocido: "${colorStr}". Se omite el color.`);
+  return { color: undefined };
 }
 
 /**
@@ -210,24 +212,34 @@ export function getPageTransformFromPdfLib(page: PDFPage): PageTransformInfo {
 }
 
 /**
- * Divide párrafos de texto en líneas de ajuste manual usando anchos de fuente medidos.
+ * Divide texto en líneas respetando saltos de línea explícitos (\n) y ancho máximo medido.
  */
-function wrapText(text: string, maxWidth: number, fontSize: number, font: PDFFont): string[] {
-  const words = text.split(/\s+/);
+export function wrapText(text: string, maxWidth: number, fontSize: number, font: PDFFont): string[] {
+  const paragraphs = text.split(/\r?\n/);
   const lines: string[] = [];
-  let currentLine = '';
 
-  for (const word of words) {
-    const testLine = currentLine ? `${currentLine} ${word}` : word;
-    const width = font.widthOfTextAtSize(testLine, fontSize);
-    if (width <= maxWidth || !currentLine) {
-      currentLine = testLine;
-    } else {
-      lines.push(currentLine);
-      currentLine = word;
+  for (const paragraph of paragraphs) {
+    const trimmed = paragraph.trim();
+    if (!trimmed) {
+      lines.push('');
+      continue;
     }
+    const words = trimmed.split(/\s+/);
+    let currentLine = '';
+
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const width = font.widthOfTextAtSize(testLine, fontSize);
+      if (width <= maxWidth || !currentLine) {
+        currentLine = testLine;
+      } else {
+        lines.push(currentLine);
+        currentLine = word;
+      }
+    }
+    if (currentLine) lines.push(currentLine);
   }
-  if (currentLine) lines.push(currentLine);
+
   return lines.length > 0 ? lines : [text];
 }
 
@@ -239,7 +251,23 @@ export async function exportMarkupsToPdf(
   markups: Markup[],
   options?: PdfExportOptions
 ): Promise<PdfExportResult> {
-  const pdfDoc = await PDFDocument.load(originalBytes);
+  let pdfDoc: PDFDocument;
+  try {
+    pdfDoc = await PDFDocument.load(originalBytes, { ignoreEncryption: false });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (
+      msg.toLowerCase().includes('encrypted') ||
+      msg.toLowerCase().includes('password') ||
+      msg.toLowerCase().includes('protected')
+    ) {
+      throw new Error(
+        'El documento PDF está protegido por contraseña o cifrado y no puede modificarse.'
+      );
+    }
+    throw err;
+  }
+
   const pages = pdfDoc.getPages();
 
   let totalReplacedCharacters = 0;

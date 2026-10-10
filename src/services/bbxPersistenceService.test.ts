@@ -1,10 +1,19 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { getBbxPath, saveBbxForPdf, loadBbxForPdf } from './bbxPersistenceService';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import {
+  getBbxPath,
+  validateBbxPath,
+  saveBbxForPdf,
+  loadBbxForPdf,
+  setBbxErrorHandler,
+} from './bbxPersistenceService';
 import { Markup } from '../types/markup';
 
 describe('BBX Persistence Service (.bbx.json)', () => {
   beforeEach(() => {
     localStorage.clear();
+    setBbxErrorHandler(null);
+    delete (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+    vi.restoreAllMocks();
   });
 
   it('generates correct .bbx.json paths alongside the PDF', () => {
@@ -13,7 +22,13 @@ describe('BBX Persistence Service (.bbx.json)', () => {
     expect(getBbxPath('archivo_sin_extension')).toBe('archivo_sin_extension.bbx.json');
   });
 
-  it('saves and loads markups to and from .bbx.json format', async () => {
+  it('validates that bbxPath is strictly the sibling of the opened PDF', () => {
+    expect(validateBbxPath('C:/docs/plan.pdf', 'C:/docs/plan.bbx.json')).toBe(true);
+    expect(validateBbxPath('C:/docs/plan.pdf', 'C:/other/plan.bbx.json')).toBe(false);
+    expect(validateBbxPath('C:/docs/plan.pdf', 'C:/docs/plan.txt')).toBe(false);
+  });
+
+  it('saves and loads markups to and from .bbx.json format (LocalStorage fallback)', async () => {
     const pdfPath = '/proyectos/estructural.pdf';
     const mockMarkups: Markup[] = [
       {
@@ -50,8 +65,88 @@ describe('BBX Persistence Service (.bbx.json)', () => {
     expect(loaded?.markups[0].status).toBe('accepted');
   });
 
-  it('returns null if .bbx.json does not exist', async () => {
+  it('returns null if .bbx.json does not exist in localStorage fallback', async () => {
     const loaded = await loadBbxForPdf('/inexistente/plano.pdf');
     expect(loaded).toBeNull();
+  });
+
+  // --------------------------------------------------------------------------------
+  // Sub-entregable 0.4: Simulación de Tauri Invoke (write_bbx y read_bbx)
+  // --------------------------------------------------------------------------------
+  describe('Tauri 2 Native Commands Integration (write_bbx y read_bbx)', () => {
+    it('llama a write_bbx con la ruta hermana exacta y JSON formateado', async () => {
+      const invokeMock = vi.fn().mockResolvedValue(undefined);
+
+      (window as unknown as { __TAURI_INTERNALS__: { invoke: typeof invokeMock } }).__TAURI_INTERNALS__ = {
+        invoke: invokeMock,
+      };
+
+      const pdfPath = 'C:/proyectos/puente.pdf';
+      const mockMarkups: Markup[] = [
+        {
+          id: 'm-1',
+          type: 'line',
+          pageIndex: 0,
+          points: [{ x: 0, y: 0 }, { x: 1, y: 1 }],
+          style: { strokeColor: '#000', strokeWidth: 1, opacity: 1 },
+          author: 'Auditor',
+          createdAt: '',
+          updatedAt: '',
+          status: 'pending',
+        },
+      ];
+
+      const success = await saveBbxForPdf(pdfPath, mockMarkups, 'Auditor');
+      expect(success).toBe(true);
+      expect(invokeMock.mock.calls[0][0]).toBe('write_bbx');
+      expect(invokeMock.mock.calls[0][1]).toEqual({
+        filePath: 'C:/proyectos/puente.bbx.json',
+        jsonContent: expect.stringContaining('"version": "1.1.0"'),
+      });
+    });
+
+    it('notifica error en UI cuando write_bbx es rechazado', async () => {
+      const invokeMock = vi.fn().mockRejectedValue(new Error('Permiso denegado'));
+
+      (window as unknown as { __TAURI_INTERNALS__: { invoke: typeof invokeMock } }).__TAURI_INTERNALS__ = {
+        invoke: invokeMock,
+      };
+
+      const errorHandler = vi.fn();
+      setBbxErrorHandler(errorHandler);
+
+      const success = await saveBbxForPdf('C:/proyectos/puente.pdf', []);
+      expect(success).toBe(false);
+      expect(errorHandler).toHaveBeenCalledWith(expect.stringContaining('Permiso denegado'));
+    });
+
+    it('read_bbx retorna null cuando el archivo no existe (Ok(None) de Rust)', async () => {
+      const invokeMock = vi.fn().mockResolvedValue(null);
+
+      (window as unknown as { __TAURI_INTERNALS__: { invoke: typeof invokeMock } }).__TAURI_INTERNALS__ = {
+        invoke: invokeMock,
+      };
+
+      const loaded = await loadBbxForPdf('C:/proyectos/nuevo.pdf');
+      expect(loaded).toBeNull();
+      expect(invokeMock.mock.calls[0][0]).toBe('read_bbx');
+      expect(invokeMock.mock.calls[0][1]).toEqual({
+        filePath: 'C:/proyectos/nuevo.bbx.json',
+      });
+    });
+
+    it('read_bbx lanza excepción y notifica error ante fallo real de E/S de Rust', async () => {
+      const invokeMock = vi.fn().mockRejectedValue(new Error('Fallo de lectura de disco (I/O error)'));
+
+      (window as unknown as { __TAURI_INTERNALS__: { invoke: typeof invokeMock } }).__TAURI_INTERNALS__ = {
+        invoke: invokeMock,
+      };
+
+      const errorHandler = vi.fn();
+      setBbxErrorHandler(errorHandler);
+
+      await expect(loadBbxForPdf('C:/proyectos/corrupto.pdf')).rejects.toThrow('Fallo de lectura de disco');
+      expect(errorHandler).toHaveBeenCalledWith(expect.stringContaining('Fallo de lectura de disco'));
+    });
   });
 });

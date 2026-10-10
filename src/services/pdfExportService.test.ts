@@ -1,8 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
+import zlib from 'zlib';
 import * as pdfjs from 'pdfjs-dist';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, StandardFonts } from 'pdf-lib';
 import {
   exportMarkupsToPdf,
   normalizedToPdfCoordinates,
@@ -10,6 +11,7 @@ import {
   parseDashArray,
   sanitizeTextToWinAnsi,
   getPageTransformFromPdfLib,
+  wrapText,
   PageTransformInfo,
 } from './pdfExportService';
 import { Markup, HIGHLIGHT_STYLE } from '../types/markup';
@@ -20,6 +22,34 @@ describe('PDF Export Service (Sub-entregable 0.3 - H1 Vector Export)', () => {
 
   const originalPdfBytes = new Uint8Array(fs.readFileSync(blueprintPath));
   const meta = JSON.parse(fs.readFileSync(blueprintMetaPath, 'utf8'));
+
+  // Helper para decodificar los content streams reales generados en la página
+  function getDecompressedStreams(doc: PDFDocument, pageIdx = 0): string[] {
+    const p = doc.getPages()[pageIdx];
+    const contentsRef = p.node.Contents();
+    const target = doc.context.lookup(contentsRef) as any;
+    const streams: string[] = [];
+
+    if (Array.isArray(target?.array)) {
+      for (const ref of target.array) {
+        const s = doc.context.lookup(ref) as any;
+        if (s?.contents) {
+          try {
+            streams.push(zlib.inflateSync(Buffer.from(s.contents)).toString('utf8'));
+          } catch {
+            streams.push(new TextDecoder().decode(s.contents));
+          }
+        }
+      }
+    } else if (target?.contents) {
+      try {
+        streams.push(zlib.inflateSync(Buffer.from(target.contents)).toString('utf8'));
+      } catch {
+        streams.push(new TextDecoder().decode(target.contents));
+      }
+    }
+    return streams;
+  }
 
   // --------------------------------------------------------------------------------
   // Criterio 1: Contraste de rotaciones contra PDF.js convertToPdfPoint
@@ -72,18 +102,15 @@ describe('PDF Export Service (Sub-entregable 0.3 - H1 Vector Export)', () => {
     };
 
     const pt = normalizedToPdfCoordinates({ x: 0.5, y: 0.5 }, transformNonZero);
-    // x = 150 + 0.5 * 800 = 550
-    // y = 250 + (1 - 0.5) * 600 = 550
     expect(pt.x).toBe(550);
     expect(pt.y).toBe(550);
   });
 
   // --------------------------------------------------------------------------------
-  // Criterio 3: TEST DE ORO con knownRectangle
+  // Criterio 3: TEST DE ORO con inspección real de operadores vectoriales en el PDF
   // --------------------------------------------------------------------------------
-  it('Criterio 3 (TEST DE ORO): Rectángulo exporta exactamente (x=100, y=150, width=300, height=200)', async () => {
+  it('Criterio 3 (TEST DE ORO): Rectángulo exporta en el content stream exactamente 1 0 0 1 100 150 cm y 300x200 pt', async () => {
     const knownNorm = meta.knownRectangle.normalized;
-    const knownPdf = meta.knownRectangle.pdf;
 
     const testMarkup: Markup = {
       id: 'gold-standard-rect',
@@ -108,23 +135,86 @@ describe('PDF Export Service (Sub-entregable 0.3 - H1 Vector Export)', () => {
     const exportResult = await exportMarkupsToPdf(originalPdfBytes, [testMarkup]);
     expect(exportResult.pdfBytes.length).toBeGreaterThan(0);
 
-    // Verificamos matemáticamente las coordenadas producidas con el transform derivado
+    // Inspección directa de los content streams generados en el PDF resultante
     const loadedDoc = await PDFDocument.load(exportResult.pdfBytes);
-    const firstPage = loadedDoc.getPages()[0];
-    const transform = getPageTransformFromPdfLib(firstPage);
+    const streams = getDecompressedStreams(loadedDoc, 0);
+    const lastStream = streams[streams.length - 1] || '';
 
-    const p1 = normalizedToPdfCoordinates(testMarkup.points[0], transform);
-    const p2 = normalizedToPdfCoordinates(testMarkup.points[1], transform);
+    // Aserción directa sobre las operaciones vectoriales reales del PDF:
+    // En pdf-lib, drawRectangle emite:
+    // 1 0 0 1 100 150 cm (matriz de transformación afín a x=100, y=150)
+    // 0 0 m / 0 200 l / 300 200 l / 300 0 l (rectángulo de 300x200 desde el origen)
+    expect(lastStream).toContain('1 0 0 1 100 150 cm');
+    expect(lastStream).toContain('0 200 l');
+    expect(lastStream).toContain('300 200 l');
+    expect(lastStream).toContain('300 0 l');
+  });
 
-    const calcX = Math.round(Math.min(p1.x, p2.x) * 100) / 100;
-    const calcY = Math.round(Math.min(p1.y, p2.y) * 100) / 100;
-    const calcWidth = Math.round(Math.abs(p2.x - p1.x) * 100) / 100;
-    const calcHeight = Math.round(Math.abs(p2.y - p1.y) * 100) / 100;
+  // --------------------------------------------------------------------------------
+  // Demostración y aserción de las DOS convenciones de drawSvgPath en pdf-lib
+  // --------------------------------------------------------------------------------
+  it('Demuestra y valida las DOS convenciones de drawSvgPath en pdf-lib (Polygon/Freehand vs Cloud)', async () => {
+    // Convención A: Polygon (Y negada, anclaje en 0,0)
+    // Puntos PDF esperados: (100, 450), (400, 450), (250, 150)
+    const polyMarkup: Markup = {
+      id: 'poly-conv',
+      type: 'polygon',
+      pageIndex: 0,
+      points: [
+        { x: 0.125, y: 0.25 },
+        { x: 0.5, y: 0.25 },
+        { x: 0.3125, y: 0.75 },
+      ],
+      style: { strokeColor: '#00f', strokeWidth: 1, opacity: 1 },
+      author: 'Tester',
+      createdAt: '',
+      updatedAt: '',
+      status: 'pending',
+    };
 
-    expect(calcX).toBe(knownPdf.x); // 100
-    expect(calcY).toBe(knownPdf.y); // 150
-    expect(calcWidth).toBe(knownPdf.width); // 300
-    expect(calcHeight).toBe(knownPdf.height); // 200
+    const resA = await exportMarkupsToPdf(originalPdfBytes, [polyMarkup]);
+    const docA = await PDFDocument.load(resA.pdfBytes);
+    const streamA = getDecompressedStreams(docA, 0).pop() || '';
+
+    // En Convención A:
+    // pdf-lib emite "1 0 0 -1 0 0 cm" (inversión de eje Y).
+    // El path SVG escrito tiene Y negada: "100 -450 m" y "400 -450 l" y "250 -150 l".
+    // Al componer la escala [1, -1] con Y=-450: Y_final = -(-450) = +450.
+    expect(streamA).toContain('1 0 0 -1 0 0 cm');
+    expect(streamA).toContain('100 -450 m');
+    expect(streamA).toContain('400 -450 l');
+    expect(streamA).toContain('250 -150 l');
+
+    // Convención B: Cloud (Y sin negar, anclaje en originY + heightPt = 600)
+    // Nube con bounds norm: p1=(0.125, 0.25) -> top = 0.25*600 = 150 pt desde arriba
+    // p2=(0.5, 0.75) -> bottom = 0.75*600 = 450 pt desde arriba
+    const cloudMarkup: Markup = {
+      id: 'cloud-conv',
+      type: 'cloud',
+      pageIndex: 0,
+      points: [
+        { x: 0.125, y: 0.25 },
+        { x: 0.5, y: 0.75 },
+      ],
+      style: { strokeColor: '#0a0', strokeWidth: 1, opacity: 1 },
+      author: 'Tester',
+      createdAt: '',
+      updatedAt: '',
+      status: 'pending',
+    };
+
+    const resB = await exportMarkupsToPdf(originalPdfBytes, [cloudMarkup]);
+    const docB = await PDFDocument.load(resB.pdfBytes);
+    const streamB = getDecompressedStreams(docB, 0).pop() || '';
+
+    // En Convención B:
+    // pdf-lib emite "1 0 0 1 0 600 cm" (traslación al tope superior del PDF)
+    // seguido de "1 0 0 -1 0 0 cm" (inversión de eje Y).
+    // El punto inicial del path SVG es M 100 150.
+    // Al componer: Y_final = 600 + (-1)*150 = 450 en PDF.
+    expect(streamB).toContain('1 0 0 1 0 600 cm');
+    expect(streamB).toContain('1 0 0 -1 0 0 cm');
+    expect(streamB).toContain('100 150 m');
   });
 
   // --------------------------------------------------------------------------------
@@ -195,6 +285,14 @@ describe('PDF Export Service (Sub-entregable 0.3 - H1 Vector Export)', () => {
     expect(rgbOnly.color).toEqual({ type: 'RGB', red: 0, green: 0, blue: 1 });
   });
 
+  it('parseCssColor devuelve undefined y advierte ante cadenas de color desconocidas (sin negro silencioso)', () => {
+    const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const invalid = parseCssColor('not-a-color-string');
+    expect(invalid.color).toBeUndefined();
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('Formato de color desconocido'));
+    spy.mockRestore();
+  });
+
   it('parseDashArray traduce números y cadenas', () => {
     expect(parseDashArray([4, 2])).toEqual([4, 2]);
     expect(parseDashArray('4 2')).toEqual([4, 2]);
@@ -203,7 +301,7 @@ describe('PDF Export Service (Sub-entregable 0.3 - H1 Vector Export)', () => {
   });
 
   // --------------------------------------------------------------------------------
-  // Sanitización CP1252 / WinAnsi con tabla de símbolos técnicos
+  // Sanitización CP1252 / WinAnsi y wrapText con preservación de \n
   // --------------------------------------------------------------------------------
   it('sanitizeTextToWinAnsi traduce símbolos de ingeniería (±, °, Ø, ×, ², ³) y sustituye otros con ?', () => {
     const raw = 'Diámetro Ø50 mm ±0.05, temp 25°C, área 10 m², check: ✓';
@@ -217,8 +315,19 @@ describe('PDF Export Service (Sub-entregable 0.3 - H1 Vector Export)', () => {
     expect(result.replacedCount).toBe(1);
   });
 
+  it('wrapText preserva saltos de línea explícitos (\\n) como párrafos independientes', async () => {
+    const doc = await PDFDocument.load(originalPdfBytes);
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    const multiline = 'Párrafo uno\nPárrafo dos con texto extendido que ocupa espacio\nPárrafo tres';
+    const lines = wrapText(multiline, 400, 12, font);
+
+    expect(lines).toContain('Párrafo uno');
+    expect(lines).toContain('Párrafo tres');
+    expect(lines.length).toBeGreaterThanOrEqual(3);
+  });
+
   // --------------------------------------------------------------------------------
-  // Preservación documental
+  // Preservación documental y manejo de error en PDF protegido
   // --------------------------------------------------------------------------------
   it('Preserva el número de páginas y la integridad del documento original', async () => {
     const markupOnP0: Markup = {
@@ -240,6 +349,11 @@ describe('PDF Export Service (Sub-entregable 0.3 - H1 Vector Export)', () => {
     const loaded = await PDFDocument.load(res.pdfBytes);
 
     expect(loaded.getPageCount()).toBe(2);
+  });
+
+  it('exportMarkupsToPdf rechaza y reporta error ante archivos PDF inválidos o cifrados', async () => {
+    const invalidBytes = new Uint8Array([1, 2, 3, 4]);
+    await expect(exportMarkupsToPdf(invalidBytes, [])).rejects.toThrow();
   });
 
   // --------------------------------------------------------------------------------

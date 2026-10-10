@@ -5,34 +5,68 @@ export function isTauriEnvironment(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 }
 
+export type BbxErrorHandler = (errorMessage: string) => void;
+let onBbxError: BbxErrorHandler | null = null;
+
+export function setBbxErrorHandler(handler: BbxErrorHandler | null) {
+  onBbxError = handler;
+}
+
+export function notifyBbxError(message: string) {
+  console.error(`[BBX Error] ${message}`);
+  if (onBbxError) {
+    onBbxError(message);
+  } else if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+    window.alert(`[Error de persistencia BBX] ${message}`);
+  }
+}
+
 /**
- * Obtiene la ruta del archivo de marcas .bbx.json
+ * Obtiene la ruta del archivo de marcas .bbx.json como hermana del PDF.
  */
 export function getBbxPath(pdfPath: string): string {
-  if (pdfPath.toLowerCase().endsWith('.pdf')) {
-    return pdfPath.replace(/\.pdf$/i, '.bbx.json');
+  if (!pdfPath || typeof pdfPath !== 'string') {
+    throw new Error('La ruta del archivo PDF no puede estar vacía');
   }
-  return `${pdfPath}.bbx.json`;
+  const cleanPath = pdfPath.trim();
+  if (cleanPath.toLowerCase().endsWith('.pdf')) {
+    return cleanPath.replace(/\.pdf$/i, '.bbx.json');
+  }
+  return `${cleanPath}.bbx.json`;
+}
+
+/**
+ * Valida que la ruta .bbx.json sea estrictamente la ruta hermana del PDF abierto.
+ */
+export function validateBbxPath(pdfPath: string, bbxPath: string): boolean {
+  try {
+    const expected = getBbxPath(pdfPath);
+    return bbxPath === expected && bbxPath.endsWith('.bbx.json');
+  } catch {
+    return false;
+  }
 }
 
 /**
  * Carga el archivo .bbx.json asociado al PDF si existe.
+ * Distingue archivo inexistente (retorna null) de errores reales de E/S (notifica y lanza error).
  */
 export async function loadBbxForPdf(pdfPath: string): Promise<BbxDocumentFile | null> {
   const bbxPath = getBbxPath(pdfPath);
 
   if (isTauriEnvironment()) {
     try {
-      const { readTextFile, exists } = await import('@tauri-apps/plugin-fs');
-      const fileExists = await exists(bbxPath);
-      if (!fileExists) {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const content = await invoke<string | null>('read_bbx', { filePath: bbxPath });
+      if (content === null || content === undefined) {
+        // Ok(None) -> archivo no existe todavía, comportamiento normal
         return null;
       }
-      const content = await readTextFile(bbxPath);
       return migrateBbxDocument(JSON.parse(content));
-    } catch (err) {
-      console.warn(`[BBX] No se pudo leer el archivo ${bbxPath}:`, err);
-      return null;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      notifyBbxError(`Error de E/S leyendo anotaciones: ${msg}`);
+      throw new Error(`Error al leer archivo BBX (${bbxPath}): ${msg}`);
     }
   } else {
     // Fallback para navegador web (localStorage)
@@ -41,15 +75,17 @@ export async function loadBbxForPdf(pdfPath: string): Promise<BbxDocumentFile | 
       if (saved) {
         return migrateBbxDocument(JSON.parse(saved));
       }
-    } catch (err) {
-      console.warn('[BBX] Fallback localStorage error:', err);
+      return null;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      notifyBbxError(`Error leyendo de almacenamiento local: ${msg}`);
+      return null;
     }
-    return null;
   }
 }
 
 /**
- * Guarda las marcas actuales en el archivo .bbx.json junto al PDF.
+ * Guarda las marcas actuales en el archivo .bbx.json junto al PDF de manera atómica.
  */
 export async function saveBbxForPdf(
   pdfPath: string,
@@ -57,6 +93,11 @@ export async function saveBbxForPdf(
   author = 'Usuario'
 ): Promise<boolean> {
   const bbxPath = getBbxPath(pdfPath);
+  if (!validateBbxPath(pdfPath, bbxPath)) {
+    notifyBbxError(`Ruta inválida: ${bbxPath} no es la ruta hermana válida de ${pdfPath}`);
+    return false;
+  }
+
   const data: BbxDocumentFile = {
     version: '1.1.0',
     pdfFileName: pdfPath.split(/[/\\]/).pop() || 'document.pdf',
@@ -69,12 +110,13 @@ export async function saveBbxForPdf(
 
   if (isTauriEnvironment()) {
     try {
-      const { writeTextFile } = await import('@tauri-apps/plugin-fs');
-      await writeTextFile(bbxPath, jsonContent);
-      console.log(`[BBX] Guardado exitoso en ${bbxPath}`);
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('write_bbx', { filePath: bbxPath, jsonContent });
+      console.log(`[BBX] Guardado atómico exitoso en ${bbxPath}`);
       return true;
-    } catch (err) {
-      console.error(`[BBX] Error al guardar en ${bbxPath}:`, err);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      notifyBbxError(`Fallo al guardar archivo .bbx.json: ${msg}`);
       return false;
     }
   } else {
@@ -83,8 +125,9 @@ export async function saveBbxForPdf(
       localStorage.setItem(`bbx_${bbxPath}`, jsonContent);
       console.log(`[BBX] Guardado en localStorage: bbx_${bbxPath}`);
       return true;
-    } catch (err) {
-      console.error('[BBX] Error guardando en localStorage:', err);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      notifyBbxError(`Error guardando en almacenamiento local: ${msg}`);
       return false;
     }
   }

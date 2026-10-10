@@ -9,7 +9,15 @@ import {
   normalizedToScreen,
   hitTestMarkup,
 } from '../utils/coordinates';
+import {
+  getEllipseGeometry,
+  getRectGeometry,
+  pointsToSvgPointsString,
+  pointsToFreehandPathD,
+  generateCloudPath,
+} from '../core/markup/render';
 import { Markup, MarkupPoint, MarkupType } from '../types/markup';
+import { InlineTextEditor } from './markup/InlineTextEditor';
 
 export const PdfViewer: React.FC = () => {
   const {
@@ -29,6 +37,7 @@ export const PdfViewer: React.FC = () => {
     selectMarkup,
     deselectAll,
     addMarkup,
+    updateMarkup,
     deleteSelectedMarkups,
   } = useMarkupStore();
 
@@ -42,9 +51,21 @@ export const PdfViewer: React.FC = () => {
     height: 600,
   });
 
-  // Estado del dibujo activo en pantalla
+  // Estado del dibujo para figuras de 2 puntos (rect, circle, line, cloud)
   const [drawingStart, setDrawingStart] = useState<MarkupPoint | null>(null);
   const [currentDrawPoint, setCurrentDrawPoint] = useState<MarkupPoint | null>(null);
+
+  // Estado del motor multi-punto (polygon y freehand)
+  const [polygonPoints, setPolygonPoints] = useState<MarkupPoint[]>([]);
+  const [freehandPoints, setFreehandPoints] = useState<MarkupPoint[]>([]);
+  const [mouseCursorPoint, setMouseCursorPoint] = useState<MarkupPoint | null>(null);
+
+  // Estado del editor de texto inline (B6)
+  const [inlineEditing, setInlineEditing] = useState<{
+    markupId: string;
+    initialText: string;
+    position: MarkupPoint;
+  } | null>(null);
 
   // Renderizar la página activa con PDF.js
   useEffect(() => {
@@ -75,12 +96,48 @@ export const PdfViewer: React.FC = () => {
     };
   }, [pdfDoc, currentPageIndex, scale, rotation, setPageDimensions]);
 
-  // Manejar atajo de teclado Supr / Backspace
+  // Manejar atajos de teclado: Escape (Criterio 3), Enter (cerrar polígono), Delete (borrar)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
+
+      // Criterio 3: Escape cancela el trazo en curso
+      if (e.key === 'Escape') {
+        if (polygonPoints.length > 0 || freehandPoints.length > 0 || drawingStart) {
+          e.preventDefault();
+          setPolygonPoints([]);
+          setFreehandPoints([]);
+          setDrawingStart(null);
+          setCurrentDrawPoint(null);
+          setInlineEditing(null);
+        }
+        return;
+      }
+
+      // Enter finaliza el polígono si tiene >= 3 puntos
+      if (e.key === 'Enter' && activeTool === 'polygon') {
+        if (polygonPoints.length >= 3) {
+          e.preventDefault();
+          const newMarkup: Markup = {
+            id: uuidv4(),
+            type: 'polygon',
+            pageIndex: currentPageIndex,
+            points: [...polygonPoints],
+            style: { ...currentStyle },
+            author: author || 'Revisor',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            status: 'pending',
+            layer: activeLayer,
+          };
+          addMarkup(newMarkup);
+        }
+        setPolygonPoints([]);
+        return;
+      }
+
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedMarkupIds.length > 0) {
           e.preventDefault();
@@ -91,13 +148,25 @@ export const PdfViewer: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedMarkupIds, deleteSelectedMarkups]);
+  }, [
+    selectedMarkupIds,
+    deleteSelectedMarkups,
+    polygonPoints,
+    freehandPoints,
+    drawingStart,
+    activeTool,
+    currentPageIndex,
+    currentStyle,
+    author,
+    activeLayer,
+    addMarkup,
+  ]);
 
   // Transformación para convertir coordenadas
   const viewportTransform = {
     width: pageViewport.width,
     height: pageViewport.height,
-    scale: 1.0, // el scale ya está aplicado en pageViewport
+    scale: 1.0,
     offsetX: 0,
     offsetY: 0,
   };
@@ -114,13 +183,12 @@ export const PdfViewer: React.FC = () => {
 
   // Inicio de interacción con el ratón
   const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (e.button !== 0) return; // Solo clic primario
+    if (e.button !== 0) return;
     const pt = getEventPoint(e);
 
+    // 1. Modo Selección
     if (activeTool === 'select') {
-      // Hit testing sobre las marcas de la página actual
       const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex);
-      // Invertir para seleccionar la de más arriba primero
       const hit = [...pageMarkups].reverse().find((m) => hitTestMarkup(pt, m));
 
       if (hit) {
@@ -131,6 +199,46 @@ export const PdfViewer: React.FC = () => {
       return;
     }
 
+    // 2. Modo Polígono (Multi-punto)
+    if (activeTool === 'polygon') {
+      if (polygonPoints.length === 0) {
+        setPolygonPoints([pt]);
+      } else {
+        // Comprobar si hace clic cerca del primer punto para cerrar el polígono
+        const firstPt = polygonPoints[0];
+        const distToFirst = Math.hypot(pt.x - firstPt.x, pt.y - firstPt.y);
+
+        if (distToFirst < 0.02 && polygonPoints.length >= 3) {
+          // Cerrar polígono
+          const newMarkup: Markup = {
+            id: uuidv4(),
+            type: 'polygon',
+            pageIndex: currentPageIndex,
+            points: [...polygonPoints],
+            style: { ...currentStyle },
+            author: author || 'Revisor',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            status: 'pending',
+            layer: activeLayer,
+          };
+          addMarkup(newMarkup);
+          setPolygonPoints([]);
+        } else {
+          // Agregar nuevo vértice
+          setPolygonPoints((prev) => [...prev, pt]);
+        }
+      }
+      return;
+    }
+
+    // 3. Modo Mano Alzada (Freehand)
+    if (activeTool === 'freehand') {
+      setFreehandPoints([pt]);
+      return;
+    }
+
+    // 4. Figuras de 2 puntos y Texto
     if (activeTool !== 'pan') {
       setDrawingStart(pt);
       setCurrentDrawPoint(pt);
@@ -138,12 +246,47 @@ export const PdfViewer: React.FC = () => {
   };
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (!drawingStart) return;
     const pt = getEventPoint(e);
-    setCurrentDrawPoint(pt);
+    setMouseCursorPoint(pt);
+
+    // Actualización de trazo a mano alzada
+    if (activeTool === 'freehand' && freehandPoints.length > 0) {
+      const last = freehandPoints[freehandPoints.length - 1];
+      const dist = Math.hypot(pt.x - last.x, pt.y - last.y);
+      if (dist >= 0.002) {
+        setFreehandPoints((prev) => [...prev, pt]);
+      }
+      return;
+    }
+
+    if (drawingStart) {
+      setCurrentDrawPoint(pt);
+    }
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (_e: React.MouseEvent<SVGSVGElement>) => {
+    // Finalización de Freehand
+    if (activeTool === 'freehand') {
+      if (freehandPoints.length >= 2) {
+        const newMarkup: Markup = {
+          id: uuidv4(),
+          type: 'freehand',
+          pageIndex: currentPageIndex,
+          points: [...freehandPoints],
+          style: { ...currentStyle },
+          author: author || 'Revisor',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: 'pending',
+          layer: activeLayer,
+        };
+        addMarkup(newMarkup);
+      }
+      setFreehandPoints([]);
+      return;
+    }
+
+    // Finalización de figuras de 2 puntos
     if (!drawingStart || !currentDrawPoint) {
       setDrawingStart(null);
       setCurrentDrawPoint(null);
@@ -156,9 +299,10 @@ export const PdfViewer: React.FC = () => {
     );
 
     // Evitar crear marcas accidentales con un microclic
-    if (dist > 0.005 && activeTool !== 'select' && activeTool !== 'pan') {
+    if (dist > 0.005 && activeTool !== 'select' && activeTool !== 'pan' && activeTool !== 'polygon') {
+      const newId = uuidv4();
       const newMarkup: Markup = {
-        id: uuidv4(),
+        id: newId,
         type: activeTool as MarkupType,
         pageIndex: currentPageIndex,
         points: [drawingStart, currentDrawPoint],
@@ -172,52 +316,58 @@ export const PdfViewer: React.FC = () => {
       };
 
       addMarkup(newMarkup);
+
+      // Si es una marca de texto, abrir inmediatamente el editor inline
+      if (activeTool === 'text') {
+        setInlineEditing({
+          markupId: newId,
+          initialText: 'Nota técnica',
+          position: drawingStart,
+        });
+      }
     }
 
     setDrawingStart(null);
     setCurrentDrawPoint(null);
   };
 
-  // Genera el camino SVG para nubes de revisión técnica
-  const renderCloudPath = (p1: { x: number; y: number }, p2: { x: number; y: number }) => {
-    const left = Math.min(p1.x, p2.x);
-    const top = Math.min(p1.y, p2.y);
-    const width = Math.abs(p2.x - p1.x);
-    const height = Math.abs(p2.y - p1.y);
+  // Doble clic para finalizar polígono o para abrir editor de texto
+  const handleDoubleClick = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (activeTool === 'polygon') {
+      // Criterio 3: polígono con menos de 3 puntos se descarta sin crear marca
+      if (polygonPoints.length >= 3) {
+        const newMarkup: Markup = {
+          id: uuidv4(),
+          type: 'polygon',
+          pageIndex: currentPageIndex,
+          points: [...polygonPoints],
+          style: { ...currentStyle },
+          author: author || 'Revisor',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: 'pending',
+          layer: activeLayer,
+        };
+        addMarkup(newMarkup);
+      }
+      setPolygonPoints([]);
+      return;
+    }
 
-    const step = 20;
-    const stepsX = Math.max(2, Math.round(width / step));
-    const stepsY = Math.max(2, Math.round(height / step));
-    const stepW = width / stepsX;
-    const stepH = height / stepsY;
+    // Doble clic sobre texto existente para editar inline
+    const pt = getEventPoint(e);
+    const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex);
+    const textHit = [...pageMarkups]
+      .reverse()
+      .find((m) => m.type === 'text' && hitTestMarkup(pt, m));
 
-    let d = `M ${left} ${top}`;
-    // Top border
-    for (let i = 0; i < stepsX; i++) {
-      const x1 = left + i * stepW;
-      const x2 = x1 + stepW;
-      d += ` Q ${x1 + stepW / 2} ${top - 8} ${x2} ${top}`;
+    if (textHit) {
+      setInlineEditing({
+        markupId: textHit.id,
+        initialText: textHit.text || '',
+        position: textHit.points[0],
+      });
     }
-    // Right border
-    for (let i = 0; i < stepsY; i++) {
-      const y1 = top + i * stepH;
-      const y2 = y1 + stepH;
-      d += ` Q ${left + width + 8} ${y1 + stepH / 2} ${left + width} ${y2}`;
-    }
-    // Bottom border
-    for (let i = stepsX; i > 0; i--) {
-      const x2 = left + i * stepW;
-      const x1 = x2 - stepW;
-      d += ` Q ${x1 + stepW / 2} ${top + height + 8} ${x1} ${top + height}`;
-    }
-    // Left border
-    for (let i = stepsY; i > 0; i--) {
-      const y2 = top + i * stepH;
-      const y1 = y2 - stepH;
-      d += ` Q ${left - 8} ${y1 + stepH / 2} ${left} ${y1}`;
-    }
-    d += ' Z';
-    return d;
   };
 
   const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex);
@@ -260,6 +410,20 @@ export const PdfViewer: React.FC = () => {
             className="block"
           />
 
+          {/* Editor inline genérico para texto y notas (B6) */}
+          {inlineEditing && (
+            <InlineTextEditor
+              initialText={inlineEditing.initialText}
+              position={inlineEditing.position}
+              transform={viewportTransform}
+              onCommit={(newText) => {
+                updateMarkup(inlineEditing.markupId, { text: newText });
+                setInlineEditing(null);
+              }}
+              onCancel={() => setInlineEditing(null)}
+            />
+          )}
+
           {/* Overlay interactivo SVG para anotaciones */}
           <svg
             data-testid="markup-overlay-svg"
@@ -269,29 +433,29 @@ export const PdfViewer: React.FC = () => {
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
+            onDoubleClick={handleDoubleClick}
           >
             {/* Anotaciones guardadas en la página actual */}
             {pageMarkups.map((markup) => {
               const isSelected = selectedMarkupIds.includes(markup.id);
-              const p1 = normalizedToScreen(markup.points[0], viewportTransform);
+              const p1 = normalizedToScreen(markup.points[0] || { x: 0, y: 0 }, viewportTransform);
               const p2 = normalizedToScreen(
-                markup.points[1] || markup.points[0],
+                markup.points[1] || markup.points[0] || { x: 0, y: 0 },
                 viewportTransform
               );
 
-              const left = Math.min(p1.x, p2.x);
-              const top = Math.min(p1.y, p2.y);
-              const width = Math.max(2, Math.abs(p2.x - p1.x));
-              const height = Math.max(2, Math.abs(p2.y - p1.y));
-
               return (
                 <g key={markup.id} className="transition-opacity">
-                  {markup.type === 'rectangle' && (
+                  {/* 1. Rectángulo / Highlight */}
+                  {(markup.type === 'rectangle' ||
+                    markup.type === 'highlight' ||
+                    markup.type === 'highlightVector' ||
+                    markup.type === 'highlightText') && (
                     <rect
-                      x={left}
-                      y={top}
-                      width={width}
-                      height={height}
+                      x={Math.min(p1.x, p2.x)}
+                      y={Math.min(p1.y, p2.y)}
+                      width={Math.max(2, Math.abs(p2.x - p1.x))}
+                      height={Math.max(2, Math.abs(p2.y - p1.y))}
                       stroke={markup.style.strokeColor}
                       strokeWidth={markup.style.strokeWidth}
                       fill={markup.style.fillColor || 'transparent'}
@@ -299,6 +463,24 @@ export const PdfViewer: React.FC = () => {
                     />
                   )}
 
+                  {/* 2. Círculo / Elipse inscrita */}
+                  {markup.type === 'circle' && (() => {
+                    const ell = getEllipseGeometry(p1, p2);
+                    return (
+                      <ellipse
+                        cx={ell.cx}
+                        cy={ell.cy}
+                        rx={ell.rx}
+                        ry={ell.ry}
+                        stroke={markup.style.strokeColor}
+                        strokeWidth={markup.style.strokeWidth}
+                        fill={markup.style.fillColor || 'transparent'}
+                        opacity={markup.style.opacity}
+                      />
+                    );
+                  })()}
+
+                  {/* 3. Línea */}
                   {markup.type === 'line' && (
                     <line
                       x1={p1.x}
@@ -311,9 +493,34 @@ export const PdfViewer: React.FC = () => {
                     />
                   )}
 
+                  {/* 4. Polígono (Multi-punto) */}
+                  {markup.type === 'polygon' && (
+                    <polygon
+                      points={pointsToSvgPointsString(markup.points, viewportTransform)}
+                      stroke={markup.style.strokeColor}
+                      strokeWidth={markup.style.strokeWidth}
+                      fill={markup.style.fillColor || 'transparent'}
+                      opacity={markup.style.opacity}
+                    />
+                  )}
+
+                  {/* 5. Mano alzada (Freehand) */}
+                  {markup.type === 'freehand' && (
+                    <path
+                      d={pointsToFreehandPathD(markup.points, viewportTransform)}
+                      fill="none"
+                      stroke={markup.style.strokeColor}
+                      strokeWidth={markup.style.strokeWidth}
+                      opacity={markup.style.opacity}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  )}
+
+                  {/* 6. Nube de revisión */}
                   {(markup.type === 'cloud' || markup.type === 'cloudPlus') && (
                     <path
-                      d={renderCloudPath(p1, p2)}
+                      d={generateCloudPath(p1, p2)}
                       stroke={markup.style.strokeColor}
                       strokeWidth={markup.style.strokeWidth}
                       fill={markup.style.fillColor || 'rgba(230, 240, 255, 0.2)'}
@@ -321,66 +528,147 @@ export const PdfViewer: React.FC = () => {
                     />
                   )}
 
-                  {markup.type === 'text' && (
-                    <g>
-                      <rect
-                        x={left}
-                        y={top}
-                        width={Math.max(80, width)}
-                        height={Math.max(26, height)}
-                        fill="#fffbe8"
-                        stroke={markup.style.strokeColor}
-                        strokeWidth={1}
-                        rx={2}
-                      />
-                      <text
-                        x={left + 6}
-                        y={top + 16}
-                        fontSize={12}
-                        fill="#1f2937"
-                        fontFamily="sans-serif"
-                        className="font-medium"
-                      >
-                        {markup.text || 'Nota'}
-                      </text>
-                    </g>
-                  )}
+                  {/* 7. Texto / Nota técnica */}
+                  {markup.type === 'text' && (() => {
+                    const rect = getRectGeometry(p1, p2);
+                    const width = Math.max(80, rect.width);
+                    const height = Math.max(26, rect.height);
+                    return (
+                      <g className="cursor-text">
+                        <rect
+                          x={rect.x}
+                          y={rect.y}
+                          width={width}
+                          height={height}
+                          fill="#fffbe8"
+                          stroke={markup.style.strokeColor}
+                          strokeWidth={1}
+                          rx={2}
+                        />
+                        <text
+                          x={rect.x + 6}
+                          y={rect.y + 16}
+                          fontSize={12}
+                          fill="#1f2937"
+                          fontFamily="sans-serif"
+                          className="font-medium pointer-events-none"
+                        >
+                          {markup.text || 'Nota'}
+                        </text>
+                      </g>
+                    );
+                  })()}
 
-                  {/* Bounding box y selección activa */}
-                  {isSelected && (
-                    <rect
-                      x={left - 3}
-                      y={top - 3}
-                      width={width + 6}
-                      height={height + 6}
-                      fill="none"
-                      stroke="#0284c7"
-                      strokeWidth={1.5}
-                      strokeDasharray="4 2"
-                    />
-                  )}
+                  {/* Bounding box de selección activa */}
+                  {isSelected && (() => {
+                    const b = markup.points.reduce(
+                      (acc, pt) => {
+                        const scr = normalizedToScreen(pt, viewportTransform);
+                        return {
+                          minX: Math.min(acc.minX, scr.x),
+                          minY: Math.min(acc.minY, scr.y),
+                          maxX: Math.max(acc.maxX, scr.x),
+                          maxY: Math.max(acc.maxY, scr.y),
+                        };
+                      },
+                      { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity }
+                    );
+
+                    if (b.minX !== Infinity) {
+                      return (
+                        <rect
+                          x={b.minX - 4}
+                          y={b.minY - 4}
+                          width={Math.max(8, b.maxX - b.minX + 8)}
+                          height={Math.max(8, b.maxY - b.minY + 8)}
+                          fill="none"
+                          stroke="#0284c7"
+                          strokeWidth={1.5}
+                          strokeDasharray="4 2"
+                          className="pointer-events-none"
+                        />
+                      );
+                    }
+                    return null;
+                  })()}
                 </g>
               );
             })}
 
-            {/* Vista previa en tiempo real mientras se dibuja */}
+            {/* Previsualización en vivo mientras se dibuja */}
+            {/* A. Polígono en construcción */}
+            {activeTool === 'polygon' && polygonPoints.length > 0 && (
+              <g className="pointer-events-none">
+                <polyline
+                  points={
+                    pointsToSvgPointsString(polygonPoints, viewportTransform) +
+                    (mouseCursorPoint
+                      ? ` ${normalizedToScreen(mouseCursorPoint, viewportTransform).x.toFixed(2)},${normalizedToScreen(mouseCursorPoint, viewportTransform).y.toFixed(2)}`
+                      : '')
+                  }
+                  stroke={currentStyle.strokeColor}
+                  strokeWidth={currentStyle.strokeWidth}
+                  fill="rgba(0, 122, 204, 0.1)"
+                  strokeDasharray="4 2"
+                />
+                {polygonPoints.map((pt, idx) => {
+                  const scr = normalizedToScreen(pt, viewportTransform);
+                  return (
+                    <circle
+                      key={idx}
+                      cx={scr.x}
+                      cy={scr.y}
+                      r={idx === 0 ? 5 : 3}
+                      fill={idx === 0 ? '#10b981' : currentStyle.strokeColor}
+                    />
+                  );
+                })}
+              </g>
+            )}
+
+            {/* B. Trazo a mano alzada en curso */}
+            {activeTool === 'freehand' && freehandPoints.length > 0 && (
+              <path
+                d={pointsToFreehandPathD(freehandPoints, viewportTransform)}
+                fill="none"
+                stroke={currentStyle.strokeColor}
+                strokeWidth={currentStyle.strokeWidth}
+                strokeLinecap="round"
+                className="pointer-events-none"
+              />
+            )}
+
+            {/* C. Figuras de 2 puntos en curso */}
             {drawingStart && currentDrawPoint && (
               <g className="pointer-events-none">
                 {(() => {
                   const p1 = normalizedToScreen(drawingStart, viewportTransform);
                   const p2 = normalizedToScreen(currentDrawPoint, viewportTransform);
-                  const left = Math.min(p1.x, p2.x);
-                  const top = Math.min(p1.y, p2.y);
-                  const width = Math.abs(p2.x - p1.x);
-                  const height = Math.abs(p2.y - p1.y);
 
                   if (activeTool === 'rectangle') {
+                    const rect = getRectGeometry(p1, p2);
                     return (
                       <rect
-                        x={left}
-                        y={top}
-                        width={width}
-                        height={height}
+                        x={rect.x}
+                        y={rect.y}
+                        width={rect.width}
+                        height={rect.height}
+                        stroke={currentStyle.strokeColor}
+                        strokeWidth={currentStyle.strokeWidth}
+                        fill="rgba(0, 122, 204, 0.15)"
+                        strokeDasharray="4 2"
+                      />
+                    );
+                  }
+
+                  if (activeTool === 'circle') {
+                    const ell = getEllipseGeometry(p1, p2);
+                    return (
+                      <ellipse
+                        cx={ell.cx}
+                        cy={ell.cy}
+                        rx={ell.rx}
+                        ry={ell.ry}
                         stroke={currentStyle.strokeColor}
                         strokeWidth={currentStyle.strokeWidth}
                         fill="rgba(0, 122, 204, 0.15)"
@@ -406,7 +694,7 @@ export const PdfViewer: React.FC = () => {
                   if (activeTool === 'cloud') {
                     return (
                       <path
-                        d={renderCloudPath(p1, p2)}
+                        d={generateCloudPath(p1, p2)}
                         stroke={currentStyle.strokeColor}
                         strokeWidth={currentStyle.strokeWidth}
                         fill="rgba(34, 197, 94, 0.15)"
@@ -415,12 +703,13 @@ export const PdfViewer: React.FC = () => {
                   }
 
                   if (activeTool === 'text') {
+                    const rect = getRectGeometry(p1, p2);
                     return (
                       <rect
-                        x={left}
-                        y={top}
-                        width={Math.max(60, width)}
-                        height={Math.max(24, height)}
+                        x={rect.x}
+                        y={rect.y}
+                        width={Math.max(60, rect.width)}
+                        height={Math.max(24, rect.height)}
                         stroke={currentStyle.strokeColor}
                         strokeWidth={1}
                         fill="#fffbe8"

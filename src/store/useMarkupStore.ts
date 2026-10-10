@@ -71,6 +71,18 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
       const current = get().markups.find((m) => m.id === id);
       if (!current) return;
 
+      // Criterio 3: Si no hay cambios en los valores, evitar emitir comando de historial
+      let hasChanges = false;
+      for (const [key, val] of Object.entries(updates)) {
+        if ((current as unknown as Record<string, unknown>)[key] !== val) {
+          hasChanges = true;
+          break;
+        }
+      }
+      if (!hasChanges) {
+        return;
+      }
+
       const previous = { ...current };
       const updated: Markup = {
         ...current,

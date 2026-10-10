@@ -1,7 +1,7 @@
 import { MarkupPoint, Markup, BoundingBox, ViewportTransform } from '../types/markup';
 
 /**
- * Converte coordenadas nativas PDF (origen inferior-izquierdo)
+ * Convierte coordenadas nativas PDF (origen inferior-izquierdo)
  * a coordenadas normalizadas UI (0..1, origen superior-izquierdo).
  */
 export function pdfToNormalized(
@@ -91,6 +91,18 @@ export function getMarkupBounds(markup: Markup): BoundingBox {
     if (pt.y > maxY) maxY = pt.y;
   }
 
+  // Si tiene directrices (Callout), incluir sus puntos en el bounding box
+  if (markup.leaders && Array.isArray(markup.leaders)) {
+    for (const leader of markup.leaders) {
+      for (const pt of leader) {
+        if (pt.x < minX) minX = pt.x;
+        if (pt.x > maxX) maxX = pt.x;
+        if (pt.y < minY) minY = pt.y;
+        if (pt.y > maxY) maxY = pt.y;
+      }
+    }
+  }
+
   return {
     x: minX,
     y: minY,
@@ -117,7 +129,28 @@ export function isPointInBounds(
 }
 
 /**
- * Hit-testing técnico para comprobar si un clic impacta una anotación.
+ * Algoritmo Ray-Casting para determinar si un punto está dentro de un polígono 2D.
+ */
+export function isPointInPolygon(point: MarkupPoint, polygon: MarkupPoint[]): boolean {
+  if (polygon.length < 3) return false;
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].x;
+    const yi = polygon[i].y;
+    const xj = polygon[j].x;
+    const yj = polygon[j].y;
+
+    const intersect =
+      yi > point.y !== yj > point.y &&
+      point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+/**
+ * Hit-testing técnico y geométrico para comprobar si un clic impacta una anotación.
+ * Cobertura matemática exacta para elipse, polígono, polilínea y directrices.
  */
 export function hitTestMarkup(
   point: MarkupPoint,
@@ -131,10 +164,69 @@ export function hitTestMarkup(
     return false;
   }
 
-  // Para rectángulos y círculos con relleno o nubes:
-  if (markup.type === 'rectangle' || markup.type === 'circle' || markup.type === 'cloud') {
-    // Si tiene fill, cualquier punto interior cuenta
-    if (markup.style.fillColor && markup.style.fillColor !== 'transparent') {
+  const hasFill =
+    Boolean(markup.style.fillColor) &&
+    markup.style.fillColor !== 'transparent' &&
+    markup.style.fillColor !== 'rgba(0,0,0,0)';
+
+  // 1. Círculo / Elipse inscrita en bbox de 2 puntos (B5 y Criterio 2)
+  if (markup.type === 'circle' && markup.points.length >= 2) {
+    const p1 = markup.points[0];
+    const p2 = markup.points[1];
+    const cx = (p1.x + p2.x) / 2;
+    const cy = (p1.y + p2.y) / 2;
+    const rx = Math.max(0.0001, Math.abs(p2.x - p1.x) / 2);
+    const ry = Math.max(0.0001, Math.abs(p2.y - p1.y) / 2);
+
+    const dx = point.x - cx;
+    const dy = point.y - cy;
+    const q = (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry);
+
+    if (hasFill) {
+      return q <= 1.0 + tolerance;
+    }
+
+    // Anillo perimétrico con tolerancia geométrica
+    const r = Math.hypot(dx, dy);
+    if (r === 0) return false;
+    const distToPerimeter = Math.abs(r - r / Math.sqrt(q));
+    return distToPerimeter <= tolerance;
+  }
+
+  // 2. Polígono (N puntos >= 3)
+  if (markup.type === 'polygon' && markup.points.length >= 3) {
+    if (hasFill && isPointInPolygon(point, markup.points)) {
+      return true;
+    }
+    // Perímetro / aristas
+    for (let i = 0, j = markup.points.length - 1; i < markup.points.length; j = i++) {
+      if (distanceToSegment(point, markup.points[j], markup.points[i]) <= tolerance) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // 3. Trazo a mano alzada (Freehand)
+  if (markup.type === 'freehand' && markup.points.length >= 2) {
+    for (let i = 1; i < markup.points.length; i++) {
+      if (distanceToSegment(point, markup.points[i - 1], markup.points[i]) <= tolerance) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // 4. Rectángulo / Highlight / Text / Stamp
+  if (
+    markup.type === 'rectangle' ||
+    markup.type === 'highlight' ||
+    markup.type === 'highlightVector' ||
+    markup.type === 'highlightText' ||
+    markup.type === 'text' ||
+    markup.type === 'stamp'
+  ) {
+    if (hasFill || markup.type === 'text' || markup.type === 'stamp' || markup.type.startsWith('highlight')) {
       return (
         point.x >= bounds.x &&
         point.x <= bounds.x + bounds.width &&
@@ -143,7 +235,7 @@ export function hitTestMarkup(
       );
     }
 
-    // Si solo tiene borde, hit test en el perímetro con tolerancia
+    // Si solo tiene borde
     const nearLeft = Math.abs(point.x - bounds.x) <= tolerance;
     const nearRight = Math.abs(point.x - (bounds.x + bounds.width)) <= tolerance;
     const nearTop = Math.abs(point.y - bounds.y) <= tolerance;
@@ -152,27 +244,54 @@ export function hitTestMarkup(
     const inYRange = point.y >= bounds.y - tolerance && point.y <= bounds.y + bounds.height + tolerance;
     const inXRange = point.x >= bounds.x - tolerance && point.x <= bounds.x + bounds.width + tolerance;
 
-    return (
-      ((nearLeft || nearRight) && inYRange) ||
-      ((nearTop || nearBottom) && inXRange)
-    );
+    return ((nearLeft || nearRight) && inYRange) || ((nearTop || nearBottom) && inXRange);
   }
 
-  // Para líneas y segmentos (distancia punto a segmento)
+  // 5. Línea (2 puntos)
   if (markup.type === 'line' && markup.points.length >= 2) {
-    const p1 = markup.points[0];
-    const p2 = markup.points[1];
-    return distanceToSegment(point, p1, p2) <= tolerance;
+    return distanceToSegment(point, markup.points[0], markup.points[1]) <= tolerance;
   }
 
-  // Por defecto, bounding box con tolerancia
-  return true;
+  // 6. Callout (Caja de texto + directrices)
+  if (markup.type === 'callout') {
+    // Si cae dentro de la caja de texto
+    const inBox =
+      point.x >= bounds.x &&
+      point.x <= bounds.x + bounds.width &&
+      point.y >= bounds.y &&
+      point.y <= bounds.y + bounds.height;
+    if (inBox) return true;
+
+    // Si cae en alguna de sus directrices
+    if (markup.leaders && Array.isArray(markup.leaders)) {
+      for (const leader of markup.leaders) {
+        for (let i = 1; i < leader.length; i++) {
+          if (distanceToSegment(point, leader[i - 1], leader[i]) <= tolerance) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  // 7. StickyNote (Caja del icono)
+  if (markup.type === 'stickyNote') {
+    return isPointInBounds(point, bounds, tolerance);
+  }
+
+  // 8. Cloud / CloudPlus (Interior si tiene relleno o cerca del contorno)
+  if (markup.type === 'cloud' || markup.type === 'cloudPlus') {
+    return isPointInBounds(point, bounds, tolerance);
+  }
+
+  return false;
 }
 
 /**
  * Distancia euclidiana mínima de un punto a un segmento de recta.
  */
-function distanceToSegment(p: MarkupPoint, v: MarkupPoint, w: MarkupPoint): number {
+export function distanceToSegment(p: MarkupPoint, v: MarkupPoint, w: MarkupPoint): number {
   const l2 = (v.x - w.x) ** 2 + (v.y - w.y) ** 2;
   if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
   let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;

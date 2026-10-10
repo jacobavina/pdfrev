@@ -106,4 +106,62 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await undoButton.click();
     await expect(statusSelect).toHaveValue('pending');
   });
+
+  test('Sub-entregable 0.2: Dibuja círculo/elipse, polígono y valida atajo Escape', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+
+    // 1. Dibuja Círculo / Elipse
+    const circleBtn = page.locator('button[title*="Círculo / Elipse"]');
+    await circleBtn.click();
+
+    const svgBox = await overlaySvg.boundingBox();
+    expect(svgBox).not.toBeNull();
+
+    if (svgBox) {
+      await page.mouse.move(svgBox.x + 150, svgBox.y + 150);
+      await page.mouse.down();
+      await page.mouse.move(svgBox.x + 250, svgBox.y + 200);
+      await page.mouse.up();
+    }
+
+    // Comprobar que existe un elemento <ellipse> en el SVG overlay
+    const ellipseElem = overlaySvg.locator('ellipse');
+    await expect(ellipseElem).toBeVisible();
+
+    // Comprobar que aparece en la lista de marcas
+    const markupsPanel = page.locator('[data-testid="markups-list-panel"]');
+    await expect(markupsPanel).toContainText('circle');
+
+    // 2. Dibuja Polígono con tecla Enter para cerrar (Criterio 3)
+    const polygonBtn = page.locator('button[title*="Polígono"]');
+    await polygonBtn.click();
+
+    if (svgBox) {
+      await page.mouse.click(svgBox.x + 300, svgBox.y + 100);
+      await page.mouse.click(svgBox.x + 350, svgBox.y + 150);
+      await page.mouse.click(svgBox.x + 280, svgBox.y + 180);
+      await page.keyboard.press('Enter');
+    }
+
+    // Comprobar que existe un elemento <polygon> en el SVG overlay
+    const polygonElem = overlaySvg.locator('polygon');
+    await expect(polygonElem).toBeVisible();
+    await expect(markupsPanel).toContainText('polygon');
+
+    // 3. Validar tecla Escape para cancelar trazo en curso (Criterio 3)
+    // Con polígono activo, hacer 2 clics y pulsar Escape -> debe descartarse
+    const countBefore = await overlaySvg.locator('polygon').count();
+    if (svgBox) {
+      await page.mouse.click(svgBox.x + 400, svgBox.y + 100);
+      await page.mouse.click(svgBox.x + 450, svgBox.y + 120);
+      await page.keyboard.press('Escape');
+    }
+    const countAfter = await overlaySvg.locator('polygon').count();
+    expect(countAfter).toBe(countBefore);
+  });
 });

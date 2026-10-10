@@ -93,6 +93,7 @@ C:\dev\rea\
 │   └── Cargo.toml             # Configuración del paquete Rust.
 ├── scripts/                   # Scripts de desarrollo y automatización sin dependencias extra:
 │   ├── make-fixture.ts        # Generador determinista de planos PDF de prueba sintéticos.
+│   ├── parity-check.mjs       # Auditoría estricta de nombres literales de prueba en PARITY.md.
 │   └── verify.mjs             # Runner multiplataforma de verificación en cadena.
 ├── fixtures/                  # Planos PDF sintéticos generados internamente con sus metadatos conocidos.
 ├── public/                    # Activos estáticos web y fixtures expuestos al servidor de desarrollo.

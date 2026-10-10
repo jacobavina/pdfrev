@@ -156,7 +156,7 @@ Un sub-entregable está terminado solo si cumple **los siete**:
 2. Tests unitarios nuevos para la lógica añadida.
 3. E2E del flujo de usuario, verde **3 veces consecutivas** si aplica.
 4. Sin warnings nuevos en consola.
-5. La API pública queda extendida y **documentada en `PARITY.md` con el test que la prueba**.
+5. La API pública queda extendida y **documentada en `PARITY.md` con el test que la prueba**. **El nombre del test se copia y pega del archivo de test, nunca se escribe de memoria.** Filas en estado `todo` llevan obligatoriamente un guion `-`.
 6. Si toca la app nativa, **verificado por el usuario en la ventana de Tauri** con su evidencia
    pegada (ver §8).
 7. `docs/STATUS.md` actualizado, y cualquier parte no hecha **declarada explícitamente**.

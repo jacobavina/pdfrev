@@ -7,13 +7,13 @@
 
 ## 1. Fase 1: Motor Base de Anotaciones y Shell CAD (CERRADA)
 
-### IN (Entregado y Verificado)
+### IN (Entregado y Verificado — 114 Tests Unitarios, 4 Cargo Tests, 3 E2E)
 - **Visualizador PDF de Alto Rendimiento:** Integración con PDF.js cargando el worker web dinámicamente vía URL de Vite (`pdf.worker.min.mjs?url`), con renderizado en canvas offscreen para evitar parpadeos.
 - **Sistema de Coordenadas y Rotación Unificada:** Conversión matemática bidireccional entre puntos de pantalla, coordenadas normalizadas `[0..1]` y espacio de puntos PDF, integrando la rotación intrínseca del plano (`page.rotate`) y la rotación interactiva del usuario (`0°`, `90°`, `180°`, `270°`).
 - **Hit-Testing Geométrico Riguroso:** Algoritmos matemáticos dedicados para los 14 tipos de marcas reconocidos (fórmulas elípticas, ray-casting en polígonos, distancia a polilíneas con Ramer-Douglas-Peucker para trazos libres, distancia a directrices y cajas envolventes de texto), sin retorno genérico `return true`.
 - **Exportación Vectorial Auténtica:** Generador basado en `pdf-lib` que transcribe descriptores de marcas directamente al content stream de las páginas PDF (`cm`, `re`, `l`, `c`, `q`, `Q`), verificado mediante descompresión e inspección del content stream binario.
 - **Persistencia Atómica Local (`.bbx.json`):** Formato versionado `1.1.0` con migrador de versiones anteriores, invocando comandos nativos de Rust en Tauri 2 (`write_bbx` con archivo temporal `.tmp`, `sync_all()` y `rename`; `read_bbx` con manejo seguro de `NotFound`).
-- **Historial Command Robusto:** Gestor `HistoryManager` con pila de deshacer/rehacer con capacidad mínima forzada de 50 pasos.
+- **Historial Command Robusto:** Gestor `HistoryManager` con pila de deshacer/rehacer con capacidad mínima forzada de 50 pasos (`handles at least 50 steps of undo history correctly`).
 - **Shell de la Aplicación:** Disposición CAD con TopBar, panel lateral colapsable de miniaturas (`ThumbnailsSidebar`), área central de visualización (`PdfViewer`) y tabla inferior de marcas (`MarkupsList`).
 
 ### OUT de Fase 1
@@ -27,34 +27,44 @@
 
 ### IN (Alcance Aprobado de la Fase 2)
 - **Bloque A: Herramientas de Marcado Avanzado y Manipulación Básica**
-  - `P2-A.0`: Selección, umbral de movimiento de 4 px para descartar clics y temblores, traslación con clamp estricto al área de página `[0..1]` y reversión con `Ctrl+Z`.
-  - `P2-A.1`: Nubes de revisión con parámetro `arcStep` persistido en la marca, curvatura exterior determinista por cálculo de área firmada, y herramienta `Cloud+` como grupo indivisible de nube y llamada vinculada.
-  - `P2-A.2`: Selección múltiple mediante rectángulo elástico de Marquee con criterio estricto de intersección/cruce (Crossing), selección aditiva con `Shift` o `Ctrl`, y traslación conjunta de $K$ elementos seleccionados con un solo paso de historial.
-  - `P2-A.3`: Callout / Nota con directriz inteligente y texto plano interactivo.
-  - `P2-A.4`: Polilíneas abiertas y Flechas técnicas independientes.
-  - `P2-A.5`: Resaltador técnico con modo de mezcla `multiply` y alineación ortogonal / snap.
-  - `P2-A.6`: Sellos técnicos predefinidos basados en descriptores vectoriales limpios.
-- **Bloque B: Tabla Técnica de Marcas (`MarkupsList`)**
-  - Sincronización bidireccional inmediata, ordenación por columnas, filtrado por autor, estado y página, selección múltiple desde la tabla y borrado conjunto.
-- **Bloque C: Edición Avanzada de Propiedades y Estilos**
-  - Selector de estilos avanzados (grosores, colores, rellenos con opacidad independiente, líneas discontinuas), bloqueo de marcas contra edición y duplicación con offset.
-- **Bloque D: Calibración y Medición Básica**
-  - Herramienta de calibración de escala sobre distancia conocida del plano y cotas básicas lineales y de área.
+  - `P2-A.0`: Selección, umbral de movimiento de 4 px para descartar clics y temblores, traslación con clamp estricto al área de página `[0..1]` y reversión atómica con `Ctrl+Z`. **[CERRADO]**
+  - `P2-A.1`: Nubes de revisión con parámetro `arcStep` persistido en la marca, curvatura exterior determinista por cálculo de área firmada, y herramienta `Cloud+` como grupo indivisible de nube y llamada vinculada. **[CERRADO]**
+  - `P2-A.2`: Selección múltiple mediante rectángulo elástico de Marquee con criterio estricto de intersección/cruce (Crossing), selección aditiva con `Shift` o `Ctrl`, y traslación conjunta de $K$ elementos seleccionados con un solo paso de historial. Prefiltro $O(N)$ probado con 500 marcas en menos de 10 ms. **[CERRADO]**
+  - `P2-A.3`: Callout / Nota técnica con directriz conectada y cuadro de texto plano interactivo. **[PENDIENTE DE PLAN]**
+  - `P2-A.4`: Nota adhesiva técnica (`stickyNote`). **[NO EMPEZADO]**
+  - `P2-A.5`: Resaltador vectorial (`highlightVector`). **[NO EMPEZADO]**
+  - `P2-A.6`: Resaltado de texto (`highlightText` con TextLayer de PDF.js, rectángulos normalizados y aviso en páginas sin capa de texto). **[NO EMPEZADO]**
+- **Bloque B: Tool Chest**
+  - Paletas de estilos definidas por el usuario persistidas en IndexedDB.
+  - Modos Propiedad y Dibujo.
+  - Arrastrar y soltar (drag & drop) de herramientas y estilos al lienzo.
+- **Bloque C: MarkupsList Completa**
+  - Ordenación y filtros avanzados por estado, autor, tipo y capa.
+  - Columnas personalizadas con parser propio de lista blanca.
+  - Gestión de estados con menú contextual interactivo.
+  - Exportación de reportes estructurados con hipervínculos en PDF más hojas en Excel y CSV.
+- **Bloque D: Capas Lógicas y Sellos Dinámicos**
+  - Capas CAD lógicas con visibilidad persistida en el modelo `.bbx.json`.
+  - Sellos dinámicos técnicos basados en descriptores vectoriales limpios (donde residen los sellos).
 
 ### OUT EXPLÍCITO DE LA FASE 2 (Terminantemente Prohibido sin ADR y Aprobación)
-1. **Adelanto de Bloques:** Prohibido implementar características de los Bloques B, C o D antes de cerrar por completo y auditar el Bloque A.
-2. **Texto Enriquecido (Rich Text):** Prohibido el formateo por carácter (negrita/cursiva parcial, colores por palabra o etiquetas HTML/BBCode). Todo texto es texto plano (plain text).
-3. **Takeoff y Estimación:** No se construyen motores de costeo, despiece ni fórmulas complejas de presupuesto (reservado para Fase 3).
-4. **Comparación de Versiones y Document Sets:** Prohibida la superposición de planos (Overlay Pages) o sincronización de múltiples archivos (reservado para Fase 4).
-5. **AcroForm con JavaScript:** Prohibida la ejecución de scripts o campos de formulario dinámicos evaluados con JS dentro de sellos.
-6. **Escritura de Nuevos OCGs (Capas PDF Nativas):** No se escriben diccionarios de capas PDF en el archivo exportado (se preservan capas a nivel de modelo de marcas `.bbx.json`).
-7. **Colaboración en la Nube / Conectividad Remota:** La arquitectura es estrictamente offline y local-first; no se implementan sockets, APIs remotas ni persistencia externa.
+1. **Calibración y Acotación:** La calibración de escala y acotación lineal/área está terminantemente prohibida en Fase 2 (pertenece a la Fase 3).
+2. **Adelanto de Bloques:** Prohibido implementar características de los Bloques B, C o D antes de cerrar por completo y auditar el Bloque A.
+3. **Features no aprobadas en IN:** No se implementan polilíneas abiertas, flechas independientes, snap ortogonal, inspector contextual flotante de propiedades ni duplicación con offset paramétrico. Cualquier inclusión futura requerirá su respectivo ADR y aprobación explícita del usuario.
+4. **Texto Enriquecido (Rich Text):** Prohibido el formateo por carácter (negrita/cursiva parcial, colores por palabra o etiquetas HTML/BBCode). Todo texto es texto plano (plain text).
+5. **Takeoff y Estimación:** No se construyen motores de costeo, despiece ni fórmulas complejas de presupuesto (reservado para Fase 3).
+6. **Comparación de Versiones y Document Sets:** Prohibida la superposición de planos (Overlay Pages) o sincronización de múltiples archivos (reservado para Fase 4).
+7. **AcroForm con JavaScript:** Prohibida la ejecución de scripts o campos de formulario dinámicos evaluados con JS dentro de sellos.
+8. **Escritura de Nuevos OCGs (Capas PDF Nativas):** No se escriben diccionarios de capas PDF en el archivo exportado (se preservan capas a nivel de modelo de marcas `.bbx.json`).
+9. **Colaboración en la Nube / Conectividad Remota:** La arquitectura es estrictamente offline y local-first; no se implementan sockets, APIs remotas ni persistencia externa.
 
 ---
 
-## 3. Fases Futuras (Planificación Estratégica)
+## 3. Fases Futuras (Planificación Vigente)
 
-### Fase 3: Takeoff, Estimaciones y Exportación de Datos
+### Fase 3: Calibración, Acotación, Takeoff y Estimaciones
+- Herramienta de calibración de escala sobre distancia conocida del plano.
+- Acotación lineal, perimetral y de áreas en escala real.
 - Conteo automático de símbolos y marcas.
 - Tablas de takeoff con asignación de materiales y costes unitarios.
 - Exportación estructurada a Microsoft Excel (`.xlsx`) y CSV.
@@ -62,8 +72,4 @@
 ### Fase 4: Comparativa Avanzada y Gestión Documental
 - Comparación diferencial visual de planos (resaltado en verde/rojo de discrepancias vectoriales).
 - Vista dividida (Split View) sincronizada horizontal y vertical.
-- Gestión de colecciones de planos (Sets) con control de revisiones.
-
-### Fase 5: Rendimiento Extremo y Soporte de Gran Formato
-- Tiling y virtualización de lienzo para planos complejos de ingeniería civil superiores a 100 MB.
-- Aceleración por GPU mediante shaders WebGL / WebGPU para decenas de miles de trazos vectoriales concurrentes.
+- Gestión de colecciones de planos (Document Sets) con control de revisiones e hipervínculos.

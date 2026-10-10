@@ -8,11 +8,11 @@
 
 | Fase / Bloque | Estado General | Cobertura / Evidencia |
 |---|---|---|
-| **Fase 1: Motor Base y Shell CAD** | **CERRADA** | 62 tests unitarios + 4 tests cargo + 3 E2E. R9 validado en disco desde ventana nativa por el usuario. |
+| **Fase 1: Motor Base y Shell CAD** | **CERRADA** | 114 tests unitarios al cierre de fase + 4 tests cargo + 3 E2E (actualmente 152 tests unitarios tras A.2). R9 validado en disco desde ventana nativa por el usuario. |
 | **Fase 2 — Bloque A: Marcado y Manipulación** | **EN CURSO** (A.0, A.1, A.2 cerrados; A.3 pendiente de plan) | 152 tests unitarios + 4 tests cargo + 6/6 E2E en 7 pasadas consecutivas. |
-| **Fase 2 — Bloque B: Tabla Técnica de Marcas** | **NO EMPEZADO** | Pendiente de cierre del Bloque A. |
-| **Fase 2 — Bloque C: Edición y Estilos** | **NO EMPEZADO** | Pendiente de cierre del Bloque B. |
-| **Fase 2 — Bloque D: Calibración y Medición** | **NO EMPEZADO** | Pendiente de cierre del Bloque C. |
+| **Fase 2 — Bloque B: Tool Chest** | **NO EMPEZADO** | Paletas IndexedDB, modos Propiedad/Dibujo y drag & drop. Pendiente de cierre del Bloque A. |
+| **Fase 2 — Bloque C: MarkupsList Completa** | **NO EMPEZADO** | Ordenación, filtros, columnas personalizadas, estados y reportes. Pendiente de cierre del Bloque B. |
+| **Fase 2 — Bloque D: Capas y Sellos Dinámicos** | **NO EMPEZADO** | Capas lógicas persistidas y sellos vectoriales dinámicos. Pendiente de cierre del Bloque C. |
 
 ---
 
@@ -39,11 +39,11 @@
 |---|---|---|---|---|
 | `P2-A.0` | Move y Transform con umbral 4px y clamp | **Cerrado** | Commit `6e7f0e3`. Test E2E traslada 50 px, descarta temblores de 2 px y revierte con un solo `Ctrl+Z`. | Clamp estricto 0..1 en `coordinates.ts`. |
 | `P2-A.1` | Nubes de revisión, arcStep y Cloud+ como grupo | **Cerrado** | Commit `b2ee813`. Inmutabilidad de `arcStep=20` en `.bbx.json`, abombamiento determinista por área firmada, Cloud+ con undo/delete en bloque. | Confirmación visual de la curvatura en ventana nativa: **PENDIENTE DE VERIFICAR**. |
-| `P2-A.2` | Multiselección con Marquee y traslación conjunta | **Cerrado** | Commit `d525990`. 152/152 Vitest, 6/6 E2E en 3 pasadas consecutivas. Marquee por cruce/intersección, 0 marcas creadas, arrastre conjunto de $K$ marcas y 1 solo `Ctrl+Z` revierte ambas. | Prefiltro $O(N)$ probado con 500 marcas en < 15 ms. |
+| `P2-A.2` | Multiselección con Marquee y traslación conjunta | **Cerrado** | Commit `d525990`. 152/152 Vitest, 6/6 E2E en 3 pasadas consecutivas. Marquee por cruce/intersección, 0 marcas creadas, arrastre conjunto de $K$ marcas y 1 solo `Ctrl+Z` revierte ambas. | Prefiltro $O(N)$ probado con 500 marcas en menos de 10 ms. |
 | `P2-A.3` | Callout / Nota con directriz | **Pendiente de plan** | Ningún código implementado aún. | Pendiente de aprobación formal del plan de implementación. |
-| `P2-A.4` | Polilínea y Flecha técnica | **No empezado** | — | Esperando cierre de A.3. |
-| `P2-A.5` | Resaltador técnico (`multiply` + snap) | **No empezado** | — | Esperando cierre de A.4. |
-| `P2-A.6` | Sellos técnicos predefinidos | **No empezado** | — | Cierre del Bloque A. |
+| `P2-A.4` | Nota adhesiva técnica (`stickyNote`) | **No empezado** | — | Esperando cierre de A.3. |
+| `P2-A.5` | Resaltador vectorial (`highlightVector`) | **No empezado** | — | Esperando cierre de A.4. |
+| `P2-A.6` | Resaltado de texto (`highlightText` con TextLayer) | **No empezado** | — | Cierre del Bloque A. |
 
 ---
 
@@ -51,17 +51,18 @@
 
 | Bloque | Descripción | Estado | Prerrequisito |
 |---|---|---|---|
-| **Bloque B** | Tabla técnica de marcas (`MarkupsList`), filtros por estado/autor/página, ordenación y exportación de metadatos. | **No empezado** | Cierre total y auditado del Bloque A. |
-| **Bloque C** | Edición avanzada de propiedades, paletas de estilo por capa, bloqueo de marcas y duplicación con offset. | **No empezado** | Cierre total y auditado del Bloque B. |
-| **Bloque D** | Herramienta de calibración de escala y acotación lineal/área básica. | **No empezado** | Cierre total y auditado del Bloque C. |
+| **Bloque B (Tool Chest)** | Paletas de estilos definidas por el usuario en IndexedDB, modos Propiedad y Dibujo, y drag & drop al lienzo. | **No empezado** | Cierre total y auditado del Bloque A. |
+| **Bloque C (MarkupsList Completa)** | Ordenación, filtros multicriterio, columnas personalizadas con lista blanca, menú contextual de estados y exportación de reportes (PDF/Excel/CSV). | **No empezado** | Cierre total y auditado del Bloque B. |
+| **Bloque D (Capas y Sellos Dinámicos)** | Capas lógicas CAD con visibilidad persistida y sellos dinámicos basados en primitivas vectoriales limpias. | **No empezado** | Cierre total y auditado del Bloque C. |
 
 ---
 
 ## 3. Registro de Puertas de Calidad Actual
 
 - **Pruebas Unitarias:** 152 / 152 pasadas en Vitest (`src/`).
+- **Auditoría Literal de Paridad:** Superada (14/14 shipped contrastados literalmente, 8/8 todo con guion `-`).
 - **Pruebas Rust:** 4 / 4 pasadas en `cargo test` (`src-tauri/`).
 - **Compilación de Producción:** Exitosa (`tsc && vite build`, bundle ~583 kB).
-- **Pruebas E2E:** 6 / 6 pasadas en 3 ejecuciones consecutivas (11.9s, 12.0s, 11.9s).
+- **Pruebas E2E:** 6 / 6 pasadas en 3 ejecuciones consecutivas.
 - **Warnings en Consola WebView:** 0 warnings reportados.
 - **Árbol de Git:** Limpio en rama `master`.

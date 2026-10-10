@@ -40,6 +40,7 @@ function run(commandDesc, bin, args) {
 
 const npmCmd = isWindows ? 'npm.cmd' : 'npm';
 const cargoCmd = 'cargo';
+const nodeCmd = process.execPath || 'node';
 
 console.log(`============================================================`);
 console.log(`  REA — PUERTA DE CALIDAD AUTOMATIZADA`);
@@ -47,19 +48,22 @@ console.log(`  Plataforma: ${process.platform} | Modo E2E: ${withE2E ? 'Activado
 console.log(`============================================================`);
 
 // 1. Pruebas Unitarias Vitest
-run('Paso 1/3: Pruebas Unitarias (npm test)', npmCmd, ['test']);
+run('Paso 1/4: Pruebas Unitarias (npm test)', npmCmd, ['test']);
 
-// 2. Compilación y Build (TypeScript + Vite)
-run('Paso 2/3: Compilación TypeScript y Vite Build (npm run build)', npmCmd, ['run', 'build']);
+// 2. Auditoría Literal de Paridad (PARITY.md) previo al build
+run('Paso 2/4: Auditoría Literal de Paridad (PARITY.md)', nodeCmd, ['scripts/parity-check.mjs']);
 
-// 3. Pruebas Nativas Rust
-run('Paso 3/3: Pruebas Unitarias de Rust (cargo test)', cargoCmd, [
+// 3. Compilación y Build (TypeScript + Vite)
+run('Paso 3/4: Compilación TypeScript y Vite Build (npm run build)', npmCmd, ['run', 'build']);
+
+// 4. Pruebas Nativas Rust
+run('Paso 4/4: Pruebas Unitarias de Rust (cargo test)', cargoCmd, [
   'test',
   '--manifest-path',
   'src-tauri/Cargo.toml',
 ]);
 
-// 4. Pruebas E2E (si --with-e2e está presente, 3 pasadas consecutivas)
+// 5. Pruebas E2E (si --with-e2e está presente, 3 pasadas consecutivas)
 if (withE2E) {
   console.log(`\n============================================================`);
   console.log(`  INICIANDO 3 PASADAS CONSECUTIVAS DE PLAYWRIGHT E2E`);

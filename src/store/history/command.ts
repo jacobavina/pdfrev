@@ -28,6 +28,9 @@ export class HistoryManager {
     if (!cmd) return false;
     cmd.undo();
     this.redoStack.push(cmd);
+    if (this.redoStack.length > this.maxSteps) {
+      this.redoStack.shift();
+    }
     return true;
   }
 
@@ -36,6 +39,9 @@ export class HistoryManager {
     if (!cmd) return false;
     cmd.execute();
     this.undoStack.push(cmd);
+    if (this.undoStack.length > this.maxSteps) {
+      this.undoStack.shift();
+    }
     return true;
   }
 

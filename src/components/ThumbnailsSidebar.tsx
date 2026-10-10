@@ -28,7 +28,15 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
         if (!isCancelled && canvasRef.current) {
           await renderThumbnail(pdfDoc, pageIndex, canvasRef.current, 130);
         }
-      } catch (err) {
+      } catch (err: unknown) {
+        if (
+          err &&
+          typeof err === 'object' &&
+          'name' in err &&
+          (err as { name: string }).name === 'RenderingCancelledException'
+        ) {
+          return;
+        }
         console.error(`Error renderizando thumbnail ${pageIndex}:`, err);
       }
     }

@@ -41,6 +41,10 @@ export const PdfViewer: React.FC = () => {
     addMarkup,
     updateMarkup,
     deleteSelectedMarkups,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   } = useMarkupStore();
 
   const { activeTool, currentStyle, author, activeLayer } = useToolStore();
@@ -145,6 +149,24 @@ export const PdfViewer: React.FC = () => {
           e.preventDefault();
           deleteSelectedMarkups();
         }
+        return;
+      }
+
+      // Atajos globales de Deshacer / Rehacer (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        if (e.shiftKey) {
+          if (canRedo) redo();
+        } else {
+          if (canUndo) undo();
+        }
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        if (canRedo) redo();
+        return;
       }
     };
 
@@ -153,6 +175,10 @@ export const PdfViewer: React.FC = () => {
   }, [
     selectedMarkupIds,
     deleteSelectedMarkups,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
     polygonPoints,
     freehandPoints,
     drawingStart,

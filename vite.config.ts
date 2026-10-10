@@ -26,6 +26,7 @@ export default defineConfig({
     // Don't minify for debug builds
     minify: !process.env.TAURI_ENV_DEBUG ? 'esbuild' : false,
     sourcemap: !!process.env.TAURI_ENV_DEBUG,
+    chunkSizeWarningLimit: 700,
   },
   worker: {
     format: 'es',

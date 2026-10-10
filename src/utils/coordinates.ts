@@ -124,6 +124,16 @@ export function getMarkupBounds(markup: Markup): BoundingBox {
   let minY = Number.POSITIVE_INFINITY;
   let maxY = Number.NEGATIVE_INFINITY;
 
+  if (markup.type === 'stickyNote' && markup.points.length >= 1) {
+    const ICON_SIZE = 0.035;
+    return {
+      x: markup.points[0].x,
+      y: markup.points[0].y,
+      width: ICON_SIZE,
+      height: ICON_SIZE,
+    };
+  }
+
   for (const pt of markup.points) {
     if (pt.x < minX) minX = pt.x;
     if (pt.x > maxX) maxX = pt.x;
@@ -189,27 +199,64 @@ export function isPointInPolygon(point: MarkupPoint, polygon: MarkupPoint[]): bo
 }
 
 /**
+ * Algoritmo Ramer-Douglas-Peucker (RDP) para simplificación de polilíneas.
+ * Reduce el número de vértices manteniendo la fidelidad geométrica dentro de epsilon.
+ */
+export function simplifyRamerDouglasPeucker(
+  points: MarkupPoint[],
+  epsilon = 0.002
+): MarkupPoint[] {
+  if (points.length <= 2) return points;
+
+  let maxDistance = 0;
+  let index = 0;
+  const start = points[0];
+  const end = points[points.length - 1];
+
+  for (let i = 1; i < points.length - 1; i++) {
+    const d = distanceToSegment(points[i], start, end);
+    if (d > maxDistance) {
+      maxDistance = d;
+      index = i;
+    }
+  }
+
+  if (maxDistance > epsilon) {
+    const left = simplifyRamerDouglasPeucker(points.slice(0, index + 1), epsilon);
+    const right = simplifyRamerDouglasPeucker(points.slice(index), epsilon);
+    return left.slice(0, -1).concat(right);
+  } else {
+    return [start, end];
+  }
+}
+
+/**
  * Hit-testing técnico y geométrico para comprobar si un clic impacta una anotación.
- * Cobertura matemática exacta para elipse, polígono, polilínea y directrices.
+ * CERO fallback return true: cobertura matemática rigurosa para los 14 tipos de marcas.
  */
 export function hitTestMarkup(
   point: MarkupPoint,
   markup: Markup,
   tolerance = 0.015
 ): boolean {
+  if (!markup || !markup.points || markup.points.length === 0) {
+    return false;
+  }
+
   const bounds = getMarkupBounds(markup);
 
-  // Verificación rápida con bounding box expandido
+  // Verificación rápida con bounding box expandido con tolerancia
   if (!isPointInBounds(point, bounds, tolerance)) {
     return false;
   }
 
   const hasFill =
-    Boolean(markup.style.fillColor) &&
+    Boolean(markup.style?.fillColor) &&
     markup.style.fillColor !== 'transparent' &&
+    markup.style.fillColor !== 'none' &&
     markup.style.fillColor !== 'rgba(0,0,0,0)';
 
-  // 1. Círculo / Elipse inscrita en bbox de 2 puntos (B5 y Criterio 2)
+  // 1. Círculo / Elipse (ecuación elíptica interior o anillo perimétrico si es hueco)
   if (markup.type === 'circle' && markup.points.length >= 2) {
     const p1 = markup.points[0];
     const p2 = markup.points[1];
@@ -226,16 +273,16 @@ export function hitTestMarkup(
       return q <= 1.0 + tolerance;
     }
 
-    // Anillo perimétrico con tolerancia geométrica
+    // Anillo perimétrico con tolerancia geométrica si no tiene relleno
     const r = Math.hypot(dx, dy);
     if (r === 0) return false;
     const distToPerimeter = Math.abs(r - r / Math.sqrt(q));
     return distToPerimeter <= tolerance;
   }
 
-  // 2. Polígono (N puntos >= 3)
+  // 2. Polígono (Ray-Casting para interior y distancia a aristas para perímetro)
   if (markup.type === 'polygon' && markup.points.length >= 3) {
-    if (hasFill && isPointInPolygon(point, markup.points)) {
+    if (isPointInPolygon(point, markup.points)) {
       return true;
     }
     // Perímetro / aristas
@@ -247,35 +294,45 @@ export function hitTestMarkup(
     return false;
   }
 
-  // 3. Trazo a mano alzada (Freehand)
+  // 3. Trazo a mano alzada (Freehand con simplificación RDP si N > 50)
   if (markup.type === 'freehand' && markup.points.length >= 2) {
-    for (let i = 1; i < markup.points.length; i++) {
-      if (distanceToSegment(point, markup.points[i - 1], markup.points[i]) <= tolerance) {
+    const pts =
+      markup.points.length > 50
+        ? simplifyRamerDouglasPeucker(markup.points, tolerance)
+        : markup.points;
+
+    for (let i = 1; i < pts.length; i++) {
+      if (distanceToSegment(point, pts[i - 1], pts[i]) <= tolerance) {
         return true;
       }
     }
     return false;
   }
 
-  // 4. Rectángulo / Highlight / Text / Stamp
+  // 4. Rectángulo / Highlight / HighlightVector / HighlightText / Stamp
   if (
     markup.type === 'rectangle' ||
     markup.type === 'highlight' ||
     markup.type === 'highlightVector' ||
     markup.type === 'highlightText' ||
-    markup.type === 'text' ||
     markup.type === 'stamp'
   ) {
-    if (hasFill || markup.type === 'text' || markup.type === 'stamp' || markup.type.startsWith('highlight')) {
+    if (
+      hasFill ||
+      markup.type === 'stamp' ||
+      markup.type === 'highlight' ||
+      markup.type === 'highlightVector' ||
+      markup.type === 'highlightText'
+    ) {
       return (
-        point.x >= bounds.x &&
-        point.x <= bounds.x + bounds.width &&
-        point.y >= bounds.y &&
-        point.y <= bounds.y + bounds.height
+        point.x >= bounds.x - tolerance &&
+        point.x <= bounds.x + bounds.width + tolerance &&
+        point.y >= bounds.y - tolerance &&
+        point.y <= bounds.y + bounds.height + tolerance
       );
     }
 
-    // Si solo tiene borde
+    // Rectángulo hueco (solo contorno con tolerancia)
     const nearLeft = Math.abs(point.x - bounds.x) <= tolerance;
     const nearRight = Math.abs(point.x - (bounds.x + bounds.width)) <= tolerance;
     const nearTop = Math.abs(point.y - bounds.y) <= tolerance;
@@ -287,19 +344,27 @@ export function hitTestMarkup(
     return ((nearLeft || nearRight) && inYRange) || ((nearTop || nearBottom) && inXRange);
   }
 
-  // 5. Línea (2 puntos)
+  // 5. Línea (distanceToSegment)
   if (markup.type === 'line' && markup.points.length >= 2) {
     return distanceToSegment(point, markup.points[0], markup.points[1]) <= tolerance;
   }
 
-  // 6. Callout (Caja de texto + directrices)
-  if (markup.type === 'callout') {
-    // Si cae dentro de la caja de texto
+  // 6. Texto / Callout (interior de la caja O distancia a cualquiera de sus directrices)
+  if (markup.type === 'text' || markup.type === 'callout') {
+    if (markup.points.length === 0) return false;
+    const p1 = markup.points[0];
+    const p2 = markup.points[1] || (markup.type === 'text' ? { x: p1.x + 0.1, y: p1.y + 0.03 } : p1);
+    const minX = Math.min(p1.x, p2.x);
+    const maxX = Math.max(p1.x, p2.x);
+    const minY = Math.min(p1.y, p2.y);
+    const maxY = Math.max(p1.y, p2.y);
+
     const inBox =
-      point.x >= bounds.x &&
-      point.x <= bounds.x + bounds.width &&
-      point.y >= bounds.y &&
-      point.y <= bounds.y + bounds.height;
+      point.x >= minX - tolerance &&
+      point.x <= maxX + tolerance &&
+      point.y >= minY - tolerance &&
+      point.y <= maxY + tolerance;
+
     if (inBox) return true;
 
     // Si cae en alguna de sus directrices
@@ -315,16 +380,55 @@ export function hitTestMarkup(
     return false;
   }
 
-  // 7. StickyNote (Caja del icono)
+  // 8. StickyNote (caja del icono de tamaño estándar)
   if (markup.type === 'stickyNote') {
-    return isPointInBounds(point, bounds, tolerance);
+    if (markup.points.length === 0) return false;
+    const p1 = markup.points[0];
+    const ICON_SIZE = 0.035;
+    return (
+      point.x >= p1.x - tolerance &&
+      point.x <= p1.x + ICON_SIZE + tolerance &&
+      point.y >= p1.y - tolerance &&
+      point.y <= p1.y + ICON_SIZE + tolerance
+    );
   }
 
-  // 8. Cloud / CloudPlus (Interior si tiene relleno o cerca del contorno)
+  // 9. Cloud / CloudPlus (Ray-casting sobre los vértices base coherente con A.1)
   if (markup.type === 'cloud' || markup.type === 'cloudPlus') {
-    return isPointInBounds(point, bounds, tolerance);
+    let baseVertices: MarkupPoint[];
+    if (markup.points.length >= 3) {
+      baseVertices = markup.points;
+    } else if (markup.points.length === 2) {
+      const p1 = markup.points[0];
+      const p2 = markup.points[1];
+      const minX = Math.min(p1.x, p2.x);
+      const maxX = Math.max(p1.x, p2.x);
+      const minY = Math.min(p1.y, p2.y);
+      const maxY = Math.max(p1.y, p2.y);
+      baseVertices = [
+        { x: minX, y: minY },
+        { x: maxX, y: minY },
+        { x: maxX, y: maxY },
+        { x: minX, y: maxY },
+      ];
+    } else {
+      return false;
+    }
+
+    if (isPointInPolygon(point, baseVertices)) {
+      return true;
+    }
+
+    // Perímetro sobre los vértices base
+    for (let i = 0, j = baseVertices.length - 1; i < baseVertices.length; j = i++) {
+      if (distanceToSegment(point, baseVertices[j], baseVertices[i]) <= tolerance) {
+        return true;
+      }
+    }
+    return false;
   }
 
+  // CERO fallback return true: cualquier geometría o tipo no satisfecho retorna false
   return false;
 }
 

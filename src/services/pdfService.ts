@@ -81,6 +81,15 @@ export async function renderPageToCanvas(
     throw new Error('No se pudo obtener el contexto 2D del canvas');
   }
 
+  const activeTask = (canvas as unknown as { _currentRenderTask?: pdfjsLib.RenderTask })._currentRenderTask;
+  if (activeTask) {
+    try {
+      activeTask.cancel();
+    } catch {
+      // Ignorar cancelación previa
+    }
+  }
+
   ctx.save();
   ctx.scale(outputScale, outputScale);
 
@@ -89,8 +98,31 @@ export async function renderPageToCanvas(
     viewport: viewport,
   };
 
-  await page.render(renderContext).promise;
-  ctx.restore();
+  const renderTask = page.render(renderContext);
+  (canvas as unknown as { _currentRenderTask?: pdfjsLib.RenderTask })._currentRenderTask = renderTask;
+
+  try {
+    await renderTask.promise;
+  } catch (err: unknown) {
+    if (
+      err &&
+      typeof err === 'object' &&
+      'name' in err &&
+      (err as { name: string }).name === 'RenderingCancelledException'
+    ) {
+      return {
+        width: viewport.width,
+        height: viewport.height,
+        viewport,
+      };
+    }
+    throw err;
+  } finally {
+    if ((canvas as unknown as { _currentRenderTask?: pdfjsLib.RenderTask })._currentRenderTask === renderTask) {
+      delete (canvas as unknown as { _currentRenderTask?: pdfjsLib.RenderTask })._currentRenderTask;
+    }
+    ctx.restore();
+  }
 
   return {
     width: viewport.width,
@@ -125,10 +157,41 @@ export async function renderThumbnail(
     throw new Error('No se pudo obtener contexto 2D para miniatura');
   }
 
-  await page.render({
+  const activeTask = (canvas as unknown as { _currentRenderTask?: pdfjsLib.RenderTask })._currentRenderTask;
+  if (activeTask) {
+    try {
+      activeTask.cancel();
+    } catch {
+      // Ignorar cancelación previa
+    }
+  }
+
+  const renderTask = page.render({
     canvasContext: ctx,
     viewport,
-  }).promise;
+  });
+  (canvas as unknown as { _currentRenderTask?: pdfjsLib.RenderTask })._currentRenderTask = renderTask;
+
+  try {
+    await renderTask.promise;
+  } catch (err: unknown) {
+    if (
+      err &&
+      typeof err === 'object' &&
+      'name' in err &&
+      (err as { name: string }).name === 'RenderingCancelledException'
+    ) {
+      return {
+        width: viewport.width,
+        height: viewport.height,
+      };
+    }
+    throw err;
+  } finally {
+    if ((canvas as unknown as { _currentRenderTask?: pdfjsLib.RenderTask })._currentRenderTask === renderTask) {
+      delete (canvas as unknown as { _currentRenderTask?: pdfjsLib.RenderTask })._currentRenderTask;
+    }
+  }
 
   return {
     width: viewport.width,

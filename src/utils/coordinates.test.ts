@@ -12,8 +12,9 @@ import {
   getMarkupBounds,
   hitTestMarkup,
   isPointInPolygon,
+  simplifyRamerDouglasPeucker,
 } from './coordinates';
-import { Markup } from '../types/markup';
+import { Markup, VALID_MARKUP_TYPES } from '../types/markup';
 import fixtureMeta from '../../fixtures/test-blueprint.meta.json';
 import rotatedFixtureMeta from '../../fixtures/test-blueprint-rotated.meta.json';
 
@@ -294,6 +295,513 @@ describe('Coordinate Conversion and Hit-Testing', () => {
 
       // Lejos de la línea (0.3, 0.6)
       expect(hitTestMarkup({ x: 0.3, y: 0.6 }, freehand, 0.015)).toBe(false);
+    });
+  });
+
+  // --------------------------------------------------------------------------------
+  // Sub-entregable 0.6: Hit-Testing Matemático Riguroso por Tipo (CERO Fallback Permisivo)
+  // --------------------------------------------------------------------------------
+  describe('Sub-entregable 0.6: Hit-Testing Matemático Riguroso por Tipo (CERO fallback permisivo)', () => {
+    const baseStyle = { strokeColor: '#000000', strokeWidth: 2, opacity: 1 };
+
+    describe('rectangle: 3 casos (interior, exterior-pero-dentro-del-bbox, perímetro)', () => {
+      const filledRect: Markup = {
+        id: 'rect-fill',
+        type: 'rectangle',
+        pageIndex: 0,
+        points: [
+          { x: 0.2, y: 0.2 },
+          { x: 0.6, y: 0.6 },
+        ],
+        style: { ...baseStyle, fillColor: '#3b82f6' },
+        author: 'Tester',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      };
+      const hollowRect: Markup = {
+        ...filledRect,
+        id: 'rect-hollow',
+        style: { ...baseStyle, fillColor: 'transparent' },
+      };
+
+      it('caso: interior (rectángulo con relleno)', () => {
+        expect(hitTestMarkup({ x: 0.4, y: 0.4 }, filledRect, 0.015)).toBe(true);
+      });
+
+      it('caso: exterior-pero-dentro-del-bbox (rectángulo hueco: centro no toca perímetro)', () => {
+        expect(hitTestMarkup({ x: 0.4, y: 0.4 }, hollowRect, 0.015)).toBe(false);
+      });
+
+      it('caso: perímetro (borde izquierdo del rectángulo)', () => {
+        expect(hitTestMarkup({ x: 0.2, y: 0.4 }, hollowRect, 0.015)).toBe(true);
+      });
+    });
+
+    describe('circle: 3 casos (interior, exterior-pero-dentro-del-bbox, perímetro)', () => {
+      const filledCircle: Markup = {
+        id: 'circle-fill',
+        type: 'circle',
+        pageIndex: 0,
+        points: [
+          { x: 0.2, y: 0.3 },
+          { x: 0.8, y: 0.7 },
+        ],
+        style: { ...baseStyle, fillColor: '#22c55e' },
+        author: 'Tester',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      };
+      const hollowCircle: Markup = {
+        ...filledCircle,
+        id: 'circle-hollow',
+        style: { ...baseStyle, fillColor: 'transparent' },
+      };
+
+      it('caso: interior (elipse con relleno)', () => {
+        expect(hitTestMarkup({ x: 0.5, y: 0.5 }, filledCircle, 0.015)).toBe(true);
+      });
+
+      it('caso: exterior-pero-dentro-del-bbox (esquina del bbox fuera de la elipse)', () => {
+        expect(hitTestMarkup({ x: 0.22, y: 0.32 }, filledCircle, 0.015)).toBe(false);
+        // También el centro de una elipse hueca
+        expect(hitTestMarkup({ x: 0.5, y: 0.5 }, hollowCircle, 0.015)).toBe(false);
+      });
+
+      it('caso: perímetro (vértice superior de la elipse)', () => {
+        expect(hitTestMarkup({ x: 0.5, y: 0.3 }, hollowCircle, 0.015)).toBe(true);
+      });
+    });
+
+    describe('line: 3 casos (interior, exterior-pero-dentro-del-bbox, perímetro)', () => {
+      const lineMarkup: Markup = {
+        id: 'line-test',
+        type: 'line',
+        pageIndex: 0,
+        points: [
+          { x: 0.1, y: 0.1 },
+          { x: 0.9, y: 0.9 },
+        ],
+        style: baseStyle,
+        author: 'Tester',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      };
+
+      it('caso: interior / punto medio sobre el segmento', () => {
+        expect(hitTestMarkup({ x: 0.5, y: 0.5 }, lineMarkup, 0.015)).toBe(true);
+      });
+
+      it('caso: exterior-pero-dentro-del-bbox (esquina del bbox lejos de la diagonal)', () => {
+        expect(hitTestMarkup({ x: 0.1, y: 0.9 }, lineMarkup, 0.015)).toBe(false);
+      });
+
+      it('caso: perímetro (punto dentro de la tolerancia de distancia al segmento)', () => {
+        expect(hitTestMarkup({ x: 0.505, y: 0.495 }, lineMarkup, 0.015)).toBe(true);
+      });
+    });
+
+    describe('polygon: 3 casos (interior, exterior-pero-dentro-del-bbox, perímetro)', () => {
+      const triangle: Markup = {
+        id: 'poly-tri-test',
+        type: 'polygon',
+        pageIndex: 0,
+        points: [
+          { x: 0.2, y: 0.2 },
+          { x: 0.8, y: 0.2 },
+          { x: 0.5, y: 0.8 },
+        ],
+        style: { ...baseStyle, fillColor: '#a855f7' },
+        author: 'Tester',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      };
+
+      it('caso: interior (centroide por Ray-Casting)', () => {
+        expect(hitTestMarkup({ x: 0.5, y: 0.4 }, triangle, 0.015)).toBe(true);
+      });
+
+      it('caso: exterior-pero-dentro-del-bbox (esquina superior dentro de bbox [0.2..0.8] pero fuera del triángulo)', () => {
+        expect(hitTestMarkup({ x: 0.25, y: 0.75 }, triangle, 0.015)).toBe(false);
+      });
+
+      it('caso: perímetro (arista base)', () => {
+        expect(hitTestMarkup({ x: 0.5, y: 0.2 }, triangle, 0.015)).toBe(true);
+      });
+    });
+
+    describe('freehand: 3 casos (interior, exterior-pero-dentro-del-bbox, perímetro)', () => {
+      const freehandMarkup: Markup = {
+        id: 'fh-test',
+        type: 'freehand',
+        pageIndex: 0,
+        points: [
+          { x: 0.1, y: 0.1 },
+          { x: 0.3, y: 0.2 },
+          { x: 0.5, y: 0.1 },
+          { x: 0.8, y: 0.4 },
+        ],
+        style: baseStyle,
+        author: 'Tester',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      };
+
+      it('caso: interior (sobre segmento de polilínea)', () => {
+        expect(hitTestMarkup({ x: 0.2, y: 0.15 }, freehandMarkup, 0.015)).toBe(true);
+      });
+
+      it('caso: exterior-pero-dentro-del-bbox (dentro del bbox pero distante de la curva)', () => {
+        expect(hitTestMarkup({ x: 0.2, y: 0.38 }, freehandMarkup, 0.015)).toBe(false);
+      });
+
+      it('caso: perímetro (offset dentro de tolerancia de segmento)', () => {
+        expect(hitTestMarkup({ x: 0.205, y: 0.15 }, freehandMarkup, 0.015)).toBe(true);
+      });
+    });
+
+    describe('cloud: 3 casos (interior, exterior-pero-dentro-del-bbox, perímetro)', () => {
+      const cloudMarkup: Markup = {
+        id: 'cloud-test',
+        type: 'cloud',
+        pageIndex: 0,
+        points: [
+          { x: 0.2, y: 0.2 },
+          { x: 0.8, y: 0.2 },
+          { x: 0.5, y: 0.8 },
+        ],
+        style: { ...baseStyle, fillColor: 'rgba(59, 130, 246, 0.2)' },
+        author: 'Tester',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      };
+
+      it('caso: interior (interior de los vértices base)', () => {
+        expect(hitTestMarkup({ x: 0.5, y: 0.4 }, cloudMarkup, 0.015)).toBe(true);
+      });
+
+      it('caso: exterior-pero-dentro-del-bbox (fuera de la base pero dentro del bbox)', () => {
+        expect(hitTestMarkup({ x: 0.25, y: 0.75 }, cloudMarkup, 0.015)).toBe(false);
+      });
+
+      it('caso: perímetro (arista de la base)', () => {
+        expect(hitTestMarkup({ x: 0.5, y: 0.2 }, cloudMarkup, 0.015)).toBe(true);
+      });
+    });
+
+    describe('cloudPlus: 3 casos (interior, exterior-pero-dentro-del-bbox, perímetro)', () => {
+      const cloudPlusMarkup: Markup = {
+        id: 'cloudplus-test',
+        type: 'cloudPlus',
+        pageIndex: 0,
+        points: [
+          { x: 0.2, y: 0.2 },
+          { x: 0.8, y: 0.2 },
+          { x: 0.5, y: 0.8 },
+        ],
+        style: { ...baseStyle, fillColor: 'rgba(59, 130, 246, 0.2)' },
+        author: 'Tester',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      };
+
+      it('caso: interior (interior de los vértices base)', () => {
+        expect(hitTestMarkup({ x: 0.5, y: 0.4 }, cloudPlusMarkup, 0.015)).toBe(true);
+      });
+
+      it('caso: exterior-pero-dentro-del-bbox (fuera de la base pero dentro del bbox)', () => {
+        expect(hitTestMarkup({ x: 0.25, y: 0.75 }, cloudPlusMarkup, 0.015)).toBe(false);
+      });
+
+      it('caso: perímetro (arista de la base)', () => {
+        expect(hitTestMarkup({ x: 0.5, y: 0.2 }, cloudPlusMarkup, 0.015)).toBe(true);
+      });
+    });
+
+    describe('callout: 3 casos (interior, exterior-pero-dentro-del-bbox, perímetro)', () => {
+      const calloutMarkup: Markup = {
+        id: 'callout-test',
+        type: 'callout',
+        pageIndex: 0,
+        points: [
+          { x: 0.2, y: 0.2 },
+          { x: 0.4, y: 0.3 },
+        ],
+        leaders: [[{ x: 0.4, y: 0.25 }, { x: 0.8, y: 0.8 }]],
+        style: baseStyle,
+        author: 'Tester',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      };
+
+      it('caso: interior (dentro de la caja de texto)', () => {
+        expect(hitTestMarkup({ x: 0.3, y: 0.25 }, calloutMarkup, 0.015)).toBe(true);
+      });
+
+      it('caso: exterior-pero-dentro-del-bbox (zona vacía entre caja y directriz)', () => {
+        expect(hitTestMarkup({ x: 0.25, y: 0.75 }, calloutMarkup, 0.015)).toBe(false);
+      });
+
+      it('caso: perímetro (sobre la directriz / flecha)', () => {
+        expect(hitTestMarkup({ x: 0.6, y: 0.525 }, calloutMarkup, 0.015)).toBe(true);
+      });
+    });
+
+    describe('text: 3 casos (interior, exterior-pero-dentro-del-bbox, perímetro)', () => {
+      const textMarkup: Markup = {
+        id: 'text-test',
+        type: 'text',
+        pageIndex: 0,
+        points: [
+          { x: 0.2, y: 0.2 },
+          { x: 0.4, y: 0.3 },
+        ],
+        leaders: [[{ x: 0.4, y: 0.25 }, { x: 0.8, y: 0.8 }]],
+        style: baseStyle,
+        author: 'Tester',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      };
+
+      it('caso: interior (dentro de la caja de texto)', () => {
+        expect(hitTestMarkup({ x: 0.3, y: 0.25 }, textMarkup, 0.015)).toBe(true);
+      });
+
+      it('caso: exterior-pero-dentro-del-bbox (zona vacía en directriz)', () => {
+        expect(hitTestMarkup({ x: 0.25, y: 0.75 }, textMarkup, 0.015)).toBe(false);
+      });
+
+      it('caso: perímetro (borde de la caja de texto)', () => {
+        expect(hitTestMarkup({ x: 0.2, y: 0.25 }, textMarkup, 0.015)).toBe(true);
+      });
+    });
+
+    describe('stickyNote: 3 casos (interior, exterior-pero-dentro-del-bbox, perímetro)', () => {
+      const stickyNoteMarkup: Markup = {
+        id: 'sticky-test',
+        type: 'stickyNote',
+        pageIndex: 0,
+        points: [{ x: 0.2, y: 0.2 }],
+        style: baseStyle,
+        author: 'Tester',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      };
+
+      it('caso: interior (interior de la caja de icono estándar 0.035)', () => {
+        expect(hitTestMarkup({ x: 0.215, y: 0.215 }, stickyNoteMarkup, 0.015)).toBe(true);
+      });
+
+      it('caso: exterior-pero-dentro-del-bbox (fuera de la caja de icono)', () => {
+        expect(hitTestMarkup({ x: 0.3, y: 0.3 }, stickyNoteMarkup, 0.015)).toBe(false);
+      });
+
+      it('caso: perímetro (borde del icono)', () => {
+        expect(hitTestMarkup({ x: 0.2, y: 0.215 }, stickyNoteMarkup, 0.015)).toBe(true);
+      });
+    });
+
+    describe('stamp: 3 casos (interior, exterior-pero-dentro-del-bbox, perímetro)', () => {
+      const stampMarkup: Markup = {
+        id: 'stamp-test',
+        type: 'stamp',
+        pageIndex: 0,
+        points: [
+          { x: 0.2, y: 0.2 },
+          { x: 0.6, y: 0.5 },
+        ],
+        style: baseStyle,
+        author: 'Tester',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      };
+
+      it('caso: interior (interior del bbox del sello)', () => {
+        expect(hitTestMarkup({ x: 0.4, y: 0.35 }, stampMarkup, 0.015)).toBe(true);
+      });
+
+      it('caso: exterior-pero-dentro-del-bbox (fuera de los límites)', () => {
+        expect(hitTestMarkup({ x: 0.1, y: 0.1 }, stampMarkup, 0.015)).toBe(false);
+      });
+
+      it('caso: perímetro (borde del sello)', () => {
+        expect(hitTestMarkup({ x: 0.2, y: 0.35 }, stampMarkup, 0.015)).toBe(true);
+      });
+    });
+
+    describe('highlight: 3 casos (interior, exterior-pero-dentro-del-bbox, perímetro)', () => {
+      const highlightMarkup: Markup = {
+        id: 'hl-test',
+        type: 'highlight',
+        pageIndex: 0,
+        points: [
+          { x: 0.1, y: 0.1 },
+          { x: 0.5, y: 0.2 },
+        ],
+        style: baseStyle,
+        author: 'Tester',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      };
+
+      it('caso: interior (interior del resaltado)', () => {
+        expect(hitTestMarkup({ x: 0.3, y: 0.15 }, highlightMarkup, 0.015)).toBe(true);
+      });
+
+      it('caso: exterior-pero-dentro-del-bbox (fuera de límites)', () => {
+        expect(hitTestMarkup({ x: 0.7, y: 0.7 }, highlightMarkup, 0.015)).toBe(false);
+      });
+
+      it('caso: perímetro (borde del resaltado)', () => {
+        expect(hitTestMarkup({ x: 0.1, y: 0.15 }, highlightMarkup, 0.015)).toBe(true);
+      });
+    });
+
+    describe('highlightVector: 3 casos (interior, exterior-pero-dentro-del-bbox, perímetro)', () => {
+      const hlVectorMarkup: Markup = {
+        id: 'hlv-test',
+        type: 'highlightVector',
+        pageIndex: 0,
+        points: [
+          { x: 0.1, y: 0.1 },
+          { x: 0.5, y: 0.2 },
+        ],
+        style: baseStyle,
+        author: 'Tester',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      };
+
+      it('caso: interior (interior de highlightVector)', () => {
+        expect(hitTestMarkup({ x: 0.3, y: 0.15 }, hlVectorMarkup, 0.015)).toBe(true);
+      });
+
+      it('caso: exterior-pero-dentro-del-bbox (fuera de límites)', () => {
+        expect(hitTestMarkup({ x: 0.7, y: 0.7 }, hlVectorMarkup, 0.015)).toBe(false);
+      });
+
+      it('caso: perímetro (borde de highlightVector)', () => {
+        expect(hitTestMarkup({ x: 0.1, y: 0.15 }, hlVectorMarkup, 0.015)).toBe(true);
+      });
+    });
+
+    describe('highlightText: 3 casos (interior, exterior-pero-dentro-del-bbox, perímetro)', () => {
+      const hlTextMarkup: Markup = {
+        id: 'hlt-test',
+        type: 'highlightText',
+        pageIndex: 0,
+        points: [
+          { x: 0.1, y: 0.1 },
+          { x: 0.5, y: 0.2 },
+        ],
+        style: baseStyle,
+        author: 'Tester',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      };
+
+      it('caso: interior (interior de highlightText)', () => {
+        expect(hitTestMarkup({ x: 0.3, y: 0.15 }, hlTextMarkup, 0.015)).toBe(true);
+      });
+
+      it('caso: exterior-pero-dentro-del-bbox (fuera de límites)', () => {
+        expect(hitTestMarkup({ x: 0.7, y: 0.7 }, hlTextMarkup, 0.015)).toBe(false);
+      });
+
+      it('caso: perímetro (borde de highlightText)', () => {
+        expect(hitTestMarkup({ x: 0.1, y: 0.15 }, hlTextMarkup, 0.015)).toBe(true);
+      });
+    });
+
+    it('simplifica trazo freehand con RDP si N > 50 puntos y ejecuta hit-testing preciso', () => {
+      const points: { x: number; y: number }[] = [];
+      for (let i = 0; i < 60; i++) {
+        const t = i / 59;
+        points.push({
+          x: 0.1 + t * 0.6,
+          y: 0.3 + (i % 2 === 0 ? 0.0001 : -0.0001),
+        });
+      }
+      expect(points.length).toBe(60);
+
+      const simplified = simplifyRamerDouglasPeucker(points, 0.002);
+      expect(simplified.length).toBe(2);
+      expect(simplified[0].x).toBeCloseTo(0.1, 4);
+      expect(simplified[1].x).toBeCloseTo(0.7, 4);
+
+      const freehand60: Markup = {
+        id: 'freehand-60-pts',
+        type: 'freehand',
+        pageIndex: 0,
+        points,
+        style: baseStyle,
+        author: 'Tester',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      };
+
+      expect(hitTestMarkup({ x: 0.4, y: 0.3 }, freehand60, 0.015)).toBe(true);
+      expect(hitTestMarkup({ x: 0.4, y: 0.31 }, freehand60, 0.015)).toBe(true);
+      expect(hitTestMarkup({ x: 0.4, y: 0.6 }, freehand60, 0.015)).toBe(false);
+      expect(hitTestMarkup({ x: 0.1, y: 0.35 }, freehand60, 0.015)).toBe(false);
+    });
+
+    it('garantiza que NINGÚN tipo cae en un fallback permisivo (CERO return true fallback)', () => {
+      for (const type of VALID_MARKUP_TYPES) {
+        const markup: Markup = {
+          id: `fallback-check-${type}`,
+          type,
+          pageIndex: 0,
+          points: [
+            { x: 0.2, y: 0.2 },
+            { x: 0.4, y: 0.4 },
+            { x: 0.3, y: 0.5 },
+          ],
+          style: { strokeColor: '#000', strokeWidth: 1, opacity: 1, fillColor: '#fff' },
+          author: 'Tester',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: 'pending',
+        };
+
+        // Un punto fuera del bbox debe dar false en TODOS los 14 tipos
+        expect(hitTestMarkup({ x: 0.95, y: 0.95 }, markup)).toBe(false);
+      }
+
+      // Tipo desconocido debe dar false (sin caer jamás en return true)
+      const unknownMarkup: any = {
+        id: 'unknown-1',
+        type: 'non_existent_type',
+        pageIndex: 0,
+        points: [
+          { x: 0.2, y: 0.2 },
+          { x: 0.4, y: 0.4 },
+        ],
+        style: { strokeColor: '#000', strokeWidth: 1, opacity: 1 },
+        author: 'Tester',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      };
+      expect(hitTestMarkup({ x: 0.3, y: 0.3 }, unknownMarkup)).toBe(false);
+
+      // Casos límite: puntos vacíos o markup nulo/indefinido retornan false
+      expect(hitTestMarkup({ x: 0.3, y: 0.3 }, { ...unknownMarkup, points: [] })).toBe(false);
+      expect(hitTestMarkup({ x: 0.3, y: 0.3 }, null as any)).toBe(false);
     });
   });
 

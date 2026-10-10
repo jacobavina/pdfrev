@@ -91,4 +91,34 @@ describe('HistoryManager (Command Pattern)', () => {
     expect(counter).toBe(12);
     expect(history.canRedo()).toBe(false);
   });
+
+  // TAREA 0.7: HistoryManager.redo() debe aplicar el tope de maxSteps
+  it('aplica el tope de maxSteps en redo() y undo(): 60 comandos -> 60 undos -> 60 redos con undoStack.length <= 50 en todo momento', () => {
+    const manager = new HistoryManager(50);
+
+    // 1. Ejecutar 60 comandos consecutivos
+    for (let i = 1; i <= 60; i++) {
+      manager.execute(createIncrementCommand(1));
+      expect(manager.getUndoCount()).toBeLessThanOrEqual(50);
+    }
+    expect(manager.getUndoCount()).toBe(50);
+
+    // 2. Realizar 60 undos consecutivos
+    for (let i = 1; i <= 60; i++) {
+      manager.undo();
+      expect(manager.getUndoCount()).toBeLessThanOrEqual(50);
+      expect(manager.getRedoCount()).toBeLessThanOrEqual(50);
+    }
+    expect(manager.getUndoCount()).toBe(0);
+    expect(manager.getRedoCount()).toBe(50);
+
+    // 3. Realizar 60 redos consecutivos
+    for (let i = 1; i <= 60; i++) {
+      manager.redo();
+      expect(manager.getUndoCount()).toBeLessThanOrEqual(50);
+      expect(manager.getRedoCount()).toBeLessThanOrEqual(50);
+    }
+    expect(manager.getUndoCount()).toBe(50);
+    expect(manager.getRedoCount()).toBe(0);
+  });
 });

@@ -91,6 +91,168 @@ export const MIN_SAGITTA = 4;
 export const DEFAULT_SAGITTA_RATIO = 0.4;
 
 /**
+ * CALLOUT_ARROW_SIZE: Tamaño de la cabeza de flecha en puntos de página PDF (pt).
+ * Justificación de diseño (Condición 5): Se define como constante global de ingeniería (8 pt) porque
+ * representa el estándar de simbología técnica CAD (equivalente a ~2.8 mm en planos impresos). A
+ * diferencia de arcStep (que se persiste por marca para admitir curvaturas de revisión disímiles por
+ * disciplina técnica), el tamaño de flecha debe ser estrictamente homogéneo y predecible en todo el
+ * visor y entre documentos. En pantalla se escala mediante transform.scale para mantener proporción
+ * geométrica con el dibujo, y en PDF se exporta en unidades absolutas de página.
+ */
+export const CALLOUT_ARROW_SIZE = 8;
+export const CALLOUT_ARROW_ANGLE = Math.PI / 6; // 30 grados de semi-apertura
+export const CALLOUT_SHOULDER_LENGTH = 12; // 12 pt de quiebre/hombro horizontal CAD
+export const CALLOUT_MIN_BOX_WIDTH = 70; // 70 pt ancho mínimo de caja
+export const CALLOUT_MIN_BOX_HEIGHT = 24; // 24 pt alto mínimo de caja
+
+export interface CalloutLeaderGeometry {
+  arrowHead: { x: number; y: number };
+  elbow: { x: number; y: number };
+  boxAttachment: { x: number; y: number };
+  arrowPoints: [{ x: number; y: number }, { x: number; y: number }, { x: number; y: number }];
+}
+
+export interface CalloutGeometry {
+  box: RectGeometry;
+  leaders: CalloutLeaderGeometry[];
+}
+
+/**
+ * Calcula la geometría completa de un Callout (caja, directrices con quiebre horizontal y cabeza de flecha).
+ * Función pura compartida por el renderizador SVG de pantalla y el exportador vectorial PDF.
+ */
+export function calculateCalloutGeometry(
+  boxP1: { x: number; y: number },
+  boxP2: { x: number; y: number },
+  leadersPoints: Array<{ x: number; y: number }[]>,
+  scale = 1
+): CalloutGeometry {
+  const left = Math.min(boxP1.x, boxP2.x);
+  const top = Math.min(boxP1.y, boxP2.y);
+  const rawWidth = Math.abs(boxP2.x - boxP1.x);
+  const rawHeight = Math.abs(boxP2.y - boxP1.y);
+
+  const minW = CALLOUT_MIN_BOX_WIDTH * scale;
+  const minH = CALLOUT_MIN_BOX_HEIGHT * scale;
+  const width = Math.max(minW, rawWidth);
+  const height = Math.max(minH, rawHeight);
+
+  const box: RectGeometry = {
+    x: left,
+    y: top,
+    width,
+    height,
+  };
+
+  const shoulderLength = CALLOUT_SHOULDER_LENGTH * scale;
+  const arrowSize = CALLOUT_ARROW_SIZE * scale;
+  const boxCenterY = top + height / 2;
+
+  const leaders: CalloutLeaderGeometry[] = (
+    leadersPoints && leadersPoints.length > 0
+      ? leadersPoints
+      : [[{ x: left - shoulderLength * 2, y: boxCenterY }]]
+  ).map((leaderPts) => {
+    const arrowHead = leaderPts[0] || { x: left - shoulderLength * 2, y: boxCenterY };
+    let boxAttachment: { x: number; y: number };
+    let elbow: { x: number; y: number };
+
+    // Decisión de quiebre y hombro horizontal CAD según posición del objetivo:
+    if (arrowHead.x < left) {
+      boxAttachment = { x: left, y: boxCenterY };
+      elbow = { x: Math.min(left - shoulderLength, (left + arrowHead.x) / 2), y: boxCenterY };
+    } else if (arrowHead.x > left + width) {
+      boxAttachment = { x: left + width, y: boxCenterY };
+      elbow = { x: Math.max(left + width + shoulderLength, (left + width + arrowHead.x) / 2), y: boxCenterY };
+    } else {
+      // Directamente arriba o abajo de la caja
+      if (arrowHead.y < top) {
+        boxAttachment = { x: left + width / 2, y: top };
+        elbow = { x: left + width / 2, y: Math.min(top - shoulderLength, (top + arrowHead.y) / 2) };
+      } else {
+        boxAttachment = { x: left + width / 2, y: top + height };
+        elbow = { x: left + width / 2, y: Math.max(top + height + shoulderLength, (top + height + arrowHead.y) / 2) };
+      }
+    }
+
+    // Cálculo de la cabeza de flecha poligonal (apuntando a arrowHead)
+    const dx = elbow.x - arrowHead.x;
+    const dy = elbow.y - arrowHead.y;
+    const len = Math.hypot(dx, dy);
+
+    let barb1 = { ...arrowHead };
+    let barb2 = { ...arrowHead };
+
+    if (len > 0.0001) {
+      const theta = Math.atan2(dy, dx);
+      barb1 = {
+        x: arrowHead.x + arrowSize * Math.cos(theta + CALLOUT_ARROW_ANGLE),
+        y: arrowHead.y + arrowSize * Math.sin(theta + CALLOUT_ARROW_ANGLE),
+      };
+      barb2 = {
+        x: arrowHead.x + arrowSize * Math.cos(theta - CALLOUT_ARROW_ANGLE),
+        y: arrowHead.y + arrowSize * Math.sin(theta - CALLOUT_ARROW_ANGLE),
+      };
+    }
+
+    return {
+      arrowHead,
+      elbow,
+      boxAttachment,
+      arrowPoints: [arrowHead, barb1, barb2],
+    };
+  });
+
+  return {
+    box,
+    leaders,
+  };
+}
+
+/**
+ * Helper que calcula CalloutGeometry a partir de un Markup y el ViewportTransform de pantalla.
+ */
+export function getCalloutGeometryFromMarkup(
+  markup: Markup,
+  transform: ViewportTransform
+): CalloutGeometry {
+  const p1 = normalizedToScreen(markup.points[0] || { x: 0, y: 0 }, transform);
+  const p2 = normalizedToScreen(markup.points[1] || markup.points[0] || { x: 0, y: 0 }, transform);
+
+  const leadersRaw = (
+    markup.leaders && markup.leaders.length > 0
+      ? markup.leaders
+      : [[{ x: (markup.points[0]?.x ?? 0.1) - 0.05, y: (markup.points[0]?.y ?? 0.1) - 0.05 }]]
+  ).map((leader) => leader.map((pt) => normalizedToScreen(pt, transform)));
+
+  return calculateCalloutGeometry(p1, p2, leadersRaw, transform.scale);
+}
+
+/**
+ * Calcula las dimensiones normalizadas requeridas por la caja para alojar el texto indicado.
+ * Permite que points[1] sea la fuente única de verdad para render, export y hit-testing.
+ */
+export function estimateCalloutBoxNormalizedSize(
+  text: string,
+  fontSizePt = 10,
+  pageWidthPt = 800,
+  pageHeightPt = 600
+): { width: number; height: number } {
+  const lines = (text || '').split(/\r?\n/);
+  const longestLine = Math.max(...lines.map((l) => l.length), 4);
+  const charWidthPt = fontSizePt * 0.6;
+  const paddingPt = 14;
+
+  const widthPt = Math.max(CALLOUT_MIN_BOX_WIDTH, longestLine * charWidthPt + paddingPt);
+  const heightPt = Math.max(CALLOUT_MIN_BOX_HEIGHT, lines.length * (fontSizePt + 4) + paddingPt);
+
+  return {
+    width: widthPt / pageWidthPt,
+    height: heightPt / pageHeightPt,
+  };
+}
+
+/**
  * Calcula el área firmada 2D de una polilínea cerrada en coordenadas de pantalla / SVG (y hacia abajo).
  * Retorna > 0 para sentido horario (CW), < 0 para antihorario (CCW).
  */
@@ -250,7 +412,7 @@ export function generateCloudPath(
 }
 
 export interface SvgRenderDescriptor {
-  tag: 'rect' | 'ellipse' | 'line' | 'polygon' | 'path' | 'text' | 'g';
+  tag: 'rect' | 'ellipse' | 'line' | 'polygon' | 'polyline' | 'path' | 'text' | 'g';
   attrs: Record<string, string | number>;
   style?: React.CSSProperties;
   children?: SvgRenderDescriptor[];
@@ -397,50 +559,45 @@ export function getMarkupSvgDescriptor(
 
     // Callout (Llamada con directriz y caja de texto)
     case 'callout': {
-      const rect = getRectGeometry(p1Screen, p2Screen);
-      const width = Math.max(80, rect.width);
-      const height = Math.max(26, rect.height);
-
+      const geom = getCalloutGeometryFromMarkup(markup, transform);
       const children: SvgRenderDescriptor[] = [];
 
-      // Flecha / directriz hacia el punto objetivo
-      if (markup.leaders && markup.leaders[0] && markup.leaders[0][0]) {
-        const arrowHead = normalizedToScreen(markup.leaders[0][0], transform);
-        const boxTarget = { x: rect.x, y: rect.y + height / 2 };
-
+      // 1. Directrices (al fondo detrás de la caja): polilínea de quiebre y punta de flecha poligonal
+      for (const leader of geom.leaders) {
+        // Línea con quiebre (codo)
         children.push({
-          tag: 'line',
+          tag: 'polyline',
           attrs: {
-            x1: arrowHead.x,
-            y1: arrowHead.y,
-            x2: boxTarget.x,
-            y2: boxTarget.y,
+            points: `${leader.arrowHead.x.toFixed(1)},${leader.arrowHead.y.toFixed(1)} ${leader.elbow.x.toFixed(1)},${leader.elbow.y.toFixed(1)} ${leader.boxAttachment.x.toFixed(1)},${leader.boxAttachment.y.toFixed(1)}`,
             stroke: style.strokeColor,
             strokeWidth: style.strokeWidth || 1.5,
+            fill: 'none',
+            strokeLinejoin: 'round',
           },
         });
 
-        // Punto/círculo en el extremo de la directriz
+        // Cabeza de flecha visible en el objetivo (unidades de página escaladas)
+        const [tip, b1, b2] = leader.arrowPoints;
         children.push({
-          tag: 'ellipse',
+          tag: 'polygon',
           attrs: {
-            cx: arrowHead.x,
-            cy: arrowHead.y,
-            rx: 3,
-            ry: 3,
+            points: `${tip.x.toFixed(1)},${tip.y.toFixed(1)} ${b1.x.toFixed(1)},${b1.y.toFixed(1)} ${b2.x.toFixed(1)},${b2.y.toFixed(1)}`,
             fill: style.strokeColor,
+            stroke: style.strokeColor,
+            strokeWidth: 1,
+            strokeLinejoin: 'round',
           },
         });
       }
 
-      // Caja de texto
+      // 2. Caja de texto opaca (encima de la entrada de las directrices)
       children.push({
         tag: 'rect',
         attrs: {
-          x: rect.x,
-          y: rect.y,
-          width,
-          height,
+          x: geom.box.x,
+          y: geom.box.y,
+          width: geom.box.width,
+          height: geom.box.height,
           fill: style.fillColor || '#ffffff',
           stroke: style.strokeColor,
           strokeWidth: style.strokeWidth || 1.5,
@@ -448,18 +605,18 @@ export function getMarkupSvgDescriptor(
         },
       });
 
-      // Texto de la llamada
+      // 3. Texto de la llamada (capa superior dentro de la caja)
       children.push({
         tag: 'text',
         attrs: {
-          x: rect.x + 6,
-          y: rect.y + 16,
+          x: geom.box.x + 6,
+          y: geom.box.y + 16,
           fontSize: style.fontSize || 12,
           fill: '#1f2937',
           fontFamily: style.fontFamily || 'sans-serif',
           className: 'font-medium pointer-events-none',
         },
-        textNode: markup.text || 'Nota Cloud+',
+        textNode: markup.text || '',
       });
 
       return {

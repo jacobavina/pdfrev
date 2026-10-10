@@ -11,6 +11,11 @@ import {
   calculateSignedArea,
   DEFAULT_ARC_STEP,
   MIN_SAGITTA,
+  calculateCalloutGeometry,
+  estimateCalloutBoxNormalizedSize,
+  CALLOUT_ARROW_SIZE,
+  CALLOUT_MIN_BOX_WIDTH,
+  CALLOUT_MIN_BOX_HEIGHT,
 } from './render';
 import { Markup } from '../../types/markup';
 
@@ -400,13 +405,83 @@ describe('Pure Markup Rendering (src/core/markup/render.ts - Criterio 1)', () =>
       expect(desc.children).toBeDefined();
 
       const tags = desc.children?.map((c) => c.tag);
-      expect(tags).toContain('line');
-      expect(tags).toContain('ellipse');
+      expect(tags).toContain('polyline');
+      expect(tags).toContain('polygon');
       expect(tags).toContain('rect');
       expect(tags).toContain('text');
 
       const textChild = desc.children?.find((c) => c.tag === 'text');
       expect(textChild?.textNode).toBe('Detalle de armadura');
+    });
+
+    describe('Sub-entregable A.3: Geometría de Callout, Codo Inteligente y Flechas en Unidades de Página', () => {
+      it('calculateCalloutGeometry orienta el codo horizontalmente a la izquierda cuando el ancla está a la izquierda y a la derecha cuando está a la derecha', () => {
+        const boxP1 = { x: 300, y: 200 };
+        const boxP2 = { x: 400, y: 250 };
+
+        // Caso 1: Ancla a la izquierda (x = 100 < 300)
+        const leftGeom = calculateCalloutGeometry(boxP1, boxP2, [[{ x: 100, y: 150 }]], 1.0);
+        expect(leftGeom.leaders[0].boxAttachment.x).toBe(300); // borde izquierdo
+        expect(leftGeom.leaders[0].boxAttachment.y).toBe(225); // centro vertical
+        expect(leftGeom.leaders[0].elbow.x).toBeLessThan(300); // codo quiebra hacia la izquierda
+        expect(leftGeom.leaders[0].elbow.y).toBe(225); // hombro horizontal
+
+        // Caso 2: Ancla a la derecha (x = 550 > 400)
+        const rightGeom = calculateCalloutGeometry(boxP1, boxP2, [[{ x: 550, y: 280 }]], 1.0);
+        expect(rightGeom.leaders[0].boxAttachment.x).toBe(400); // borde derecho
+        expect(rightGeom.leaders[0].boxAttachment.y).toBe(225); // centro vertical
+        expect(rightGeom.leaders[0].elbow.x).toBeGreaterThan(400); // codo quiebra hacia la derecha
+        expect(rightGeom.leaders[0].elbow.y).toBe(225); // hombro horizontal
+      });
+
+      it('calculateCalloutGeometry mantiene el tamaño de la flecha proporcional a transform.scale en pantalla e invariante en puntos de página', () => {
+        const boxP1 = { x: 300, y: 200 };
+        const boxP2 = { x: 400, y: 250 };
+        const leaderPts = [[{ x: 150, y: 225 }]];
+
+        const geomScale1 = calculateCalloutGeometry(boxP1, boxP2, leaderPts, 1.0);
+        const geomScale2 = calculateCalloutGeometry(
+          { x: boxP1.x * 2, y: boxP1.y * 2 },
+          { x: boxP2.x * 2, y: boxP2.y * 2 },
+          [[{ x: 150 * 2, y: 225 * 2 }]],
+          2.0
+        );
+
+        const [tip1, barb1A] = geomScale1.leaders[0].arrowPoints;
+        const [tip2, barb2A] = geomScale2.leaders[0].arrowPoints;
+
+        const arrowLen1 = Math.hypot(barb1A.x - tip1.x, barb1A.y - tip1.y);
+        const arrowLen2 = Math.hypot(barb2A.x - tip2.x, barb2A.y - tip2.y);
+
+        expect(arrowLen1).toBeCloseTo(CALLOUT_ARROW_SIZE, 1);
+        expect(arrowLen2).toBeCloseTo(CALLOUT_ARROW_SIZE * 2, 1);
+      });
+
+      it('calculateCalloutGeometry soporta múltiples directrices hacia la misma caja', () => {
+        const boxP1 = { x: 300, y: 200 };
+        const boxP2 = { x: 400, y: 250 };
+        const multiLeaders = [
+          [{ x: 100, y: 150 }], // hacia la izquierda
+          [{ x: 500, y: 220 }], // hacia la derecha
+        ];
+
+        const geom = calculateCalloutGeometry(boxP1, boxP2, multiLeaders, 1.0);
+        expect(geom.leaders.length).toBe(2);
+        expect(geom.leaders[0].boxAttachment.x).toBe(300); // izquierda
+        expect(geom.leaders[1].boxAttachment.x).toBe(400); // derecha
+      });
+
+      it('estimateCalloutBoxNormalizedSize calcula dimensiones normalizadas coherentes basadas en longitud del texto', () => {
+        const shortText = 'Nota';
+        const longText = 'Nota de ingeniería estructural con detalle ampliado para revisión de armadura principal';
+
+        const shortSize = estimateCalloutBoxNormalizedSize(shortText);
+        const longSize = estimateCalloutBoxNormalizedSize(longText);
+
+        expect(longSize.width).toBeGreaterThan(shortSize.width);
+        expect(shortSize.width).toBeGreaterThanOrEqual(CALLOUT_MIN_BOX_WIDTH / 800);
+        expect(shortSize.height).toBeGreaterThanOrEqual(CALLOUT_MIN_BOX_HEIGHT / 600);
+      });
     });
   });
 });

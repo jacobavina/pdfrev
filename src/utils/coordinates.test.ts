@@ -18,7 +18,9 @@ import {
   translateMarkup,
   doBoundsIntersect,
   selectMarkupsInRect,
+  findCalloutComponentAtPoint,
 } from './coordinates';
+import { estimateCalloutBoxNormalizedSize } from '../core/markup/render';
 import { Markup, VALID_MARKUP_TYPES } from '../types/markup';
 import fixtureMeta from '../../fixtures/test-blueprint.meta.json';
 import rotatedFixtureMeta from '../../fixtures/test-blueprint-rotated.meta.json';
@@ -1152,4 +1154,74 @@ describe('Coordinate Conversion and Hit-Testing', () => {
       expect(elapsed).toBeLessThan(15); // Ultra rápido con O(N) prefiltro
     });
   });
+
+  describe('Sub-entregable A.3: Hit-Testing Diferenciado de Callout y Múltiples Directrices', () => {
+    const baseCallout: Markup = {
+      id: 'callout-test-1',
+      type: 'callout',
+      pageIndex: 0,
+      points: [
+        { x: 0.4, y: 0.4 },
+        { x: 0.6, y: 0.5 },
+      ],
+      leaders: [
+        [{ x: 0.2, y: 0.3 }], // Directriz 0: flecha en (0.2, 0.3)
+        [{ x: 0.8, y: 0.3 }], // Directriz 1: flecha en (0.8, 0.3)
+      ],
+      text: 'Nota técnica de prueba',
+      style: { strokeColor: '#000000', strokeWidth: 1, opacity: 1 },
+      author: 'Tester',
+      createdAt: '',
+      updatedAt: '',
+      status: 'pending',
+    };
+
+    it('detecta clic en la caja de texto devolviendo { type: "box" }', () => {
+      const hit = findCalloutComponentAtPoint({ x: 0.5, y: 0.45 }, baseCallout);
+      expect(hit).toEqual({ type: 'box' });
+      expect(hitTestMarkup({ x: 0.5, y: 0.45 }, baseCallout)).toBe(true);
+    });
+
+    it('detecta clic en punta de flecha / ancla devolviendo { type: "arrowTip", leaderIndex }', () => {
+      const hit0 = findCalloutComponentAtPoint({ x: 0.2, y: 0.3 }, baseCallout);
+      expect(hit0).toEqual({ type: 'arrowTip', leaderIndex: 0 });
+      expect(hitTestMarkup({ x: 0.2, y: 0.3 }, baseCallout)).toBe(true);
+
+      const hit1 = findCalloutComponentAtPoint({ x: 0.805, y: 0.305 }, baseCallout, 0.015);
+      expect(hit1).toEqual({ type: 'arrowTip', leaderIndex: 1 });
+      expect(hitTestMarkup({ x: 0.805, y: 0.305 }, baseCallout, 0.015)).toBe(true);
+    });
+
+    it('detecta clic en el cuerpo de la directriz devolviendo { type: "leaderBody", leaderIndex }', () => {
+      const hitBody = findCalloutComponentAtPoint({ x: 0.25, y: 0.375 }, baseCallout, 0.015);
+      expect(hitBody).toEqual({ type: 'leaderBody', leaderIndex: 0 });
+      expect(hitTestMarkup({ x: 0.25, y: 0.375 }, baseCallout)).toBe(true);
+    });
+
+    it('devuelve null y hitTestMarkup=false para clics fuera de la caja y directrices', () => {
+      const hitVoid = findCalloutComponentAtPoint({ x: 0.05, y: 0.05 }, baseCallout);
+      expect(hitVoid).toBeNull();
+      expect(hitTestMarkup({ x: 0.05, y: 0.05 }, baseCallout)).toBe(false);
+    });
+
+    it('expande la zona de hit-testing al actualizar points[1] tras crecer el texto', () => {
+      const initialHit = findCalloutComponentAtPoint({ x: 0.7, y: 0.45 }, baseCallout);
+      expect(initialHit?.type).not.toBe('box');
+
+      const estimated = estimateCalloutBoxNormalizedSize('Texto largo de prueba que expande la anchura del callout');
+      const expandedCallout: Markup = {
+        ...baseCallout,
+        text: 'Texto largo de prueba que expande la anchura del callout',
+        points: [
+          baseCallout.points[0],
+          { x: baseCallout.points[0].x + Math.max(0.35, estimated.width), y: baseCallout.points[0].y + estimated.height },
+        ],
+      };
+
+      const expandedHit = findCalloutComponentAtPoint({ x: 0.7, y: 0.45 }, expandedCallout);
+      expect(expandedHit).toEqual({ type: 'box' });
+      expect(hitTestMarkup({ x: 0.7, y: 0.45 }, expandedCallout)).toBe(true);
+    });
+  });
 });
+

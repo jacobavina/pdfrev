@@ -276,6 +276,118 @@ export function simplifyRamerDouglasPeucker(
   }
 }
 
+export interface CalloutHitComponent {
+  type: 'box' | 'arrowTip' | 'leaderBody';
+  leaderIndex?: number;
+}
+
+/**
+ * Inspecciona un punto normalizado contra un Callout y detecta con precisión qué componente fue clickeado:
+ * - 'box': la caja de texto.
+ * - 'arrowTip': el ancla / punta de flecha de una directriz específica (leaderIndex).
+ * - 'leaderBody': el cuerpo de una directriz (codo, hombro o tramos de polilínea).
+ */
+export function findCalloutComponentAtPoint(
+  point: MarkupPoint,
+  markup: Markup,
+  tolerance = 0.015
+): CalloutHitComponent | null {
+  if (markup.type !== 'callout' || !markup.points || markup.points.length === 0) {
+    return null;
+  }
+
+  const p1 = markup.points[0];
+  const p2 = markup.points[1] || p1;
+  const left = Math.min(p1.x, p2.x);
+  const top = Math.min(p1.y, p2.y);
+  // Dimensiones normalizadas de la caja con tamaño mínimo de seguridad
+  const width = Math.max(0.0875, Math.abs(p2.x - p1.x));
+  const height = Math.max(0.04, Math.abs(p2.y - p1.y));
+
+  // 1. Detección de clic en la caja de texto
+  const inBox =
+    point.x >= left - tolerance &&
+    point.x <= left + width + tolerance &&
+    point.y >= top - tolerance &&
+    point.y <= top + height + tolerance;
+
+  // 2. Detección en directrices (puntas de flecha primero para máxima prioridad sobre handles)
+  if (markup.leaders && Array.isArray(markup.leaders)) {
+    // A. ¿Clic en punta de flecha / ancla?
+    for (let i = 0; i < markup.leaders.length; i++) {
+      const leader = markup.leaders[i];
+      if (leader.length > 0) {
+        const arrowHead = leader[0];
+        const distArrow = Math.hypot(point.x - arrowHead.x, point.y - arrowHead.y);
+        if (distArrow <= tolerance) {
+          return { type: 'arrowTip', leaderIndex: i };
+        }
+      }
+    }
+
+    // Si estaba dentro de la caja y no tocó ninguna punta de flecha, la caja tiene prioridad sobre el cuerpo
+    if (inBox) {
+      return { type: 'box' };
+    }
+
+    // B. ¿Clic en el cuerpo de la directriz (codo, hombro o tramos de polilínea)?
+    const boxCenterY = top + height / 2;
+    for (let i = 0; i < markup.leaders.length; i++) {
+      const leader = markup.leaders[i];
+      if (leader.length === 0) continue;
+
+      if (leader.length === 1) {
+        const arrowHead = leader[0];
+        let boxAttachment: MarkupPoint;
+        let elbow: MarkupPoint;
+        const shoulderNorm = 0.015;
+
+        if (arrowHead.x < left) {
+          boxAttachment = { x: left, y: boxCenterY };
+          elbow = { x: Math.min(left - shoulderNorm, (left + arrowHead.x) / 2), y: boxCenterY };
+        } else if (arrowHead.x > left + width) {
+          boxAttachment = { x: left + width, y: boxCenterY };
+          elbow = { x: Math.max(left + width + shoulderNorm, (left + width + arrowHead.x) / 2), y: boxCenterY };
+        } else {
+          if (arrowHead.y < top) {
+            boxAttachment = { x: left + width / 2, y: top };
+            elbow = { x: left + width / 2, y: Math.min(top - shoulderNorm, (top + arrowHead.y) / 2) };
+          } else {
+            boxAttachment = { x: left + width / 2, y: top + height };
+            elbow = { x: left + width / 2, y: Math.max(top + height + shoulderNorm, (top + height + arrowHead.y) / 2) };
+          }
+        }
+
+        if (
+          distanceToSegment(point, arrowHead, elbow) <= tolerance ||
+          distanceToSegment(point, elbow, boxAttachment) <= tolerance
+        ) {
+          return { type: 'leaderBody', leaderIndex: i };
+        }
+      } else {
+        // Directriz multi-punto explícita: tramos consecutivos
+        for (let j = 1; j < leader.length; j++) {
+          if (distanceToSegment(point, leader[j - 1], leader[j]) <= tolerance) {
+            return { type: 'leaderBody', leaderIndex: i };
+          }
+        }
+        // Conexión del último punto al centro de la caja
+        const lastPt = leader[leader.length - 1];
+        const boxAttachment = { x: left, y: boxCenterY };
+        if (distanceToSegment(point, lastPt, boxAttachment) <= tolerance) {
+          return { type: 'leaderBody', leaderIndex: i };
+        }
+      }
+    }
+  }
+
+  if (inBox) {
+    return { type: 'box' };
+  }
+
+  return null;
+}
+
 /**
  * Hit-testing técnico y geométrico para comprobar si un clic impacta una anotación.
  * CERO fallback return true: cobertura matemática rigurosa para los 14 tipos de marcas.
@@ -395,41 +507,27 @@ export function hitTestMarkup(
     return distanceToSegment(point, markup.points[0], markup.points[1]) <= tolerance;
   }
 
-  // 6. Texto / Callout (interior de la caja O distancia a cualquiera de sus directrices)
-  if (markup.type === 'text' || markup.type === 'callout') {
+  // 6. Callout (delegación al inspector diferenciado de componentes)
+  if (markup.type === 'callout') {
+    return findCalloutComponentAtPoint(point, markup, tolerance) !== null;
+  }
+
+  // 7. Texto (interior de la caja)
+  if (markup.type === 'text') {
     if (markup.points.length === 0) return false;
     const p1 = markup.points[0];
-    const p2 = markup.points[1] || (markup.type === 'text' ? { x: p1.x + 0.1, y: p1.y + 0.03 } : p1);
+    const p2 = markup.points[1] || { x: p1.x + 0.1, y: p1.y + 0.03 };
     const minX = Math.min(p1.x, p2.x);
     const maxX = Math.max(p1.x, p2.x);
     const minY = Math.min(p1.y, p2.y);
     const maxY = Math.max(p1.y, p2.y);
 
-    const inBox =
+    return (
       point.x >= minX - tolerance &&
       point.x <= maxX + tolerance &&
       point.y >= minY - tolerance &&
-      point.y <= maxY + tolerance;
-
-    if (inBox) return true;
-
-    // Si cae en alguna de sus directrices
-    if (markup.leaders && Array.isArray(markup.leaders)) {
-      for (const leader of markup.leaders) {
-        if (leader.length === 1) {
-          const boxCenter = { x: minX, y: (minY + maxY) / 2 };
-          if (distanceToSegment(point, leader[0], boxCenter) <= tolerance) {
-            return true;
-          }
-        }
-        for (let i = 1; i < leader.length; i++) {
-          if (distanceToSegment(point, leader[i - 1], leader[i]) <= tolerance) {
-            return true;
-          }
-        }
-      }
-    }
-    return false;
+      point.y <= maxY + tolerance
+    );
   }
 
   // 8. StickyNote (caja del icono de tamaño estándar)

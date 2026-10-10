@@ -390,4 +390,73 @@ describe('Sub-entregable A.0: Interacción de Selección y Arrastre (dragInterac
     expect(upResult.moves?.[0].id).toBe('cloud-m1');
     expect(upResult.moves?.[1].id).toBe('callout-m1');
   });
+
+  it('Sub-entregable A.2 (Condición 3): Shift+clic alterna selección aditiva SIN arrastrar con la misma semántica de Ctrl', () => {
+    const m1 = createMockRectangle('m1', 0.1, 0.1, 0.3, 0.3, 'rgba(2, 132, 199, 0.15)');
+    const selectMarkup = vi.fn();
+    const deselectAll = vi.fn();
+
+    const dragState = handleSelectMouseDown({
+      point: { x: 0.2, y: 0.2 },
+      screenX: 200,
+      screenY: 160,
+      isShift: true, // Con tecla Shift
+      pageMarkups: [m1],
+      selectedMarkupIds: ['m1'],
+      selectMarkup,
+      deselectAll,
+    });
+
+    expect(selectMarkup).toHaveBeenCalledWith('m1', true);
+    expect(dragState).toBeNull();
+  });
+
+  it('Sub-entregable A.2 (Condición 4): Arrastrar cualquier marca de un conjunto de K marcas seleccionadas mueve las K marcas juntas con clamp conjunto', () => {
+    const m1 = createMockRectangle('m1', 0.1, 0.1, 0.2, 0.2, 'rgba(2, 132, 199, 0.15)');
+    const m2 = createMockRectangle('m2', 0.3, 0.1, 0.4, 0.2, 'rgba(2, 132, 199, 0.15)');
+    const m3 = createMockRectangle('m3', 0.5, 0.1, 0.6, 0.2, 'rgba(2, 132, 199, 0.15)');
+
+    const selectMarkup = vi.fn();
+    const deselectAll = vi.fn();
+
+    // Las 3 marcas ya están seleccionadas (por ejemplo tras un marquee)
+    const dragState = handleSelectMouseDown({
+      point: { x: 0.35, y: 0.15 }, // Clic sobre m2
+      screenX: 350,
+      screenY: 150,
+      isCtrlOrShift: false,
+      pageMarkups: [m1, m2, m3],
+      selectedMarkupIds: ['m1', 'm2', 'm3'],
+      selectMarkup,
+      deselectAll,
+    });
+
+    expect(dragState).not.toBeNull();
+    // initialMarkups debe contener las K = 3 marcas seleccionadas
+    expect(dragState?.initialMarkups).toHaveLength(3);
+
+    // Mover 50 px a la derecha
+    const moveResult = handleSelectMouseMove({
+      screenX: 400,
+      screenY: 150,
+      dragState: dragState!,
+      viewportTransform: mockTransform,
+    });
+
+    expect(moveResult.updatedMarkups).toHaveLength(3);
+    // dx = 50 / 1000 = 0.05
+    expect(moveResult.clampedDelta?.x).toBeCloseTo(0.05, 4);
+    expect(moveResult.updatedMarkups![0].points[0].x).toBeCloseTo(0.15, 4);
+    expect(moveResult.updatedMarkups![1].points[0].x).toBeCloseTo(0.35, 4);
+    expect(moveResult.updatedMarkups![2].points[0].x).toBeCloseTo(0.55, 4);
+
+    const upResult = handleSelectMouseUp({
+      screenX: 400,
+      screenY: 150,
+      dragState: dragState!,
+      viewportTransform: mockTransform,
+    });
+
+    expect(upResult.moves).toHaveLength(3);
+  });
 });

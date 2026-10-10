@@ -343,6 +343,11 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const calloutText = overlaySvg.locator('text:has-text("Nota Cloud+")').last();
     await expect(calloutText).toBeVisible();
 
+    // Guardar captura para verificación visual de la curvatura y flecha del abombamiento
+    await page.screenshot({
+      path: 'C:/Users/jmm_j/.gemini/antigravity/brain/9026c7fb-b4c3-4cb1-906c-879487ed1de7/cloud_visual_verification.png',
+    });
+
     // Comprobar que en la lista de marcas aparecen cloudPlus y callout
     const markupsPanel = page.locator('[data-testid="markups-list-panel"]');
     await expect(markupsPanel).toContainText('cloudPlus');
@@ -390,4 +395,121 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(markupsPanel).toContainText('cloudPlus');
     await expect(markupsPanel).toContainText('callout');
   });
+
+  test('Sub-entregable A.2: Multiselección con Marquee por intersección, verificación de lista intacta, arrastre conjunto y undo atómico', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+
+    const markupsPanel = page.locator('[data-testid="markups-list-panel"]');
+    await expect(markupsPanel).toBeVisible();
+
+    const svgBox = await overlaySvg.boundingBox();
+    expect(svgBox).not.toBeNull();
+    if (!svgBox) return;
+
+    // 1. Dibujar 2 rectángulos separados
+    const rectBtn = page.locator('button[title*="Rectángulo"]');
+    await rectBtn.click();
+
+    // Rectángulo 1: de (100, 100) a (180, 180)
+    await page.mouse.move(svgBox.x + 100, svgBox.y + 100);
+    await page.mouse.down();
+    await page.mouse.move(svgBox.x + 180, svgBox.y + 180);
+    await page.mouse.up();
+
+    // Rectángulo 2: de (240, 100) a (320, 180)
+    await page.mouse.move(svgBox.x + 240, svgBox.y + 100);
+    await page.mouse.down();
+    await page.mouse.move(svgBox.x + 320, svgBox.y + 180);
+    await page.mouse.up();
+
+    // Contar marcas en la tabla antes del marquee
+    const markupsCountBefore = await markupsPanel.locator('tr[data-testid^="markup-row-"]').count();
+    expect(markupsCountBefore).toBeGreaterThanOrEqual(2);
+
+    // Obtener referencias de ambos rectángulos dibujados
+    const rectGroups = overlaySvg.locator('g[data-testid^="markup-g-"]');
+    const totalGroups = await rectGroups.count();
+    const rect1 = rectGroups.nth(totalGroups - 2).locator('rect:not([data-testid="selection-bbox"])');
+    const rect2 = rectGroups.nth(totalGroups - 1).locator('rect:not([data-testid="selection-bbox"])');
+
+    // Cambiar a herramienta Seleccionar (V)
+    const selectBtn = page.locator('button[title*="Seleccionar"]');
+    await selectBtn.click();
+
+    // 2. Marquee por intersección desde zona vacía (50, 80) hasta (280, 150)
+    // Abarca X [50..280] e Y [80..150]. Rect 1 está en [100..180, 100..180]. Rect 2 está en [240..320, 100..180].
+    // Rect 1 interseca; Rect 2 interseca parcialmente (termina en 320 > 280) -> Criterio estricto de INTERSECCIÓN
+    await page.mouse.move(svgBox.x + 50, svgBox.y + 80);
+    await page.mouse.down();
+    await page.mouse.move(svgBox.x + 280, svgBox.y + 150);
+
+    // Comprobar que el rectángulo elástico del marquee está visible en el DOM durante el arrastre
+    const marqueeRect = overlaySvg.locator('[data-testid="marquee-selection-rect"]');
+    await expect(marqueeRect).toBeVisible();
+
+    // Soltar ratón para confirmar selección
+    await page.mouse.up();
+
+    // El rectángulo del marquee debe desaparecer inmediatamente
+    await expect(marqueeRect).toHaveCount(0);
+
+    // Aserción estricta 1: La lista de marcas queda intacta (cero marcas creadas por el marquee)
+    const markupsCountAfter = await markupsPanel.locator('tr[data-testid^="markup-row-"]').count();
+    expect(markupsCountAfter).toBe(markupsCountBefore);
+
+    // Ambos rectángulos deben estar seleccionados (2 bboxes de selección visibles)
+    const selectionBboxes = overlaySvg.locator('rect[data-testid="selection-bbox"]');
+    await expect(selectionBboxes).toHaveCount(2);
+
+    // Obtener posiciones iniciales antes del arrastre conjunto
+    const rect1InitialX = parseFloat((await rect1.getAttribute('x'))!);
+    const rect1InitialY = parseFloat((await rect1.getAttribute('y'))!);
+    const rect2InitialX = parseFloat((await rect2.getAttribute('x'))!);
+    const rect2InitialY = parseFloat((await rect2.getAttribute('y'))!);
+
+    // 3. Arrastre conjunto de las K marcas seleccionadas:
+    // Clic sobre el borde izquierdo de rect1 (que ya está seleccionado)
+    const dragStartX = svgBox.x + rect1InitialX + 2;
+    const dragStartY = svgBox.y + rect1InitialY + 20;
+
+    await page.mouse.move(dragStartX, dragStartY);
+    await page.mouse.down();
+    await page.mouse.move(dragStartX + 50, dragStartY + 30);
+    await page.mouse.up();
+
+    // Verificar que AMBOS rectángulos se trasladaron juntos
+    const rect1MovedX = parseFloat((await rect1.getAttribute('x'))!);
+    const rect1MovedY = parseFloat((await rect1.getAttribute('y'))!);
+    const rect2MovedX = parseFloat((await rect2.getAttribute('x'))!);
+    const rect2MovedY = parseFloat((await rect2.getAttribute('y'))!);
+
+    expect(rect1MovedX).toBeGreaterThanOrEqual(rect1InitialX + 45);
+    expect(rect1MovedX).toBeLessThanOrEqual(rect1InitialX + 55);
+    expect(rect1MovedY).toBeGreaterThanOrEqual(rect1InitialY + 25);
+    expect(rect1MovedY).toBeLessThanOrEqual(rect1InitialY + 35);
+
+    expect(rect2MovedX).toBeGreaterThanOrEqual(rect2InitialX + 45);
+    expect(rect2MovedX).toBeLessThanOrEqual(rect2InitialX + 55);
+    expect(rect2MovedY).toBeGreaterThanOrEqual(rect2InitialY + 25);
+    expect(rect2MovedY).toBeLessThanOrEqual(rect2InitialY + 35);
+
+    // 4. Aserción estricta 2: Un solo Ctrl+Z revierte las K marcas a sus posiciones originales
+    await page.keyboard.press('Control+z');
+
+    const rect1RestoredX = parseFloat((await rect1.getAttribute('x'))!);
+    const rect1RestoredY = parseFloat((await rect1.getAttribute('y'))!);
+    const rect2RestoredX = parseFloat((await rect2.getAttribute('x'))!);
+    const rect2RestoredY = parseFloat((await rect2.getAttribute('y'))!);
+
+    expect(rect1RestoredX).toBeCloseTo(rect1InitialX, 0);
+    expect(rect1RestoredY).toBeCloseTo(rect1InitialY, 0);
+    expect(rect2RestoredX).toBeCloseTo(rect2InitialX, 0);
+    expect(rect2RestoredY).toBeCloseTo(rect2InitialY, 0);
+  });
 });
+

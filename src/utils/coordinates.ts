@@ -179,6 +179,52 @@ export function isPointInBounds(
 }
 
 /**
+ * Sub-entregable A.2 (Condición 1 y 5): Criterio del Marquee por INTERSECCIÓN.
+ * Determina si dos cajas delimitadoras intersectan o si una contiene a la otra.
+ */
+export function doBoundsIntersect(a: BoundingBox, b: BoundingBox): boolean {
+  return (
+    a.x <= b.x + b.width &&
+    a.x + a.width >= b.x &&
+    a.y <= b.y + b.height &&
+    a.y + a.height >= b.y
+  );
+}
+
+/**
+ * Sub-entregable A.2 (Condición 5): Selección por Marquee de alto rendimiento.
+ * Corre en cada mousemove con prefiltro O(N) por getMarkupBounds.
+ * Expande automáticamente todos los miembros de cualquier groupId presente.
+ */
+export function selectMarkupsInRect(
+  markups: Markup[],
+  marqueeRect: BoundingBox
+): string[] {
+  const selectedIds = new Set<string>();
+  const selectedGroupIds = new Set<string>();
+
+  for (const m of markups) {
+    const bounds = getMarkupBounds(m);
+    if (doBoundsIntersect(marqueeRect, bounds)) {
+      selectedIds.add(m.id);
+      if (m.groupId) {
+        selectedGroupIds.add(m.groupId);
+      }
+    }
+  }
+
+  if (selectedGroupIds.size > 0) {
+    for (const m of markups) {
+      if (m.groupId && selectedGroupIds.has(m.groupId)) {
+        selectedIds.add(m.id);
+      }
+    }
+  }
+
+  return Array.from(selectedIds);
+}
+
+/**
  * Algoritmo Ray-Casting para determinar si un punto está dentro de un polígono 2D.
  */
 export function isPointInPolygon(point: MarkupPoint, polygon: MarkupPoint[]): boolean {

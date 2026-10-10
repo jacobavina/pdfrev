@@ -8,6 +8,7 @@ import {
   screenToNormalized,
   normalizedToScreen,
   hitTestMarkup,
+  selectMarkupsInRect,
 } from '../utils/coordinates';
 import {
   handleSelectMouseDown,
@@ -23,6 +24,7 @@ import {
   generateCloudPath,
   getMarkupSvgDescriptor,
   renderSvgDescriptor,
+  DEFAULT_ARC_STEP,
 } from '../core/markup/render';
 import { Markup, MarkupPoint, MarkupType } from '../types/markup';
 import { InlineTextEditor } from './markup/InlineTextEditor';
@@ -43,6 +45,7 @@ export const PdfViewer: React.FC = () => {
     markups,
     selectedMarkupIds,
     selectMarkup,
+    setSelectedMarkupIds,
     deselectAll,
     addMarkup,
     addMarkups,
@@ -61,6 +64,17 @@ export const PdfViewer: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const dragStateRef = useRef<DragState | null>(null);
+  const marqueeStateRef = useRef<{
+    start: MarkupPoint;
+    current: MarkupPoint;
+    isAdditive: boolean;
+    initialSelectedIds: string[];
+  } | null>(null);
+
+  const [marqueeState, setMarqueeState] = useState<{
+    start: MarkupPoint;
+    current: MarkupPoint;
+  } | null>(null);
 
   const [pageViewport, setPageViewport] = useState<{ width: number; height: number }>({
     width: 800,
@@ -119,8 +133,15 @@ export const PdfViewer: React.FC = () => {
         return;
       }
 
-      // Criterio 3: Escape cancela el trazo en curso o el arrastre activo
+      // Criterio 3: Escape cancela el trazo en curso, el arrastre activo o el marquee
       if (e.key === 'Escape') {
+        if (marqueeStateRef.current) {
+          e.preventDefault();
+          setSelectedMarkupIds(marqueeStateRef.current.initialSelectedIds);
+          marqueeStateRef.current = null;
+          setMarqueeState(null);
+          return;
+        }
         if (dragStateRef.current) {
           e.preventDefault();
           const initial = dragStateRef.current.initialMarkups;
@@ -205,6 +226,7 @@ export const PdfViewer: React.FC = () => {
     author,
     activeLayer,
     addMarkup,
+    setSelectedMarkupIds,
     setMarkupsTransient,
   ]);
 
@@ -223,6 +245,10 @@ export const PdfViewer: React.FC = () => {
   // Listener global de mouseup para asegurar finalización de arrastre limpia incluso fuera del svg
   useEffect(() => {
     const handleWindowMouseUp = (e: MouseEvent) => {
+      if (marqueeStateRef.current) {
+        marqueeStateRef.current = null;
+        setMarqueeState(null);
+      }
       if (dragStateRef.current) {
         const result = handleSelectMouseUp({
           screenX: e.clientX,
@@ -259,20 +285,39 @@ export const PdfViewer: React.FC = () => {
     if (e.button !== 0) return;
     const pt = getEventPoint(e);
 
-    // 1. Modo Selección
+    // 1. Modo Selección (A.0 y A.2: Vacío -> Marquee, Marca -> Movimiento)
     if (activeTool === 'select') {
       const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex);
-      const newDragState = handleSelectMouseDown({
-        point: pt,
-        screenX: e.clientX,
-        screenY: e.clientY,
-        isCtrl: e.ctrlKey || e.metaKey,
-        pageMarkups,
-        selectedMarkupIds,
-        selectMarkup,
-        deselectAll,
-      });
-      dragStateRef.current = newDragState;
+      const isAdditive = Boolean(e.ctrlKey || e.metaKey || e.shiftKey);
+      const hit = [...pageMarkups].reverse().find((m) => hitTestMarkup(pt, m));
+
+      if (hit) {
+        const newDragState = handleSelectMouseDown({
+          point: pt,
+          screenX: e.clientX,
+          screenY: e.clientY,
+          isCtrlOrShift: isAdditive,
+          pageMarkups,
+          selectedMarkupIds,
+          selectMarkup,
+          deselectAll,
+        });
+        dragStateRef.current = newDragState;
+        return;
+      }
+
+      // Vacío -> Iniciar Marquee de selección elástico
+      if (!isAdditive) {
+        deselectAll();
+      }
+      const initialSelected = isAdditive ? [...selectedMarkupIds] : [];
+      marqueeStateRef.current = {
+        start: pt,
+        current: pt,
+        isAdditive,
+        initialSelectedIds: initialSelected,
+      };
+      setMarqueeState({ start: pt, current: pt });
       return;
     }
 
@@ -326,20 +371,52 @@ export const PdfViewer: React.FC = () => {
     const pt = getEventPoint(e);
     setMouseCursorPoint(pt);
 
-    // Arrastre interactivo en modo selección
-    if (activeTool === 'select' && dragStateRef.current) {
-      const moveResult = handleSelectMouseMove({
-        screenX: e.clientX,
-        screenY: e.clientY,
-        dragState: dragStateRef.current,
-        viewportTransform,
-        thresholdPx: 4,
-      });
+    // Arrastre interactivo o Marquee en modo selección
+    if (activeTool === 'select') {
+      if (dragStateRef.current) {
+        const moveResult = handleSelectMouseMove({
+          screenX: e.clientX,
+          screenY: e.clientY,
+          dragState: dragStateRef.current,
+          viewportTransform,
+          thresholdPx: 4,
+        });
 
-      if (moveResult.hasMovedPastThreshold && moveResult.updatedMarkups) {
-        setMarkupsTransient(moveResult.updatedMarkups);
+        if (moveResult.hasMovedPastThreshold && moveResult.updatedMarkups) {
+          setMarkupsTransient(moveResult.updatedMarkups);
+        }
+        return;
       }
-      return;
+
+      if (marqueeStateRef.current) {
+        const startPt = marqueeStateRef.current.start;
+        marqueeStateRef.current.current = pt;
+        setMarqueeState({ start: startPt, current: pt });
+
+        const minX = Math.min(startPt.x, pt.x);
+        const maxX = Math.max(startPt.x, pt.x);
+        const minY = Math.min(startPt.y, pt.y);
+        const maxY = Math.max(startPt.y, pt.y);
+        const marqueeRect = {
+          x: minX,
+          y: minY,
+          width: Math.max(0, maxX - minX),
+          height: Math.max(0, maxY - minY),
+        };
+
+        const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex);
+        const intersectingIds = selectMarkupsInRect(pageMarkups, marqueeRect);
+
+        if (marqueeStateRef.current.isAdditive) {
+          const combined = Array.from(
+            new Set([...marqueeStateRef.current.initialSelectedIds, ...intersectingIds])
+          );
+          setSelectedMarkupIds(combined);
+        } else {
+          setSelectedMarkupIds(intersectingIds);
+        }
+        return;
+      }
     }
 
     // Actualización de trazo a mano alzada
@@ -358,22 +435,29 @@ export const PdfViewer: React.FC = () => {
   };
 
   const handleMouseUp = (_e: React.MouseEvent<SVGSVGElement>) => {
-    // Finalización de arrastre en modo selección
-    if (activeTool === 'select' && dragStateRef.current) {
-      const result = handleSelectMouseUp({
-        screenX: _e.clientX,
-        screenY: _e.clientY,
-        dragState: dragStateRef.current,
-        viewportTransform,
-        thresholdPx: 4,
-      });
-      dragStateRef.current = null;
-      if (result.moves && result.moves.length > 0) {
-        commitMoveMarkups(result.moves);
-      } else if (result.restoredMarkups) {
-        setMarkupsTransient(result.restoredMarkups);
+    // Finalización de arrastre o Marquee en modo selección
+    if (activeTool === 'select') {
+      if (marqueeStateRef.current) {
+        marqueeStateRef.current = null;
+        setMarqueeState(null);
+        return;
       }
-      return;
+      if (dragStateRef.current) {
+        const result = handleSelectMouseUp({
+          screenX: _e.clientX,
+          screenY: _e.clientY,
+          dragState: dragStateRef.current,
+          viewportTransform,
+          thresholdPx: 4,
+        });
+        dragStateRef.current = null;
+        if (result.moves && result.moves.length > 0) {
+          commitMoveMarkups(result.moves);
+        } else if (result.restoredMarkups) {
+          setMarkupsTransient(result.restoredMarkups);
+        }
+        return;
+      }
     }
     // Finalización de Freehand
     if (activeTool === 'freehand') {
@@ -452,7 +536,7 @@ export const PdfViewer: React.FC = () => {
           status: 'pending',
           layer: activeLayer,
           groupId,
-          customFields: { arcStep: 20 },
+          customFields: { arcStep: DEFAULT_ARC_STEP },
         };
 
         const calloutMarkup: Markup = {
@@ -478,7 +562,7 @@ export const PdfViewer: React.FC = () => {
         addMarkups([cloudMarkup, calloutMarkup], 'Crear Cloud+');
       } else {
         const newId = uuidv4();
-        const customFields = activeTool === 'cloud' ? { arcStep: 20 } : undefined;
+        const customFields = activeTool === 'cloud' ? { arcStep: DEFAULT_ARC_STEP } : undefined;
         const newMarkup: Markup = {
           id: newId,
           type: activeTool as MarkupType,
@@ -781,7 +865,7 @@ export const PdfViewer: React.FC = () => {
                             width: viewportTransform.width * viewportTransform.scale,
                             height: viewportTransform.height * viewportTransform.scale,
                           },
-                          20 * viewportTransform.scale
+                          DEFAULT_ARC_STEP * viewportTransform.scale
                         )}
                         stroke={currentStyle.strokeColor}
                         strokeWidth={currentStyle.strokeWidth}
@@ -810,6 +894,31 @@ export const PdfViewer: React.FC = () => {
                 })()}
               </g>
             )}
+
+            {/* D. Rectángulo elástico de selección Marquee (Sub-entregable A.2) */}
+            {marqueeState && (() => {
+              const p1 = normalizedToScreen(marqueeState.start, viewportTransform);
+              const p2 = normalizedToScreen(marqueeState.current, viewportTransform);
+              const x = Math.min(p1.x, p2.x);
+              const y = Math.min(p1.y, p2.y);
+              const width = Math.abs(p2.x - p1.x);
+              const height = Math.abs(p2.y - p1.y);
+
+              return (
+                <rect
+                  data-testid="marquee-selection-rect"
+                  x={x}
+                  y={y}
+                  width={width}
+                  height={height}
+                  fill="rgba(2, 132, 199, 0.12)"
+                  stroke="#0284c7"
+                  strokeWidth={1}
+                  strokeDasharray="4 2"
+                  className="pointer-events-none"
+                />
+              );
+            })()}
           </svg>
         </div>
       )}

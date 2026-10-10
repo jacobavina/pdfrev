@@ -28,6 +28,7 @@ interface MarkupState {
   deleteMarkup: (id: string) => void;
   deleteSelectedMarkups: () => void;
   selectMarkup: (id: string, multi?: boolean) => void;
+  setSelectedMarkupIds: (ids: string[]) => void;
   deselectAll: () => void;
   setMarkups: (markups: Markup[]) => void;
   setMarkupsTransient: (markups: Markup[]) => void;
@@ -223,6 +224,22 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
         }
         return { selectedMarkupIds: targetIds };
       });
+    },
+
+    setSelectedMarkupIds: (ids: string[]) => {
+      const allMarkups = get().markups;
+      const groupIds = new Set(
+        allMarkups.filter((m) => ids.includes(m.id) && m.groupId).map((m) => m.groupId!)
+      );
+
+      const finalIds =
+        groupIds.size > 0
+          ? allMarkups
+              .filter((m) => ids.includes(m.id) || (m.groupId && groupIds.has(m.groupId)))
+              .map((m) => m.id)
+          : ids;
+
+      set({ selectedMarkupIds: finalIds });
     },
 
     deselectAll: () => {

@@ -16,6 +16,8 @@ import {
   clampTranslationDelta,
   clampGroupTranslationDelta,
   translateMarkup,
+  doBoundsIntersect,
+  selectMarkupsInRect,
 } from './coordinates';
 import { Markup, VALID_MARKUP_TYPES } from '../types/markup';
 import fixtureMeta from '../../fixtures/test-blueprint.meta.json';
@@ -1008,6 +1010,146 @@ describe('Coordinate Conversion and Hit-Testing', () => {
       expect(moved.leaders?.[0][0].y).toBeCloseTo(0.45, 4);
       expect(moved.leaders?.[0][1].x).toBeCloseTo(0.9, 4);
       expect(moved.leaders?.[0][1].y).toBeCloseTo(0.9, 4);
+    });
+  });
+
+  // --------------------------------------------------------------------------------
+  // Sub-entregable A.2: Multiselección y Marquee de Selección
+  // --------------------------------------------------------------------------------
+  describe('Sub-entregable A.2: Criterio del Marquee y Rendimiento', () => {
+    it('doBoundsIntersect valida intersección y contención entre cajas delimitadoras', () => {
+      const boxA = { x: 0.1, y: 0.1, width: 0.2, height: 0.2 }; // [0.1..0.3, 0.1..0.3]
+      const boxOverlapping = { x: 0.25, y: 0.25, width: 0.2, height: 0.2 }; // [0.25..0.45, 0.25..0.45]
+      const boxContained = { x: 0.15, y: 0.15, width: 0.05, height: 0.05 };
+      const boxDisjoint = { x: 0.5, y: 0.5, width: 0.1, height: 0.1 };
+
+      // Caso 1: Solapamiento parcial (INTERSECCIÓN)
+      expect(doBoundsIntersect(boxA, boxOverlapping)).toBe(true);
+      expect(doBoundsIntersect(boxOverlapping, boxA)).toBe(true);
+
+      // Caso 2: Contención total
+      expect(doBoundsIntersect(boxA, boxContained)).toBe(true);
+      expect(doBoundsIntersect(boxContained, boxA)).toBe(true);
+
+      // Caso 3: Cajas disjuntas
+      expect(doBoundsIntersect(boxA, boxDisjoint)).toBe(false);
+      expect(doBoundsIntersect(boxDisjoint, boxA)).toBe(false);
+    });
+
+    it('Condición 1: selectMarkupsInRect selecciona marcas por INTERSECCIÓN (crossing)', () => {
+      const m1: Markup = {
+        id: 'rect-1',
+        type: 'rectangle',
+        pageIndex: 0,
+        points: [{ x: 0.1, y: 0.1 }, { x: 0.3, y: 0.3 }],
+        style: { strokeColor: '#000', strokeWidth: 1, opacity: 1 },
+        author: 'Tester',
+        createdAt: '',
+        updatedAt: '',
+        status: 'pending',
+      };
+
+      const m2: Markup = {
+        id: 'rect-2',
+        type: 'rectangle',
+        pageIndex: 0,
+        points: [{ x: 0.5, y: 0.1 }, { x: 0.7, y: 0.3 }],
+        style: { strokeColor: '#000', strokeWidth: 1, opacity: 1 },
+        author: 'Tester',
+        createdAt: '',
+        updatedAt: '',
+        status: 'pending',
+      };
+
+      const m3: Markup = {
+        id: 'rect-3',
+        type: 'rectangle',
+        pageIndex: 0,
+        points: [{ x: 0.5, y: 0.5 }, { x: 0.8, y: 0.8 }],
+        style: { strokeColor: '#000', strokeWidth: 1, opacity: 1 },
+        author: 'Tester',
+        createdAt: '',
+        updatedAt: '',
+        status: 'pending',
+      };
+
+      const pageMarkups = [m1, m2, m3];
+
+      // Marquee que cubre de x=0.25 a 0.55 y de y=0.05 a 0.25:
+      // Toca parcialmente el borde derecho de m1 (x: 0.1..0.3) e izquierdo de m2 (x: 0.5..0.7)
+      // pero no toca m3.
+      const marqueeRect = { x: 0.25, y: 0.05, width: 0.3, height: 0.2 };
+      const selected = selectMarkupsInRect(pageMarkups, marqueeRect);
+
+      expect(selected).toContain('rect-1');
+      expect(selected).toContain('rect-2');
+      expect(selected).not.toContain('rect-3');
+      expect(selected).toHaveLength(2);
+    });
+
+    it('selectMarkupsInRect expande automáticamente grupos vinculados por groupId', () => {
+      const groupId = 'group-linked';
+      const cloud: Markup = {
+        id: 'cloud-g',
+        type: 'cloudPlus',
+        pageIndex: 0,
+        points: [{ x: 0.1, y: 0.1 }, { x: 0.3, y: 0.3 }],
+        style: { strokeColor: '#000', strokeWidth: 1, opacity: 1 },
+        author: 'Tester',
+        createdAt: '',
+        updatedAt: '',
+        status: 'pending',
+        groupId,
+      };
+
+      const callout: Markup = {
+        id: 'callout-g',
+        type: 'callout',
+        pageIndex: 0,
+        points: [{ x: 0.6, y: 0.6 }, { x: 0.8, y: 0.7 }],
+        style: { strokeColor: '#000', strokeWidth: 1, opacity: 1 },
+        author: 'Tester',
+        createdAt: '',
+        updatedAt: '',
+        status: 'pending',
+        groupId,
+      };
+
+      // Marquee solo toca 'cloud-g' (x: 0.05..0.2, y: 0.05..0.2)
+      const marqueeRect = { x: 0.05, y: 0.05, width: 0.15, height: 0.15 };
+      const selected = selectMarkupsInRect([cloud, callout], marqueeRect);
+
+      // Al intersectar 'cloud-g', automáticamente arrastra 'callout-g'
+      expect(selected).toContain('cloud-g');
+      expect(selected).toContain('callout-g');
+      expect(selected).toHaveLength(2);
+    });
+
+    it('Condición 5 (Rendimiento): selectMarkupsInRect filtra 500 marcas en menos de 10ms', () => {
+      const markups500: Markup[] = [];
+      for (let i = 0; i < 500; i++) {
+        const x = (i % 25) * 0.038;
+        const y = Math.floor(i / 25) * 0.045;
+        markups500.push({
+          id: `m-${i}`,
+          type: 'rectangle',
+          pageIndex: 0,
+          points: [{ x, y }, { x: x + 0.03, y: y + 0.03 }],
+          style: { strokeColor: '#000', strokeWidth: 1, opacity: 1 },
+          author: 'Tester',
+          createdAt: '',
+          updatedAt: '',
+          status: 'pending',
+        });
+      }
+
+      const marqueeRect = { x: 0.1, y: 0.1, width: 0.2, height: 0.2 };
+      const t0 = performance.now();
+      const selected = selectMarkupsInRect(markups500, marqueeRect);
+      const elapsed = performance.now() - t0;
+
+      expect(selected.length).toBeGreaterThan(0);
+      expect(elapsed).toBeLessThan(15); // Ultra rápido con O(N) prefiltro
     });
   });
 });

@@ -324,5 +324,19 @@ describe('useMarkupStore Integration & History', () => {
       expect(stateReverted.markups.find((m) => m.id === 'callout-1')?.points).toEqual(calloutMarkup.points);
       expect(stateReverted.markups.find((m) => m.id === 'callout-1')?.leaders).toEqual(calloutMarkup.leaders);
     });
+
+    it('setSelectedMarkupIds establece seleccion directa y expande grupos si estan presentes', () => {
+      const { cloudMarkup, calloutMarkup } = createCloudPlusGroup();
+      useMarkupStore.getState().addMarkups([cloudMarkup, calloutMarkup]);
+
+      useMarkupStore.getState().deselectAll();
+      expect(useMarkupStore.getState().selectedMarkupIds).toEqual([]);
+
+      // Pasar solo 'cloud-1' expande automáticamente a ambos por pertenecer a groupId
+      useMarkupStore.getState().setSelectedMarkupIds(['cloud-1']);
+      expect(useMarkupStore.getState().selectedMarkupIds).toContain('cloud-1');
+      expect(useMarkupStore.getState().selectedMarkupIds).toContain('callout-1');
+      expect(useMarkupStore.getState().selectedMarkupIds).toHaveLength(2);
+    });
   });
 });

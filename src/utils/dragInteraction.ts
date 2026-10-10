@@ -24,7 +24,9 @@ export function handleSelectMouseDown({
   point,
   screenX,
   screenY,
-  isCtrl,
+  isCtrl = false,
+  isShift = false,
+  isCtrlOrShift,
   pageMarkups,
   selectedMarkupIds,
   selectMarkup,
@@ -33,20 +35,25 @@ export function handleSelectMouseDown({
   point: MarkupPoint;
   screenX: number;
   screenY: number;
-  isCtrl: boolean;
+  isCtrl?: boolean;
+  isShift?: boolean;
+  isCtrlOrShift?: boolean;
   pageMarkups: Markup[];
   selectedMarkupIds: string[];
   selectMarkup: (id: string, multi: boolean) => void;
   deselectAll: () => void;
 }): DragState | null {
+  const isAdditive = Boolean(isCtrlOrShift ?? (isCtrl || isShift));
   const hit = [...pageMarkups].reverse().find((m) => hitTestMarkup(point, m));
   if (!hit) {
-    deselectAll();
+    if (!isAdditive) {
+      deselectAll();
+    }
     return null;
   }
 
-  if (isCtrl) {
-    // Condición 2: Ctrl+clic -> alternar selección SIN arrastrar
+  if (isAdditive) {
+    // Condición 3 (A.2): Shift y Ctrl alternan selección SIN iniciar arrastre (una sola semántica)
     selectMarkup(hit.id, true);
     return null;
   }

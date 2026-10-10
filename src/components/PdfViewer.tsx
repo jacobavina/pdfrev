@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useToolStore } from '../store/useToolStore';
-import { loadPdfDocument, renderPageToCanvas } from '../services/pdfService';
+import { renderPageToCanvas } from '../services/pdfService';
 import {
   screenToNormalized,
   normalizedToScreen,

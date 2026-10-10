@@ -42,7 +42,7 @@ describe('BBX Persistence Service (.bbx.json)', () => {
 
     const loaded = await loadBbxForPdf(pdfPath);
     expect(loaded).not.toBeNull();
-    expect(loaded?.version).toBe('1.0.0');
+    expect(loaded?.version).toBe('1.1.0');
     expect(loaded?.pdfFileName).toBe('estructural.pdf');
     expect(loaded?.author).toBe('Ing. Supervisor');
     expect(loaded?.markups).toHaveLength(1);

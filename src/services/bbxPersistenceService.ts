@@ -1,4 +1,4 @@
-import { BbxDocumentFile, Markup } from '../types/markup';
+import { BbxDocumentFile, Markup, migrateBbxDocument } from '../types/markup';
 
 // Detectar si estamos en un entorno nativo de Tauri 2
 export function isTauriEnvironment(): boolean {
@@ -29,7 +29,7 @@ export async function loadBbxForPdf(pdfPath: string): Promise<BbxDocumentFile | 
         return null;
       }
       const content = await readTextFile(bbxPath);
-      return JSON.parse(content) as BbxDocumentFile;
+      return migrateBbxDocument(JSON.parse(content));
     } catch (err) {
       console.warn(`[BBX] No se pudo leer el archivo ${bbxPath}:`, err);
       return null;
@@ -39,7 +39,7 @@ export async function loadBbxForPdf(pdfPath: string): Promise<BbxDocumentFile | 
     try {
       const saved = localStorage.getItem(`bbx_${bbxPath}`);
       if (saved) {
-        return JSON.parse(saved) as BbxDocumentFile;
+        return migrateBbxDocument(JSON.parse(saved));
       }
     } catch (err) {
       console.warn('[BBX] Fallback localStorage error:', err);
@@ -58,7 +58,7 @@ export async function saveBbxForPdf(
 ): Promise<boolean> {
   const bbxPath = getBbxPath(pdfPath);
   const data: BbxDocumentFile = {
-    version: '1.0.0',
+    version: '1.1.0',
     pdfFileName: pdfPath.split(/[/\\]/).pop() || 'document.pdf',
     lastSavedAt: new Date().toISOString(),
     author,

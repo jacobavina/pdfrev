@@ -151,6 +151,45 @@ describe('BBX Persistence Service (.bbx.json)', () => {
     expect(result.pdfBytes.length).toBeGreaterThan(0);
   });
 
+  it('Sub-entregable A.5: persiste y deserializa highlightVector preservando puntos canónicos y estilo', async () => {
+    const pdfPath = 'C:/blueprints/acero.pdf';
+    const highlightMarkup: Markup = {
+      id: 'hlv-bbx-1',
+      type: 'highlightVector',
+      pageIndex: 0,
+      points: [
+        { x: 0.15, y: 0.25 },
+        { x: 0.55, y: 0.45 },
+      ],
+      style: {
+        strokeColor: 'transparent',
+        fillColor: '#ffff00',
+        strokeWidth: 0,
+        opacity: 0.5,
+      },
+      author: 'Revisor Estructural',
+      createdAt: '2026-10-10T12:00:00.000Z',
+      updatedAt: '2026-10-10T12:00:00.000Z',
+      status: 'pending',
+    };
+
+    await saveBbxForPdf(pdfPath, [highlightMarkup], 'Revisor Estructural');
+    const loaded = await loadBbxForPdf(pdfPath);
+
+    expect(loaded).not.toBeNull();
+    expect(loaded!.markups).toHaveLength(1);
+    const loadedHl = loaded!.markups[0];
+    expect(loadedHl.id).toBe('hlv-bbx-1');
+    expect(loadedHl.type).toBe('highlightVector');
+    expect(loadedHl.points).toEqual([
+      { x: 0.15, y: 0.25 },
+      { x: 0.55, y: 0.45 },
+    ]);
+    expect(loadedHl.style.fillColor).toBe('#ffff00');
+    expect(loadedHl.style.opacity).toBe(0.5);
+    expect(loadedHl.status).toBe('pending');
+  });
+
   // --------------------------------------------------------------------------------
   // Sub-entregable 0.4: Simulación de Tauri Invoke (write_bbx y read_bbx)
   // --------------------------------------------------------------------------------

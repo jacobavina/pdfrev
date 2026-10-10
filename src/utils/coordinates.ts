@@ -146,6 +146,22 @@ export function screenToNormalized(
 }
 
 /**
+ * Determina si la distancia entre dos puntos normalizados supera el umbral en píxeles de pantalla.
+ * Permite que el umbral de creación (p. ej. 4 px) sea invariable a la escala de visualización.
+ */
+export function exceedsScreenThreshold(
+  p1: MarkupPoint,
+  p2: MarkupPoint,
+  transform: ViewportTransform,
+  thresholdPx = 4
+): boolean {
+  const p1Scr = normalizedToScreen(p1, transform);
+  const p2Scr = normalizedToScreen(p2, transform);
+  const distScreen = Math.hypot(p2Scr.x - p1Scr.x, p2Scr.y - p1Scr.y);
+  return distScreen >= thresholdPx;
+}
+
+/**
  * Obtiene la caja delimitadora (Bounding Box normalizada 0..1) de una anotación.
  */
 export function getMarkupBounds(

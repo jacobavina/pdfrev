@@ -9,6 +9,8 @@ import {
   Type,
   Circle,
   HelpCircle,
+  Highlighter,
+  StickyNote,
 } from 'lucide-react';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useDocumentStore } from '../store/useDocumentStore';
@@ -58,6 +60,11 @@ function getMarkupIcon(type: MarkupType) {
       return <Type size={14} className="text-purple-400" />;
     case 'circle':
       return <Circle size={14} className="text-yellow-400" />;
+    case 'stickyNote':
+      return <StickyNote size={14} className="text-amber-400" />;
+    case 'highlightVector':
+    case 'highlight':
+      return <Highlighter size={14} className="text-yellow-400" />;
     default:
       return <HelpCircle size={14} className="text-gray-400" />;
   }

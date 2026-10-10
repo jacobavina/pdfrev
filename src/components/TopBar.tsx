@@ -25,6 +25,7 @@ import {
   MessageSquare,
   MessageSquareText,
   StickyNote,
+  Highlighter,
 } from 'lucide-react';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
@@ -102,12 +103,13 @@ export const TopBar: React.FC = () => {
 
   const toolButtons: { type: ToolType; label: string; icon: React.ReactNode }[] = [
     { type: 'select', label: 'Seleccionar (V)', icon: <MousePointer size={16} /> },
-    { type: 'pan', label: 'Mover lienzo (H)', icon: <Hand size={16} /> },
+    { type: 'pan', label: 'Mover lienzo (Espacio)', icon: <Hand size={16} /> },
     { type: 'rectangle', label: 'Rectángulo (R)', icon: <Square size={16} /> },
     { type: 'circle', label: 'Círculo / Elipse (O)', icon: <Circle size={16} /> },
     { type: 'line', label: 'Línea (L)', icon: <Minus size={16} /> },
     { type: 'polygon', label: 'Polígono (P)', icon: <Hexagon size={16} /> },
     { type: 'freehand', label: 'Mano alzada (F)', icon: <Pencil size={16} /> },
+    { type: 'highlightVector', label: 'Resaltador vectorial (H)', icon: <Highlighter size={16} /> },
     { type: 'cloud', label: 'Nube de revisión (C)', icon: <Cloud size={16} /> },
     { type: 'cloudPlus', label: 'Cloud+ con leyenda (K)', icon: <MessageSquare size={16} /> },
     { type: 'callout', label: 'Nota técnica con directriz (Q)', icon: <MessageSquareText size={16} /> },

@@ -21,6 +21,7 @@ import {
   findCalloutComponentAtPoint,
   STICKY_NOTE_SIZE_PT,
   getStickyNoteNormalizedSize,
+  exceedsScreenThreshold,
 } from './coordinates';
 import { estimateCalloutBoxNormalizedSize } from '../core/markup/render';
 import { Markup, VALID_MARKUP_TYPES } from '../types/markup';
@@ -1292,5 +1293,62 @@ describe('Coordinate Conversion and Hit-Testing', () => {
       expect(hitTestMarkup({ x: 0.7, y: 0.45 }, expandedCallout)).toBe(true);
     });
   });
+
+  describe('Sub-entregable A.5: Umbral de creación en píxeles de pantalla (exceedsScreenThreshold)', () => {
+    it('Condición 1: a escala 0.5, 3 px no crea marca y 6 px sí', () => {
+      const transformScale05 = {
+        width: 800,
+        height: 600,
+        scale: 0.5,
+        offsetX: 0,
+        offsetY: 0,
+      };
+      const p1 = { x: 0.2, y: 0.2 };
+      // A escala 0.5, ancho en pantalla = 400 px. 3 px de pantalla = 3/400 = 0.0075 norm.
+      const p2_3px = { x: 0.2 + 3 / 400, y: 0.2 };
+      // 6 px de pantalla = 6/400 = 0.015 norm.
+      const p2_6px = { x: 0.2 + 6 / 400, y: 0.2 };
+
+      expect(exceedsScreenThreshold(p1, p2_3px, transformScale05, 4)).toBe(false);
+      expect(exceedsScreenThreshold(p1, p2_6px, transformScale05, 4)).toBe(true);
+    });
+
+    it('Condición 1: a escala 2.0, 3 px no crea marca y 6 px sí', () => {
+      const transformScale20 = {
+        width: 800,
+        height: 600,
+        scale: 2.0,
+        offsetX: 0,
+        offsetY: 0,
+      };
+      const p1 = { x: 0.2, y: 0.2 };
+      // A escala 2.0, ancho en pantalla = 1600 px. 3 px de pantalla = 3/1600 = 0.001875 norm.
+      const p2_3px = { x: 0.2 + 3 / 1600, y: 0.2 };
+      // 6 px de pantalla = 6/1600 = 0.00375 norm.
+      const p2_6px = { x: 0.2 + 6 / 1600, y: 0.2 };
+
+      expect(exceedsScreenThreshold(p1, p2_3px, transformScale20, 4)).toBe(false);
+      expect(exceedsScreenThreshold(p1, p2_6px, transformScale20, 4)).toBe(true);
+    });
+
+    it('respeta la frontera estricta de 4 px en diagonal', () => {
+      const transform = {
+        width: 1000,
+        height: 1000,
+        scale: 1.0,
+        offsetX: 0,
+        offsetY: 0,
+      };
+      const p1 = { x: 0.5, y: 0.5 };
+      // dx=2px, dy=2px -> distScreen = sqrt(8) ~= 2.83 px < 4 px
+      const pBelow = { x: 0.5 + 2 / 1000, y: 0.5 + 2 / 1000 };
+      // dx=3px, dy=3px -> distScreen = sqrt(18) ~= 4.24 px >= 4 px
+      const pAbove = { x: 0.5 + 3 / 1000, y: 0.5 + 3 / 1000 };
+
+      expect(exceedsScreenThreshold(p1, pBelow, transform, 4)).toBe(false);
+      expect(exceedsScreenThreshold(p1, pAbove, transform, 4)).toBe(true);
+    });
+  });
 });
+
 

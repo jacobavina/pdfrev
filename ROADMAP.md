@@ -38,10 +38,9 @@ flowchart LR
 |---|---|---|---|
 | `P2-A.0` | Move y Transform con umbral 4px, clamp estricto `[0..1]` y undo atómico | **CERRADO** (commit `6e7f0e3`) | Fase 1 |
 | `P2-A.1` | Nubes de revisión con `arcStep` persistido, abombamiento determinista y Cloud+ como grupo | **CERRADO** (commit `b2ee813`) | `P2-A.0` |
-| `P2-A.2` | Multiselección con Marquee por intersección y traslación conjunta con undo atómico | **CERRADO** (commit `d525990`) | `P2-A.1` |
-| `P2-A.3` | Callout / Nota técnica con directriz conectada y cuadro de texto plano | **PENDIENTE DE PLAN** | `P2-A.2` |
-| `P2-A.4` | Nota adhesiva técnica (`stickyNote`) | **NO EMPEZADO** | `P2-A.3` |
-| `P2-A.5` | Resaltador vectorial (`highlightVector`) | **NO EMPEZADO** | `P2-A.4` |
+| `P2-A.3` | Callout / Nota técnica con directriz conectada y cuadro de texto plano | **CERRADO** (commit `083a37b`) | `P2-A.2` |
+| `P2-A.4` | Nota adhesiva técnica (`stickyNote`) | **CERRADO** (commit `75fd7be`) | `P2-A.3` |
+| `P2-A.5` | Resaltador vectorial (`highlightVector`) | **CERRADO** | `P2-A.4` |
 | `P2-A.6` | Resaltado de texto (`highlightText` con TextLayer de PDF.js, rectángulos normalizados y aviso en páginas sin capa de texto) | **NO EMPEZADO** | `P2-A.5` |
 
 > [!NOTE]

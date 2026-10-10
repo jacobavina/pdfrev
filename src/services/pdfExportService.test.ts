@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
 import * as pdfjs from 'pdfjs-dist';
-import { PDFDocument, StandardFonts } from 'pdf-lib';
+import { PDFDocument, StandardFonts, PDFName } from 'pdf-lib';
 import {
   exportMarkupsToPdf,
   normalizedToPdfCoordinates,
@@ -274,9 +274,9 @@ describe('PDF Export Service (Sub-entregable 0.3 - H1 Vector Export)', () => {
   });
 
   // --------------------------------------------------------------------------------
-  // Criterio 4: Estilo compartido de highlightVector y blendMode
+  // Criterio 4 / Sub-entregable A.5: Resaltador vectorial (highlightVector)
   // --------------------------------------------------------------------------------
-  it('Criterio 4: highlightVector utiliza HIGHLIGHT_STYLE compartido (#ffff00 al 0.5)', async () => {
+  it('TEST DE ORO: highlightVector utiliza HIGHLIGHT_STYLE con /BM /Multiply en /ExtGState y content stream sin operadores de trazo discontinuo', async () => {
     expect(HIGHLIGHT_STYLE.colorHex).toBe('#ffff00');
     expect(HIGHLIGHT_STYLE.opacity).toBe(0.5);
     expect(HIGHLIGHT_STYLE.rgb).toEqual({ r: 1, g: 1, b: 0 });
@@ -292,7 +292,7 @@ describe('PDF Export Service (Sub-entregable 0.3 - H1 Vector Export)', () => {
       style: {
         strokeColor: '#000000',
         strokeWidth: 0,
-        opacity: 1,
+        opacity: HIGHLIGHT_STYLE.opacity,
       },
       author: 'Tester',
       createdAt: new Date().toISOString(),
@@ -302,6 +302,50 @@ describe('PDF Export Service (Sub-entregable 0.3 - H1 Vector Export)', () => {
 
     const res = await exportMarkupsToPdf(originalPdfBytes, [hlMarkup]);
     expect(res.pdfBytes.byteLength).toBeGreaterThan(100);
+
+    const loadedDoc = await PDFDocument.load(res.pdfBytes);
+    const page = loadedDoc.getPages()[0];
+
+    // 1. Condición 2: Comprobar que /ExtGState contiene /BM /Multiply y /ca derivado de HIGHLIGHT_STYLE.opacity
+    const resources = loadedDoc.context.lookup(page.node.Resources()) as any;
+    const extGStateDict = loadedDoc.context.lookup(resources.lookup(PDFName.of('ExtGState'))) as any;
+    expect(extGStateDict).toBeDefined();
+
+    let foundMultiplyState = false;
+    for (const [, val] of extGStateDict.dict.entries()) {
+      const gs = loadedDoc.context.lookup(val) as any;
+      const gsStr = gs.toString();
+      if (gsStr.includes('/BM /Multiply') && gsStr.includes(`/ca ${HIGHLIGHT_STYLE.opacity}`)) {
+        foundMultiplyState = true;
+        break;
+      }
+    }
+    expect(foundMultiplyState).toBe(true);
+
+    // 2. Condición 3: Content stream descomprimido con operadores vectoriales y sin guías punteadas
+    const streams = getDecompressedStreams(loadedDoc, 0);
+    const stream = streams[streams.length - 1] || '';
+
+    // Color RGB derivado de HIGHLIGHT_STYLE
+    expect(stream).toContain(`${HIGHLIGHT_STYLE.rgb.r} ${HIGHLIGHT_STYLE.rgb.g} ${HIGHLIGHT_STYLE.rgb.b} rg`);
+    // Invocación a estado gráfico gs
+    expect(stream).toMatch(/\/GS\S*\s+gs/);
+    // Operadores de dibujo de rectángulo
+    expect(stream).toContain('m');
+    expect(stream).toContain('l');
+    expect(stream).toContain('f');
+
+    // Condición 3: la guía punteada (dashed stroke) NO puede llegar al PDF
+    expect(stream).not.toMatch(/\[\s*\d+[^\]]*\]\s*\d+\s+d/);
+    // No hay operadores de trazo / borde
+    expect(stream).not.toMatch(/\b[Ss]\b/);
+
+    // Aserciones negativas de Fase 2: sin /Subtype /Text, sin /Subtype /Highlight, sin anotaciones en /Annots
+    const annots = page.node.Annots();
+    expect(annots?.size() ?? 0).toBe(0);
+    const rawPdfText = new TextDecoder().decode(res.pdfBytes);
+    expect(rawPdfText).not.toContain('/Subtype /Text');
+    expect(rawPdfText).not.toContain('/Subtype /Highlight');
   });
 
   // --------------------------------------------------------------------------------

@@ -861,6 +861,115 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.keyboard.press('Control+z'); // Deshace la creación de la nota verde
     await expect(initialGroups).toHaveCount(1);
   });
+
+  test('Sub-entregable A.5: Resaltador vectorial highlightVector (atajo H, guarda de foco, previsualización en vivo, creación atómica, mixBlendMode multiply, umbral de pantalla y undo/redo)', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    const svgOverlay = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(svgOverlay).toBeVisible({ timeout: 15000 });
+    const markupsPanel = page.locator('[data-testid="markups-list-panel"]');
+    await expect(markupsPanel).toBeVisible();
+
+    const initialGroups = svgOverlay.locator('g[data-testid^="markup-g-"]');
+    const initialCount = await initialGroups.count();
+
+    // 1. Guarda de foco: escribir en un input no dispara el atajo H
+    const textInput = markupsPanel.locator('input[type="text"]').first();
+    if (await textInput.count() > 0) {
+      await textInput.focus();
+      await page.keyboard.press('h');
+      const hlBtn = page.locator('button[title="Resaltador vectorial (H)"]');
+      await expect(hlBtn).not.toHaveClass(/bg-cad-accent/);
+      await page.locator('header').click(); // Quitar foco
+    }
+
+    // 2. Atajo H activa la herramienta highlightVector
+    await page.keyboard.press('h');
+    const hlBtn = page.locator('button[title="Resaltador vectorial (H)"]');
+    await expect(hlBtn).toHaveClass(/bg-cad-accent/);
+
+    const svgBox = (await svgOverlay.boundingBox())!;
+
+    // 3. Condición 1: Umbral de pantalla (micro-movimiento < 4 px no crea marca)
+    await page.mouse.move(svgBox.x + 80, svgBox.y + 80);
+    await page.mouse.down();
+    await page.mouse.move(svgBox.x + 82, svgBox.y + 81); // 2.23 px < 4 px
+    await page.mouse.up();
+    await expect(initialGroups).toHaveCount(initialCount);
+
+    // 4. Previsualización en vivo durante el arrastre y cancelación con Escape (0 marcas)
+    await page.mouse.move(svgBox.x + 100, svgBox.y + 100);
+    await page.mouse.down();
+    await page.mouse.move(svgBox.x + 220, svgBox.y + 160);
+
+    const preview = page.locator('[data-testid="highlight-vector-preview"]');
+    await expect(preview).toBeVisible();
+    expect(await preview.getAttribute('fill')).toBe('#ffff00');
+    expect(await preview.getAttribute('opacity')).toBe('0.5');
+
+    // Cancelar arrastre con Escape
+    await page.keyboard.press('Escape');
+    await page.mouse.up();
+    await expect(preview).toHaveCount(0);
+    await expect(initialGroups).toHaveCount(initialCount);
+
+    // 5. Creación atómica con arrastre > 4 px (1 comando en historial)
+    await page.mouse.move(svgBox.x + 120, svgBox.y + 120);
+    await page.mouse.down();
+    await page.mouse.move(svgBox.x + 260, svgBox.y + 180);
+    await page.mouse.up();
+
+    await expect(initialGroups).toHaveCount(initialCount + 1);
+
+    const hlGroup = initialGroups.last();
+    const hlRect = hlGroup.locator('rect:not([data-testid="selection-bbox"])');
+    await expect(hlRect).toBeVisible();
+    expect(await hlRect.getAttribute('fill')).toBe('#ffff00');
+    expect(await hlRect.getAttribute('opacity')).toBe('0.5');
+
+    // Verificar estilo mix-blend-mode: multiply en el DOM
+    const blendMode = await hlRect.evaluate((el) => window.getComputedStyle(el).mixBlendMode);
+    expect(blendMode).toBe('multiply');
+
+    // 6. Verificar presencia en MarkupsList con icono y tipo
+    const tableRow = markupsPanel.locator('tbody tr').last();
+    await expect(tableRow).toBeVisible();
+    await expect(tableRow.locator('td').nth(1)).toContainText('highlightVector');
+
+    // 7. Deshacer y Rehacer atómicos (Ctrl+Z y Ctrl+Y)
+    await page.keyboard.press('Control+z');
+    await expect(initialGroups).toHaveCount(initialCount);
+
+    await page.keyboard.press('Control+y');
+    await expect(initialGroups).toHaveCount(initialCount + 1);
+
+    // 8. Selección y traslación con la herramienta V
+    const selectBtn = page.locator('button[title="Seleccionar (V)"]');
+    await selectBtn.click();
+
+    // Clic en el centro del highlight para seleccionarlo
+    await page.mouse.click(svgBox.x + 190, svgBox.y + 150);
+    const selectionBbox = page.locator('[data-testid="selection-bbox"]');
+    await expect(selectionBbox).toBeVisible();
+
+    // Arrastre en modo selección (> 4 px) para trasladar
+    const initialBboxX = parseFloat((await selectionBbox.getAttribute('x'))!);
+    await page.mouse.move(svgBox.x + 190, svgBox.y + 150);
+    await page.mouse.down();
+    await page.mouse.move(svgBox.x + 240, svgBox.y + 150);
+    await page.mouse.up();
+
+    const translatedBboxX = parseFloat((await selectionBbox.getAttribute('x'))!);
+    expect(translatedBboxX).toBeGreaterThan(initialBboxX);
+
+    // Deshacer la traslación
+    await page.keyboard.press('Control+z');
+    const revertedBboxX = parseFloat((await selectionBbox.getAttribute('x'))!);
+    expect(revertedBboxX).toBeCloseTo(initialBboxX, 0);
+  });
 });
+
 
 

@@ -32,7 +32,7 @@
   - `P2-A.2`: Selección múltiple mediante rectángulo elástico de Marquee con criterio estricto de intersección/cruce (Crossing), selección aditiva con `Shift` o `Ctrl`, y traslación conjunta de $K$ elementos seleccionados con un solo paso de historial. Prefiltro $O(N)$ probado con 500 marcas en menos de 10 ms. **[CERRADO]**
   - `P2-A.3`: Callout / Nota técnica con directriz conectada y cuadro de texto plano interactivo. **[CERRADO]**
   - `P2-A.4`: Nota adhesiva técnica (`stickyNote`) con tamaño único cuadrado de 24 pt (`STICKY_NOTE_SIZE_PT = 24`), normalización por eje (`getStickyNoteNormalizedSize`), 4 presets de color (`yellow`, `green`, `pink`, `blue`), creación en confirmación (1 comando; 0 en cancelación), atajo `N` con guarda de inputs y exportación vectorial plana (operadores `re/m/l/f/rg/RG` sin `/Subtype /Text` ni `/Annots`). **[CERRADO]**
-  - `P2-A.5`: Resaltador vectorial (`highlightVector`). **[NO EMPEZADO]**
+  - `P2-A.5`: Resaltador vectorial (`highlightVector`) con atajo `H` con guarda de foco, umbral de creación en 4 px de pantalla invariable al zoom (`exceedsScreenThreshold`), `HIGHLIGHT_STYLE` único (#ffff00 al 50% con blendMode multiply), previsualización en vivo sin fuga de líneas punteadas al PDF, puntos canónicos min/max, exportación vectorial pura con `/BM /Multiply` y `/ca 0.5` en `/ExtGState` y reversión atómica. **[CERRADO]**
   - `P2-A.6`: Resaltado de texto (`highlightText` con TextLayer de PDF.js, rectángulos normalizados y aviso en páginas sin capa de texto). **[NO EMPEZADO]**
 - **Bloque B: Tool Chest**
   - Paletas de estilos definidas por el usuario persistidas en IndexedDB.

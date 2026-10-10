@@ -10,6 +10,7 @@ import {
   hitTestMarkup,
   selectMarkupsInRect,
   getMarkupBounds,
+  exceedsScreenThreshold,
 } from '../utils/coordinates';
 import {
   handleSelectMouseDown,
@@ -33,6 +34,7 @@ import {
   MarkupPoint,
   MarkupType,
   STICKY_NOTE_COLORS,
+  HIGHLIGHT_STYLE,
 } from '../types/markup';
 import { InlineTextEditor } from './markup/InlineTextEditor';
 
@@ -246,6 +248,11 @@ export const PdfViewer: React.FC = () => {
 
       if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'n' || e.key === 'N')) {
         useToolStore.getState().setActiveTool('stickyNote');
+        return;
+      }
+
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'h' || e.key === 'H')) {
+        useToolStore.getState().setActiveTool('highlightVector');
         return;
       }
     };
@@ -622,14 +629,16 @@ export const PdfViewer: React.FC = () => {
       return;
     }
 
-    const dist = Math.hypot(
-      currentDrawPoint.x - drawingStart.x,
-      currentDrawPoint.y - drawingStart.y
+    // Evitar crear marcas accidentales con un microclic (umbral de 4 px de pantalla invariable a la escala)
+    const hasExceededThreshold = exceedsScreenThreshold(
+      drawingStart,
+      currentDrawPoint,
+      viewportTransform,
+      4
     );
 
-    // Evitar crear marcas accidentales con un microclic
     if (
-      dist > 0.005 &&
+      hasExceededThreshold &&
       activeTool !== 'select' &&
       activeTool !== 'pan' &&
       activeTool !== 'polygon'
@@ -752,12 +761,37 @@ export const PdfViewer: React.FC = () => {
       } else {
         const newId = uuidv4();
         const customFields = activeTool === 'cloud' ? { arcStep: DEFAULT_ARC_STEP } : undefined;
+
+        // Convención canónica min/max para highlightVector (points[0] esquina superior izq, points[1] inferior der)
+        const minX = Math.min(drawingStart.x, currentDrawPoint.x);
+        const minY = Math.min(drawingStart.y, currentDrawPoint.y);
+        const maxX = Math.max(drawingStart.x, currentDrawPoint.x);
+        const maxY = Math.max(drawingStart.y, currentDrawPoint.y);
+        const points =
+          activeTool === 'highlightVector'
+            ? [
+                { x: minX, y: minY },
+                { x: maxX, y: maxY },
+              ]
+            : [drawingStart, currentDrawPoint];
+
+        // HIGHLIGHT_STYLE como fuente única de verdad para el estilo de highlightVector
+        const markupStyle =
+          activeTool === 'highlightVector'
+            ? {
+                strokeColor: 'transparent',
+                fillColor: HIGHLIGHT_STYLE.colorHex,
+                strokeWidth: 0,
+                opacity: HIGHLIGHT_STYLE.opacity,
+              }
+            : { ...currentStyle };
+
         const newMarkup: Markup = {
           id: newId,
           type: activeTool as MarkupType,
           pageIndex: currentPageIndex,
-          points: [drawingStart, currentDrawPoint],
-          style: { ...currentStyle },
+          points,
+          style: markupStyle,
           text: activeTool === 'text' ? 'Nota técnica' : undefined,
           author: author || 'Revisor',
           createdAt: now,
@@ -1284,6 +1318,25 @@ export const PdfViewer: React.FC = () => {
                         y2={p2.y}
                         stroke={currentStyle.strokeColor}
                         strokeWidth={currentStyle.strokeWidth}
+                        strokeDasharray="4 2"
+                      />
+                    );
+                  }
+
+                  if (activeTool === 'highlightVector') {
+                    const rect = getRectGeometry(p1, p2);
+                    return (
+                      <rect
+                        data-testid="highlight-vector-preview"
+                        x={rect.x}
+                        y={rect.y}
+                        width={rect.width}
+                        height={rect.height}
+                        fill={HIGHLIGHT_STYLE.colorHex}
+                        opacity={HIGHLIGHT_STYLE.opacity}
+                        style={{ mixBlendMode: HIGHLIGHT_STYLE.mixBlendMode }}
+                        stroke="#ca8a04"
+                        strokeWidth={1}
                         strokeDasharray="4 2"
                       />
                     );

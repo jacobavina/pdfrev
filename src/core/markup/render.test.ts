@@ -16,7 +16,7 @@ import {
   CALLOUT_ARROW_SIZE,
   CALLOUT_MIN_BOX_WIDTH,
 } from './render';
-import { Markup } from '../../types/markup';
+import { Markup, HIGHLIGHT_STYLE } from '../../types/markup';
 
 describe('Pure Markup Rendering (src/core/markup/render.ts - Criterio 1)', () => {
   const transform = {
@@ -146,7 +146,7 @@ describe('Pure Markup Rendering (src/core/markup/render.ts - Criterio 1)', () =>
     expect(desc.children![1].textNode).toBe('Nota técnica de control');
   });
 
-  it('C2 & Criterio 4: highlightVector uses HIGHLIGHT_STYLE #ffff00, opacity 0.5 and mixBlendMode multiply', () => {
+  it('Condición 2: highlightVector usa HIGHLIGHT_STYLE como fuente única de verdad', () => {
     const hlMarkup: Markup = {
       id: 'hl-1',
       type: 'highlightVector',
@@ -168,9 +168,39 @@ describe('Pure Markup Rendering (src/core/markup/render.ts - Criterio 1)', () =>
 
     const desc = getMarkupSvgDescriptor(hlMarkup, transform);
     expect(desc.tag).toBe('rect');
-    expect(desc.attrs.fill).toBe('#ffff00');
-    expect(desc.attrs.opacity).toBe(0.5);
-    expect(desc.style?.mixBlendMode).toBe('multiply');
+    expect(desc.attrs.fill).toBe(HIGHLIGHT_STYLE.colorHex);
+    expect(desc.attrs.opacity).toBe(HIGHLIGHT_STYLE.opacity);
+    expect(desc.style?.mixBlendMode).toBe(HIGHLIGHT_STYLE.mixBlendMode);
+    expect(desc.attrs.stroke).toBe('transparent');
+    expect(desc.attrs.strokeWidth).toBe(0);
+  });
+
+  it('highlightVector soporta trazo invertido (p1 bottom-right a p2 top-left) generando geometría positiva', () => {
+    const invertedHl: Markup = {
+      id: 'hl-inverted',
+      type: 'highlightVector',
+      pageIndex: 0,
+      points: [
+        { x: 0.5, y: 0.6 },
+        { x: 0.2, y: 0.3 },
+      ],
+      style: {
+        strokeColor: 'transparent',
+        strokeWidth: 0,
+        opacity: HIGHLIGHT_STYLE.opacity,
+      },
+      author: 'Revisor',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: 'pending',
+    };
+
+    const desc = getMarkupSvgDescriptor(invertedHl, transform);
+    expect(desc.tag).toBe('rect');
+    expect(desc.attrs.width).toBeGreaterThan(0);
+    expect(desc.attrs.height).toBeGreaterThan(0);
+    expect(desc.attrs.x).toBe(0.2 * transform.width);
+    expect(desc.attrs.y).toBe(0.3 * transform.height);
   });
 
   it('C2: generateCloudPath operates in page space independently of zoom', () => {

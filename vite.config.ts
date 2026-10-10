@@ -26,6 +26,8 @@ export default defineConfig({
     // Don't minify for debug builds
     minify: !process.env.TAURI_ENV_DEBUG ? 'esbuild' : false,
     sourcemap: !!process.env.TAURI_ENV_DEBUG,
+    // App de escritorio Tauri que carga directamente desde disco local; el chunk inicial
+    // incluye React + núcleo del visor pdfjs-dist (~572 kB), mientras que pdf-lib se carga dinámicamente (~439 kB).
     chunkSizeWarningLimit: 700,
   },
   worker: {

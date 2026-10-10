@@ -205,6 +205,37 @@ describe('BBX Persistence Service (.bbx.json)', () => {
       expect(errorHandler).toHaveBeenCalledTimes(2);
       expect(errorHandler).toHaveBeenLastCalledWith(expect.stringContaining('Error de escritura'));
     });
+
+    it('lectura correcta sin archivo (Ok(None)) resetea el throttle: nuevo error de lectura SI se notifica (C4)', async () => {
+      const invokeMock = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('Primer error de lectura'))
+        .mockResolvedValueOnce(null) // Ok(None): lectura exitosa sin archivo existente
+        .mockRejectedValueOnce(new Error('Segundo error de lectura'));
+
+      (window as unknown as { __TAURI_INTERNALS__: { invoke: typeof invokeMock } }).__TAURI_INTERNALS__ = {
+        invoke: invokeMock,
+      };
+
+      const errorHandler = vi.fn();
+      setBbxErrorHandler(errorHandler);
+
+      // 1. Primer error de lectura -> se notifica
+      await expect(loadBbxForPdf('C:/proyectos/doc.pdf')).rejects.toThrow('Primer error de lectura');
+      expect(errorHandler).toHaveBeenCalledTimes(1);
+      expect(errorHandler).toHaveBeenLastCalledWith(expect.stringContaining('Primer error de lectura'));
+
+      // 2. Lectura correcta sin archivo -> retorna null y resetea throttle
+      const loadResult = await loadBbxForPdf('C:/proyectos/doc.pdf');
+      expect(loadResult).toBeNull();
+      // No debe disparar error
+      expect(errorHandler).toHaveBeenCalledTimes(1);
+
+      // 3. Nuevo error de lectura -> SÍ se notifica porque el throttle fue limpiado por la lectura previa
+      await expect(loadBbxForPdf('C:/proyectos/doc.pdf')).rejects.toThrow('Segundo error de lectura');
+      expect(errorHandler).toHaveBeenCalledTimes(2);
+      expect(errorHandler).toHaveBeenLastCalledWith(expect.stringContaining('Segundo error de lectura'));
+    });
   });
 
   describe('isAbsolutePath (semántica compatible con std::path::Path::is_absolute de Rust)', () => {

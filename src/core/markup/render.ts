@@ -155,13 +155,13 @@ export function getMarkupSvgDescriptor(
   const style = markup.style;
   const baseAttrs: Record<string, string | number> = {
     stroke: style.strokeColor,
-    'stroke-width': style.strokeWidth,
+    strokeWidth: style.strokeWidth,
     fill: style.fillColor || 'transparent',
     opacity: style.opacity ?? 1,
   };
 
   if (style.dashArray && style.dashArray.length > 0) {
-    baseAttrs['stroke-dasharray'] = style.dashArray.join(' ');
+    baseAttrs.strokeDasharray = style.dashArray.join(' ');
   }
 
   const p1Screen = markup.points[0]
@@ -201,7 +201,7 @@ export function getMarkupSvgDescriptor(
           fill: HIGHLIGHT_STYLE.colorHex,
           opacity: HIGHLIGHT_STYLE.opacity,
           stroke: 'transparent',
-          'stroke-width': 0,
+          strokeWidth: 0,
         },
         style: {
           mixBlendMode: HIGHLIGHT_STYLE.mixBlendMode,
@@ -298,7 +298,7 @@ export function getMarkupSvgDescriptor(
               height,
               fill: style.fillColor || '#fffbe8',
               stroke: style.strokeColor,
-              'stroke-width': 1,
+              strokeWidth: 1,
               rx: 2,
             },
           },
@@ -307,9 +307,9 @@ export function getMarkupSvgDescriptor(
             attrs: {
               x: rect.x + 6,
               y: rect.y + 16,
-              'font-size': style.fontSize || 12,
+              fontSize: style.fontSize || 12,
               fill: '#1f2937',
-              'font-family': style.fontFamily || 'sans-serif',
+              fontFamily: style.fontFamily || 'sans-serif',
               className: 'font-medium pointer-events-none',
             },
             textNode: markup.text || 'Nota',
@@ -335,8 +335,60 @@ export function getMarkupSvgDescriptor(
 }
 
 /**
+ * Mapeo explícito de atributos SVG de kebab-case a camelCase para propiedades DOM de React.
+ */
+export const SVG_ATTR_CAMEL_MAP: Record<string, string> = {
+  'stroke-width': 'strokeWidth',
+  'stroke-dasharray': 'strokeDasharray',
+  'stroke-dashoffset': 'strokeDashoffset',
+  'stroke-linecap': 'strokeLinecap',
+  'stroke-linejoin': 'strokeLinejoin',
+  'stroke-miterlimit': 'strokeMiterlimit',
+  'stroke-opacity': 'strokeOpacity',
+  'fill-opacity': 'fillOpacity',
+  'fill-rule': 'fillRule',
+  'font-size': 'fontSize',
+  'font-family': 'fontFamily',
+  'font-weight': 'fontWeight',
+  'font-style': 'fontStyle',
+  'text-anchor': 'textAnchor',
+  'dominant-baseline': 'dominantBaseline',
+  'alignment-baseline': 'alignmentBaseline',
+  'clip-path': 'clipPath',
+  'clip-rule': 'clipRule',
+  'pointer-events': 'pointerEvents',
+  'letter-spacing': 'letterSpacing',
+  'stop-color': 'stopColor',
+  'stop-opacity': 'stopOpacity',
+};
+
+/**
+ * Normaliza las claves de un objeto de atributos SVG a camelCase para React.createElement.
+ * Conserva atributos data-* y aria-* intactos.
+ */
+export function normalizeSvgAttrs(
+  attrs: Record<string, string | number>
+): Record<string, string | number> {
+  const normalized: Record<string, string | number> = {};
+  for (const [key, val] of Object.entries(attrs)) {
+    if (key.startsWith('data-') || key.startsWith('aria-')) {
+      normalized[key] = val;
+    } else if (SVG_ATTR_CAMEL_MAP[key]) {
+      normalized[SVG_ATTR_CAMEL_MAP[key]] = val;
+    } else if (key.includes('-')) {
+      const camelKey = key.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+      normalized[camelKey] = val;
+    } else {
+      normalized[key] = val;
+    }
+  }
+  return normalized;
+}
+
+/**
  * Renderizador de componentes SVG a partir del SvgRenderDescriptor.
  * Una sola ruta de render sin bifurcaciones de código.
+ * Normaliza todos los attrs a camelCase para eliminar warnings de DOM property en React.
  */
 export function renderSvgDescriptor(
   descriptor: SvgRenderDescriptor,
@@ -346,11 +398,13 @@ export function renderSvgDescriptor(
     ? descriptor.children.map((child, idx) => renderSvgDescriptor(child, `${key}-${idx}`))
     : descriptor.textNode ?? null;
 
+  const normalizedAttrs = normalizeSvgAttrs(descriptor.attrs);
+
   return React.createElement(
     descriptor.tag,
     {
       key,
-      ...descriptor.attrs,
+      ...normalizedAttrs,
       style: descriptor.style,
     },
     children

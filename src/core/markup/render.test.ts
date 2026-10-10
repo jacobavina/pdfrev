@@ -6,6 +6,8 @@ import {
   pointsToFreehandPathD,
   generateCloudPath,
   getMarkupSvgDescriptor,
+  normalizeSvgAttrs,
+  renderSvgDescriptor,
 } from './render';
 import { Markup } from '../../types/markup';
 
@@ -173,5 +175,50 @@ describe('Pure Markup Rendering (src/core/markup/render.ts - Criterio 1)', () =>
     expect(path1).toContain('M 80.00 120.00');
     expect(path1).toContain('Q');
     expect(path1).toContain('Z');
+  });
+
+  it('C1: normalizeSvgAttrs mapea claves kebab-case a camelCase para React.createElement', () => {
+    const rawAttrs = {
+      'stroke-width': 2,
+      'stroke-dasharray': '4 4',
+      'font-size': 14,
+      'text-anchor': 'middle',
+      'data-testid': 'markup-item',
+      'aria-label': 'Anotación',
+    };
+
+    const normalized = normalizeSvgAttrs(rawAttrs);
+    expect(normalized.strokeWidth).toBe(2);
+    expect(normalized.strokeDasharray).toBe('4 4');
+    expect(normalized.fontSize).toBe(14);
+    expect(normalized.textAnchor).toBe('middle');
+    // data-* y aria-* preservados
+    expect(normalized['data-testid']).toBe('markup-item');
+    expect(normalized['aria-label']).toBe('Anotación');
+    // Las claves con guion fueron eliminadas de las propiedades directas
+    expect(normalized['stroke-width']).toBeUndefined();
+    expect(normalized['font-size']).toBeUndefined();
+  });
+
+  it('C1: renderSvgDescriptor produce React.createElement con props camelCase y sin warnings', () => {
+    const desc = {
+      tag: 'text' as const,
+      attrs: {
+        x: 10,
+        y: 20,
+        'font-size': 16,
+        'stroke-width': 1.5,
+        'text-anchor': 'start',
+      },
+      textNode: 'Texto de prueba',
+    };
+
+    const el = renderSvgDescriptor(desc, 'test-key');
+    expect(el.props.fontSize).toBe(16);
+    expect(el.props.strokeWidth).toBe(1.5);
+    expect(el.props.textAnchor).toBe('start');
+    expect(el.props['font-size']).toBeUndefined();
+    expect(el.props['stroke-width']).toBeUndefined();
+    expect(el.props['text-anchor']).toBeUndefined();
   });
 });

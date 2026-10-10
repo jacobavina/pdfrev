@@ -115,11 +115,11 @@ export async function loadBbxForPdf(pdfPath: string | null): Promise<BbxDocument
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       const content = await invoke<string | null>('read_bbx', { filePath: bbxPath });
+      // Leer y no encontrar archivo (Ok(None)) es una lectura correcta y debe limpiar el throttle
+      resetBbxErrorState('read');
       if (content === null || content === undefined) {
-        // Ok(None) -> archivo no existe todavía, comportamiento normal
         return null;
       }
-      resetBbxErrorState('read');
       return migrateBbxDocument(JSON.parse(content));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -130,8 +130,8 @@ export async function loadBbxForPdf(pdfPath: string | null): Promise<BbxDocument
     // Fallback para navegador web (localStorage)
     try {
       const saved = localStorage.getItem(`bbx_${bbxPath}`);
+      resetBbxErrorState('read');
       if (saved) {
-        resetBbxErrorState('read');
         return migrateBbxDocument(JSON.parse(saved));
       }
       return null;

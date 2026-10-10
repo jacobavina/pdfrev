@@ -163,5 +163,10 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     }
     const countAfter = await overlaySvg.locator('polygon').count();
     expect(countAfter).toBe(countBefore);
+
+    // 4. Sub-entregable 0.3: Verificar que el botón "Exportar PDF" está habilitado
+    const exportBtn = page.locator('button[title*="Exportar PDF"]');
+    await expect(exportBtn).toBeVisible();
+    await expect(exportBtn).toBeEnabled();
   });
 });

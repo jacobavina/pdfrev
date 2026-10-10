@@ -19,15 +19,18 @@ import {
   Circle,
   Hexagon,
   Pencil,
+  Download,
 } from 'lucide-react';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useToolStore, ToolType } from '../store/useToolStore';
 import { openPdfDialog } from '../services/fileDialogService';
+import { exportMarkupsToPdf } from '../services/pdfExportService';
 import { useAutoSave } from '../hooks/useAutoSave';
 
 export const TopBar: React.FC = () => {
   const {
+    pdfBytes,
     fileName,
     numPages,
     currentPageIndex,
@@ -39,9 +42,38 @@ export const TopBar: React.FC = () => {
     rotateClockwise,
   } = useDocumentStore();
 
-  const { canUndo, canRedo, undo, redo, isDirty } = useMarkupStore();
+  const { markups, canUndo, canRedo, undo, redo, isDirty } = useMarkupStore();
   const { activeTool, setActiveTool, currentStyle, setCurrentStyle } = useToolStore();
   const { saveNow } = useAutoSave();
+
+  const handleExportPdf = async () => {
+    if (!pdfBytes) {
+      alert('No hay ningún documento PDF cargado para exportar.');
+      return;
+    }
+    try {
+      const result = await exportMarkupsToPdf(pdfBytes, markups);
+      const blob = new Blob([result.pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const baseName = fileName ? fileName.replace(/\.pdf$/i, '') : 'documento';
+      a.download = `${baseName}_con_marcas.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      if (result.warnings.replacedCharactersCount > 0) {
+        console.warn(
+          `[Export PDF] ${result.warnings.replacedCharactersCount} caracteres no compatibles con WinAnsi fueron sustituidos por '?'`
+        );
+      }
+    } catch (err) {
+      console.error('Error al exportar PDF con marcas:', err);
+      alert('Error al exportar PDF con marcas: ' + (err instanceof Error ? err.message : String(err)));
+    }
+  };
 
   const handlePrevPage = () => {
     if (currentPageIndex > 0) setCurrentPage(currentPageIndex - 1);
@@ -91,6 +123,20 @@ export const TopBar: React.FC = () => {
           <Save size={15} />
           <span>Guardar</span>
           {isDirty && <span className="w-2 h-2 rounded-full bg-amber-300"></span>}
+        </button>
+
+        <button
+          onClick={handleExportPdf}
+          disabled={!pdfBytes}
+          className={`flex items-center space-x-1.5 px-3 py-1.5 rounded border text-xs font-medium transition-colors ${
+            pdfBytes
+              ? 'bg-cad-subtle hover:bg-cad-hover text-white border-cad-border'
+              : 'bg-cad-subtle/50 text-gray-500 border-cad-border cursor-not-allowed'
+          }`}
+          title="Exportar PDF vectorial con anotaciones incrustadas (H1)"
+        >
+          <Download size={15} className={pdfBytes ? 'text-emerald-400' : 'text-gray-500'} />
+          <span>Exportar PDF</span>
         </button>
 
         {fileName && (

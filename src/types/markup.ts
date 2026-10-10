@@ -1,20 +1,30 @@
-export type MarkupType =
-  | 'line'
-  | 'rectangle'
-  | 'circle'
-  | 'polygon'
-  | 'cloud'
-  | 'cloudPlus'
-  | 'callout'
-  | 'text'
-  | 'stickyNote'
-  | 'freehand'
-  | 'highlight' // Legacy de Fase 1
-  | 'highlightVector'
-  | 'highlightText'
-  | 'stamp';
+export const VALID_MARKUP_TYPES = [
+  'line',
+  'rectangle',
+  'circle',
+  'polygon',
+  'cloud',
+  'cloudPlus',
+  'callout',
+  'text',
+  'stickyNote',
+  'freehand',
+  'highlight', // Legacy de Fase 1
+  'highlightVector',
+  'highlightText',
+  'stamp',
+] as const;
 
-export type MarkupStatus = 'pending' | 'accepted' | 'rejected' | 'completed';
+export type MarkupType = (typeof VALID_MARKUP_TYPES)[number];
+
+export const VALID_MARKUP_STATUSES = [
+  'pending',
+  'accepted',
+  'rejected',
+  'completed',
+] as const;
+
+export type MarkupStatus = (typeof VALID_MARKUP_STATUSES)[number];
 
 export interface MarkupPoint {
   x: number; // 0..1 normalized coordinate
@@ -88,8 +98,9 @@ export interface BbxDocumentFile {
 }
 
 /**
- * Migrador de compatibilidad hacia atrás para archivos .bbx.json
+ * Migrador y validador estricto para archivos .bbx.json
  * Convierte esquemas v1.0.0 a v1.1.0 sin pérdida de datos.
+ * Rechaza versiones futuras o incompatibles para evitar corrupción silenciosa.
  */
 export function migrateBbxDocument(raw: unknown): BbxDocumentFile {
   if (!raw || typeof raw !== 'object') {
@@ -97,6 +108,14 @@ export function migrateBbxDocument(raw: unknown): BbxDocumentFile {
   }
 
   const obj = raw as Record<string, unknown>;
+
+  // P1: Validación de versión
+  const version = typeof obj.version === 'string' ? obj.version : '1.0.0';
+  if (version !== '1.0.0' && version !== '1.1.0') {
+    throw new Error(
+      `Archivo creado por una versión más reciente o incompatible de la aplicación (v${version})`
+    );
+  }
 
   const pdfFileName = typeof obj.pdfFileName === 'string' ? obj.pdfFileName : 'document.pdf';
   const lastSavedAt =
@@ -107,11 +126,78 @@ export function migrateBbxDocument(raw: unknown): BbxDocumentFile {
   const rawMarkups = Array.isArray(obj.markups) ? obj.markups : [];
   const markups: Markup[] = rawMarkups.map((m: unknown) => {
     const item = (m && typeof m === 'object' ? m : {}) as Record<string, unknown>;
+
+    // P1: Validación de tipo conocido
+    const itemType = typeof item.type === 'string' ? item.type : '';
+    const type: MarkupType = VALID_MARKUP_TYPES.includes(itemType as MarkupType)
+      ? (itemType as MarkupType)
+      : 'rectangle';
+
+    // P1: Validación de estado conocido (cae a 'pending' para evitar que statusInfo sea undefined)
+    const itemStatus = typeof item.status === 'string' ? item.status : '';
+    const status: MarkupStatus = VALID_MARKUP_STATUSES.includes(itemStatus as MarkupStatus)
+      ? (itemStatus as MarkupStatus)
+      : 'pending';
+
+    // P1: Validación estricta de points (solo números finitos, nunca NaN ni cadenas)
+    const rawPoints = Array.isArray(item.points) ? item.points : [];
+    const points: MarkupPoint[] = [];
+    for (const p of rawPoints) {
+      if (
+        p &&
+        typeof p === 'object' &&
+        'x' in p &&
+        'y' in p &&
+        typeof (p as Record<string, unknown>).x === 'number' &&
+        Number.isFinite((p as Record<string, unknown>).x) &&
+        typeof (p as Record<string, unknown>).y === 'number' &&
+        Number.isFinite((p as Record<string, unknown>).y)
+      ) {
+        points.push({
+          x: Math.max(0, Math.min(1, (p as Record<string, unknown>).x as number)),
+          y: Math.max(0, Math.min(1, (p as Record<string, unknown>).y as number)),
+        });
+      }
+    }
+
+    // P1: Validación de leaders para Callout (si existen)
+    let leaders: MarkupPoint[][] | undefined;
+    if (Array.isArray(item.leaders)) {
+      leaders = [];
+      for (const line of item.leaders) {
+        if (Array.isArray(line)) {
+          const validLine: MarkupPoint[] = [];
+          for (const lp of line) {
+            if (
+              lp &&
+              typeof lp === 'object' &&
+              typeof (lp as Record<string, unknown>).x === 'number' &&
+              Number.isFinite((lp as Record<string, unknown>).x) &&
+              typeof (lp as Record<string, unknown>).y === 'number' &&
+              Number.isFinite((lp as Record<string, unknown>).y)
+            ) {
+              validLine.push({
+                x: Math.max(0, Math.min(1, (lp as Record<string, unknown>).x as number)),
+                y: Math.max(0, Math.min(1, (lp as Record<string, unknown>).y as number)),
+              });
+            }
+          }
+          if (validLine.length > 0) {
+            leaders.push(validLine);
+          }
+        }
+      }
+      if (leaders.length === 0) leaders = undefined;
+    }
+
     return {
-      id: typeof item.id === 'string' ? item.id : 'unknown',
-      type: (typeof item.type === 'string' ? item.type : 'rectangle') as MarkupType,
-      pageIndex: typeof item.pageIndex === 'number' ? item.pageIndex : 0,
-      points: Array.isArray(item.points) ? (item.points as MarkupPoint[]) : [],
+      id: typeof item.id === 'string' && item.id.length > 0 ? item.id : 'unknown',
+      type,
+      pageIndex:
+        typeof item.pageIndex === 'number' && Number.isFinite(item.pageIndex) && item.pageIndex >= 0
+          ? Math.floor(item.pageIndex)
+          : 0,
+      points,
       style: (item.style && typeof item.style === 'object' ? item.style : {
         strokeColor: '#e02424',
         strokeWidth: 2,
@@ -121,14 +207,14 @@ export function migrateBbxDocument(raw: unknown): BbxDocumentFile {
       author: typeof item.author === 'string' ? item.author : author,
       createdAt: typeof item.createdAt === 'string' ? item.createdAt : lastSavedAt,
       updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : lastSavedAt,
-      status: (typeof item.status === 'string' ? item.status : 'pending') as Markup['status'],
+      status,
       layer: typeof item.layer === 'string' ? item.layer : undefined,
       customFields:
         item.customFields && typeof item.customFields === 'object'
           ? (item.customFields as Record<string, string | number>)
           : undefined,
       groupId: typeof item.groupId === 'string' ? item.groupId : undefined,
-      leaders: Array.isArray(item.leaders) ? (item.leaders as MarkupPoint[][]) : undefined,
+      leaders,
       textFormat:
         item.textFormat && typeof item.textFormat === 'object'
           ? (item.textFormat as MarkupTextFormat)

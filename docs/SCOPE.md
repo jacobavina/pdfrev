@@ -31,7 +31,7 @@
   - `P2-A.1`: Nubes de revisión con parámetro `arcStep` persistido en la marca, curvatura exterior determinista por cálculo de área firmada, y herramienta `Cloud+` como grupo indivisible de nube y llamada vinculada. **[CERRADO]**
   - `P2-A.2`: Selección múltiple mediante rectángulo elástico de Marquee con criterio estricto de intersección/cruce (Crossing), selección aditiva con `Shift` o `Ctrl`, y traslación conjunta de $K$ elementos seleccionados con un solo paso de historial. Prefiltro $O(N)$ probado con 500 marcas en menos de 10 ms. **[CERRADO]**
   - `P2-A.3`: Callout / Nota técnica con directriz conectada y cuadro de texto plano interactivo. **[CERRADO]**
-  - `P2-A.4`: Nota adhesiva técnica (`stickyNote`). **[NO EMPEZADO]**
+  - `P2-A.4`: Nota adhesiva técnica (`stickyNote`) con tamaño único cuadrado de 24 pt (`STICKY_NOTE_SIZE_PT = 24`), normalización por eje (`getStickyNoteNormalizedSize`), 4 presets de color (`yellow`, `green`, `pink`, `blue`), creación en confirmación (1 comando; 0 en cancelación), atajo `N` con guarda de inputs y exportación vectorial plana (operadores `re/m/l/f/rg/RG` sin `/Subtype /Text` ni `/Annots`). **[CERRADO]**
   - `P2-A.5`: Resaltador vectorial (`highlightVector`). **[NO EMPEZADO]**
   - `P2-A.6`: Resaltado de texto (`highlightText` con TextLayer de PDF.js, rectángulos normalizados y aviso en páginas sin capa de texto). **[NO EMPEZADO]**
 - **Bloque B: Tool Chest**

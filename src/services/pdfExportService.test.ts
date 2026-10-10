@@ -14,7 +14,7 @@ import {
   wrapText,
   PageTransformInfo,
 } from './pdfExportService';
-import { Markup, HIGHLIGHT_STYLE } from '../types/markup';
+import { Markup, HIGHLIGHT_STYLE, STICKY_NOTE_SIZE_PT, STICKY_NOTE_COLORS } from '../types/markup';
 import {
   calculateCalloutGeometry,
   wrapCalloutText,
@@ -767,5 +767,107 @@ describe('PDF Export Service (Sub-entregable 0.3 - H1 Vector Export)', () => {
       const realWidth = helvetica.widthOfTextAtSize(line, 10);
       expect(realWidth).toBeLessThanOrEqual(maxTextWidthAllowed);
     }
+  });
+
+  describe('Sub-entregable A.4: stickyNote (Exportación vectorial plana de nota adhesiva técnica)', () => {
+    it('Condición 2 & 3: exporta nota adhesiva con un solo punto y el rectángulo mide STICKY_NOTE_SIZE_PT (24) y NO 0.0001', async () => {
+      const stickyMarkup: Markup = {
+        id: 'sticky-single-point-export',
+        type: 'stickyNote',
+        pageIndex: 0,
+        points: [{ x: 0.25, y: 0.35 }],
+        text: 'Nota técnica de inspección',
+        style: {
+          strokeColor: STICKY_NOTE_COLORS.yellow.strokeColor,
+          fillColor: STICKY_NOTE_COLORS.yellow.fillColor,
+          strokeWidth: 1,
+          opacity: 1,
+        },
+        author: 'Ingeniero',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      };
+
+      const res = await exportMarkupsToPdf(originalPdfBytes, [stickyMarkup]);
+      expect(res.pdfBytes.length).toBeGreaterThan(0);
+
+      const loadedDoc = await PDFDocument.load(res.pdfBytes);
+      const streams = getDecompressedStreams(loadedDoc, 0);
+      const joinedStream = streams.join('\n');
+
+      // 1. Debe contener el operador re con el tamaño exacto STICKY_NOTE_SIZE_PT = 24
+      expect(joinedStream).toContain(`${STICKY_NOTE_SIZE_PT} ${STICKY_NOTE_SIZE_PT} re`);
+
+      // 2. Latent bug prevention: NO debe contener 0.0001 ni 0.0001 re
+      expect(joinedStream).not.toContain('0.0001');
+
+      // 3. Prohibido /Subtype /Text y prohibido /Annots (Fase 3)
+      expect(joinedStream).not.toContain('/Subtype /Text');
+      expect(joinedStream).not.toContain('/Subtype/Text');
+      expect(joinedStream).not.toContain('/Annots');
+
+      // 4. Operadores vectoriales presentes: re, rg, RG, B (fill and stroke), m, l, S
+      expect(joinedStream).toContain('rg');
+      expect(joinedStream).toContain('RG');
+      expect(joinedStream).toContain('re');
+      expect(joinedStream).toContain('B');
+      expect(joinedStream).toContain('m');
+      expect(joinedStream).toContain('l');
+      expect(joinedStream).toContain('S');
+    });
+
+    it('aplica correctamente los colores de los presets en los operadores rg y RG del content stream', async () => {
+      const greenSticky: Markup = {
+        id: 'sticky-green-export',
+        type: 'stickyNote',
+        pageIndex: 0,
+        points: [{ x: 0.5, y: 0.5 }],
+        text: 'Aprobado para vaciado',
+        style: {
+          strokeColor: STICKY_NOTE_COLORS.green.strokeColor,
+          fillColor: STICKY_NOTE_COLORS.green.fillColor,
+          strokeWidth: 1,
+          opacity: 1,
+        },
+        author: 'Residente',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      };
+
+      const res = await exportMarkupsToPdf(originalPdfBytes, [greenSticky]);
+      const loadedDoc = await PDFDocument.load(res.pdfBytes);
+      const streams = getDecompressedStreams(loadedDoc, 0);
+      const joinedStream = streams.join('\n');
+
+      expect(joinedStream).toContain(`${STICKY_NOTE_SIZE_PT} ${STICKY_NOTE_SIZE_PT} re`);
+      expect(joinedStream).not.toContain('0.0001');
+    });
+
+    it('no falla ni asume points[1] si points sólo tiene un elemento o points[1] es undefined', async () => {
+      const singlePtSticky: Markup = {
+        id: 'single-pt-only',
+        type: 'stickyNote',
+        pageIndex: 0,
+        points: [{ x: 0.1, y: 0.1 }],
+        style: {
+          strokeColor: '#ca8a04',
+          fillColor: '#fef08a',
+          strokeWidth: 1,
+          opacity: 1,
+        },
+        author: 'Inspector',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      };
+
+      const res = await exportMarkupsToPdf(originalPdfBytes, [singlePtSticky]);
+      expect(res.pdfBytes.byteLength).toBeGreaterThan(0);
+      const loadedDoc = await PDFDocument.load(res.pdfBytes);
+      const streams = getDecompressedStreams(loadedDoc, 0);
+      expect(streams.join('\n')).toContain(`${STICKY_NOTE_SIZE_PT} ${STICKY_NOTE_SIZE_PT} re`);
+    });
   });
 });

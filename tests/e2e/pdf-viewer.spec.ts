@@ -742,6 +742,125 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const finalWidthScreen = parseFloat((await callout2Box.getAttribute('width'))!);
     expect(finalWidthScreen).toBeCloseTo(width100Screen, 1);
   });
+
+  test('Sub-entregable A.4: Nota adhesiva técnica stickyNote (atajo N con guarda, popup con 4 colores, commit en confirmación, icono 24x24 pt y reversión atómica)', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+
+    const stickyBtn = page.locator('button[title*="Nota adhesiva"]');
+    const selectBtn = page.locator('button[title*="Seleccionar"]');
+    await expect(stickyBtn).toBeVisible();
+
+    const popup = page.locator('[data-testid="sticky-note-popup"]');
+    const editorInput = page.locator('[data-testid="inline-text-editor-input"]');
+    const preview = page.locator('[data-testid="pending-sticky-note-preview"]');
+
+    const svgBox = await overlaySvg.boundingBox();
+    expect(svgBox).not.toBeNull();
+    if (!svgBox) return;
+
+    // 1. Atajo N para activar la herramienta Nota Adhesiva
+    await page.keyboard.press('n');
+    await expect(stickyBtn).toHaveClass(/bg-cad-accent/);
+
+    // 2. Clic en lienzo abre editor contra ancla pendiente con 4 colores y vista previa (Condición 4 y 5)
+    await page.mouse.click(svgBox.x + 220, svgBox.y + 160);
+    await expect(popup).toBeVisible();
+    await expect(preview).toBeVisible();
+
+    // Comprobar presencia de los 4 colores predefinidos (Condición 5)
+    await expect(page.locator('[data-testid="sticky-color-yellow"]')).toBeVisible();
+    await expect(page.locator('[data-testid="sticky-color-green"]')).toBeVisible();
+    await expect(page.locator('[data-testid="sticky-color-pink"]')).toBeVisible();
+    await expect(page.locator('[data-testid="sticky-color-blue"]')).toBeVisible();
+
+    // 3. Guarda del atajo N: al escribir 'n' dentro del editor, no cambia de herramienta ni rompe el input (Condición 6)
+    await page.keyboard.press('n');
+    expect(await editorInput.inputValue()).toBe('n');
+    await expect(stickyBtn).toHaveClass(/bg-cad-accent/);
+
+    // 4. Cancelar con Escape: descarta la nota sin dejar paso en historial (Condición 4: cancelada = 0 comandos)
+    await page.keyboard.press('Escape');
+    await expect(popup).toHaveCount(0);
+    await expect(preview).toHaveCount(0);
+
+    // El número de marcas debe permanecer en 1 (solo la marca de calibración inicial)
+    const initialGroups = overlaySvg.locator('g[data-testid^="markup-g-"]');
+    await expect(initialGroups).toHaveCount(1);
+
+    // 5. Creación al confirmar con preset verde (Condición 1, 4 y 5: creada = un comando, 24x24 pt en escala 1)
+    await page.mouse.click(svgBox.x + 220, svgBox.y + 160);
+    await expect(popup).toBeVisible();
+
+    await page.locator('[data-testid="sticky-color-green"]').click();
+    await editorInput.fill('Detalle estructural viga V-1');
+    await page.keyboard.press('Enter');
+
+    await expect(popup).toHaveCount(0);
+    await expect(preview).toHaveCount(0);
+
+    // Exactamente 2 marcas ahora (calibración + nota adhesiva creada en un solo comando)
+    await expect(initialGroups).toHaveCount(2);
+
+    const stickyGroup = initialGroups.last();
+    const stickyRect = stickyGroup.locator('rect:not([data-testid="selection-bbox"])');
+    await expect(stickyRect).toBeVisible();
+
+    // Verificar dimensiones cuadradas en puntos (Condición 1: 24x24 pt a escala 1)
+    expect(await stickyRect.getAttribute('width')).toBe('24');
+    expect(await stickyRect.getAttribute('height')).toBe('24');
+    expect(await stickyRect.getAttribute('fill')).toBe('#bbf7d0');
+    expect(await stickyRect.getAttribute('stroke')).toBe('#16a34a');
+
+    // Caja de selección visible con padding estándar de 4px por lado (24 + 8 = 32)
+    const selBbox = stickyGroup.locator('rect[data-testid="selection-bbox"]');
+    await expect(selBbox).toBeVisible();
+    expect(await selBbox.getAttribute('width')).toBe('32');
+    expect(await selBbox.getAttribute('height')).toBe('32');
+
+    // 6. Doble clic reabre popup con texto y preset existente, y permite cambiar color (Condición 5)
+    await selectBtn.click();
+    await page.mouse.dblclick(svgBox.x + 220 + 12, svgBox.y + 160 + 12);
+    await expect(popup).toBeVisible();
+    expect(await editorInput.inputValue()).toBe('Detalle estructural viga V-1');
+
+    // Cambiar a rosa y confirmar con Enter
+    await page.locator('[data-testid="sticky-color-pink"]').click();
+    await page.keyboard.press('Enter');
+    await expect(popup).toHaveCount(0);
+
+    expect(await stickyRect.getAttribute('fill')).toBe('#fbcfe8');
+    expect(await stickyRect.getAttribute('stroke')).toBe('#db2777');
+
+    // 7. Enter con texto vacío crea nota vacía con icono visible (Condición 4)
+    await stickyBtn.click();
+    await page.mouse.click(svgBox.x + 350, svgBox.y + 200);
+    await expect(popup).toBeVisible();
+    await page.keyboard.press('Enter'); // Confirmar texto vacío
+
+    await expect(popup).toHaveCount(0);
+    await expect(initialGroups).toHaveCount(3);
+
+    const emptyStickyGroup = initialGroups.last();
+    const emptyStickyRect = emptyStickyGroup.locator('rect:not([data-testid="selection-bbox"])');
+    await expect(emptyStickyRect).toBeVisible();
+    expect(await emptyStickyRect.getAttribute('width')).toBe('24');
+    expect(await emptyStickyRect.getAttribute('height')).toBe('24');
+
+    // 8. Deshacer atómico con Ctrl+Z (Condición 4)
+    await page.keyboard.press('Control+z');
+    await expect(initialGroups).toHaveCount(2); // Nota vacía eliminada en un solo paso
+
+    await page.keyboard.press('Control+z'); // Deshace cambio de color a rosa (vuelve a verde)
+    expect(await stickyRect.getAttribute('fill')).toBe('#bbf7d0');
+
+    await page.keyboard.press('Control+z'); // Deshace la creación de la nota verde
+    await expect(initialGroups).toHaveCount(1);
+  });
 });
 
 

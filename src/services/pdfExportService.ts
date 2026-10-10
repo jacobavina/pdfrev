@@ -8,8 +8,24 @@ import {
   BlendMode,
   LineCapStyle,
   degrees,
+  pushGraphicsState,
+  popGraphicsState,
+  setFillingColor,
+  setStrokingColor,
+  setLineWidth,
+  rectangle,
+  fillAndStroke,
+  moveTo,
+  lineTo,
+  stroke,
 } from 'pdf-lib';
-import { Markup, MarkupPoint, HIGHLIGHT_STYLE } from '../types/markup';
+import {
+  Markup,
+  MarkupPoint,
+  HIGHLIGHT_STYLE,
+  STICKY_NOTE_SIZE_PT,
+  STICKY_NOTE_COLORS,
+} from '../types/markup';
 import {
   generateCloudPath,
   DEFAULT_ARC_STEP,
@@ -17,6 +33,7 @@ import {
   wrapCalloutText,
   CALLOUT_MIN_BOX_WIDTH,
 } from '../core/markup/render';
+import { getStickyNoteNormalizedSize } from '../utils/coordinates';
 
 export interface PageTransformInfo {
   rotation: 0 | 90 | 180 | 270;
@@ -528,9 +545,66 @@ export async function exportMarkupsToPdf(
           break;
         }
 
-        // 9. Texto / Nota técnica
-        case 'text':
+        // 9. Nota adhesiva técnica (Sub-entregable A.4: Vector plano con operadores re/m/l/f/rg/RG)
         case 'stickyNote': {
+          if (!markup.points || markup.points.length === 0) break;
+
+          // Derivar tamaño normalizado en puntos (fuente única de verdad STICKY_NOTE_SIZE_PT = 24)
+          const normSize = getStickyNoteNormalizedSize({
+            width: transform.widthPt,
+            height: transform.heightPt,
+          });
+
+          // Proyección de la esquina superior izquierda (points[0]) y esquina opuesta
+          const p1 = normalizedToPdfCoordinates(markup.points[0], transform);
+          const p2 = normalizedToPdfCoordinates(
+            {
+              x: markup.points[0].x + normSize.width,
+              y: markup.points[0].y + normSize.height,
+            },
+            transform
+          );
+
+          const x = Math.round(Math.min(p1.x, p2.x) * 100) / 100;
+          const y = Math.round(Math.min(p1.y, p2.y) * 100) / 100;
+          const width = STICKY_NOTE_SIZE_PT;
+          const height = STICKY_NOTE_SIZE_PT;
+
+          const defaultPreset = STICKY_NOTE_COLORS.yellow;
+          const fillColor =
+            fillColorParsed.color ??
+            parseCssColor(defaultPreset.fillColor).color ??
+            rgb(1, 0.94, 0.54);
+          const strokeColor =
+            strokeColorParsed.color ??
+            parseCssColor(defaultPreset.strokeColor).color ??
+            rgb(0.79, 0.54, 0.02);
+
+          // Renderizar icono vectorial plano usando operadores estándar PDF:
+          // 're' para el cuerpo cuadrado (24x24 pt), 'm' y 'l' para las líneas internas,
+          // 'rg' y 'RG' para color de relleno y trazo. Prohibido /Subtype /Text y /Annots.
+          page.pushOperators(
+            pushGraphicsState(),
+            setFillingColor(fillColor),
+            setStrokingColor(strokeColor),
+            setLineWidth(1),
+            rectangle(x, y, width, height),
+            fillAndStroke(),
+            // 3 líneas interiores técnicas del icono de nota adhesiva
+            moveTo(x + 5, y + height - 7),
+            lineTo(x + width - 5, y + height - 7),
+            moveTo(x + 5, y + height - 12),
+            lineTo(x + width - 5, y + height - 12),
+            moveTo(x + 5, y + height - 17),
+            lineTo(x + width - 9, y + height - 17),
+            stroke(),
+            popGraphicsState()
+          );
+          break;
+        }
+
+        // 10. Texto / Nota técnica
+        case 'text': {
           const p1 = normalizedToPdfCoordinates(markup.points[0] || { x: 0, y: 0 }, transform);
           const p2 = normalizedToPdfCoordinates(
             markup.points[1] || markup.points[0] || { x: 0, y: 0 },
@@ -542,19 +616,18 @@ export async function exportMarkupsToPdf(
           const height = Math.max(26, Math.abs(p2.y - p1.y));
 
           // Fondo
-          const isSticky = markup.type === 'stickyNote';
           page.drawRectangle({
             x,
             y,
             width,
             height,
-            color: isSticky ? rgb(1, 0.96, 0.6) : fillColorParsed.color ?? rgb(1, 0.98, 0.9),
+            color: fillColorParsed.color ?? rgb(1, 0.98, 0.9),
             borderColor: strokeColorParsed.color ?? rgb(0.8, 0.8, 0.8),
             borderWidth: 1,
             opacity: 0.95,
           });
 
-          const rawText = markup.text || (isSticky ? 'Nota' : 'Texto');
+          const rawText = markup.text || 'Texto';
           const sanitized = sanitizeTextToWinAnsi(rawText);
           totalReplacedCharacters += sanitized.replacedCount;
 

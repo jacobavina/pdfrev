@@ -338,5 +338,47 @@ describe('useMarkupStore Integration & History', () => {
       expect(useMarkupStore.getState().selectedMarkupIds).toContain('callout-1');
       expect(useMarkupStore.getState().selectedMarkupIds).toHaveLength(2);
     });
+
+    it('Sub-entregable A.4: creación de stickyNote genera exactamente 1 comando en el historial; cancelación genera 0 comandos', () => {
+      expect(markupHistory.getUndoCount()).toBe(0);
+
+      // 1. Simulación de cancelación (Escape / botón cancelar): no se llama a addMarkup
+      // (el editor simplemente se desmonta sin invocar el store)
+      expect(markupHistory.getUndoCount()).toBe(0);
+      expect(useMarkupStore.getState().markups).toHaveLength(0);
+
+      // 2. Simulación de confirmación (Enter con texto o texto vacío): se llama a addMarkup exactamente 1 vez
+      const newSticky: Markup = {
+        id: 'sticky-cmd-1',
+        type: 'stickyNote',
+        pageIndex: 0,
+        points: [{ x: 0.2, y: 0.3 }],
+        text: 'Nota técnica confirmada',
+        style: {
+          strokeColor: '#ca8a04',
+          fillColor: '#fef08a',
+          strokeWidth: 1,
+          opacity: 1,
+        },
+        author: 'Revisor',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      };
+
+      useMarkupStore.getState().addMarkup(newSticky);
+      expect(markupHistory.getUndoCount()).toBe(1);
+      expect(useMarkupStore.getState().markups).toHaveLength(1);
+
+      // 3. Undo revierte la creación en un solo paso
+      useMarkupStore.getState().undo();
+      expect(useMarkupStore.getState().markups).toHaveLength(0);
+      expect(useMarkupStore.getState().canRedo).toBe(true);
+
+      // 4. Redo restaura la nota
+      useMarkupStore.getState().redo();
+      expect(useMarkupStore.getState().markups).toHaveLength(1);
+      expect(useMarkupStore.getState().markups[0].id).toBe('sticky-cmd-1');
+    });
   });
 });

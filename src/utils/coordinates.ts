@@ -1,4 +1,38 @@
-import { MarkupPoint, Markup, BoundingBox, ViewportTransform } from '../types/markup';
+import {
+  MarkupPoint,
+  Markup,
+  BoundingBox,
+  ViewportTransform,
+  STICKY_NOTE_SIZE_PT,
+} from '../types/markup';
+
+export { STICKY_NOTE_SIZE_PT };
+
+/**
+ * Convierte el tamaño estándar en puntos (STICKY_NOTE_SIZE_PT = 24 pt) a dimensiones
+ * normalizadas [0..1] por eje en función del ancho y alto de la página.
+ * Garantiza que en pantalla y en exportación el icono sea estrictamente cuadrado en puntos (24x24 pt).
+ */
+export function getStickyNoteNormalizedSize(pageDimensions: {
+  width: number;
+  height: number;
+}): { width: number; height: number } {
+  if (
+    !pageDimensions ||
+    typeof pageDimensions.width !== 'number' ||
+    typeof pageDimensions.height !== 'number' ||
+    pageDimensions.width <= 0 ||
+    pageDimensions.height <= 0
+  ) {
+    throw new Error(
+      `[getStickyNoteNormalizedSize] pageDimensions es obligatorio y debe tener width > 0 y height > 0`
+    );
+  }
+  return {
+    width: STICKY_NOTE_SIZE_PT / pageDimensions.width,
+    height: STICKY_NOTE_SIZE_PT / pageDimensions.height,
+  };
+}
 
 export interface ViewportLike {
   width: number;
@@ -114,7 +148,10 @@ export function screenToNormalized(
 /**
  * Obtiene la caja delimitadora (Bounding Box normalizada 0..1) de una anotación.
  */
-export function getMarkupBounds(markup: Markup): BoundingBox {
+export function getMarkupBounds(
+  markup: Markup,
+  pageDimensions?: { width: number; height: number }
+): BoundingBox {
   if (markup.points.length === 0) {
     return { x: 0, y: 0, width: 0, height: 0 };
   }
@@ -125,12 +162,15 @@ export function getMarkupBounds(markup: Markup): BoundingBox {
   let maxY = Number.NEGATIVE_INFINITY;
 
   if (markup.type === 'stickyNote' && markup.points.length >= 1) {
-    const ICON_SIZE = 0.035;
+    if (!pageDimensions) {
+      throw new Error(`[getMarkupBounds] pageDimensions es obligatorio para 'stickyNote'`);
+    }
+    const size = getStickyNoteNormalizedSize(pageDimensions);
     return {
       x: markup.points[0].x,
       y: markup.points[0].y,
-      width: ICON_SIZE,
-      height: ICON_SIZE,
+      width: size.width,
+      height: size.height,
     };
   }
 
@@ -198,13 +238,14 @@ export function doBoundsIntersect(a: BoundingBox, b: BoundingBox): boolean {
  */
 export function selectMarkupsInRect(
   markups: Markup[],
-  marqueeRect: BoundingBox
+  marqueeRect: BoundingBox,
+  pageDimensions?: { width: number; height: number }
 ): string[] {
   const selectedIds = new Set<string>();
   const selectedGroupIds = new Set<string>();
 
   for (const m of markups) {
-    const bounds = getMarkupBounds(m);
+    const bounds = getMarkupBounds(m, pageDimensions);
     if (doBoundsIntersect(marqueeRect, bounds)) {
       selectedIds.add(m.id);
       if (m.groupId) {
@@ -395,13 +436,14 @@ export function findCalloutComponentAtPoint(
 export function hitTestMarkup(
   point: MarkupPoint,
   markup: Markup,
-  tolerance = 0.015
+  tolerance = 0.015,
+  pageDimensions?: { width: number; height: number }
 ): boolean {
   if (!markup || !markup.points || markup.points.length === 0) {
     return false;
   }
 
-  const bounds = getMarkupBounds(markup);
+  const bounds = getMarkupBounds(markup, pageDimensions);
 
   // Verificación rápida con bounding box expandido con tolerancia
   if (!isPointInBounds(point, bounds, tolerance)) {
@@ -533,13 +575,16 @@ export function hitTestMarkup(
   // 8. StickyNote (caja del icono de tamaño estándar)
   if (markup.type === 'stickyNote') {
     if (markup.points.length === 0) return false;
+    if (!pageDimensions) {
+      throw new Error(`[hitTestMarkup] pageDimensions es obligatorio para 'stickyNote'`);
+    }
     const p1 = markup.points[0];
-    const ICON_SIZE = 0.035;
+    const size = getStickyNoteNormalizedSize(pageDimensions);
     return (
       point.x >= p1.x - tolerance &&
-      point.x <= p1.x + ICON_SIZE + tolerance &&
+      point.x <= p1.x + size.width + tolerance &&
       point.y >= p1.y - tolerance &&
-      point.y <= p1.y + ICON_SIZE + tolerance
+      point.y <= p1.y + size.height + tolerance
     );
   }
 
@@ -604,13 +649,14 @@ export function distanceToSegment(p: MarkupPoint, v: MarkupPoint, w: MarkupPoint
  */
 export function clampTranslationDelta(
   markup: Markup,
-  delta: MarkupPoint
+  delta: MarkupPoint,
+  pageDimensions?: { width: number; height: number }
 ): MarkupPoint {
   if (!markup.points || markup.points.length === 0) {
     return { x: 0, y: 0 };
   }
 
-  const bounds = getMarkupBounds(markup);
+  const bounds = getMarkupBounds(markup, pageDimensions);
   const minX = bounds.x;
   const maxX = bounds.x + bounds.width;
   const minY = bounds.y;
@@ -642,10 +688,11 @@ export function clampTranslationDelta(
  */
 export function clampGroupTranslationDelta(
   markups: Markup[],
-  delta: MarkupPoint
+  delta: MarkupPoint,
+  pageDimensions?: { width: number; height: number }
 ): MarkupPoint {
   if (markups.length === 0) return { x: 0, y: 0 };
-  if (markups.length === 1) return clampTranslationDelta(markups[0], delta);
+  if (markups.length === 1) return clampTranslationDelta(markups[0], delta, pageDimensions);
 
   let minX = Number.POSITIVE_INFINITY;
   let maxX = Number.NEGATIVE_INFINITY;
@@ -653,7 +700,7 @@ export function clampGroupTranslationDelta(
   let maxY = Number.NEGATIVE_INFINITY;
 
   for (const m of markups) {
-    const b = getMarkupBounds(m);
+    const b = getMarkupBounds(m, pageDimensions);
     if (b.x < minX) minX = b.x;
     if (b.x + b.width > maxX) maxX = b.x + b.width;
     if (b.y < minY) minY = b.y;

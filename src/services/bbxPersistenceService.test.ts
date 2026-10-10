@@ -109,6 +109,48 @@ describe('BBX Persistence Service (.bbx.json)', () => {
     expect(result.pdfBytes.length).toBeGreaterThan(0);
   });
 
+  it('Sub-entregable A.4: stickyNote conserva punto único, texto y estilo de preset de color al persistir y recargar .bbx.json', async () => {
+    const pdfPath = '/proyectos/nota-adhesiva-a4.pdf';
+    const stickyMarkup: Markup = {
+      id: 'sticky-persist-1',
+      type: 'stickyNote',
+      pageIndex: 0,
+      points: [{ x: 0.35, y: 0.45 }],
+      text: 'Revisar anclaje de pernos en placa base B-1',
+      style: {
+        strokeColor: '#db2777',
+        fillColor: '#fbcfe8',
+        strokeWidth: 1,
+        opacity: 1,
+      },
+      author: 'Ing. Supervisor',
+      createdAt: '2026-10-10T11:00:00.000Z',
+      updatedAt: '2026-10-10T11:00:00.000Z',
+      status: 'pending',
+    };
+
+    const saved = await saveBbxForPdf(pdfPath, [stickyMarkup], 'Ing. Supervisor');
+    expect(saved).toBe(true);
+
+    const loaded = await loadBbxForPdf(pdfPath);
+    expect(loaded).not.toBeNull();
+    expect(loaded?.markups).toHaveLength(1);
+
+    const loadedNote = loaded!.markups[0];
+    expect(loadedNote.type).toBe('stickyNote');
+    expect(loadedNote.points).toHaveLength(1);
+    expect(loadedNote.points[0]).toEqual({ x: 0.35, y: 0.45 });
+    expect(loadedNote.text).toBe('Revisar anclaje de pernos en placa base B-1');
+    expect(loadedNote.style.fillColor).toBe('#fbcfe8');
+    expect(loadedNote.style.strokeColor).toBe('#db2777');
+
+    // Exportación exitosa con la nota recargada
+    const fixturePath = path.resolve(process.cwd(), 'fixtures/test-blueprint.pdf');
+    const pdfBytes = fs.readFileSync(fixturePath);
+    const result = await exportMarkupsToPdf(new Uint8Array(pdfBytes), loaded!.markups);
+    expect(result.pdfBytes.length).toBeGreaterThan(0);
+  });
+
   // --------------------------------------------------------------------------------
   // Sub-entregable 0.4: Simulación de Tauri Invoke (write_bbx y read_bbx)
   // --------------------------------------------------------------------------------

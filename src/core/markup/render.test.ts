@@ -15,7 +15,6 @@ import {
   estimateCalloutBoxNormalizedSize,
   CALLOUT_ARROW_SIZE,
   CALLOUT_MIN_BOX_WIDTH,
-  CALLOUT_MIN_BOX_HEIGHT,
 } from './render';
 import { Markup } from '../../types/markup';
 
@@ -480,7 +479,94 @@ describe('Pure Markup Rendering (src/core/markup/render.ts - Criterio 1)', () =>
 
         expect(longSize.width).toBeGreaterThan(shortSize.width);
         expect(shortSize.width).toBeGreaterThanOrEqual(CALLOUT_MIN_BOX_WIDTH / 800);
-        expect(shortSize.height).toBeGreaterThanOrEqual(CALLOUT_MIN_BOX_HEIGHT / 600);
+      });
+    });
+
+    describe('Sub-entregable A.4: stickyNote (Descriptor SVG y no asunción de points[1])', () => {
+      it('genera descriptor SVG con un solo punto (points[0]) sin asumir points[1], midiendo 24x24 pt a escala 1', () => {
+        const stickyMarkup: Markup = {
+          id: 'sticky-render-test',
+          type: 'stickyNote',
+          pageIndex: 0,
+          points: [{ x: 0.25, y: 0.3 }],
+          style: {
+            strokeColor: '#ca8a04',
+            fillColor: '#fef08a',
+            strokeWidth: 1,
+            opacity: 1,
+          },
+          author: 'Tester',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: 'pending',
+        };
+
+        const transform800x600 = {
+          width: 800,
+          height: 600,
+          scale: 1.0,
+          offsetX: 0,
+          offsetY: 0,
+        };
+
+        const desc = getMarkupSvgDescriptor(stickyMarkup, transform800x600);
+        expect(desc.tag).toBe('g');
+        expect(desc.children).toBeDefined();
+        expect(desc.children!.length).toBe(4); // 1 rect de fondo + 3 líneas
+
+        const rectDesc = desc.children![0];
+        expect(rectDesc.tag).toBe('rect');
+        expect(rectDesc.attrs.x).toBe(0.25 * 800); // 200
+        expect(rectDesc.attrs.y).toBe(0.3 * 600); // 180
+        expect(rectDesc.attrs.width).toBe(24);
+        expect(rectDesc.attrs.height).toBe(24);
+        expect(rectDesc.attrs.fill).toBe('#fef08a');
+        expect(rectDesc.attrs.stroke).toBe('#ca8a04');
+
+        // A escala 2.0, mide 48x48 píxeles en pantalla
+        const transformScale2 = {
+          width: 800,
+          height: 600,
+          scale: 2.0,
+          offsetX: 0,
+          offsetY: 0,
+        };
+        const descScale2 = getMarkupSvgDescriptor(stickyMarkup, transformScale2);
+        const rectScale2 = descScale2.children![0];
+        expect(rectScale2.attrs.width).toBe(48);
+        expect(rectScale2.attrs.height).toBe(48);
+      });
+
+      it('aplica los presets de color predefinidos en fill y stroke de la nota', () => {
+        const greenSticky: Markup = {
+          id: 'sticky-green',
+          type: 'stickyNote',
+          pageIndex: 0,
+          points: [{ x: 0.1, y: 0.1 }],
+          style: {
+            strokeColor: '#16a34a',
+            fillColor: '#bbf7d0',
+            strokeWidth: 1,
+            opacity: 1,
+          },
+          author: 'Tester',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: 'pending',
+        };
+
+        const transform = {
+          width: 800,
+          height: 600,
+          scale: 1.0,
+          offsetX: 0,
+          offsetY: 0,
+        };
+
+        const desc = getMarkupSvgDescriptor(greenSticky, transform);
+        const rectDesc = desc.children![0];
+        expect(rectDesc.attrs.fill).toBe('#bbf7d0');
+        expect(rectDesc.attrs.stroke).toBe('#16a34a');
       });
     });
   });

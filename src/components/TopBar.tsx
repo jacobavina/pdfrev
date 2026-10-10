@@ -24,6 +24,7 @@ import {
   X,
   MessageSquare,
   MessageSquareText,
+  StickyNote,
 } from 'lucide-react';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
@@ -110,6 +111,7 @@ export const TopBar: React.FC = () => {
     { type: 'cloud', label: 'Nube de revisión (C)', icon: <Cloud size={16} /> },
     { type: 'cloudPlus', label: 'Cloud+ con leyenda (K)', icon: <MessageSquare size={16} /> },
     { type: 'callout', label: 'Nota técnica con directriz (Q)', icon: <MessageSquareText size={16} /> },
+    { type: 'stickyNote', label: 'Nota adhesiva (N)', icon: <StickyNote size={16} /> },
     { type: 'text', label: 'Nota / Texto (T)', icon: <Type size={16} /> },
   ];
 

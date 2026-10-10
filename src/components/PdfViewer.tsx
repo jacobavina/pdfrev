@@ -9,6 +9,7 @@ import {
   normalizedToScreen,
   hitTestMarkup,
   selectMarkupsInRect,
+  getMarkupBounds,
 } from '../utils/coordinates';
 import {
   handleSelectMouseDown,
@@ -27,7 +28,12 @@ import {
   DEFAULT_ARC_STEP,
   estimateCalloutBoxNormalizedSize,
 } from '../core/markup/render';
-import { Markup, MarkupPoint, MarkupType } from '../types/markup';
+import {
+  Markup,
+  MarkupPoint,
+  MarkupType,
+  STICKY_NOTE_COLORS,
+} from '../types/markup';
 import { InlineTextEditor } from './markup/InlineTextEditor';
 
 export const PdfViewer: React.FC = () => {
@@ -103,11 +109,14 @@ export const PdfViewer: React.FC = () => {
   const [freehandPoints, setFreehandPoints] = useState<MarkupPoint[]>([]);
   const [mouseCursorPoint, setMouseCursorPoint] = useState<MarkupPoint | null>(null);
 
-  // Estado del editor de texto inline (B6)
+  // Estado del editor de texto inline (B6 y A.4)
   const [inlineEditing, setInlineEditing] = useState<{
     markupId: string;
     initialText: string;
     position: MarkupPoint;
+    isStickyNote?: boolean;
+    isPendingCreation?: boolean;
+    initialColor?: string;
   } | null>(null);
 
   // Renderizar la página activa con PDF.js
@@ -234,6 +243,11 @@ export const PdfViewer: React.FC = () => {
         useToolStore.getState().setActiveTool('callout');
         return;
       }
+
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'n' || e.key === 'N')) {
+        useToolStore.getState().setActiveTool('stickyNote');
+        return;
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -278,12 +292,15 @@ export const PdfViewer: React.FC = () => {
         setMarqueeState(null);
       }
       if (dragStateRef.current) {
+        const unscaledW = pageViewport.width / (scale || 1.0);
+        const unscaledH = pageViewport.height / (scale || 1.0);
         const result = handleSelectMouseUp({
           screenX: e.clientX,
           screenY: e.clientY,
           dragState: dragStateRef.current,
           viewportTransform,
           thresholdPx: 4,
+          pageDimensions: { width: unscaledW, height: unscaledH },
         });
         dragStateRef.current = null;
         if (result.moves && result.moves.length > 0) {
@@ -336,7 +353,10 @@ export const PdfViewer: React.FC = () => {
     if (activeTool === 'select') {
       const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex);
       const isAdditive = Boolean(e.ctrlKey || e.metaKey || e.shiftKey);
-      const hit = [...pageMarkups].reverse().find((m) => hitTestMarkup(pt, m));
+      const unscaledW = pageViewport.width / (scale || 1.0);
+      const unscaledH = pageViewport.height / (scale || 1.0);
+      const pageDims = { width: unscaledW, height: unscaledH };
+      const hit = [...pageMarkups].reverse().find((m) => hitTestMarkup(pt, m, 0.015, pageDims));
 
       if (hit) {
         const newDragState = handleSelectMouseDown({
@@ -348,6 +368,7 @@ export const PdfViewer: React.FC = () => {
           selectedMarkupIds,
           selectMarkup,
           deselectAll,
+          pageDimensions: pageDims,
         });
         dragStateRef.current = newDragState;
         return;
@@ -407,7 +428,12 @@ export const PdfViewer: React.FC = () => {
       return;
     }
 
-    // 4. Figuras de 2 puntos y Texto
+    // 4. Modo Nota Adhesiva técnica (A.4: Se abre en mouseUp para evitar colisión con el ciclo de blur)
+    if (activeTool === 'stickyNote') {
+      return;
+    }
+
+    // 5. Figuras de 2 puntos y Texto
     if (activeTool !== 'pan') {
       setDrawingStart(pt);
       setCurrentDrawPoint(pt);
@@ -438,6 +464,10 @@ export const PdfViewer: React.FC = () => {
 
     // Arrastre interactivo o Marquee en modo selección
     if (activeTool === 'select') {
+      const unscaledW = pageViewport.width / (scale || 1.0);
+      const unscaledH = pageViewport.height / (scale || 1.0);
+      const pageDims = { width: unscaledW, height: unscaledH };
+
       if (dragStateRef.current) {
         const moveResult = handleSelectMouseMove({
           screenX: e.clientX,
@@ -445,6 +475,7 @@ export const PdfViewer: React.FC = () => {
           dragState: dragStateRef.current,
           viewportTransform,
           thresholdPx: 4,
+          pageDimensions: pageDims,
         });
 
         if (moveResult.hasMovedPastThreshold && moveResult.updatedMarkups) {
@@ -470,7 +501,7 @@ export const PdfViewer: React.FC = () => {
         };
 
         const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex);
-        const intersectingIds = selectMarkupsInRect(pageMarkups, marqueeRect);
+        const intersectingIds = selectMarkupsInRect(pageMarkups, marqueeRect, pageDims);
 
         if (marqueeStateRef.current.isAdditive) {
           const combined = Array.from(
@@ -529,12 +560,15 @@ export const PdfViewer: React.FC = () => {
         return;
       }
       if (dragStateRef.current) {
+        const unscaledW = pageViewport.width / (scale || 1.0);
+        const unscaledH = pageViewport.height / (scale || 1.0);
         const result = handleSelectMouseUp({
           screenX: _e.clientX,
           screenY: _e.clientY,
           dragState: dragStateRef.current,
           viewportTransform,
           thresholdPx: 4,
+          pageDimensions: { width: unscaledW, height: unscaledH },
         });
         dragStateRef.current = null;
         if (result.moves && result.moves.length > 0) {
@@ -545,6 +579,21 @@ export const PdfViewer: React.FC = () => {
         return;
       }
     }
+
+    // Modo Nota Adhesiva técnica (A.4: Abre editor contra ancla pendiente sin persistir marca aún)
+    if (activeTool === 'stickyNote') {
+      const pt = getEventPoint(_e);
+      setInlineEditing({
+        markupId: '',
+        initialText: '',
+        position: pt,
+        isStickyNote: true,
+        isPendingCreation: true,
+        initialColor: currentStyle.fillColor || STICKY_NOTE_COLORS.yellow.fillColor,
+      });
+      return;
+    }
+
     // Finalización de Freehand
     if (activeTool === 'freehand') {
       if (freehandPoints.length >= 2) {
@@ -579,7 +628,12 @@ export const PdfViewer: React.FC = () => {
     );
 
     // Evitar crear marcas accidentales con un microclic
-    if (dist > 0.005 && activeTool !== 'select' && activeTool !== 'pan' && activeTool !== 'polygon') {
+    if (
+      dist > 0.005 &&
+      activeTool !== 'select' &&
+      activeTool !== 'pan' &&
+      activeTool !== 'polygon'
+    ) {
       const now = new Date().toISOString();
 
       if (activeTool === 'cloudPlus') {
@@ -753,18 +807,26 @@ export const PdfViewer: React.FC = () => {
       return;
     }
 
-    // Doble clic sobre texto o callout existente para editar inline
+    // Doble clic sobre texto, callout o nota adhesiva existente para editar inline
     const pt = getEventPoint(e);
     const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex);
+    const unscaledW = pageViewport.width / (scale || 1.0);
+    const unscaledH = pageViewport.height / (scale || 1.0);
     const hit = [...pageMarkups]
       .reverse()
-      .find((m) => (m.type === 'text' || m.type === 'callout') && hitTestMarkup(pt, m));
+      .find(
+        (m) =>
+          (m.type === 'text' || m.type === 'callout' || m.type === 'stickyNote') &&
+          hitTestMarkup(pt, m, 0.015, { width: unscaledW, height: unscaledH })
+      );
 
     if (hit) {
       setInlineEditing({
         markupId: hit.id,
         initialText: hit.text || '',
         position: hit.points[0],
+        isStickyNote: hit.type === 'stickyNote',
+        initialColor: hit.style?.fillColor,
       });
       return;
     }
@@ -863,21 +925,74 @@ export const PdfViewer: React.FC = () => {
             className="block"
           />
 
-          {/* Editor inline genérico para texto y notas (B6) */}
+          {/* Editor inline genérico para texto y notas (B6 y A.4) */}
           {inlineEditing && (
             <InlineTextEditor
               initialText={inlineEditing.initialText}
               position={inlineEditing.position}
               transform={viewportTransform}
-              onCommit={(newText) => {
+              colorPresets={inlineEditing.isStickyNote}
+              initialColor={inlineEditing.initialColor}
+              onCommit={(newText, selectedColor) => {
+                if (inlineEditing.isPendingCreation && inlineEditing.isStickyNote) {
+                  // Condición 4: La nota se crea al CONFIRMAR el texto en un solo comando
+                  const now = new Date().toISOString();
+                  const newId = uuidv4();
+                  const preset = selectedColor || STICKY_NOTE_COLORS.yellow;
+                  const newMarkup: Markup = {
+                    id: newId,
+                    type: 'stickyNote',
+                    pageIndex: currentPageIndex,
+                    points: [inlineEditing.position],
+                    text: newText,
+                    style: {
+                      ...currentStyle,
+                      fillColor: preset.fillColor,
+                      strokeColor: preset.strokeColor,
+                      strokeWidth: 1,
+                    },
+                    author: author || 'Revisor',
+                    createdAt: now,
+                    updatedAt: now,
+                    status: 'pending',
+                    layer: activeLayer,
+                  };
+                  addMarkup(newMarkup);
+                  setSelectedMarkupIds([newId]);
+                  setInlineEditing(null);
+                  return;
+                }
+
                 const targetMarkup = markupsRef.current.find((m) => m.id === inlineEditing.markupId);
                 if (targetMarkup) {
-                  // Condición 4: Si el texto es idéntico al actual, evitar comando de historial vacío
-                  if (targetMarkup.text === newText) {
-                    setInlineEditing(null);
-                    return;
-                  }
-                  if (targetMarkup.type === 'callout') {
+                  if (targetMarkup.type === 'stickyNote') {
+                    const preset = selectedColor;
+                    const styleUpdate = preset
+                      ? {
+                          ...targetMarkup.style,
+                          fillColor: preset.fillColor,
+                          strokeColor: preset.strokeColor,
+                        }
+                      : targetMarkup.style;
+
+                    if (
+                      targetMarkup.text === newText &&
+                      (!preset || targetMarkup.style.fillColor === preset.fillColor)
+                    ) {
+                      setInlineEditing(null);
+                      return;
+                    }
+
+                    updateMarkup(targetMarkup.id, {
+                      text: newText,
+                      style: styleUpdate,
+                    });
+                  } else if (targetMarkup.type === 'callout') {
+                    // Condición 4: Si el texto es idéntico al actual, evitar comando de historial vacío
+                    if (targetMarkup.text === newText) {
+                      setInlineEditing(null);
+                      return;
+                    }
                     const unscaledWidth = pageViewport.width / (scale || 1.0);
                     const unscaledHeight = pageViewport.height / (scale || 1.0);
                     const normSize = estimateCalloutBoxNormalizedSize(
@@ -893,6 +1008,10 @@ export const PdfViewer: React.FC = () => {
                     };
                     updateMarkup(targetMarkup.id, { text: newText, points: [p1, p2] });
                   } else {
+                    if (targetMarkup.text === newText) {
+                      setInlineEditing(null);
+                      return;
+                    }
                     updateMarkup(targetMarkup.id, { text: newText });
                   }
                 }
@@ -932,24 +1051,42 @@ export const PdfViewer: React.FC = () => {
 
                   {/* Bounding box de selección activa */}
                   {isSelected && (() => {
-                    const allPts = [...markup.points];
-                    if (markup.leaders) {
-                      for (const l of markup.leaders) {
-                        allPts.push(...l);
+                    let b: { minX: number; minY: number; maxX: number; maxY: number };
+                    if (markup.type === 'stickyNote') {
+                      const unscaledW = pageViewport.width / (scale || 1.0);
+                      const unscaledH = pageViewport.height / (scale || 1.0);
+                      const bounds = getMarkupBounds(markup, { width: unscaledW, height: unscaledH });
+                      const p1Scr = normalizedToScreen({ x: bounds.x, y: bounds.y }, viewportTransform);
+                      const p2Scr = normalizedToScreen(
+                        { x: bounds.x + bounds.width, y: bounds.y + bounds.height },
+                        viewportTransform
+                      );
+                      b = {
+                        minX: Math.min(p1Scr.x, p2Scr.x),
+                        minY: Math.min(p1Scr.y, p2Scr.y),
+                        maxX: Math.max(p1Scr.x, p2Scr.x),
+                        maxY: Math.max(p1Scr.y, p2Scr.y),
+                      };
+                    } else {
+                      const allPts = [...markup.points];
+                      if (markup.leaders) {
+                        for (const l of markup.leaders) {
+                          allPts.push(...l);
+                        }
                       }
+                      b = allPts.reduce(
+                        (acc, pt) => {
+                          const scr = normalizedToScreen(pt, viewportTransform);
+                          return {
+                            minX: Math.min(acc.minX, scr.x),
+                            minY: Math.min(acc.minY, scr.y),
+                            maxX: Math.max(acc.maxX, scr.x),
+                            maxY: Math.max(acc.maxY, scr.y),
+                          };
+                        },
+                        { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity }
+                      );
                     }
-                    const b = allPts.reduce(
-                      (acc, pt) => {
-                        const scr = normalizedToScreen(pt, viewportTransform);
-                        return {
-                          minX: Math.min(acc.minX, scr.x),
-                          minY: Math.min(acc.minY, scr.y),
-                          maxX: Math.max(acc.maxX, scr.x),
-                          maxY: Math.max(acc.maxY, scr.y),
-                        };
-                      },
-                      { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity }
-                    );
 
                     if (b.minX !== Infinity) {
                       return (
@@ -1028,6 +1165,33 @@ export const PdfViewer: React.FC = () => {
                 </g>
               );
             })}
+
+            {/* Vista previa de nota adhesiva en ancla pendiente de confirmación (A.4) */}
+            {inlineEditing && inlineEditing.isPendingCreation && inlineEditing.isStickyNote && (
+              <g data-testid="pending-sticky-note-preview" className="pointer-events-none opacity-85">
+                {renderSvgDescriptor(
+                  getMarkupSvgDescriptor(
+                    {
+                      id: 'pending-sticky-preview',
+                      type: 'stickyNote',
+                      pageIndex: currentPageIndex,
+                      points: [inlineEditing.position],
+                      style: {
+                        ...currentStyle,
+                        fillColor: inlineEditing.initialColor || STICKY_NOTE_COLORS.yellow.fillColor,
+                        strokeColor: STICKY_NOTE_COLORS.yellow.strokeColor,
+                      },
+                      author: author || 'Revisor',
+                      createdAt: '',
+                      updatedAt: '',
+                      status: 'pending',
+                    },
+                    viewportTransform
+                  ),
+                  'pending-sticky-preview'
+                )}
+              </g>
+            )}
 
             {/* Previsualización en vivo mientras se dibuja */}
             {/* A. Polígono en construcción */}

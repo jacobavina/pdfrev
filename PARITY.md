@@ -25,7 +25,7 @@ Este documento registra la paridad funcional real implementada en REA, vinculand
 | **Multiselección con Marquee por intersección y traslación conjunta** | `shipped` | `tests/e2e/pdf-viewer.spec.ts` | `Sub-entregable A.2: Multiselección con Marquee por intersección, verificación de lista intacta, arrastre conjunto y undo atómico` | Verificado por el usuario en ventana nativa, 2026-10-10 |
 | **Prefiltro O(N) para Marquee en tiempo real (< 10ms)** | `shipped` | `src/utils/coordinates.test.ts` | `Condición 5 (Rendimiento): selectMarkupsInRect filtra 500 marcas en menos de 10ms` | No aplica (benchmarking unitario) |
 | **Callout / Nota técnica con directriz conectada** | `shipped` | `tests/e2e/pdf-viewer.spec.ts` | `Sub-entregable A.3: Creación de Callout con directriz, edición inline, movimiento independiente de ancla y arrastre conjunto de caja` | Verificado por el usuario en ventana nativa, 2026-10-10 |
-| **Nota adhesiva técnica (`stickyNote`)** | `todo` | `-` | `Pendiente de implementación (P2-A.4)` | Pendiente de implementación |
+| **Nota adhesiva técnica (`stickyNote`)** | `shipped` | `tests/e2e/pdf-viewer.spec.ts` | `Sub-entregable A.4: Nota adhesiva técnica stickyNote (atajo N con guarda, popup con 4 colores, commit en confirmación, icono 24x24 pt y reversión atómica)` | Verificado en E2E y ventana nativa |
 | **Resaltador vectorial (`highlightVector`)** | `todo` | `-` | `Pendiente de implementación (P2-A.5)` | Pendiente de implementación |
 | **Resaltado de texto (`highlightText` con TextLayer)** | `todo` | `-` | `Pendiente de implementación (P2-A.6)` | Pendiente de implementación |
 | **Tool Chest: Paletas persistidas en IndexedDB y drag & drop (Bloque B)** | `todo` | `-` | `Pendiente de implementación (P2-B)` | Pendiente de implementación |

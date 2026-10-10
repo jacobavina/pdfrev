@@ -31,6 +31,7 @@ export function handleSelectMouseDown({
   selectedMarkupIds,
   selectMarkup,
   deselectAll,
+  pageDimensions,
 }: {
   point: MarkupPoint;
   screenX: number;
@@ -42,9 +43,10 @@ export function handleSelectMouseDown({
   selectedMarkupIds: string[];
   selectMarkup: (id: string, multi: boolean) => void;
   deselectAll: () => void;
+  pageDimensions?: { width: number; height: number };
 }): DragState | null {
   const isAdditive = Boolean(isCtrlOrShift ?? (isCtrl || isShift));
-  const hit = [...pageMarkups].reverse().find((m) => hitTestMarkup(point, m));
+  const hit = [...pageMarkups].reverse().find((m) => hitTestMarkup(point, m, 0.015, pageDimensions));
   if (!hit) {
     if (!isAdditive) {
       deselectAll();
@@ -110,12 +112,14 @@ export function handleSelectMouseMove({
   dragState,
   viewportTransform,
   thresholdPx = 4,
+  pageDimensions,
 }: {
   screenX: number;
   screenY: number;
   dragState: DragState;
   viewportTransform: ViewportTransform;
   thresholdPx?: number;
+  pageDimensions?: { width: number; height: number };
 }): {
   updatedMarkups?: Markup[];
   clampedDelta?: MarkupPoint;
@@ -140,11 +144,20 @@ export function handleSelectMouseMove({
   const deltaNormX = screenWidth > 0 ? dxScreen / screenWidth : 0;
   const deltaNormY = screenHeight > 0 ? dyScreen / screenHeight : 0;
 
+  const pageDims = pageDimensions ?? {
+    width: viewportTransform.width / (viewportTransform.scale || 1.0),
+    height: viewportTransform.height / (viewportTransform.scale || 1.0),
+  };
+
   // Condición 1: Clamp 0..1 del grupo de marcas seleccionadas
-  const clampedDelta = clampGroupTranslationDelta(dragState.initialMarkups, {
-    x: deltaNormX,
-    y: deltaNormY,
-  });
+  const clampedDelta = clampGroupTranslationDelta(
+    dragState.initialMarkups,
+    {
+      x: deltaNormX,
+      y: deltaNormY,
+    },
+    pageDims
+  );
 
   const updatedMarkups = dragState.initialMarkups.map((m) =>
     translateMarkup(m, clampedDelta)
@@ -168,12 +181,14 @@ export function handleSelectMouseUp({
   dragState,
   viewportTransform,
   thresholdPx = 4,
+  pageDimensions,
 }: {
   screenX: number;
   screenY: number;
   dragState: DragState;
   viewportTransform: ViewportTransform;
   thresholdPx?: number;
+  pageDimensions?: { width: number; height: number };
 }): {
   moves?: MoveMarkupItem[];
   restoredMarkups?: Markup[];
@@ -197,10 +212,19 @@ export function handleSelectMouseUp({
   const deltaNormX = screenWidth > 0 ? dxScreen / screenWidth : 0;
   const deltaNormY = screenHeight > 0 ? dyScreen / screenHeight : 0;
 
-  const clampedDelta = clampGroupTranslationDelta(dragState.initialMarkups, {
-    x: deltaNormX,
-    y: deltaNormY,
-  });
+  const pageDims = pageDimensions ?? {
+    width: viewportTransform.width / (viewportTransform.scale || 1.0),
+    height: viewportTransform.height / (viewportTransform.scale || 1.0),
+  };
+
+  const clampedDelta = clampGroupTranslationDelta(
+    dragState.initialMarkups,
+    {
+      x: deltaNormX,
+      y: deltaNormY,
+    },
+    pageDims
+  );
 
   if (Math.abs(clampedDelta.x) > 1e-6 || Math.abs(clampedDelta.y) > 1e-6) {
     const moves: MoveMarkupItem[] = dragState.initialMarkups.map((m) => {

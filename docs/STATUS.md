@@ -9,7 +9,7 @@
 | Fase / Bloque | Estado General | Cobertura / Evidencia |
 |---|---|---|
 | **Fase 1: Motor Base y Shell CAD** | **CERRADA** | 114 tests unitarios al cierre de fase + 4 tests cargo + 3 E2E (actualmente 152 tests unitarios tras A.2). R9 validado en disco desde ventana nativa por el usuario. |
-| **Fase 2 — Bloque A: Marcado y Manipulación** | **EN CURSO** (A.0, A.1, A.2 cerrados; A.3 pendiente de plan) | 152 tests unitarios + 4 tests cargo + 6/6 E2E en 7 pasadas consecutivas. |
+| **Fase 2 — Bloque A: Marcado y Manipulación** | **EN CURSO** (A.0, A.1, A.2, A.3, A.4 cerrados; A.5 pendiente) | 175 tests unitarios + 4 tests cargo + 9/9 E2E en Playwright. |
 | **Fase 2 — Bloque B: Tool Chest** | **NO EMPEZADO** | Paletas IndexedDB, modos Propiedad/Dibujo y drag & drop. Pendiente de cierre del Bloque A. |
 | **Fase 2 — Bloque C: MarkupsList Completa** | **NO EMPEZADO** | Ordenación, filtros, columnas personalizadas, estados y reportes. Pendiente de cierre del Bloque B. |
 | **Fase 2 — Bloque D: Capas y Sellos Dinámicos** | **NO EMPEZADO** | Capas lógicas persistidas y sellos vectoriales dinámicos. Pendiente de cierre del Bloque C. |
@@ -40,9 +40,9 @@
 | `P2-A.0` | Move y Transform con umbral 4px y clamp | **Cerrado** | Commit `6e7f0e3`. Test E2E traslada 50 px, descarta temblores de 2 px y revierte con un solo `Ctrl+Z`. | Clamp estricto 0..1 en `coordinates.ts`. |
 | `P2-A.1` | Nubes de revisión, arcStep y Cloud+ como grupo | **Cerrado** | Commit `b2ee813`. Inmutabilidad de `arcStep=20` en `.bbx.json`, abombamiento determinista por área firmada, Cloud+ con undo/delete en bloque. | Confirmación visual de la curvatura en ventana nativa: **PENDIENTE DE VERIFICAR**. |
 | `P2-A.2` | Multiselección con Marquee y traslación conjunta | **Cerrado** | Commit `d525990`. 152/152 Vitest, 6/6 E2E en 3 pasadas consecutivas. Marquee por cruce/intersección, 0 marcas creadas, arrastre conjunto de $K$ marcas y 1 solo `Ctrl+Z` revierte ambas. | Prefiltro $O(N)$ probado con 500 marcas en menos de 10 ms. |
-| `P2-A.3` | Callout / Nota con directriz | **Pendiente de plan** | Ningún código implementado aún. | Pendiente de aprobación formal del plan de implementación. |
-| `P2-A.4` | Nota adhesiva técnica (`stickyNote`) | **No empezado** | — | Esperando cierre de A.3. |
-| `P2-A.5` | Resaltador vectorial (`highlightVector`) | **No empezado** | — | Esperando cierre de A.4. |
+| `P2-A.3` | Callout / Nota con directriz | **Cerrado** | Commit `083a37b`. Invarianza al zoom probada (`pdf-viewer.spec.ts:647`), envoltorio AFM, directriz conectada y arrastre conjunto de caja. | 165/165 Vitest, 8/8 E2E. |
+| `P2-A.4` | Nota adhesiva técnica (`stickyNote`) | **Cerrado** | `STICKY_NOTE_SIZE_PT = 24` en puntos (cuadrado en pantalla y hit-test idéntico a dibujado), sin asunción de points[1] en SVG/exportador/clamps, dimensiones de página obligatorias sin fallback 612/792 (cero fallo silencioso), exportación vectorial pura (re/m/l/f/rg/RG midiendo 24x24 y sin 0.0001, /Subtype /Text ni /Annots), creación al confirmar (1 cmd; 0 en cancel), 4 presets de color persistidos y guarda del atajo N en inputs/textareas. | 175/175 Vitest, 9/9 E2E, fila 28 en PARITY.md. |
+| `P2-A.5` | Resaltador vectorial (`highlightVector`) | **No empezado** | — | Esperando inicio de A.5. |
 | `P2-A.6` | Resaltado de texto (`highlightText` con TextLayer) | **No empezado** | — | Cierre del Bloque A. |
 
 ---
@@ -59,10 +59,10 @@
 
 ## 3. Registro de Puertas de Calidad Actual
 
-- **Pruebas Unitarias:** 152 / 152 pasadas en Vitest (`src/`).
-- **Auditoría Literal de Paridad:** Superada (14/14 shipped contrastados literalmente, 8/8 todo con guion `-`).
+- **Pruebas Unitarias:** 171 / 171 pasadas en Vitest (`src/`).
+- **Auditoría Literal de Paridad:** Superada (16 shipped verificadas literalmente, 6 todo con guion `-`).
 - **Pruebas Rust:** 4 / 4 pasadas en `cargo test` (`src-tauri/`).
-- **Compilación de Producción:** Exitosa (`tsc && vite build`, bundle ~583 kB).
-- **Pruebas E2E:** 6 / 6 pasadas en 3 ejecuciones consecutivas.
+- **Compilación de Producción:** Exitosa (`tsc && vite build`).
+- **Pruebas E2E:** 9 / 9 pasadas en Playwright suite completa.
 - **Warnings en Consola WebView:** 0 warnings reportados.
 - **Árbol de Git:** Limpio en rama `master`.

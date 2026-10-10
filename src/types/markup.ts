@@ -33,6 +33,44 @@ export const HIGHLIGHT_STYLE = {
   mixBlendMode: 'multiply' as const,
 } as const;
 
+export const STICKY_NOTE_SIZE_PT = 24;
+
+export interface StickyNoteColorPreset {
+  name: 'yellow' | 'green' | 'pink' | 'blue';
+  label: string;
+  fillColor: string;
+  strokeColor: string;
+}
+
+export const STICKY_NOTE_COLORS: Record<'yellow' | 'green' | 'pink' | 'blue', StickyNoteColorPreset> = {
+  yellow: {
+    name: 'yellow',
+    label: 'Amarillo',
+    fillColor: '#fef08a',
+    strokeColor: '#ca8a04',
+  },
+  green: {
+    name: 'green',
+    label: 'Verde',
+    fillColor: '#bbf7d0',
+    strokeColor: '#16a34a',
+  },
+  pink: {
+    name: 'pink',
+    label: 'Rosa',
+    fillColor: '#fbcfe8',
+    strokeColor: '#db2777',
+  },
+  blue: {
+    name: 'blue',
+    label: 'Azul',
+    fillColor: '#bae6fd',
+    strokeColor: '#0284c7',
+  },
+};
+
+export const DEFAULT_STICKY_NOTE_COLOR = STICKY_NOTE_COLORS.yellow;
+
 export interface MarkupPoint {
   x: number; // 0..1 normalized coordinate
   y: number; // 0..1 normalized coordinate

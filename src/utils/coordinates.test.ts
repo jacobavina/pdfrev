@@ -19,6 +19,8 @@ import {
   doBoundsIntersect,
   selectMarkupsInRect,
   findCalloutComponentAtPoint,
+  STICKY_NOTE_SIZE_PT,
+  getStickyNoteNormalizedSize,
 } from './coordinates';
 import { estimateCalloutBoxNormalizedSize } from '../core/markup/render';
 import { Markup, VALID_MARKUP_TYPES } from '../types/markup';
@@ -592,6 +594,7 @@ describe('Coordinate Conversion and Hit-Testing', () => {
     });
 
     describe('stickyNote: 3 casos (interior, exterior-pero-dentro-del-bbox, perímetro)', () => {
+      const pageDims = { width: 800, height: 600 };
       const stickyNoteMarkup: Markup = {
         id: 'sticky-test',
         type: 'stickyNote',
@@ -604,16 +607,82 @@ describe('Coordinate Conversion and Hit-Testing', () => {
         status: 'pending',
       };
 
-      it('caso: interior (interior de la caja de icono estándar 0.035)', () => {
-        expect(hitTestMarkup({ x: 0.215, y: 0.215 }, stickyNoteMarkup, 0.015)).toBe(true);
+      it('caso: interior (interior de la caja de icono estándar 24x24 pt -> 0.030x0.040)', () => {
+        expect(hitTestMarkup({ x: 0.215, y: 0.22 }, stickyNoteMarkup, 0.015, pageDims)).toBe(true);
       });
 
-      it('caso: exterior-pero-dentro-del-bbox (fuera de la caja de icono)', () => {
-        expect(hitTestMarkup({ x: 0.3, y: 0.3 }, stickyNoteMarkup, 0.015)).toBe(false);
+      it('caso: exterior-pero-dentro-del-bbox (fuera de la caja de icono en [0.3, 0.3])', () => {
+        expect(hitTestMarkup({ x: 0.3, y: 0.3 }, stickyNoteMarkup, 0.015, pageDims)).toBe(false);
       });
 
-      it('caso: perímetro (borde del icono)', () => {
-        expect(hitTestMarkup({ x: 0.2, y: 0.215 }, stickyNoteMarkup, 0.015)).toBe(true);
+      it('caso: perímetro (borde exacto del icono en x=0.2 o y=0.2)', () => {
+        expect(hitTestMarkup({ x: 0.2, y: 0.22 }, stickyNoteMarkup, 0.015, pageDims)).toBe(true);
+      });
+    });
+
+    describe('Sub-entregable A.4: stickyNote (Condición 1 y 2: fuente única STICKY_NOTE_SIZE_PT = 24 y hit-test idéntico)', () => {
+      const stickyNoteMarkup: Markup = {
+        id: 'sticky-test',
+        type: 'stickyNote',
+        pageIndex: 0,
+        points: [{ x: 0.2, y: 0.2 }],
+        style: baseStyle,
+        author: 'Tester',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      };
+
+      it('Condición 1: en 800x600 pt el icono dibujado mide 24x24 pt y la caja del hit test es idéntica a la dibujada', () => {
+        const pageDims = { width: 800, height: 600 };
+        const normSize = getStickyNoteNormalizedSize(pageDims);
+        expect(STICKY_NOTE_SIZE_PT).toBe(24);
+        expect(normSize.width).toBeCloseTo(24 / 800, 6); // 0.03
+        expect(normSize.height).toBeCloseTo(24 / 600, 6); // 0.04
+
+        // A escala 1.0, el tamaño en pantalla en píxeles es exactamente 24x24 pt
+        const widthScreen = normSize.width * 800 * 1.0;
+        const heightScreen = normSize.height * 600 * 1.0;
+        expect(widthScreen).toBe(24);
+        expect(heightScreen).toBe(24);
+
+        // La caja del hit test es idéntica a la dibujada: [0.2 .. 0.2 + 0.03] x [0.2 .. 0.2 + 0.04]
+        const bounds = getMarkupBounds(stickyNoteMarkup, pageDims);
+        expect(bounds.x).toBe(0.2);
+        expect(bounds.y).toBe(0.2);
+        expect(bounds.width).toBeCloseTo(0.03, 6);
+        expect(bounds.height).toBeCloseTo(0.04, 6);
+
+        // Interior estricto
+        expect(hitTestMarkup({ x: 0.215, y: 0.22 }, stickyNoteMarkup, 0, pageDims)).toBe(true);
+        // Esquinas extremas dentro del área dibujada
+        expect(hitTestMarkup({ x: 0.2, y: 0.2 }, stickyNoteMarkup, 0, pageDims)).toBe(true);
+        expect(hitTestMarkup({ x: 0.23, y: 0.24 }, stickyNoteMarkup, 0, pageDims)).toBe(true);
+        // Fuera de la caja dibujada
+        expect(hitTestMarkup({ x: 0.231, y: 0.22 }, stickyNoteMarkup, 0, pageDims)).toBe(false);
+        expect(hitTestMarkup({ x: 0.215, y: 0.241 }, stickyNoteMarkup, 0, pageDims)).toBe(false);
+      });
+
+      it('Condición 2: clampTranslationDelta con un solo punto no asume points[1] y restringe a [0, 1]', () => {
+        const pageDims = { width: 800, height: 600 };
+        const noteNearEdge: Markup = {
+          ...stickyNoteMarkup,
+          points: [{ x: 0.98, y: 0.97 }],
+        };
+        const delta = { x: 0.05, y: 0.05 };
+        const clamped = clampTranslationDelta(noteNearEdge, delta, pageDims);
+
+        // maxX = 0.98 + 0.03 = 1.01 -> clampedDx = 1.0 - 1.01 = -0.01
+        // maxY = 0.97 + 0.04 = 1.01 -> clampedDy = 1.0 - 1.01 = -0.01
+        expect(clamped.x).toBeCloseTo(-0.01, 5);
+        expect(clamped.y).toBeCloseTo(-0.01, 5);
+      });
+
+      it('falla ruidosamente si no se suministran dimensiones válidas de página (cero silent fallback)', () => {
+        expect(() => getStickyNoteNormalizedSize(undefined as any)).toThrow();
+        expect(() => getStickyNoteNormalizedSize({ width: 0, height: 0 })).toThrow();
+        expect(() => getMarkupBounds(stickyNoteMarkup)).toThrow();
+        expect(() => hitTestMarkup({ x: 0.215, y: 0.22 }, stickyNoteMarkup, 0.015)).toThrow();
       });
     });
 
@@ -786,7 +855,7 @@ describe('Coordinate Conversion and Hit-Testing', () => {
         };
 
         // Un punto fuera del bbox debe dar false en TODOS los 14 tipos
-        expect(hitTestMarkup({ x: 0.95, y: 0.95 }, markup)).toBe(false);
+        expect(hitTestMarkup({ x: 0.95, y: 0.95 }, markup, 0.015, { width: 800, height: 600 })).toBe(false);
       }
 
       // Tipo desconocido debe dar false (sin caer jamás en return true)

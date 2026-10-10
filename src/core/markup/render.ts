@@ -1,5 +1,12 @@
 import React from 'react';
-import { Markup, MarkupPoint, ViewportTransform, HIGHLIGHT_STYLE } from '../../types/markup';
+import {
+  Markup,
+  MarkupPoint,
+  ViewportTransform,
+  HIGHLIGHT_STYLE,
+  STICKY_NOTE_SIZE_PT,
+  STICKY_NOTE_COLORS,
+} from '../../types/markup';
 import { normalizedToScreen } from '../../utils/coordinates';
 import {
   getHelveticaTextWidth,
@@ -740,6 +747,83 @@ export function getMarkupSvgDescriptor(
               className: 'font-medium pointer-events-none',
             },
             textNode: markup.text || 'Nota',
+          },
+        ],
+      };
+    }
+
+    // Sub-entregable A.4: Nota adhesiva técnica (cuadrada en puntos STICKY_NOTE_SIZE_PT = 24)
+    case 'stickyNote': {
+      const scale = transform.scale || 1.0;
+      const sizePx = STICKY_NOTE_SIZE_PT * scale;
+      const x = p1Screen.x;
+      const y = p1Screen.y;
+      const fillColor =
+        style.fillColor && style.fillColor !== 'transparent' && style.fillColor !== 'none'
+          ? style.fillColor
+          : STICKY_NOTE_COLORS.yellow.fillColor;
+      const strokeColor = style.strokeColor || STICKY_NOTE_COLORS.yellow.strokeColor;
+      const strokeWidth = style.strokeWidth || 1;
+
+      return {
+        tag: 'g',
+        attrs: {
+          className: 'cursor-pointer',
+        },
+        children: [
+          {
+            tag: 'rect',
+            attrs: {
+              x,
+              y,
+              width: sizePx,
+              height: sizePx,
+              fill: fillColor,
+              stroke: strokeColor,
+              strokeWidth,
+              rx: 2 * scale,
+              opacity: style.opacity ?? 1,
+            },
+          },
+          // 3 líneas interiores que representan el glifo de bloc de notas
+          {
+            tag: 'line',
+            attrs: {
+              x1: x + 5 * scale,
+              y1: y + 7 * scale,
+              x2: x + 19 * scale,
+              y2: y + 7 * scale,
+              stroke: strokeColor,
+              strokeWidth: 1 * scale,
+              strokeLinecap: 'round',
+              opacity: 0.75,
+            },
+          },
+          {
+            tag: 'line',
+            attrs: {
+              x1: x + 5 * scale,
+              y1: y + 12 * scale,
+              x2: x + 19 * scale,
+              y2: y + 12 * scale,
+              stroke: strokeColor,
+              strokeWidth: 1 * scale,
+              strokeLinecap: 'round',
+              opacity: 0.75,
+            },
+          },
+          {
+            tag: 'line',
+            attrs: {
+              x1: x + 5 * scale,
+              y1: y + 17 * scale,
+              x2: x + 14 * scale,
+              y2: y + 17 * scale,
+              stroke: strokeColor,
+              strokeWidth: 1 * scale,
+              strokeLinecap: 'round',
+              opacity: 0.75,
+            },
           },
         ],
       };

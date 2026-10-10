@@ -26,6 +26,8 @@ if (logDirIdx !== -1 && process.argv[logDirIdx + 1]) {
   logDir = 'tests/e2e-logs';
 }
 
+const withNative = process.argv.includes('--with-native');
+
 function run(commandDesc, bin, args) {
   console.log(`\n============================================================`);
   console.log(`[VERIFY] ${commandDesc}`);
@@ -121,7 +123,7 @@ console.log(`  REA — PUERTA DE CALIDAD AUTOMATIZADA`);
 console.log(
   `  Plataforma: ${process.platform} | Modo E2E: ${
     withE2E ? `Activado (${e2eLoopCount} pasadas)` : 'Omitido'
-  }`
+  } | Modo Nativo: ${withNative ? 'Activado' : 'Omitido'}`
 );
 if (withE2E && logDir) {
   console.log(`  Directorio de logs E2E: ${logDir}`);
@@ -153,6 +155,14 @@ if (withE2E) {
   for (let i = 1; i <= e2eLoopCount; i++) {
     runE2EWithLog(i, e2eLoopCount, npmCmd, ['run', 'test:e2e'], logDir);
   }
+}
+
+// 6. Smoke Test Nativo (SOLO si --with-native está presente)
+if (withNative) {
+  run('Paso Opcional: Smoke Test de Ventana Nativa (tauri-driver)', npmCmd, [
+    'run',
+    'test:native',
+  ]);
 }
 
 console.log(`\n============================================================`);

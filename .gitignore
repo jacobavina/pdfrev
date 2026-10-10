@@ -8,6 +8,7 @@ dist/
 test-results/
 playwright-report/
 tests/e2e-logs/
+tests/native-artifacts/
 
 # Generated fixtures runtime persistence
 fixtures/*.bbx.json

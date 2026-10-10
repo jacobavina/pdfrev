@@ -44,8 +44,8 @@ flowchart LR
 | `P2-A.6` | Resaltado de texto (`highlightText` con TextLayer de PDF.js, rectángulos normalizados y aviso en páginas sin capa de texto) | **NO EMPEZADO** | `P2-A.5` |
 
 > [!NOTE]
-> **Hito Futuro `P2-X` (Automatización de Ventana Nativa con `tauri-driver`):**
-> Integración de WebDriver para pruebas automatizadas directamente sobre la ventana nativa de Tauri. Marcado explícitamente como **posterior al Bloque A**. No forma parte del alcance actual de la Fase 2 y se regirá por su propio `ADR-0007`.
+> **Hito `P2-X` (Automatización de Ventana Nativa con `tauri-driver`):**
+> Integración de WebDriver para pruebas automatizadas directamente sobre la ventana nativa de Tauri (`ADR-0008`). **[IMPLEMENTADO]**: Smoke test autocontenido en `scripts/native-smoke.mjs` (`npm run test:native`), verificando arranque, render de canvas, IPC real de Rust y acciones W3C. Ejecutable opcionalmente en la puerta de calidad mediante `verify.mjs --with-native`.
 
 ---
 

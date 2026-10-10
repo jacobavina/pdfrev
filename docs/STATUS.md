@@ -59,6 +59,14 @@
 
 ---
 
+### Hito Transversal: Automatización Nativa (P2-X)
+
+| ID | Hito / Característica | Estado | Evidencia y Verificación | Notas |
+|---|---|---|---|---|
+| `P2-X` | Smoke Test Nativo con `tauri-driver` | **Implementado (Pendiente de Verificación por el Usuario)** | `scripts/native-smoke.mjs` (`npm run test:native`) adherido a sesión real de WebView2. Canvas con 12,610 píxeles reales, IPC real de Rust (`write_bbx` y `read_bbx` atómico sobre disco sin `.tmp`), herramienta rectángulo trazada con acciones W3C y capturas PNG en `tests/native-artifacts/`. `verify.mjs --with-native` en verde. ADR-0008 documentado. | Requiere `tauri-driver.exe` y `msedgedriver.exe` en versión coincidente. |
+
+---
+
 ### Fase 2: Bloques C y D
 
 | Bloque | Descripción | Estado | Prerrequisito |
@@ -75,5 +83,6 @@
 - **Pruebas Rust:** 4 / 4 pasadas en `cargo test` (`src-tauri/`).
 - **Compilación de Producción:** Exitosa (`tsc && vite build`), bundle limpio.
 - **Pruebas E2E:** 12 / 12 pasadas en Playwright suite completa (1 worker, Chromium).
+- **Smoke Test Nativo (P2-X):** Implementado y superado localmente con `tauri-driver` (`npm run test:native` y `verify.mjs --with-native`). Adhesión WebDriver, render de canvas, IPC real de Rust y acciones W3C.
 - **Warnings en Consola:** 0 warnings reportados.
 - **Árbol de Git:** Listo para commit en rama `master`.

@@ -188,9 +188,14 @@ ventana no aparece, y el agente puede creer que todo va bien. Está **demostrado
   con total transparencia **qué cubre el test E2E automatizado y qué no** (por ejemplo, si Playwright
   sintetiza eventos a nivel de DOM sin ejercitar el pipeline OLE/nativo del sistema operativo).
 
-> Hito futuro, **no parte de la Fase 2**: `P2-X` — automatizar la verificación visual de la ventana
-> nativa con `tauri-driver` (WebDriver), para que el agente pueda hacer clic y capturar el PNG sin
-> depender del usuario. Se aborda **después de cerrar el Bloque A**, con su propio ADR (ADR-0008).
+> Hito implementado: `P2-X` — Smoke test de ventana nativa con `tauri-driver` (ADR-0008).
+> Permite automatizar la adhesión WebDriver, comprobar el render real en canvas (PNG), ejercitar
+> la capa IPC de Rust (`write_bbx`/`read_bbx`) e interactuar con acciones W3C.
+> - **Prerrequisitos:** `tauri-driver.exe` (`cargo install tauri-driver --locked`), `msedgedriver.exe`
+>   coincidiendo con la versión mayor de Edge/WebView2 instalada, y binario compilado `src-tauri/target/debug/app.exe`.
+> - **Ejecución directa:** `npm run test:native` (o `node scripts/native-smoke.mjs`).
+> - **Puerta de calidad:** Se integra en `scripts/verify.mjs` bajo el flag explícito `--with-native`
+>   (nunca en la puerta por defecto). Artefactos visuales en `tests/native-artifacts/`.
 
 ---
 

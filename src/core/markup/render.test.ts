@@ -481,6 +481,7 @@ describe('Pure Markup Rendering (src/core/markup/render.ts - Criterio 1)', () =>
         expect(longSize.width).toBeGreaterThan(shortSize.width);
         expect(shortSize.width).toBeGreaterThanOrEqual(CALLOUT_MIN_BOX_WIDTH / 800);
         expect(shortSize.height).toBeGreaterThanOrEqual(CALLOUT_MIN_BOX_HEIGHT / 600);
+      });
     });
   });
 });

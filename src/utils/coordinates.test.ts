@@ -13,6 +13,9 @@ import {
   hitTestMarkup,
   isPointInPolygon,
   simplifyRamerDouglasPeucker,
+  clampTranslationDelta,
+  clampGroupTranslationDelta,
+  translateMarkup,
 } from './coordinates';
 import { Markup, VALID_MARKUP_TYPES } from '../types/markup';
 import fixtureMeta from '../../fixtures/test-blueprint.meta.json';
@@ -901,6 +904,110 @@ describe('Coordinate Conversion and Hit-Testing', () => {
       const roundTrip = normalizedToPdfWithViewport(norm.x, norm.y, vp180);
       expect(roundTrip.x).toBeCloseTo(400, 1);
       expect(roundTrip.y).toBeCloseTo(300, 1);
+    });
+  });
+
+  // --------------------------------------------------------------------------------
+  // Sub-entregable A.0: Move/Transform de Marcas Seleccionadas y Clamp 0..1
+  // --------------------------------------------------------------------------------
+  describe('Sub-entregable A.0: Move/Transform de Marcas Seleccionadas y Clamp 0..1', () => {
+    const mockRect: Markup = {
+      id: 'move-rect',
+      type: 'rectangle',
+      pageIndex: 0,
+      points: [
+        { x: 0.2, y: 0.3 },
+        { x: 0.5, y: 0.6 },
+      ],
+      style: { strokeColor: '#000', strokeWidth: 2, opacity: 1 },
+      author: 'Tester',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: 'pending',
+    };
+
+    it('traslada puntos dentro de los limites sin recorte cuando delta no excede la pagina', () => {
+      const delta = { x: 0.1, y: 0.05 };
+      const clamped = clampTranslationDelta(mockRect, delta);
+      expect(clamped.x).toBeCloseTo(0.1, 4);
+      expect(clamped.y).toBeCloseTo(0.05, 4);
+
+      const moved = translateMarkup(mockRect, clamped);
+      expect(moved.points[0].x).toBeCloseTo(0.3, 4);
+      expect(moved.points[0].y).toBeCloseTo(0.35, 4);
+      expect(moved.points[1].x).toBeCloseTo(0.6, 4);
+      expect(moved.points[1].y).toBeCloseTo(0.65, 4);
+    });
+
+    it('clampea delta para no rebasar el borde izquierdo o superior (0..1 clamp)', () => {
+      // Intentar mover hacia la izquierda más de 0.2 (minX = 0.2)
+      const deltaLeft = { x: -0.35, y: -0.45 };
+      const clamped = clampTranslationDelta(mockRect, deltaLeft);
+      // Debe detenerse exactamente en x = 0 y y = 0
+      expect(clamped.x).toBeCloseTo(-0.2, 4);
+      expect(clamped.y).toBeCloseTo(-0.3, 4);
+
+      const moved = translateMarkup(mockRect, clamped);
+      expect(moved.points[0].x).toBeCloseTo(0, 4);
+      expect(moved.points[0].y).toBeCloseTo(0, 4);
+      // El ancho y alto se preservan intactos (0.3 de ancho, 0.3 de alto)
+      expect(moved.points[1].x).toBeCloseTo(0.3, 4);
+      expect(moved.points[1].y).toBeCloseTo(0.3, 4);
+    });
+
+    it('clampea delta para no rebasar el borde derecho o inferior (0..1 clamp)', () => {
+      // maxX = 0.5, maxY = 0.6. Mover delta = { x: 0.6, y: 0.5 }
+      const deltaRight = { x: 0.6, y: 0.5 };
+      const clamped = clampTranslationDelta(mockRect, deltaRight);
+      // Máximo movimiento posible: 1 - 0.5 = 0.5 en x, 1 - 0.6 = 0.4 en y
+      expect(clamped.x).toBeCloseTo(0.5, 4);
+      expect(clamped.y).toBeCloseTo(0.4, 4);
+
+      const moved = translateMarkup(mockRect, clamped);
+      expect(moved.points[1].x).toBeCloseTo(1, 4);
+      expect(moved.points[1].y).toBeCloseTo(1, 4);
+      expect(moved.points[0].x).toBeCloseTo(0.7, 4);
+      expect(moved.points[0].y).toBeCloseTo(0.7, 4);
+    });
+
+    it('clampea grupo de marcas manteniendo su distancia relativa dentro de [0, 1]', () => {
+      const m1: Markup = { ...mockRect, id: 'm1', points: [{ x: 0.1, y: 0.1 }, { x: 0.3, y: 0.3 }] };
+      const m2: Markup = { ...mockRect, id: 'm2', points: [{ x: 0.7, y: 0.7 }, { x: 0.9, y: 0.9 }] };
+
+      // Grupo ocupa de x=0.1 a x=0.9
+      // Si intentamos mover delta.x = 0.2: el límite derecho es 1 - 0.9 = 0.1
+      const clamped = clampGroupTranslationDelta([m1, m2], { x: 0.2, y: 0.2 });
+      expect(clamped.x).toBeCloseTo(0.1, 4);
+      expect(clamped.y).toBeCloseTo(0.1, 4);
+
+      const movedM1 = translateMarkup(m1, clamped);
+      const movedM2 = translateMarkup(m2, clamped);
+
+      expect(movedM1.points[0].x).toBeCloseTo(0.2, 4);
+      expect(movedM2.points[1].x).toBeCloseTo(1.0, 4);
+      // La distancia relativa entre m1 y m2 permanece exactamente igual
+      expect(movedM2.points[0].x - movedM1.points[0].x).toBeCloseTo(0.6, 4);
+    });
+
+    it('traslada directrices (leaders) de marcas complejas como callout de forma sincronizada', () => {
+      const callout: Markup = {
+        ...mockRect,
+        type: 'callout',
+        points: [{ x: 0.3, y: 0.3 }, { x: 0.5, y: 0.4 }],
+        leaders: [[{ x: 0.5, y: 0.35 }, { x: 0.8, y: 0.8 }]],
+      };
+
+      const clamped = clampTranslationDelta(callout, { x: 0.1, y: 0.1 });
+      const moved = translateMarkup(callout, clamped);
+
+      // Puntos de la caja de texto
+      expect(moved.points[0].x).toBeCloseTo(0.4, 4);
+      expect(moved.points[0].y).toBeCloseTo(0.4, 4);
+      // Puntos de la directriz
+      expect(moved.leaders?.[0][0].x).toBeCloseTo(0.6, 4);
+      expect(moved.leaders?.[0][0].y).toBeCloseTo(0.45, 4);
+      expect(moved.leaders?.[0][1].x).toBeCloseTo(0.9, 4);
+      expect(moved.leaders?.[0][1].y).toBeCloseTo(0.9, 4);
     });
   });
 });

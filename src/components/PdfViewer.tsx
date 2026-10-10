@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
@@ -9,6 +9,12 @@ import {
   normalizedToScreen,
   hitTestMarkup,
 } from '../utils/coordinates';
+import {
+  handleSelectMouseDown,
+  handleSelectMouseMove,
+  handleSelectMouseUp,
+  DragState,
+} from '../utils/dragInteraction';
 import {
   getEllipseGeometry,
   getRectGeometry,
@@ -41,6 +47,8 @@ export const PdfViewer: React.FC = () => {
     addMarkup,
     updateMarkup,
     deleteSelectedMarkups,
+    setMarkupsTransient,
+    commitMoveMarkups,
     undo,
     redo,
     canUndo,
@@ -51,6 +59,7 @@ export const PdfViewer: React.FC = () => {
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const dragStateRef = useRef<DragState | null>(null);
 
   const [pageViewport, setPageViewport] = useState<{ width: number; height: number }>({
     width: 800,
@@ -109,8 +118,15 @@ export const PdfViewer: React.FC = () => {
         return;
       }
 
-      // Criterio 3: Escape cancela el trazo en curso
+      // Criterio 3: Escape cancela el trazo en curso o el arrastre activo
       if (e.key === 'Escape') {
+        if (dragStateRef.current) {
+          e.preventDefault();
+          const initial = dragStateRef.current.initialMarkups;
+          dragStateRef.current = null;
+          setMarkupsTransient(initial);
+          return;
+        }
         if (polygonPoints.length > 0 || freehandPoints.length > 0 || drawingStart) {
           e.preventDefault();
           setPolygonPoints([]);
@@ -188,16 +204,44 @@ export const PdfViewer: React.FC = () => {
     author,
     activeLayer,
     addMarkup,
+    setMarkupsTransient,
   ]);
 
   // Transformación para convertir coordenadas
-  const viewportTransform = {
-    width: pageViewport.width,
-    height: pageViewport.height,
-    scale: 1.0,
-    offsetX: 0,
-    offsetY: 0,
-  };
+  const viewportTransform = useMemo(
+    () => ({
+      width: pageViewport.width,
+      height: pageViewport.height,
+      scale: 1.0,
+      offsetX: 0,
+      offsetY: 0,
+    }),
+    [pageViewport.width, pageViewport.height]
+  );
+
+  // Listener global de mouseup para asegurar finalización de arrastre limpia incluso fuera del svg
+  useEffect(() => {
+    const handleWindowMouseUp = (e: MouseEvent) => {
+      if (dragStateRef.current) {
+        const result = handleSelectMouseUp({
+          screenX: e.clientX,
+          screenY: e.clientY,
+          dragState: dragStateRef.current,
+          viewportTransform,
+          thresholdPx: 4,
+        });
+        dragStateRef.current = null;
+        if (result.moves && result.moves.length > 0) {
+          commitMoveMarkups(result.moves);
+        } else if (result.restoredMarkups) {
+          setMarkupsTransient(result.restoredMarkups);
+        }
+      }
+    };
+
+    window.addEventListener('mouseup', handleWindowMouseUp);
+    return () => window.removeEventListener('mouseup', handleWindowMouseUp);
+  }, [viewportTransform, commitMoveMarkups, setMarkupsTransient]);
 
   const getEventPoint = useCallback(
     (e: React.MouseEvent<SVGSVGElement>): MarkupPoint => {
@@ -217,13 +261,17 @@ export const PdfViewer: React.FC = () => {
     // 1. Modo Selección
     if (activeTool === 'select') {
       const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex);
-      const hit = [...pageMarkups].reverse().find((m) => hitTestMarkup(pt, m));
-
-      if (hit) {
-        selectMarkup(hit.id, e.ctrlKey || e.metaKey);
-      } else {
-        deselectAll();
-      }
+      const newDragState = handleSelectMouseDown({
+        point: pt,
+        screenX: e.clientX,
+        screenY: e.clientY,
+        isCtrl: e.ctrlKey || e.metaKey,
+        pageMarkups,
+        selectedMarkupIds,
+        selectMarkup,
+        deselectAll,
+      });
+      dragStateRef.current = newDragState;
       return;
     }
 
@@ -277,6 +325,22 @@ export const PdfViewer: React.FC = () => {
     const pt = getEventPoint(e);
     setMouseCursorPoint(pt);
 
+    // Arrastre interactivo en modo selección
+    if (activeTool === 'select' && dragStateRef.current) {
+      const moveResult = handleSelectMouseMove({
+        screenX: e.clientX,
+        screenY: e.clientY,
+        dragState: dragStateRef.current,
+        viewportTransform,
+        thresholdPx: 4,
+      });
+
+      if (moveResult.hasMovedPastThreshold && moveResult.updatedMarkups) {
+        setMarkupsTransient(moveResult.updatedMarkups);
+      }
+      return;
+    }
+
     // Actualización de trazo a mano alzada
     if (activeTool === 'freehand' && freehandPoints.length > 0) {
       const last = freehandPoints[freehandPoints.length - 1];
@@ -293,6 +357,23 @@ export const PdfViewer: React.FC = () => {
   };
 
   const handleMouseUp = (_e: React.MouseEvent<SVGSVGElement>) => {
+    // Finalización de arrastre en modo selección
+    if (activeTool === 'select' && dragStateRef.current) {
+      const result = handleSelectMouseUp({
+        screenX: _e.clientX,
+        screenY: _e.clientY,
+        dragState: dragStateRef.current,
+        viewportTransform,
+        thresholdPx: 4,
+      });
+      dragStateRef.current = null;
+      if (result.moves && result.moves.length > 0) {
+        commitMoveMarkups(result.moves);
+      } else if (result.restoredMarkups) {
+        setMarkupsTransient(result.restoredMarkups);
+      }
+      return;
+    }
     // Finalización de Freehand
     if (activeTool === 'freehand') {
       if (freehandPoints.length >= 2) {
@@ -473,7 +554,11 @@ export const PdfViewer: React.FC = () => {
               const descriptor = getMarkupSvgDescriptor(markup, viewportTransform);
 
               return (
-                <g key={markup.id} className="transition-opacity">
+                <g
+                  key={markup.id}
+                  data-testid={`markup-g-${markup.id}`}
+                  className={`transition-opacity ${activeTool === 'select' ? 'cursor-move' : ''}`}
+                >
                   {renderSvgDescriptor(descriptor, markup.id)}
 
                   {/* Bounding box de selección activa */}
@@ -494,6 +579,7 @@ export const PdfViewer: React.FC = () => {
                     if (b.minX !== Infinity) {
                       return (
                         <rect
+                          data-testid="selection-bbox"
                           x={b.minX - 4}
                           y={b.minY - 4}
                           width={Math.max(8, b.maxX - b.minX + 8)}

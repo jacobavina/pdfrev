@@ -223,4 +223,88 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
 
     expect(download.suggestedFilename()).toContain('_con_marcas.pdf');
   });
+
+  test('Sub-entregable A.0: Selección, arrastre con umbral 4px, traslación 50px y reversión atómica con Ctrl+Z', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+
+    // 1. Dibujar un rectángulo técnico de prueba
+    const rectBtn = page.locator('button[title*="Rectángulo"]');
+    await rectBtn.click();
+
+    const svgBox = await overlaySvg.boundingBox();
+    expect(svgBox).not.toBeNull();
+    if (!svgBox) return;
+
+    const startX = svgBox.x + 120;
+    const startY = svgBox.y + 120;
+    const endX = svgBox.x + 220;
+    const endY = svgBox.y + 200;
+
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(endX, endY);
+    await page.mouse.up();
+
+    // Localizar el rectángulo recién dibujado dentro de su grupo
+    const newRect = overlaySvg
+      .locator('g[data-testid^="markup-g-"]')
+      .last()
+      .locator('rect:not([data-testid="selection-bbox"])');
+    await expect(newRect).toBeVisible();
+
+    const initialXStr = await newRect.getAttribute('x');
+    const initialYStr = await newRect.getAttribute('y');
+    expect(initialXStr).not.toBeNull();
+    expect(initialYStr).not.toBeNull();
+    const origX = parseFloat(initialXStr!);
+
+    // 2. Cambiar a herramienta Seleccionar (V)
+    const selectBtn = page.locator('button[title*="Seleccionar"]');
+    await selectBtn.click();
+
+    // Punto sobre el borde del rectángulo para interactuar (hit-test de figura hueca)
+    const edgeX = startX + 2;
+    const edgeY = (startY + endY) / 2;
+
+    // 3. Probar umbral de 4 px: un micro-movimiento de 2 px NO debe mover la marca
+    await page.mouse.move(edgeX, edgeY);
+    await page.mouse.down();
+    await page.mouse.move(edgeX + 2, edgeY);
+    await page.mouse.up();
+
+    const postTremorX = parseFloat((await newRect.getAttribute('x'))!);
+    expect(postTremorX).toBeCloseTo(origX, 0);
+
+    // 4. Arrastre real de 50 px a la derecha
+    await page.mouse.move(edgeX, edgeY);
+    await page.mouse.down();
+    await page.mouse.move(edgeX + 50, edgeY);
+    await page.mouse.up();
+
+    const movedX = parseFloat((await newRect.getAttribute('x'))!);
+    // El rectángulo debe haberse desplazado aproximadamente 50 px a la derecha
+    expect(movedX).toBeGreaterThanOrEqual(origX + 45);
+    expect(movedX).toBeLessThanOrEqual(origX + 55);
+
+    // 5. Reversión atómica con Ctrl+Z: exactamente un paso regresa a la posición original
+    await page.keyboard.press('Control+z');
+    const restoredX = parseFloat((await newRect.getAttribute('x'))!);
+    expect(restoredX).toBeCloseTo(origX, 0);
+
+    // 6. Rehacer con Ctrl+Y: vuelve a la posición desplazada
+    await page.keyboard.press('Control+y');
+    const redoneX = parseFloat((await newRect.getAttribute('x'))!);
+    expect(redoneX).toBeGreaterThanOrEqual(origX + 45);
+    expect(redoneX).toBeLessThanOrEqual(origX + 55);
+
+    // 7. Deshacer de nuevo para restaurar posición inicial
+    await page.keyboard.press('Control+z');
+    const finalX = parseFloat((await newRect.getAttribute('x'))!);
+    expect(finalX).toBeCloseTo(origX, 0);
+  });
 });

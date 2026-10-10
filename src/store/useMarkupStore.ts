@@ -1,9 +1,17 @@
 import { create } from 'zustand';
-import { Markup, MarkupStatus } from '../types/markup';
+import { Markup, MarkupPoint, MarkupStatus } from '../types/markup';
 import { Command, HistoryManager } from './history/command';
 
 // Instancia compartida del gestor de historial con 50 pasos mínimo
 export const markupHistory = new HistoryManager(50);
+
+export interface MoveMarkupItem {
+  id: string;
+  originalPoints: MarkupPoint[];
+  newPoints: MarkupPoint[];
+  originalLeaders?: MarkupPoint[][];
+  newLeaders?: MarkupPoint[][];
+}
 
 interface MarkupState {
   markups: Markup[];
@@ -21,6 +29,8 @@ interface MarkupState {
   selectMarkup: (id: string, multi?: boolean) => void;
   deselectAll: () => void;
   setMarkups: (markups: Markup[]) => void;
+  setMarkupsTransient: (markups: Markup[]) => void;
+  commitMoveMarkups: (moves: MoveMarkupItem[]) => void;
   markAsClean: () => void;
 
   // Historial
@@ -194,6 +204,61 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
         isDirty: false,
       });
       markupHistory.clear();
+      syncHistoryFlags();
+    },
+
+    setMarkupsTransient: (updatedMarkups: Markup[]) => {
+      const map = new Map(updatedMarkups.map((m) => [m.id, m]));
+      set((state) => ({
+        markups: state.markups.map((m) => map.get(m.id) ?? m),
+      }));
+    },
+
+    commitMoveMarkups: (moves: MoveMarkupItem[]) => {
+      if (moves.length === 0) return;
+
+      const desc = moves.length === 1 ? 'Mover marca' : `Mover ${moves.length} marcas`;
+      const now = new Date().toISOString();
+
+      const command: Command = {
+        description: desc,
+        execute: () => {
+          set((state) => ({
+            markups: state.markups.map((m) => {
+              const move = moves.find((item) => item.id === m.id);
+              if (move) {
+                return {
+                  ...m,
+                  points: move.newPoints,
+                  leaders: move.newLeaders,
+                  updatedAt: now,
+                };
+              }
+              return m;
+            }),
+            isDirty: true,
+          }));
+        },
+        undo: () => {
+          set((state) => ({
+            markups: state.markups.map((m) => {
+              const move = moves.find((item) => item.id === m.id);
+              if (move) {
+                return {
+                  ...m,
+                  points: move.originalPoints,
+                  leaders: move.originalLeaders,
+                  updatedAt: now,
+                };
+              }
+              return m;
+            }),
+            isDirty: true,
+          }));
+        },
+      };
+
+      markupHistory.execute(command);
       syncHistoryFlags();
     },
 

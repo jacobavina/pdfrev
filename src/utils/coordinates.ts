@@ -446,3 +446,107 @@ export function distanceToSegment(p: MarkupPoint, v: MarkupPoint, w: MarkupPoint
   };
   return Math.hypot(p.x - projection.x, p.y - projection.y);
 }
+
+/**
+ * Calcula un delta de traslación restringido para que todo el bounding box
+ * de la marca permanezca estrictamente dentro de los límites de página normalizados [0, 1].
+ * Garantiza consistencia con migrateBbxDocument (cero desplazamiento espurio al recargar).
+ */
+export function clampTranslationDelta(
+  markup: Markup,
+  delta: MarkupPoint
+): MarkupPoint {
+  if (!markup.points || markup.points.length === 0) {
+    return { x: 0, y: 0 };
+  }
+
+  const bounds = getMarkupBounds(markup);
+  const minX = bounds.x;
+  const maxX = bounds.x + bounds.width;
+  const minY = bounds.y;
+  const maxY = bounds.y + bounds.height;
+
+  let clampedDx = delta.x;
+  let clampedDy = delta.y;
+
+  if (minX + clampedDx < 0) {
+    clampedDx = -minX;
+  }
+  if (maxX + clampedDx > 1) {
+    clampedDx = 1 - maxX;
+  }
+
+  if (minY + clampedDy < 0) {
+    clampedDy = -minY;
+  }
+  if (maxY + clampedDy > 1) {
+    clampedDy = 1 - maxY;
+  }
+
+  return { x: clampedDx, y: clampedDy };
+}
+
+/**
+ * Calcula un delta de traslación compartido para un conjunto de marcas (selección simple o múltiple)
+ * de modo que ninguna de ellas sobrepase los límites de página [0, 1].
+ */
+export function clampGroupTranslationDelta(
+  markups: Markup[],
+  delta: MarkupPoint
+): MarkupPoint {
+  if (markups.length === 0) return { x: 0, y: 0 };
+  if (markups.length === 1) return clampTranslationDelta(markups[0], delta);
+
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+
+  for (const m of markups) {
+    const b = getMarkupBounds(m);
+    if (b.x < minX) minX = b.x;
+    if (b.x + b.width > maxX) maxX = b.x + b.width;
+    if (b.y < minY) minY = b.y;
+    if (b.y + b.height > maxY) maxY = b.y + b.height;
+  }
+
+  let clampedDx = delta.x;
+  let clampedDy = delta.y;
+
+  if (minX + clampedDx < 0) clampedDx = -minX;
+  if (maxX + clampedDx > 1) clampedDx = 1 - maxX;
+  if (minY + clampedDy < 0) clampedDy = -minY;
+  if (maxY + clampedDy > 1) clampedDy = 1 - maxY;
+
+  return { x: clampedDx, y: clampedDy };
+}
+
+/**
+ * Aplica una traslación normalizada a todos los puntos y directrices de una anotación,
+ * asegurando mediante Math.max(0, Math.min(1, ...)) que cada coordenada final queda dentro de [0, 1].
+ */
+export function translateMarkup(
+  markup: Markup,
+  delta: MarkupPoint
+): Markup {
+  const newPoints = markup.points.map((p) => ({
+    x: Math.max(0, Math.min(1, p.x + delta.x)),
+    y: Math.max(0, Math.min(1, p.y + delta.y)),
+  }));
+
+  let newLeaders = markup.leaders;
+  if (markup.leaders && Array.isArray(markup.leaders)) {
+    newLeaders = markup.leaders.map((leader) =>
+      leader.map((lp) => ({
+        x: Math.max(0, Math.min(1, lp.x + delta.x)),
+        y: Math.max(0, Math.min(1, lp.y + delta.y)),
+      }))
+    );
+  }
+
+  return {
+    ...markup,
+    points: newPoints,
+    leaders: newLeaders,
+  };
+}

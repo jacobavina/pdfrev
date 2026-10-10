@@ -97,4 +97,79 @@ describe('useMarkupStore Integration & History', () => {
     useMarkupStore.getState().undo();
     expect(useMarkupStore.getState().markups).toHaveLength(3);
   });
+
+  it('commitMoveMarkups mueve una marca con un solo comando atómico y lo revierte con undo', () => {
+    const m1 = createMockMarkup('m1');
+    useMarkupStore.getState().addMarkup(m1);
+    const undoCountBefore = markupHistory.getUndoCount();
+
+    const originalPoints = [...m1.points];
+    const newPoints = [{ x: 0.2, y: 0.2 }, { x: 0.4, y: 0.4 }];
+
+    useMarkupStore.getState().commitMoveMarkups([
+      {
+        id: 'm1',
+        originalPoints,
+        newPoints,
+      },
+    ]);
+
+    // Comprobar nueva posición
+    expect(useMarkupStore.getState().markups[0].points).toEqual(newPoints);
+    expect(useMarkupStore.getState().isDirty).toBe(true);
+    // Un solo comando añadido al historial
+    expect(markupHistory.getUndoCount()).toBe(undoCountBefore + 1);
+
+    // Revertir con un único undo()
+    useMarkupStore.getState().undo();
+    expect(useMarkupStore.getState().markups[0].points).toEqual(originalPoints);
+    expect(markupHistory.getUndoCount()).toBe(undoCountBefore);
+
+    // Rehacer con un único redo()
+    useMarkupStore.getState().redo();
+    expect(useMarkupStore.getState().markups[0].points).toEqual(newPoints);
+  });
+
+  it('commitMoveMarkups traslada multiples marcas en un unico comando atomico', () => {
+    const m1 = createMockMarkup('m1');
+    const m2 = createMockMarkup('m2');
+    useMarkupStore.getState().addMarkup(m1);
+    useMarkupStore.getState().addMarkup(m2);
+
+    const m1Original = [...m1.points];
+    const m2Original = [...m2.points];
+    const m1New = [{ x: 0.2, y: 0.2 }, { x: 0.4, y: 0.4 }];
+    const m2New = [{ x: 0.5, y: 0.5 }, { x: 0.7, y: 0.7 }];
+
+    useMarkupStore.getState().commitMoveMarkups([
+      { id: 'm1', originalPoints: m1Original, newPoints: m1New },
+      { id: 'm2', originalPoints: m2Original, newPoints: m2New },
+    ]);
+
+    expect(useMarkupStore.getState().markups.find((m) => m.id === 'm1')?.points).toEqual(m1New);
+    expect(useMarkupStore.getState().markups.find((m) => m.id === 'm2')?.points).toEqual(m2New);
+
+    // Un solo comando atómico revierte ambas marcas juntas
+    useMarkupStore.getState().undo();
+    expect(useMarkupStore.getState().markups.find((m) => m.id === 'm1')?.points).toEqual(m1Original);
+    expect(useMarkupStore.getState().markups.find((m) => m.id === 'm2')?.points).toEqual(m2Original);
+  });
+
+  it('setMarkupsTransient actualiza las marcas sin emitir comandos de historial', () => {
+    const m1 = createMockMarkup('m1');
+    useMarkupStore.getState().addMarkup(m1);
+    const undoCountBefore = markupHistory.getUndoCount();
+
+    const transientMarkups = [
+      {
+        ...m1,
+        points: [{ x: 0.15, y: 0.15 }, { x: 0.35, y: 0.35 }],
+      },
+    ];
+
+    useMarkupStore.getState().setMarkupsTransient(transientMarkups);
+    expect(useMarkupStore.getState().markups[0].points).toEqual(transientMarkups[0].points);
+    // Pila de historial intacta (no se ensucia con movimientos transitorios)
+    expect(markupHistory.getUndoCount()).toBe(undoCountBefore);
+  });
 });

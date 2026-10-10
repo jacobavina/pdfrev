@@ -30,7 +30,7 @@
   - `P2-A.0`: Selección, umbral de movimiento de 4 px para descartar clics y temblores, traslación con clamp estricto al área de página `[0..1]` y reversión atómica con `Ctrl+Z`. **[CERRADO]**
   - `P2-A.1`: Nubes de revisión con parámetro `arcStep` persistido en la marca, curvatura exterior determinista por cálculo de área firmada, y herramienta `Cloud+` como grupo indivisible de nube y llamada vinculada. **[CERRADO]**
   - `P2-A.2`: Selección múltiple mediante rectángulo elástico de Marquee con criterio estricto de intersección/cruce (Crossing), selección aditiva con `Shift` o `Ctrl`, y traslación conjunta de $K$ elementos seleccionados con un solo paso de historial. Prefiltro $O(N)$ probado con 500 marcas en menos de 10 ms. **[CERRADO]**
-  - `P2-A.3`: Callout / Nota técnica con directriz conectada y cuadro de texto plano interactivo. **[PENDIENTE DE PLAN]**
+  - `P2-A.3`: Callout / Nota técnica con directriz conectada y cuadro de texto plano interactivo. **[CERRADO]**
   - `P2-A.4`: Nota adhesiva técnica (`stickyNote`). **[NO EMPEZADO]**
   - `P2-A.5`: Resaltador vectorial (`highlightVector`). **[NO EMPEZADO]**
   - `P2-A.6`: Resaltado de texto (`highlightText` con TextLayer de PDF.js, rectángulos normalizados y aviso en páginas sin capa de texto). **[NO EMPEZADO]**

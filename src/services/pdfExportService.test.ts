@@ -15,7 +15,12 @@ import {
   PageTransformInfo,
 } from './pdfExportService';
 import { Markup, HIGHLIGHT_STYLE } from '../types/markup';
-import { calculateCalloutGeometry, wrapCalloutText } from '../core/markup/render';
+import {
+  calculateCalloutGeometry,
+  wrapCalloutText,
+  estimateCalloutBoxNormalizedSize,
+  CALLOUT_MIN_BOX_WIDTH,
+} from '../core/markup/render';
 
 describe('PDF Export Service (Sub-entregable 0.3 - H1 Vector Export)', () => {
   const blueprintPath = path.resolve(__dirname, '../../fixtures/test-blueprint.pdf');
@@ -662,5 +667,105 @@ describe('PDF Export Service (Sub-entregable 0.3 - H1 Vector Export)', () => {
     // La esquina superior-izquierda de la caja visual (0.25, 0.125) proyecta en:
     // x_pdf = 0.125 * 800 = 100, y_pdf = 0.25 * 600 = 150 -> 100 -150 m
     expect(stream).toContain('100 -150 m');
+  });
+
+  it('Defecto 2 (Regresión): envuelve 36 "M" y ninguna línea excede box.width - 12 medido con widthOfTextAtSize de Helvetica', async () => {
+    const textContent = 'M'.repeat(36);
+    const normSize = estimateCalloutBoxNormalizedSize(textContent, 10, 800, 600);
+    const testCallout: Markup = {
+      id: 'regression-36m-callout',
+      type: 'callout',
+      pageIndex: 0,
+      points: [
+        { x: 0.2, y: 0.2 },
+        { x: 0.2 + normSize.width, y: 0.2 + normSize.height },
+      ],
+      leaders: [[{ x: 0.1, y: 0.15 }]],
+      text: textContent,
+      style: {
+        strokeColor: '#0055ff',
+        fillColor: '#ffffff',
+        strokeWidth: 1.5,
+        opacity: 1,
+        fontSize: 10,
+      },
+      author: 'Revisor',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: 'pending',
+    };
+
+    const res = await exportMarkupsToPdf(originalPdfBytes, [testCallout]);
+    expect(res.pdfBytes.length).toBeGreaterThan(0);
+
+    const loadedDoc = await PDFDocument.load(res.pdfBytes);
+    const helvetica = await loadedDoc.embedFont(StandardFonts.Helvetica);
+
+    const geom = calculateCalloutGeometry(
+      { x: 0.2 * 800, y: 0.2 * 600 },
+      { x: (0.2 + normSize.width) * 800, y: (0.2 + normSize.height) * 600 },
+      [[{ x: 0.1 * 800, y: 0.15 * 600 }]],
+      1
+    );
+
+    const maxTextWidthAllowed = geom.box.width - 12;
+    const maxLineW = Math.max(CALLOUT_MIN_BOX_WIDTH - 16, geom.box.width - 16);
+    const lines = wrapCalloutText(textContent, maxLineW, 10);
+    expect(lines.length).toBeGreaterThanOrEqual(1);
+
+    for (const line of lines) {
+      const realWidth = helvetica.widthOfTextAtSize(line, 10);
+      expect(realWidth).toBeLessThanOrEqual(maxTextWidthAllowed);
+    }
+  });
+
+  it('Defecto 2 (Regresión): envuelve frase técnica en mayúsculas y ninguna línea excede box.width - 12', async () => {
+    const textContent = 'REVISIÓN ESTRUCTURAL DE ARMADURA PRINCIPAL VIGA B-12 Y PILAR P-04';
+    const normSize = estimateCalloutBoxNormalizedSize(textContent, 10, 800, 600);
+    const testCallout: Markup = {
+      id: 'regression-uppercase-callout',
+      type: 'callout',
+      pageIndex: 0,
+      points: [
+        { x: 0.2, y: 0.2 },
+        { x: 0.2 + normSize.width, y: 0.2 + normSize.height },
+      ],
+      leaders: [[{ x: 0.1, y: 0.15 }]],
+      text: textContent,
+      style: {
+        strokeColor: '#0055ff',
+        fillColor: '#ffffff',
+        strokeWidth: 1.5,
+        opacity: 1,
+        fontSize: 10,
+      },
+      author: 'Revisor',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: 'pending',
+    };
+
+    const res = await exportMarkupsToPdf(originalPdfBytes, [testCallout]);
+    expect(res.pdfBytes.length).toBeGreaterThan(0);
+
+    const loadedDoc = await PDFDocument.load(res.pdfBytes);
+    const helvetica = await loadedDoc.embedFont(StandardFonts.Helvetica);
+
+    const geom = calculateCalloutGeometry(
+      { x: 0.2 * 800, y: 0.2 * 600 },
+      { x: (0.2 + normSize.width) * 800, y: (0.2 + normSize.height) * 600 },
+      [[{ x: 0.1 * 800, y: 0.15 * 600 }]],
+      1
+    );
+
+    const maxTextWidthAllowed = geom.box.width - 12;
+    const maxLineW = Math.max(CALLOUT_MIN_BOX_WIDTH - 16, geom.box.width - 16);
+    const lines = wrapCalloutText(textContent, maxLineW, 10);
+    expect(lines.length).toBeGreaterThanOrEqual(1);
+
+    for (const line of lines) {
+      const realWidth = helvetica.widthOfTextAtSize(line, 10);
+      expect(realWidth).toBeLessThanOrEqual(maxTextWidthAllowed);
+    }
   });
 });

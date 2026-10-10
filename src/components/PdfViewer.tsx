@@ -649,11 +649,13 @@ export const PdfViewer: React.FC = () => {
       } else if (activeTool === 'callout') {
         const newId = uuidv4();
         const initialText = 'Nota técnica';
+        const unscaledWidth = pageViewport.width / (scale || 1.0);
+        const unscaledHeight = pageViewport.height / (scale || 1.0);
         const normSize = estimateCalloutBoxNormalizedSize(
           initialText,
           10,
-          pageViewport.width,
-          pageViewport.height
+          unscaledWidth,
+          unscaledHeight
         );
         const boxP1 = {
           x: Math.max(0, Math.min(1 - normSize.width, currentDrawPoint.x)),
@@ -876,11 +878,13 @@ export const PdfViewer: React.FC = () => {
                     return;
                   }
                   if (targetMarkup.type === 'callout') {
+                    const unscaledWidth = pageViewport.width / (scale || 1.0);
+                    const unscaledHeight = pageViewport.height / (scale || 1.0);
                     const normSize = estimateCalloutBoxNormalizedSize(
                       newText,
                       10,
-                      pageViewport.width,
-                      pageViewport.height
+                      unscaledWidth,
+                      unscaledHeight
                     );
                     const p1 = targetMarkup.points[0];
                     const p2 = {
@@ -1157,11 +1161,13 @@ export const PdfViewer: React.FC = () => {
                   }
 
                   if (activeTool === 'callout') {
+                    const unscaledWidth = pageViewport.width / (scale || 1.0);
+                    const unscaledHeight = pageViewport.height / (scale || 1.0);
                     const normSize = estimateCalloutBoxNormalizedSize(
                       'Nota técnica',
                       10,
-                      pageViewport.width,
-                      pageViewport.height
+                      unscaledWidth,
+                      unscaledHeight
                     );
                     const boxW = normSize.width * viewportTransform.width;
                     const boxH = normSize.height * viewportTransform.height;

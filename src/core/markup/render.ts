@@ -1,6 +1,13 @@
 import React from 'react';
 import { Markup, MarkupPoint, ViewportTransform, HIGHLIGHT_STYLE } from '../../types/markup';
 import { normalizedToScreen } from '../../utils/coordinates';
+import {
+  getHelveticaTextWidth,
+  getHelveticaCharWidth,
+  HELVETICA_AFM_WIDTHS,
+} from './helveticaMetrics';
+
+export { getHelveticaTextWidth, getHelveticaCharWidth, HELVETICA_AFM_WIDTHS };
 
 export interface EllipseGeometry {
   cx: number;
@@ -228,16 +235,18 @@ export function getCalloutGeometryFromMarkup(
   return calculateCalloutGeometry(p1, p2, leadersRaw, transform.scale);
 }
 
+export const CALLOUT_MAX_LINE_WIDTH_PT = 216;
 export const CALLOUT_MAX_CHARS_PER_LINE = 36;
 
 /**
- * Condición 1 (A.3): Fuente única para medir y envolver el texto de notas y llamadas.
+ * Condición 1 (A.3) y Defecto 2: Fuente única para medir y envolver el texto de notas y llamadas.
  * Divide el texto en líneas envolviendo por palabras respetando saltos de línea explícitos,
- * con un límite conservador de caracteres por línea.
+ * con medición métrica real basada en la tabla AFM de Helvetica para evitar cualquier desbordamiento.
  */
 export function wrapCalloutText(
   text: string,
-  maxCharsPerLine = CALLOUT_MAX_CHARS_PER_LINE
+  maxLineWidthPt = CALLOUT_MAX_LINE_WIDTH_PT,
+  fontSizePt = 10
 ): string[] {
   const paragraphs = (text || '').split(/\r?\n/);
   const lines: string[] = [];
@@ -252,8 +261,31 @@ export function wrapCalloutText(
     let currentLine = '';
 
     for (const word of words) {
+      const wordWidth = getHelveticaTextWidth(word, fontSizePt);
+      // Si la palabra en sí misma supera el ancho máximo de línea, fraccionarla por caracteres
+      if (wordWidth > maxLineWidthPt) {
+        if (currentLine) {
+          lines.push(currentLine);
+          currentLine = '';
+        }
+        let chunk = '';
+        for (const char of word) {
+          const testChunk = chunk + char;
+          if (getHelveticaTextWidth(testChunk, fontSizePt) <= maxLineWidthPt || !chunk) {
+            chunk = testChunk;
+          } else {
+            lines.push(chunk);
+            chunk = char;
+          }
+        }
+        if (chunk) {
+          currentLine = chunk;
+        }
+        continue;
+      }
+
       const testLine = currentLine ? `${currentLine} ${word}` : word;
-      if (testLine.length <= maxCharsPerLine || !currentLine) {
+      if (getHelveticaTextWidth(testLine, fontSizePt) <= maxLineWidthPt || !currentLine) {
         currentLine = testLine;
       } else {
         lines.push(currentLine);
@@ -268,20 +300,24 @@ export function wrapCalloutText(
 
 /**
  * Calcula las dimensiones normalizadas requeridas por la caja para alojar el texto indicado.
- * Permite que points[1] sea la fuente única de verdad para render, export y hit-testing.
+ * Permite que points[1] sea la fuente única de verdad para render, export y hit-testing,
+ * garantizando que ninguna línea desborde el ancho de la caja (box.width - 12).
  */
 export function estimateCalloutBoxNormalizedSize(
   text: string,
   fontSizePt = 10,
   pageWidthPt = 800,
-  pageHeightPt = 600
+  pageHeightPt = 600,
+  maxLineWidthPt = CALLOUT_MAX_LINE_WIDTH_PT
 ): { width: number; height: number } {
-  const lines = wrapCalloutText(text);
-  const longestLine = Math.max(...lines.map((l) => l.length), 4);
-  const charWidthPt = fontSizePt * 0.6;
-  const paddingPt = 14;
+  const lines = wrapCalloutText(text, maxLineWidthPt, fontSizePt);
+  const maxLineMeasuredWidth = Math.max(
+    ...lines.map((l) => getHelveticaTextWidth(l, fontSizePt)),
+    40
+  );
+  const paddingPt = 16;
 
-  const widthPt = Math.max(CALLOUT_MIN_BOX_WIDTH, longestLine * charWidthPt + paddingPt);
+  const widthPt = Math.max(CALLOUT_MIN_BOX_WIDTH, maxLineMeasuredWidth + paddingPt);
   const heightPt = Math.max(CALLOUT_MIN_BOX_HEIGHT, lines.length * (fontSizePt + 4) + paddingPt);
 
   return {
@@ -644,9 +680,10 @@ export function getMarkupSvgDescriptor(
       });
 
       // 3. Texto de la llamada (capa superior dentro de la caja, multilínea unificada)
-      const calloutLines = wrapCalloutText(markup.text || '');
       const fontSize = style.fontSize || 12;
       const lineHeight = fontSize + 3;
+      const maxTextWidth = Math.max(CALLOUT_MIN_BOX_WIDTH - 16, geom.box.width - 16);
+      const calloutLines = wrapCalloutText(markup.text || '', maxTextWidth, fontSize);
 
       for (let i = 0; i < calloutLines.length; i++) {
         children.push({

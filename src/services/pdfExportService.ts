@@ -15,6 +15,7 @@ import {
   DEFAULT_ARC_STEP,
   calculateCalloutGeometry,
   wrapCalloutText,
+  CALLOUT_MIN_BOX_WIDTH,
 } from '../core/markup/render';
 
 export interface PageTransformInfo {
@@ -661,9 +662,10 @@ export async function exportMarkupsToPdf(
             const sanitized = sanitizeTextToWinAnsi(markup.text);
             totalReplacedCharacters += sanitized.replacedCount;
 
-            const lines = wrapCalloutText(sanitized.text);
             const fontSize = markup.style.fontSize ?? 10;
             const lineHeight = fontSize + 3;
+            const maxTextWidth = Math.max(CALLOUT_MIN_BOX_WIDTH - 16, geom.box.width - 16);
+            const lines = wrapCalloutText(sanitized.text, maxTextWidth, fontSize);
 
             for (let i = 0; i < lines.length; i++) {
               const textPosVis = {

@@ -124,7 +124,7 @@ Ejecuta en cadena:
 
 Y con `node scripts/verify.mjs --with-e2e`:
 
-4. `npm run test:e2e` — **tres pasadas consecutivas**, todas verdes.
+4. `npm run test:e2e` — **tres pasadas consecutivas** (o `node scripts/verify.mjs --with-e2e [--e2e-loop N] [--log-dir <dir>]`), todas verdes sobre puerto 1421 dedicado y con `reuseExistingServer: false`.
 
 Además, manualmente:
 

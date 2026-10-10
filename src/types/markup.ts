@@ -26,6 +26,13 @@ export const VALID_MARKUP_STATUSES = [
 
 export type MarkupStatus = (typeof VALID_MARKUP_STATUSES)[number];
 
+export const HIGHLIGHT_STYLE = {
+  colorHex: '#ffff00',
+  opacity: 0.5,
+  rgb: { r: 1, g: 1, b: 0 },
+  mixBlendMode: 'multiply' as const,
+} as const;
+
 export interface MarkupPoint {
   x: number; // 0..1 normalized coordinate
   y: number; // 0..1 normalized coordinate

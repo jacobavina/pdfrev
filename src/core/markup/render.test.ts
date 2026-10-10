@@ -4,6 +4,7 @@ import {
   getRectGeometry,
   pointsToSvgPointsString,
   pointsToFreehandPathD,
+  generateCloudPath,
   getMarkupSvgDescriptor,
 } from './render';
 import { Markup } from '../../types/markup';
@@ -104,5 +105,73 @@ describe('Pure Markup Rendering (src/core/markup/render.ts - Criterio 1)', () =>
     expect(circleDesc.attrs.cy).toBe(180); // (60 + 300) / 2
     expect(circleDesc.attrs.rx).toBe(160);
     expect(circleDesc.attrs.ry).toBe(120);
+  });
+
+  it('C1: returns valid text descriptor with tag text (not path) and textNode', () => {
+    const textMarkup: Markup = {
+      id: 'text-1',
+      type: 'text',
+      pageIndex: 0,
+      points: [
+        { x: 0.1, y: 0.1 },
+        { x: 0.3, y: 0.2 },
+      ],
+      style: {
+        strokeColor: '#333333',
+        strokeWidth: 1,
+        opacity: 1,
+      },
+      text: 'Nota técnica de control',
+      author: 'Revisor',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: 'pending',
+    };
+
+    const desc = getMarkupSvgDescriptor(textMarkup, transform);
+    expect(desc.tag).toBe('g');
+    expect(desc.children).toBeDefined();
+    expect(desc.children).toHaveLength(2);
+    expect(desc.children![0].tag).toBe('rect');
+    expect(desc.children![1].tag).toBe('text');
+    expect(desc.children![1].textNode).toBe('Nota técnica de control');
+  });
+
+  it('C2 & Criterio 4: highlightVector uses HIGHLIGHT_STYLE #ffff00, opacity 0.5 and mixBlendMode multiply', () => {
+    const hlMarkup: Markup = {
+      id: 'hl-1',
+      type: 'highlightVector',
+      pageIndex: 0,
+      points: [
+        { x: 0.1, y: 0.1 },
+        { x: 0.4, y: 0.3 },
+      ],
+      style: {
+        strokeColor: '#000000',
+        strokeWidth: 1,
+        opacity: 1,
+      },
+      author: 'Revisor',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: 'pending',
+    };
+
+    const desc = getMarkupSvgDescriptor(hlMarkup, transform);
+    expect(desc.tag).toBe('rect');
+    expect(desc.attrs.fill).toBe('#ffff00');
+    expect(desc.attrs.opacity).toBe(0.5);
+    expect(desc.style?.mixBlendMode).toBe('multiply');
+  });
+
+  it('C2: generateCloudPath operates in page space independently of zoom', () => {
+    const p1 = { x: 0.1, y: 0.2 };
+    const p2 = { x: 0.6, y: 0.7 };
+    const pageSize = { width: 800, height: 600 };
+
+    const path1 = generateCloudPath(p1, p2, pageSize, 20);
+    expect(path1).toContain('M 80.00 120.00');
+    expect(path1).toContain('Q');
+    expect(path1).toContain('Z');
   });
 });

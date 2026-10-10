@@ -15,6 +15,8 @@ import {
   pointsToSvgPointsString,
   pointsToFreehandPathD,
   generateCloudPath,
+  getMarkupSvgDescriptor,
+  renderSvgDescriptor,
 } from '../core/markup/render';
 import { Markup, MarkupPoint, MarkupType } from '../types/markup';
 import { InlineTextEditor } from './markup/InlineTextEditor';
@@ -438,126 +440,11 @@ export const PdfViewer: React.FC = () => {
             {/* Anotaciones guardadas en la página actual */}
             {pageMarkups.map((markup) => {
               const isSelected = selectedMarkupIds.includes(markup.id);
-              const p1 = normalizedToScreen(markup.points[0] || { x: 0, y: 0 }, viewportTransform);
-              const p2 = normalizedToScreen(
-                markup.points[1] || markup.points[0] || { x: 0, y: 0 },
-                viewportTransform
-              );
+              const descriptor = getMarkupSvgDescriptor(markup, viewportTransform);
 
               return (
                 <g key={markup.id} className="transition-opacity">
-                  {/* 1. Rectángulo / Highlight */}
-                  {(markup.type === 'rectangle' ||
-                    markup.type === 'highlight' ||
-                    markup.type === 'highlightVector' ||
-                    markup.type === 'highlightText') && (
-                    <rect
-                      x={Math.min(p1.x, p2.x)}
-                      y={Math.min(p1.y, p2.y)}
-                      width={Math.max(2, Math.abs(p2.x - p1.x))}
-                      height={Math.max(2, Math.abs(p2.y - p1.y))}
-                      stroke={markup.style.strokeColor}
-                      strokeWidth={markup.style.strokeWidth}
-                      fill={markup.style.fillColor || 'transparent'}
-                      opacity={markup.style.opacity}
-                    />
-                  )}
-
-                  {/* 2. Círculo / Elipse inscrita */}
-                  {markup.type === 'circle' && (() => {
-                    const ell = getEllipseGeometry(p1, p2);
-                    return (
-                      <ellipse
-                        cx={ell.cx}
-                        cy={ell.cy}
-                        rx={ell.rx}
-                        ry={ell.ry}
-                        stroke={markup.style.strokeColor}
-                        strokeWidth={markup.style.strokeWidth}
-                        fill={markup.style.fillColor || 'transparent'}
-                        opacity={markup.style.opacity}
-                      />
-                    );
-                  })()}
-
-                  {/* 3. Línea */}
-                  {markup.type === 'line' && (
-                    <line
-                      x1={p1.x}
-                      y1={p1.y}
-                      x2={p2.x}
-                      y2={p2.y}
-                      stroke={markup.style.strokeColor}
-                      strokeWidth={markup.style.strokeWidth}
-                      opacity={markup.style.opacity}
-                    />
-                  )}
-
-                  {/* 4. Polígono (Multi-punto) */}
-                  {markup.type === 'polygon' && (
-                    <polygon
-                      points={pointsToSvgPointsString(markup.points, viewportTransform)}
-                      stroke={markup.style.strokeColor}
-                      strokeWidth={markup.style.strokeWidth}
-                      fill={markup.style.fillColor || 'transparent'}
-                      opacity={markup.style.opacity}
-                    />
-                  )}
-
-                  {/* 5. Mano alzada (Freehand) */}
-                  {markup.type === 'freehand' && (
-                    <path
-                      d={pointsToFreehandPathD(markup.points, viewportTransform)}
-                      fill="none"
-                      stroke={markup.style.strokeColor}
-                      strokeWidth={markup.style.strokeWidth}
-                      opacity={markup.style.opacity}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  )}
-
-                  {/* 6. Nube de revisión */}
-                  {(markup.type === 'cloud' || markup.type === 'cloudPlus') && (
-                    <path
-                      d={generateCloudPath(p1, p2)}
-                      stroke={markup.style.strokeColor}
-                      strokeWidth={markup.style.strokeWidth}
-                      fill={markup.style.fillColor || 'rgba(230, 240, 255, 0.2)'}
-                      opacity={markup.style.opacity}
-                    />
-                  )}
-
-                  {/* 7. Texto / Nota técnica */}
-                  {markup.type === 'text' && (() => {
-                    const rect = getRectGeometry(p1, p2);
-                    const width = Math.max(80, rect.width);
-                    const height = Math.max(26, rect.height);
-                    return (
-                      <g className="cursor-text">
-                        <rect
-                          x={rect.x}
-                          y={rect.y}
-                          width={width}
-                          height={height}
-                          fill="#fffbe8"
-                          stroke={markup.style.strokeColor}
-                          strokeWidth={1}
-                          rx={2}
-                        />
-                        <text
-                          x={rect.x + 6}
-                          y={rect.y + 16}
-                          fontSize={12}
-                          fill="#1f2937"
-                          fontFamily="sans-serif"
-                          className="font-medium pointer-events-none"
-                        >
-                          {markup.text || 'Nota'}
-                        </text>
-                      </g>
-                    );
-                  })()}
+                  {renderSvgDescriptor(descriptor, markup.id)}
 
                   {/* Bounding box de selección activa */}
                   {isSelected && (() => {
@@ -694,7 +581,15 @@ export const PdfViewer: React.FC = () => {
                   if (activeTool === 'cloud') {
                     return (
                       <path
-                        d={generateCloudPath(p1, p2)}
+                        d={generateCloudPath(
+                          drawingStart,
+                          currentDrawPoint,
+                          {
+                            width: viewportTransform.width * viewportTransform.scale,
+                            height: viewportTransform.height * viewportTransform.scale,
+                          },
+                          20 * viewportTransform.scale
+                        )}
                         stroke={currentStyle.strokeColor}
                         strokeWidth={currentStyle.strokeWidth}
                         fill="rgba(34, 197, 94, 0.15)"

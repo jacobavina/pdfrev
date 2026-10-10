@@ -1,4 +1,5 @@
-import { Markup, MarkupPoint, ViewportTransform } from '../../types/markup';
+import React from 'react';
+import { Markup, MarkupPoint, ViewportTransform, HIGHLIGHT_STYLE } from '../../types/markup';
 import { normalizedToScreen } from '../../utils/coordinates';
 
 export interface EllipseGeometry {
@@ -86,55 +87,59 @@ export function pointsToFreehandPathD(
 }
 
 /**
- * Genera el camino SVG para nubes de revisión técnica a partir de 2 puntos en pantalla.
+ * C2: Genera el camino SVG para nubes de revisión técnica en unidades de página (puntos).
+ * Entrada: puntos normalizados (0..1) y dimensiones de la página.
+ * Salida: comando path SVG ("M... Q... Z") en unidades de página (independiente del zoom).
  */
 export function generateCloudPath(
-  p1: { x: number; y: number },
-  p2: { x: number; y: number },
-  step = 20
+  p1: MarkupPoint,
+  p2: MarkupPoint,
+  pageSize: { width: number; height: number },
+  stepPt = 20
 ): string {
-  const left = Math.min(p1.x, p2.x);
-  const top = Math.min(p1.y, p2.y);
-  const width = Math.abs(p2.x - p1.x);
-  const height = Math.abs(p2.y - p1.y);
+  const left = Math.min(p1.x, p2.x) * pageSize.width;
+  const top = Math.min(p1.y, p2.y) * pageSize.height;
+  const width = Math.max(0.0001, Math.abs(p2.x - p1.x) * pageSize.width);
+  const height = Math.max(0.0001, Math.abs(p2.y - p1.y) * pageSize.height);
 
-  const stepsX = Math.max(2, Math.round(width / step));
-  const stepsY = Math.max(2, Math.round(height / step));
+  const stepsX = Math.max(2, Math.round(width / stepPt));
+  const stepsY = Math.max(2, Math.round(height / stepPt));
   const stepW = width / stepsX;
   const stepH = height / stepsY;
 
-  let d = `M ${left} ${top}`;
+  let d = `M ${left.toFixed(2)} ${top.toFixed(2)}`;
   // Borde superior
   for (let i = 0; i < stepsX; i++) {
     const x1 = left + i * stepW;
     const x2 = x1 + stepW;
-    d += ` Q ${x1 + stepW / 2} ${top - 8} ${x2} ${top}`;
+    d += ` Q ${(x1 + stepW / 2).toFixed(2)} ${(top - 8).toFixed(2)} ${x2.toFixed(2)} ${top.toFixed(2)}`;
   }
   // Borde derecho
   for (let i = 0; i < stepsY; i++) {
     const y1 = top + i * stepH;
     const y2 = y1 + stepH;
-    d += ` Q ${left + width + 8} ${y1 + stepH / 2} ${left + width} ${y2}`;
+    d += ` Q ${(left + width + 8).toFixed(2)} ${(y1 + stepH / 2).toFixed(2)} ${(left + width).toFixed(2)} ${y2.toFixed(2)}`;
   }
   // Borde inferior
   for (let i = stepsX; i > 0; i--) {
     const x2 = left + i * stepW;
     const x1 = x2 - stepW;
-    d += ` Q ${x1 + stepW / 2} ${top + height + 8} ${x1} ${top + height}`;
+    d += ` Q ${(x1 + stepW / 2).toFixed(2)} ${(top + height + 8).toFixed(2)} ${x1.toFixed(2)} ${(top + height).toFixed(2)}`;
   }
   // Borde izquierdo
   for (let i = stepsY; i > 0; i--) {
     const y2 = top + i * stepH;
     const y1 = y2 - stepH;
-    d += ` Q ${left - 8} ${y1 + stepH / 2} ${left} ${y1}`;
+    d += ` Q ${(left - 8).toFixed(2)} ${(y1 + stepH / 2).toFixed(2)} ${left.toFixed(2)} ${y1.toFixed(2)}`;
   }
   d += ' Z';
   return d;
 }
 
 export interface SvgRenderDescriptor {
-  tag: 'rect' | 'ellipse' | 'line' | 'polygon' | 'path' | 'g';
+  tag: 'rect' | 'ellipse' | 'line' | 'polygon' | 'path' | 'text' | 'g';
   attrs: Record<string, string | number>;
+  style?: React.CSSProperties;
   children?: SvgRenderDescriptor[];
   textNode?: string;
 }
@@ -167,9 +172,7 @@ export function getMarkupSvgDescriptor(
     : p1Screen;
 
   switch (markup.type) {
-    case 'rectangle':
-    case 'highlight':
-    case 'highlightVector': {
+    case 'rectangle': {
       const rect = getRectGeometry(p1Screen, p2Screen);
       return {
         tag: 'rect',
@@ -179,6 +182,29 @@ export function getMarkupSvgDescriptor(
           y: rect.y,
           width: rect.width,
           height: rect.height,
+        },
+      };
+    }
+
+    // Criterio 4: Resaltador compartido con HIGHLIGHT_STYLE y mix-blend-mode: multiply
+    case 'highlight':
+    case 'highlightVector':
+    case 'highlightText': {
+      const rect = getRectGeometry(p1Screen, p2Screen);
+      return {
+        tag: 'rect',
+        attrs: {
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height,
+          fill: HIGHLIGHT_STYLE.colorHex,
+          opacity: HIGHLIGHT_STYLE.opacity,
+          stroke: 'transparent',
+          'stroke-width': 0,
+        },
+        style: {
+          mixBlendMode: HIGHLIGHT_STYLE.mixBlendMode,
         },
       };
     }
@@ -227,29 +253,41 @@ export function getMarkupSvgDescriptor(
           ...baseAttrs,
           fill: 'none',
           d: pointsToFreehandPathD(markup.points, transform),
+          strokeLinecap: 'round',
+          strokeLinejoin: 'round',
         },
       };
     }
 
+    // C2: Nube con pasos derivados en unidades de página independientes del zoom
     case 'cloud':
     case 'cloudPlus': {
+      const p1Norm = markup.points[0] || { x: 0, y: 0 };
+      const p2Norm = markup.points[1] || p1Norm;
+      const pathD = generateCloudPath(
+        p1Norm,
+        p2Norm,
+        { width: transform.width * transform.scale, height: transform.height * transform.scale },
+        20 * transform.scale
+      );
       return {
         tag: 'path',
         attrs: {
           ...baseAttrs,
           fill: style.fillColor || 'rgba(230, 240, 255, 0.2)',
-          d: generateCloudPath(p1Screen, p2Screen),
+          d: pathD,
         },
       };
     }
 
+    // C1: Rama text devuelve tag 'text' válido
     case 'text': {
       const rect = getRectGeometry(p1Screen, p2Screen);
       const width = Math.max(80, rect.width);
       const height = Math.max(26, rect.height);
       return {
         tag: 'g',
-        attrs: {},
+        attrs: { className: 'cursor-text' },
         children: [
           {
             tag: 'rect',
@@ -258,19 +296,21 @@ export function getMarkupSvgDescriptor(
               y: rect.y,
               width,
               height,
-              fill: '#fffbe8',
+              fill: style.fillColor || '#fffbe8',
               stroke: style.strokeColor,
               'stroke-width': 1,
               rx: 2,
             },
           },
           {
-            tag: 'path', // Placeholder descriptor
+            tag: 'text',
             attrs: {
               x: rect.x + 6,
               y: rect.y + 16,
               'font-size': style.fontSize || 12,
               fill: '#1f2937',
+              'font-family': style.fontFamily || 'sans-serif',
+              className: 'font-medium pointer-events-none',
             },
             textNode: markup.text || 'Nota',
           },
@@ -292,4 +332,27 @@ export function getMarkupSvgDescriptor(
       };
     }
   }
+}
+
+/**
+ * Renderizador de componentes SVG a partir del SvgRenderDescriptor.
+ * Una sola ruta de render sin bifurcaciones de código.
+ */
+export function renderSvgDescriptor(
+  descriptor: SvgRenderDescriptor,
+  key = 'svg-desc'
+): React.ReactElement {
+  const children = descriptor.children
+    ? descriptor.children.map((child, idx) => renderSvgDescriptor(child, `${key}-${idx}`))
+    : descriptor.textNode ?? null;
+
+  return React.createElement(
+    descriptor.tag,
+    {
+      key,
+      ...descriptor.attrs,
+      style: descriptor.style,
+    },
+    children
+  );
 }

@@ -23,3 +23,7 @@ spikes/motor/fixtures/sheet-e-dense.pdf
 spikes/motor/fixtures/pages-300.pdf
 spikes/motor/fixtures/large-100mb.pdf
 
+# Orchestrator execution logs
+.orquestador/
+plan/
+

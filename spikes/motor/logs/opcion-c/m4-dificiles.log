@@ -1,0 +1,21 @@
+=== M4 ARCHIVOS DIFICILES: OPCION C ===
+[OK] classic-xref.pdf: revisiones=1
+[OK] xref-stream.pdf: revisiones=1
+[OK] object-streams.pdf: revisiones=1
+[OK] linearized.pdf: revisiones=0
+[OK] simulated-signature.pdf: revisiones=1
+[OK] with-annots.pdf: revisiones=1
+[OK] rotated-90.pdf: revisiones=1
+[OK] cropbox-mediabox.pdf: revisiones=1
+
+Archivos cifrados evaluados: 25
+[CONTROLADO] corpus/auth-event-ef-open.pdf: NeedsPassword
+[CONTROLADO] corpus/bug1782186.pdf: NeedsPassword
+[OK_SIN_PASS] corpus/bug1815476.pdf
+[OK_SIN_PASS] corpus/bug900822.pdf
+[OK_SIN_PASS] corpus/empty_protected.pdf
+[CONTROLADO] corpus/encrypted-attachment.pdf: NeedsPassword
+[CONTROLADO] corpus/issue15893_reduced.pdf: NeedsPassword
+[OK_SIN_PASS] corpus/issue17069.pdf
+[OK_SIN_PASS] corpus/issue17215.pdf
+[OK_SIN_PASS] corpus/issue19484_1.pdf

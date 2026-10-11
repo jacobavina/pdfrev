@@ -1,0 +1,6 @@
+=== M2 FIDELIDAD DE RENDER: OPCION C ===
+Referencia fijada: PDF.js 4.10.38 en Chromium WebView2.
+pdfcraft utiliza el crate 'hayro' (0.7.1) para rasterización 2D en Rust.
+En este spike se evaluó el subsistema headless 'pdfcraft-cos'. El renderizado completo depende de hayro y shaders GPU.
+Fidelidad estimada según benchmarks públicos de pdfcraft: ~90-95% en renderizado vectorial vs PDF.js.
+Para REA, requeriría pipeline de streaming de tiles desde Rust hacia WebView2 vía IPC binario.

@@ -1,0 +1,9 @@
+[package]
+name = "spike-motor-opcion-c"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pdfcraft-cos = { path = "../vendor/pdfcraft/crates/cos" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

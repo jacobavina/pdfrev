@@ -1,0 +1,8 @@
+=== M8 LICENCIA Y PROCEDENCIA: OPCION C ===
+- Repositorio de origen: https://github.com/storytold/pdfcraft
+- Commit fijado: bbbe60015c571ebfc39708ee07777b89e267122a
+- Licencia: Dual MIT / Apache-2.0 (Permisiva)
+- Archivos de licencia leídos: LICENSE-MIT, LICENSE-APACHE, NOTICE
+- Requisitos de atribución: Mantener archivo NOTICE y mención de copyright en ATTRIBUTION.md
+- Restricción de marca registrada: 'The ArtCraft name, wordmark and logos are trademarks of the ArtCraft Team' (no utilizables, no aplica a REA)
+- Publicado en crates.io: NO (verificado con 'cargo search pdfcraft')

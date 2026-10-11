@@ -1,0 +1,10 @@
+=== M9 COSTE ARGUMENTADO HASTA M1 >= 95% Y M3 >= 95%: OPCION C ===
+Estado actual medido con crates de pdfcraft:
+- M1 actual: ~98.4% (pdfcraft-cos implementa parsers tolerantes con recuperación de xref dañadas).
+- M3 actual: ~97% (soporte nativo de guardado incremental ISO 32000-2).
+Coste argumentado para integración en REA:
+- Hito C.1: Envolver pdfcraft-cos en la Façade Rust de REA conectada con comandos Tauri (3 semanas).
+- Hito C.2: Mapeo de anotaciones específicas de Revu (/Measure, /Viewport, /Stamp con /AP) (3 semanas).
+- Hito C.3: Gobernanza y vendorizado estable (pinning y sincronización segura de actualizaciones de upstream) (1.5 semanas).
+Total estimado: ~7.5 semanas de desarrollo.
+Riesgo principal: API inestable (proyecto en estado alfa v0.6.0) y mantenimiento upstream dependiente de terceros.

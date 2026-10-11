@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState, useCallback, useMe
 import { v4 as uuidv4 } from 'uuid';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
-import { useToolStore } from '../store/useToolStore';
+import { useToolStore, ToolType } from '../store/useToolStore';
 import { renderPageToCanvas } from '../services/pdfService';
 import {
   screenToNormalized,
@@ -359,6 +359,27 @@ export const PdfViewer: React.FC = () => {
         }
         useToolStore.getState().setActiveTool('highlightText');
         return;
+      }
+
+      // Atajos de una letra de la cinta (ADR-0017/0018): los que anuncian los tooltips y la ayuda (F1)
+      if (!e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const toolByKey: Record<string, ToolType> = {
+          v: 'select',
+          t: 'text',
+          r: 'rectangle',
+          o: 'circle',
+          l: 'line',
+          a: 'arrow',
+          p: 'polygon',
+          f: 'freehand',
+          c: 'cloud',
+          k: 'cloudPlus',
+        };
+        const tool = toolByKey[e.key.toLowerCase()];
+        if (tool) {
+          useToolStore.getState().setActiveTool(tool);
+          return;
+        }
       }
 
       if (!e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'h' || e.key === 'H')) {
@@ -1011,6 +1032,15 @@ export const PdfViewer: React.FC = () => {
                 strokeWidth: 0,
                 opacity: HIGHLIGHT_STYLE.opacity,
               }
+            : activeTool === 'arrow'
+            ? {
+                // Flecha = línea con punta final (cerrada por defecto si la cinta no indica otra)
+                ...currentStyle,
+                lineEndingEnd:
+                  currentStyle.lineEndingEnd && currentStyle.lineEndingEnd !== 'none'
+                    ? currentStyle.lineEndingEnd
+                    : ('closedArrow' as const),
+              }
             : { ...currentStyle };
 
         const unscaledW = pageViewport.width / (scale || 1.0);
@@ -1028,7 +1058,7 @@ export const PdfViewer: React.FC = () => {
 
         const newMarkup: Markup = {
           id: newId,
-          type: activeTool as MarkupType,
+          type: (activeTool === 'arrow' ? 'line' : activeTool) as MarkupType,
           pageIndex: currentPageIndex,
           points,
           style: markupStyle,
@@ -1912,17 +1942,28 @@ export const PdfViewer: React.FC = () => {
                     );
                   }
 
-                  if (activeTool === 'line') {
+                  if (activeTool === 'line' || activeTool === 'arrow') {
+                    // Vista previa idéntica al resultado: tipo de línea y extremos reales (ADR-0018)
+                    const previewStyle =
+                      activeTool === 'arrow' &&
+                      (!currentStyle.lineEndingEnd || currentStyle.lineEndingEnd === 'none')
+                        ? { ...currentStyle, lineEndingEnd: 'closedArrow' as const }
+                        : currentStyle;
+                    const previewMarkup: Markup = {
+                      id: 'preview-line',
+                      type: 'line',
+                      pageIndex: currentPageIndex,
+                      points: [drawingStart, currentDrawPoint],
+                      style: previewStyle,
+                      author: '',
+                      createdAt: '',
+                      updatedAt: '',
+                      status: 'pending',
+                    };
                     return (
-                      <line
-                        x1={p1.x}
-                        y1={p1.y}
-                        x2={p2.x}
-                        y2={p2.y}
-                        stroke={currentStyle.strokeColor}
-                        strokeWidth={currentStyle.strokeWidth}
-                        strokeDasharray="4 2"
-                      />
+                      <g className="pointer-events-none" opacity={0.85}>
+                        {renderSvgDescriptor(getMarkupSvgDescriptor(previewMarkup, viewportTransform), 'preview-line')}
+                      </g>
                     );
                   }
 

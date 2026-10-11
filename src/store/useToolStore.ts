@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { MarkupStyle, MarkupType } from '../types/markup';
 
-export type ToolType = MarkupType | 'select' | 'pan' | 'calibrate';
+// 'arrow' crea una marca de tipo 'line' con extremo final de flecha (ADR-0018)
+export type ToolType = MarkupType | 'select' | 'pan' | 'calibrate' | 'arrow';
 
 interface ToolState {
   activeTool: ToolType;

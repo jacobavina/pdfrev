@@ -168,10 +168,22 @@ export async function importPdfAnnotations(
       const fillColor = pdfColorArrayToHex(annotDict.get(PDFName.of('IC')));
 
       let strokeWidth = 1;
+      let dashArray: number[] | undefined;
       const bsObj = annotDict.get(PDFName.of('BS'));
       if (bsObj instanceof PDFDict) {
         const wObj = bsObj.get(PDFName.of('W'));
         if (wObj instanceof PDFNumber) strokeWidth = wObj.asNumber();
+        // Borde discontinuo (/S /D) con su patrón /D (ADR-0018)
+        const sObj = bsObj.get(PDFName.of('S'));
+        const dObj = bsObj.get(PDFName.of('D'));
+        if (sObj instanceof PDFName && sObj.asString() === '/D' && dObj instanceof PDFArray) {
+          const values: number[] = [];
+          for (let i = 0; i < dObj.size(); i++) {
+            const v = dObj.get(i);
+            if (v instanceof PDFNumber && Number.isFinite(v.asNumber()) && v.asNumber() > 0) values.push(v.asNumber());
+          }
+          if (values.length > 0) dashArray = values;
+        }
       }
 
       // Fechas
@@ -378,6 +390,7 @@ export async function importPdfAnnotations(
           opacity: 1,
           lineEndingStart,
           lineEndingEnd,
+          dashArray,
         },
         text: text || undefined,
         author,

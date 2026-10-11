@@ -34,6 +34,130 @@ import {
   CALLOUT_MIN_BOX_WIDTH,
 } from '../core/markup/render';
 import { getStickyNoteNormalizedSize } from '../utils/coordinates';
+import { lineEndingShape, lineEndingSize, endpointAngles } from '../core/markup/lineEndings';
+import { emitMarkupOperators } from '../core/pdf/operators';
+import { PDFName, drawObject } from 'pdf-lib';
+
+/**
+ * Extremos de línea en el PDF aplanado (ADR-0018), con la misma geometría que la pantalla y el /AP.
+ */
+function drawLineEndingsFlat(
+  page: PDFPage,
+  pdfPts: { x: number; y: number }[],
+  markup: Markup,
+  color: RGB,
+  opacity: number
+): void {
+  const angles = endpointAngles(pdfPts);
+  if (!angles) return;
+  const size = lineEndingSize(markup.style.strokeWidth ?? 1);
+  const width = markup.style.strokeWidth ?? 1;
+  const items: [{ x: number; y: number }, number, Markup['style']['lineEndingStart']][] = [
+    [pdfPts[0], angles.start, markup.style.lineEndingStart],
+    [pdfPts[pdfPts.length - 1], angles.end, markup.style.lineEndingEnd],
+  ];
+  for (const [tip, angle, ending] of items) {
+    const shape = lineEndingShape(tip, angle, ending, size);
+    if (!shape) continue;
+    if (shape.kind === 'circle') {
+      page.drawEllipse({
+        x: shape.cx,
+        y: shape.cy,
+        xScale: shape.r,
+        yScale: shape.r,
+        color: shape.filled ? color : undefined,
+        borderColor: color,
+        borderWidth: width,
+        opacity,
+        borderOpacity: opacity,
+      });
+      continue;
+    }
+    // drawSvgPath invierte el eje Y: se pasan las Y en negativo
+    let d = `M ${shape.points[0].x.toFixed(2)} ${(-shape.points[0].y).toFixed(2)}`;
+    for (const p of shape.points.slice(1)) d += ` L ${p.x.toFixed(2)} ${(-p.y).toFixed(2)}`;
+    if (shape.kind === 'polygon') d += ' Z';
+    page.drawSvgPath(d, {
+      x: 0,
+      y: 0,
+      color: shape.filled ? color : undefined,
+      borderColor: color,
+      borderWidth: width,
+      opacity,
+      borderOpacity: opacity,
+      borderLineCap: LineCapStyle.Round,
+    });
+  }
+}
+
+/**
+ * Tipos sin dibujo propio en el aplanado (polilínea, subrayado, tachado y mediciones): se pintan con el mismo
+ * emisor de operadores que genera el /AP de las anotaciones, como Form XObject. Así "Exportar PDF" no pierde
+ * ninguna marca y se ve igual que la anotación.
+ */
+function drawViaAppearanceOperators(
+  pdfDoc: PDFDocument,
+  page: PDFPage,
+  markup: Markup,
+  transform: PageTransformInfo
+): void {
+  const emitted = emitMarkupOperators(markup, transform);
+  if (!emitted.operators.trim()) return;
+  const pad = 20;
+  const [x0, y0, x1, y1] = emitted.bbox;
+  const resources = pdfDoc.context.obj({});
+  const gs = emitted.extGState;
+  if (gs && (gs.bm || gs.ca !== undefined || gs.CA !== undefined)) {
+    resources.set(
+      PDFName.of('ExtGState'),
+      pdfDoc.context.obj({
+        GS_HL: {
+          Type: 'ExtGState',
+          BM: (gs.bm ?? '/Normal').replace(/^\//, ''),
+          ca: gs.ca ?? 1,
+          CA: gs.CA ?? 1,
+        },
+      })
+    );
+  }
+  const stream = pdfDoc.context.stream(emitted.operators, {
+    Type: 'XObject',
+    Subtype: 'Form',
+    BBox: [x0 - pad, y0 - pad, x1 + pad, y1 + pad],
+    Resources: resources,
+  });
+  const ref = pdfDoc.context.register(stream);
+  const name: PDFName = page.node.newXObject('REAMarkup', ref);
+  page.pushOperators(pushGraphicsState(), drawObject(name), popGraphicsState());
+}
+
+/** Etiqueta de valor de las mediciones (longitud, área, conteo) en el aplanado. */
+function drawMeasurementLabel(
+  page: PDFPage,
+  markup: Markup,
+  transform: PageTransformInfo,
+  font: PDFFont
+): void {
+  const label = markup.measurement?.formatted;
+  if (!label || markup.points.length === 0) return;
+  const pts = markup.points.map((p) => normalizedToPdfCoordinates(p, transform));
+  const cx = pts.reduce((a, p) => a + p.x, 0) / pts.length;
+  const cy = pts.reduce((a, p) => a + p.y, 0) / pts.length;
+  const { text } = sanitizeTextToWinAnsi(label);
+  const size = 9;
+  const w = font.widthOfTextAtSize(text, size);
+  page.drawRectangle({
+    x: cx - w / 2 - 3,
+    y: cy - 3,
+    width: w + 6,
+    height: size + 5,
+    color: rgb(1, 1, 1),
+    opacity: 0.9,
+    borderColor: rgb(0.85, 0.15, 0.15),
+    borderWidth: 0.75,
+  });
+  page.drawText(text, { x: cx - w / 2, y: cy, size, font, color: rgb(0.1, 0.1, 0.1) });
+}
 
 export interface PageTransformInfo {
   rotation: 0 | 90 | 180 | 270;
@@ -424,6 +548,9 @@ export async function exportMarkupsToPdf(
             opacity: strokeColorParsed.opacity ?? opacity,
             dashArray: dashArray,
           });
+          if (strokeColorParsed.color) {
+            drawLineEndingsFlat(page, [p1, p2], markup, strokeColorParsed.color, strokeColorParsed.opacity ?? opacity);
+          }
           break;
         }
 
@@ -804,6 +931,21 @@ export async function exportMarkupsToPdf(
             font: helveticaBoldFont,
             color: strokeColorParsed.color,
           });
+          break;
+        }
+
+        // Polilínea, subrayado, tachado y mediciones: mismo dibujo que el /AP (antes se omitían)
+        case 'polyLine':
+        case 'underline':
+        case 'strikeOut':
+        case 'length':
+        case 'polylineMeasure':
+        case 'area':
+        case 'count': {
+          drawViaAppearanceOperators(pdfDoc, page, markup, transform);
+          if (markup.measurement) {
+            drawMeasurementLabel(page, markup, transform, helveticaFont);
+          }
           break;
         }
 

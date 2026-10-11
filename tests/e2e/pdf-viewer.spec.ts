@@ -1765,6 +1765,54 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.locator('[data-testid="theme-toggle-btn"]').click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   });
+
+  test('Flechas y tipos de línea (ADR-0018): atajo A, punta cerrada, línea discontinua con extremos elegidos en la cinta', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="markup-row-calibration-markup-1"]')).toBeVisible();
+    const box = (await overlaySvg.boundingBox())!;
+    const at = (nx: number, ny: number) => ({ x: box.x + box.width * nx, y: box.y + box.height * ny });
+    const drag = async (a: { x: number; y: number }, b: { x: number; y: number }) => {
+      await page.mouse.move(a.x, a.y);
+      await page.mouse.down();
+      await page.mouse.move(b.x, b.y, { steps: 6 });
+      await page.mouse.up();
+    };
+    const groups = overlaySvg.locator('g[data-testid^="markup-g-"]');
+    const before = await groups.count();
+
+    // 1. Atajo A → herramienta Flecha activa en la cinta; se dibuja una línea con punta cerrada (polígono)
+    await page.locator('header').click(); // quitar foco de cualquier control
+    await page.keyboard.press('a');
+    await expect(page.locator('[data-testid="tool-arrow"]')).toHaveAttribute('aria-pressed', 'true');
+    await drag(at(0.6, 0.25), at(0.8, 0.4));
+    await expect(groups).toHaveCount(before + 1);
+    const arrowGroup = groups.last();
+    await expect(arrowGroup.locator('line')).toHaveCount(1);
+    await expect(arrowGroup.locator('polygon')).toHaveCount(1);
+    await expect(
+      page.locator('[data-testid="markups-list-panel"] tbody tr').filter({ hasText: 'Línea' })
+    ).toHaveCount(1);
+
+    // 2. Cinta: discontinua + círculo al inicio + flecha abierta al final → se reflejan en la marca nueva
+    await page.locator('[data-testid="ribbon-line-style"]').selectOption('dashed');
+    await page.locator('[data-testid="ribbon-line-start"]').selectOption('circle');
+    await page.locator('[data-testid="ribbon-line-end"]').selectOption('openArrow');
+    await page.locator('[data-testid="tool-line"]').click();
+    await drag(at(0.6, 0.6), at(0.85, 0.6));
+    await expect(groups).toHaveCount(before + 2);
+    const styled = groups.last();
+    await expect(styled.locator('line')).toHaveAttribute('stroke-dasharray', /\d/);
+    await expect(styled.locator('ellipse')).toHaveCount(1); // círculo al inicio
+    await expect(styled.locator('polyline')).toHaveCount(1); // flecha abierta al final
+
+    // 3. Deshacer quita la última marca de un solo paso
+    await page.keyboard.press('Control+z');
+    await expect(groups).toHaveCount(before + 1);
+  });
 });
 
 

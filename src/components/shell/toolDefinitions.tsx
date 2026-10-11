@@ -17,6 +17,7 @@ import {
   Ruler,
   Hash,
   Scale,
+  ArrowUpRight,
 } from 'lucide-react';
 import { ToolType } from '../../store/useToolStore';
 
@@ -104,6 +105,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
       { type: 'freehand', label: 'Mano alzada (F)', short: 'Lápiz', icon: <Pencil size={18} />, shortcut: 'F' },
       { type: 'highlightVector', label: 'Resaltador vectorial (H)', short: 'Marcador', icon: <Highlighter size={18} />, shortcut: 'H' },
       { type: 'line', label: 'Línea (L)', short: 'Línea', icon: <Minus size={18} />, shortcut: 'L' },
+      { type: 'arrow', label: 'Flecha (A)', short: 'Flecha', icon: <ArrowUpRight size={18} />, shortcut: 'A' },
       {
         type: 'polyLine',
         label: 'Polilínea abierta',

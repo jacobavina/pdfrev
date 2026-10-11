@@ -7,6 +7,7 @@ import {
 import {
   DEFAULT_ARC_STEP,
 } from '../markup/render';
+import { lineEndingShape, lineEndingSize, endpointAngles, shapeExtent, Pt } from '../markup/lineEndings';
 
 export interface PageTransformInfo {
   rotation: 0 | 90 | 180 | 270;
@@ -202,6 +203,47 @@ export function emitMarkupOperators(
   const hasFill = fillParsed !== null;
   const opPaint = hasFill ? (strokeParsed ? 'B' : 'f') : 'S';
 
+  /**
+   * Extremos de línea (ADR-0018) con la misma geometría que la pantalla. Se dibujan sólidos (sin el patrón
+   * discontinuo de la línea) y rellenos con el color de trazo; amplían la caja envolvente del /AP.
+   */
+  const emitLineEndings = (pdfPts: Pt[]) => {
+    const angles = endpointAngles(pdfPts);
+    if (!angles) return;
+    const size = lineEndingSize(strokeWidth);
+    const items: [Pt, number, Markup['style']['lineEndingStart']][] = [
+      [pdfPts[0], angles.start, markup.style.lineEndingStart],
+      [pdfPts[pdfPts.length - 1], angles.end, markup.style.lineEndingEnd],
+    ];
+    let prepared = false;
+    for (const [tip, angle, ending] of items) {
+      const shape = lineEndingShape(tip, angle, ending, size);
+      if (!shape) continue;
+      if (!prepared) {
+        lines.push('[] 0 d');
+        if (strokeParsed) {
+          lines.push(`${strokeParsed.r.toFixed(3)} ${strokeParsed.g.toFixed(3)} ${strokeParsed.b.toFixed(3)} rg`);
+        }
+        prepared = true;
+      }
+      for (const p of shapeExtent(shape)) updateBBox(p.x, p.y);
+      if (shape.kind === 'circle') {
+        const { cx, cy, r } = shape;
+        const k = 0.5522847498 * r;
+        lines.push(`${(cx + r).toFixed(2)} ${cy.toFixed(2)} m`);
+        lines.push(`${(cx + r).toFixed(2)} ${(cy + k).toFixed(2)} ${(cx + k).toFixed(2)} ${(cy + r).toFixed(2)} ${cx.toFixed(2)} ${(cy + r).toFixed(2)} c`);
+        lines.push(`${(cx - k).toFixed(2)} ${(cy + r).toFixed(2)} ${(cx - r).toFixed(2)} ${(cy + k).toFixed(2)} ${(cx - r).toFixed(2)} ${cy.toFixed(2)} c`);
+        lines.push(`${(cx - r).toFixed(2)} ${(cy - k).toFixed(2)} ${(cx - k).toFixed(2)} ${(cy - r).toFixed(2)} ${cx.toFixed(2)} ${(cy - r).toFixed(2)} c`);
+        lines.push(`${(cx + k).toFixed(2)} ${(cy - r).toFixed(2)} ${(cx + r).toFixed(2)} ${(cy - k).toFixed(2)} ${(cx + r).toFixed(2)} ${cy.toFixed(2)} c`);
+        lines.push(shape.filled ? 'b' : 's');
+      } else {
+        lines.push(`${shape.points[0].x.toFixed(2)} ${shape.points[0].y.toFixed(2)} m`);
+        for (const p of shape.points.slice(1)) lines.push(`${p.x.toFixed(2)} ${p.y.toFixed(2)} l`);
+        lines.push(shape.kind === 'polygon' ? (shape.filled ? 'b' : 's') : 'S');
+      }
+    }
+  };
+
   switch (markup.type) {
     case 'rectangle': {
       if (markup.points.length >= 2) {
@@ -269,6 +311,7 @@ export function emitMarkupOperators(
         lines.push(`${p1.x.toFixed(2)} ${p1.y.toFixed(2)} m`);
         lines.push(`${p2.x.toFixed(2)} ${p2.y.toFixed(2)} l`);
         lines.push('S');
+        if (markup.type === 'line') emitLineEndings([p1, p2]);
       }
       break;
     }
@@ -284,6 +327,7 @@ export function emitMarkupOperators(
           lines.push(`${pdfPts[i].x.toFixed(2)} ${pdfPts[i].y.toFixed(2)} l`);
         }
         lines.push('S');
+        if (markup.type === 'polyLine') emitLineEndings(pdfPts);
       }
       break;
     }

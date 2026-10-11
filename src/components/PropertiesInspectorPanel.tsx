@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { SlidersHorizontal, ChevronRight, Lock, LockOpen } from 'lucide-react';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useUiStore } from '../store/useUiStore';
+import { dashArrayFor, lineStyleOf, LINE_STYLE_LABELS, LineStyleId } from '../core/markup/lineStyles';
 import { Markup, MarkupStatus, VALID_MARKUP_STATUSES, LineEndingStyle } from '../types/markup';
 
 const STATUS_LABELS: Record<MarkupStatus, string> = {
@@ -100,9 +101,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
   const fillColor = getUnifiedValue((m) => m.style.fillColor || '');
   const strokeWidth = getUnifiedValue((m) => m.style.strokeWidth ?? 1);
   const opacity = getUnifiedValue((m) => m.style.opacity ?? 1);
-  const strokeDash = getUnifiedValue((m) =>
-    m.style.dashArray && m.style.dashArray.length > 0 ? 'dashed' : 'solid'
-  );
+  const strokeDash = getUnifiedValue((m) => lineStyleOf(m.style.dashArray));
   const textContent = getUnifiedValue((m) => m.text || '');
   const fontSize = getUnifiedValue((m) => m.style.fontSize ?? 12);
   const status = getUnifiedValue((m) => m.status || 'pending');
@@ -110,7 +109,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
 
   const isAllLocked =
     selectedMarkups.length > 0 && selectedMarkups.every((m) => Boolean(m.locked));
-  const hasLineMarkup = selectedMarkups.some((m) => m.type === 'line');
+  const hasLineMarkup = selectedMarkups.some((m) => m.type === 'line' || m.type === 'polyLine');
   const lineEndingStart = getUnifiedValue((m) => m.style.lineEndingStart || 'none');
   const lineEndingEnd = getUnifiedValue((m) => m.style.lineEndingEnd || 'none');
 
@@ -150,10 +149,16 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
   const handleStrokeWidthChange = (valStr: string) => {
     const parsed = parseFloat(valStr);
     if (isNaN(parsed) || parsed < 1) return;
+    const width = Math.max(1, Math.min(parsed, 50));
+    // El patrón discontinuo es proporcional al grosor: se recalcula si todas comparten tipo de línea
+    const dashUpdate =
+      strokeDash !== MIXED_VALUE && strokeDash !== 'solid'
+        ? { dashArray: dashArrayFor(strokeDash as LineStyleId, width) }
+        : {};
     applyPropertiesToMarkups(
       selectedMarkupIds,
-      { style: { strokeWidth: Math.max(1, Math.min(parsed, 50)) } },
-      `Cambiar grosor a ${parsed}px`
+      { style: { strokeWidth: width, ...dashUpdate } },
+      `Cambiar grosor a ${parsed} pt`
     );
   };
 
@@ -169,11 +174,12 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
   };
 
   const handleStrokeDashChange = (styleType: string) => {
-    const dashArray = styleType === 'dashed' ? [6, 4] : undefined;
+    const width = strokeWidth === MIXED_VALUE ? 2 : (strokeWidth as number);
+    const dashArray = dashArrayFor(styleType as LineStyleId, width);
     applyPropertiesToMarkups(
       selectedMarkupIds,
       { style: { dashArray } },
-      `Cambiar trazo a ${styleType}`
+      `Cambiar tipo de línea a ${LINE_STYLE_LABELS[styleType as LineStyleId] ?? styleType}`
     );
   };
 
@@ -339,7 +345,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
 
         {/* Estilo de trazo */}
         <div className="flex flex-col gap-1">
-          <label className="text-gray-400 font-medium">Estilo de Línea</label>
+          <label className="text-gray-400 font-medium">Tipo de línea</label>
           <select
             data-testid="prop-stroke-style"
             value={strokeDash === MIXED_VALUE ? '' : (strokeDash as string)}
@@ -347,8 +353,11 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
             className="px-2 py-1 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent"
           >
             {strokeDash === MIXED_VALUE && <option value="">{MIXED_VALUE}</option>}
-            <option value="solid">Continuo</option>
-            <option value="dashed">Discontinuo</option>
+            {(Object.keys(LINE_STYLE_LABELS) as LineStyleId[]).map((id) => (
+              <option key={id} value={id}>
+                {LINE_STYLE_LABELS[id]}
+              </option>
+            ))}
           </select>
         </div>
 

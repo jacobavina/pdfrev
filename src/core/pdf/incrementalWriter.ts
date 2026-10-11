@@ -8,7 +8,7 @@ import {
   PDFHexString,
   PDFObject,
 } from 'pdf-lib';
-import { Markup, MarkupStatus } from '../../types/markup';
+import { LineEndingStyle, Markup, MarkupStatus } from '../../types/markup';
 import {
   emitMarkupOperators,
   normalizedToPdfCoordinates,
@@ -487,7 +487,7 @@ endstream`;
   /M ${formatPdfDate(markup.updatedAt || markup.createdAt)}
   /CreationDate ${formatPdfDate(markup.createdAt)}
   /F ${markup.locked ? 132 : 4}
-  /BS << /W ${strokeWidth.toFixed(2)} /S /S >>
+  /BS ${borderStyleEntry(strokeWidth, markup.style.dashArray)}
   /AP << /N ${apObjNum} 0 R >>
   /REA ${reaDict}
 `;
@@ -499,26 +499,11 @@ endstream`;
       if (fillEntry) annotDict += `  ${fillEntry}\n`;
 
       // Entradas específicas según subtipo
+      const leEntry = `/LE [${toPdfLineEnding(markup.style.lineEndingStart)} ${toPdfLineEnding(markup.style.lineEndingEnd)}]`;
       if (annotTypeSubtype === 'Line' && markup.points.length >= 2) {
         const p1 = normalizedToPdfCoordinates(markup.points[0], transform);
         const p2 = normalizedToPdfCoordinates(markup.points[1], transform);
-        const leStart =
-          markup.style.lineEndingStart === 'openArrow'
-            ? '/OpenArrow'
-            : markup.style.lineEndingStart === 'closedArrow'
-            ? '/ClosedArrow'
-            : markup.style.lineEndingStart === 'circle'
-            ? '/Circle'
-            : '/None';
-        const leEnd =
-          markup.style.lineEndingEnd === 'openArrow'
-            ? '/OpenArrow'
-            : markup.style.lineEndingEnd === 'closedArrow'
-            ? '/ClosedArrow'
-            : markup.style.lineEndingEnd === 'circle'
-            ? '/Circle'
-            : '/None';
-        annotDict += `  /L [${p1.x.toFixed(2)} ${p1.y.toFixed(2)} ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}]\n  /LE [${leStart} ${leEnd}]\n`;
+        annotDict += `  /L [${p1.x.toFixed(2)} ${p1.y.toFixed(2)} ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}]\n  ${leEntry}\n`;
       } else if (
         (annotTypeSubtype === 'Polygon' || annotTypeSubtype === 'PolyLine') &&
         markup.points.length >= 2
@@ -530,6 +515,9 @@ endstream`;
           })
           .join(' ');
         annotDict += `  /Vertices [${vList}]\n`;
+        if (annotTypeSubtype === 'PolyLine') {
+          annotDict += `  ${leEntry}\n`;
+        }
         if (markup.type === 'cloud') {
           annotDict += `  /BE << /S /C /I 1 >>\n`;
         }
@@ -606,6 +594,31 @@ endstream`;
   }
 
   return writer.build();
+}
+
+/** Nombre PDF de un extremo de línea (ISO 32000-1 tabla 176), con los seis estilos de REA. */
+export function toPdfLineEnding(ending: LineEndingStyle | undefined): string {
+  switch (ending) {
+    case 'openArrow':
+      return '/OpenArrow';
+    case 'closedArrow':
+      return '/ClosedArrow';
+    case 'circle':
+      return '/Circle';
+    case 'square':
+      return '/Square';
+    case 'diamond':
+      return '/Diamond';
+    default:
+      return '/None';
+  }
+}
+
+/** Diccionario /BS: continuo (/S) o discontinuo (/D con su patrón en pt). */
+export function borderStyleEntry(strokeWidth: number, dashArray: number[] | undefined): string {
+  const valid = (dashArray ?? []).filter((d) => Number.isFinite(d) && d > 0);
+  if (valid.length === 0) return `<< /W ${strokeWidth.toFixed(2)} /S /S >>`;
+  return `<< /W ${strokeWidth.toFixed(2)} /S /D /D [${valid.map((d) => d.toFixed(2)).join(' ')}] >>`;
 }
 
 /**

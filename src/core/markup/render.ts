@@ -9,6 +9,7 @@ import {
   STICKY_NOTE_COLORS,
 } from '../../types/markup';
 import { normalizedToScreen } from '../../utils/coordinates';
+import { lineEndingShape, lineEndingSize, endpointAngles } from './lineEndings';
 import {
   getHelveticaTextWidth,
   getHelveticaCharWidth,
@@ -501,90 +502,62 @@ export interface SvgRenderDescriptor {
   textNode?: string;
 }
 
+/**
+ * Descriptor SVG de un extremo de línea a partir de la geometría compartida (ADR-0018).
+ * Las formas cerradas se rellenan con el color de la línea (una flecha "cerrada" nunca sale hueca).
+ */
 function createLineEndingDescriptor(
   pt: { x: number; y: number },
   angleRad: number,
   ending: LineEndingStyle,
   strokeColor: string,
-  fillColor: string | undefined,
-  strokeWidth: number
+  strokeWidthScreen: number,
+  sizeScreen: number
 ): SvgRenderDescriptor | null {
-  if (!ending || ending === 'none') return null;
-
-  const len = Math.max(10, strokeWidth * 4);
-  const angleSpread = 0.45;
-
-  if (ending === 'openArrow' || ending === 'closedArrow') {
-    const a1 = {
-      x: pt.x + len * Math.cos(angleRad + Math.PI - angleSpread),
-      y: pt.y + len * Math.sin(angleRad + Math.PI - angleSpread),
-    };
-    const a2 = {
-      x: pt.x + len * Math.cos(angleRad + Math.PI + angleSpread),
-      y: pt.y + len * Math.sin(angleRad + Math.PI + angleSpread),
-    };
-
-    if (ending === 'openArrow') {
-      return {
-        tag: 'polyline',
-        attrs: {
-          points: `${a1.x.toFixed(2)},${a1.y.toFixed(2)} ${pt.x.toFixed(2)},${pt.y.toFixed(2)} ${a2.x.toFixed(2)},${a2.y.toFixed(2)}`,
-          stroke: strokeColor,
-          strokeWidth,
-          fill: 'none',
-          strokeLinejoin: 'round',
-        },
-      };
-    } else {
-      return {
-        tag: 'polygon',
-        attrs: {
-          points: `${a1.x.toFixed(2)},${a1.y.toFixed(2)} ${pt.x.toFixed(2)},${pt.y.toFixed(2)} ${a2.x.toFixed(2)},${a2.y.toFixed(2)}`,
-          stroke: strokeColor,
-          strokeWidth,
-          fill: fillColor || strokeColor,
-          strokeLinejoin: 'round',
-        },
-      };
-    }
+  const shape = lineEndingShape(pt, angleRad, ending, sizeScreen);
+  if (!shape) return null;
+  const common = {
+    stroke: strokeColor,
+    strokeWidth: strokeWidthScreen,
+    fill: shape.filled ? strokeColor : 'none',
+    strokeLinejoin: 'round',
+  };
+  if (shape.kind === 'circle') {
+    return { tag: 'ellipse', attrs: { ...common, cx: shape.cx, cy: shape.cy, rx: shape.r, ry: shape.r } };
   }
+  return {
+    tag: shape.kind,
+    attrs: { ...common, points: shape.points.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ') },
+  };
+}
 
-  if (ending === 'circle') {
-    const r = len / 3;
-    return {
-      tag: 'ellipse',
-      attrs: {
-        cx: pt.x,
-        cy: pt.y,
-        rx: r,
-        ry: r,
-        stroke: strokeColor,
-        strokeWidth,
-        fill: fillColor || strokeColor,
-      },
-    };
+/** Añade los extremos (inicio/final) de una línea o polilínea en coordenadas de pantalla. */
+function withLineEndings(
+  main: SvgRenderDescriptor,
+  screenPts: { x: number; y: number }[],
+  style: Markup['style'],
+  transform: ViewportTransform,
+  opacity: string | number
+): SvgRenderDescriptor {
+  const angles = endpointAngles(screenPts);
+  const hasStart = style.lineEndingStart && style.lineEndingStart !== 'none';
+  const hasEnd = style.lineEndingEnd && style.lineEndingEnd !== 'none';
+  if (!angles || (!hasStart && !hasEnd)) return main;
+
+  const scale = transform.scale || 1;
+  const widthScreen = (style.strokeWidth || 1) * scale;
+  const size = lineEndingSize(style.strokeWidth || 1) * scale;
+  const children: SvgRenderDescriptor[] = [main];
+  if (hasStart) {
+    const d = createLineEndingDescriptor(screenPts[0], angles.start, style.lineEndingStart!, style.strokeColor, widthScreen, size);
+    if (d) children.push(d);
   }
-
-  if (ending === 'diamond' || ending === 'square') {
-    const r = len / 2.5;
-    const rot = ending === 'diamond' ? Math.PI / 4 : 0;
-    const pts = [0, 1, 2, 3].map((i) => {
-      const a = angleRad + rot + (i * Math.PI) / 2;
-      return `${(pt.x + r * Math.cos(a)).toFixed(2)},${(pt.y + r * Math.sin(a)).toFixed(2)}`;
-    });
-    return {
-      tag: 'polygon',
-      attrs: {
-        points: pts.join(' '),
-        stroke: strokeColor,
-        strokeWidth,
-        fill: fillColor || strokeColor,
-        strokeLinejoin: 'round',
-      },
-    };
+  if (hasEnd) {
+    const last = screenPts[screenPts.length - 1];
+    const d = createLineEndingDescriptor(last, angles.end, style.lineEndingEnd!, style.strokeColor, widthScreen, size);
+    if (d) children.push(d);
   }
-
-  return null;
+  return { tag: 'g', attrs: { opacity }, children };
 }
 
 /**
@@ -604,7 +577,7 @@ export function getMarkupSvgDescriptor(
   };
 
   if (style.dashArray && style.dashArray.length > 0) {
-    baseAttrs.strokeDasharray = style.dashArray.join(' ');
+    baseAttrs.strokeDasharray = style.dashArray.map((d) => d * (transform.scale || 1)).join(' ');
   }
 
   const p1Screen = markup.points[0]
@@ -677,48 +650,11 @@ export function getMarkupSvgDescriptor(
           y2: p2Screen.y,
         },
       };
-
-      if (!style.lineEndingStart && !style.lineEndingEnd) {
-        return mainLine;
-      }
-
-      const dx = p2Screen.x - p1Screen.x;
-      const dy = p2Screen.y - p1Screen.y;
-      const angle = Math.atan2(dy, dx);
-
-      const children: SvgRenderDescriptor[] = [mainLine];
-      if (style.lineEndingStart) {
-        const startMarker = createLineEndingDescriptor(
-          p1Screen,
-          angle + Math.PI,
-          style.lineEndingStart,
-          style.strokeColor,
-          style.fillColor,
-          style.strokeWidth || 2
-        );
-        if (startMarker) children.push(startMarker);
-      }
-      if (style.lineEndingEnd) {
-        const endMarker = createLineEndingDescriptor(
-          p2Screen,
-          angle,
-          style.lineEndingEnd,
-          style.strokeColor,
-          style.fillColor,
-          style.strokeWidth || 2
-        );
-        if (endMarker) children.push(endMarker);
-      }
-
-      return {
-        tag: 'g',
-        attrs: { opacity: baseAttrs.opacity ?? 1 },
-        children,
-      };
+      return withLineEndings(mainLine, [p1Screen, p2Screen], style, transform, baseAttrs.opacity ?? 1);
     }
 
     case 'polyLine': {
-      return {
+      const polyline: SvgRenderDescriptor = {
         tag: 'polyline',
         attrs: {
           ...baseAttrs,
@@ -726,6 +662,8 @@ export function getMarkupSvgDescriptor(
           points: pointsToSvgPointsString(markup.points, transform),
         },
       };
+      const screenPts = markup.points.map((p) => normalizedToScreen(p, transform));
+      return withLineEndings(polyline, screenPts, style, transform, baseAttrs.opacity ?? 1);
     }
 
     case 'underline': {

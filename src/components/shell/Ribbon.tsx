@@ -8,8 +8,21 @@ import { showToast } from '../../services/toastService';
 import { useAutoSave } from '../../hooks/useAutoSave';
 import { TOOL_GROUPS, TEXT_LAYER_TOOLS, STROKE_COLORS, ToolDefinition } from './toolDefinitions';
 import { exportFlattenedPdf } from './appActions';
+import { LineEndingStyle } from '../../types/markup';
+import {
+  dashArrayFor,
+  lineStyleOf,
+  LINE_STYLE_LABELS,
+  LINE_ENDING_LABELS,
+  LineStyleId,
+} from '../../core/markup/lineStyles';
+import { translucentFill } from '../../core/markup/typeLabels';
 
-const STROKE_WIDTHS = [1, 2, 3, 5, 8];
+const STROKE_WIDTHS = [0.5, 1, 1.5, 2, 3, 5, 8];
+const OPACITIES = [1, 0.75, 0.5, 0.25];
+const ENDINGS: LineEndingStyle[] = ['none', 'openArrow', 'closedArrow', 'circle', 'square', 'diamond'];
+const selectClass =
+  'bg-cad-panel border border-cad-border rounded px-1 py-0 text-[11px] text-gray-200 focus:outline-none focus:border-cad-accent';
 
 /** Grupo de la cinta: contenido arriba y rótulo abajo, separado por una línea vertical. */
 const RibbonGroup: React.FC<{ label: string; children: React.ReactNode; testId?: string }> = ({
@@ -58,6 +71,12 @@ export const Ribbon: React.FC = () => {
   const { canUndo, canRedo, undo, redo, isDirty } = useMarkupStore();
   const { activeTool, setActiveTool, currentStyle, setCurrentStyle } = useToolStore();
   const { saveNow } = useAutoSave(0);
+
+  const lineStyle = lineStyleOf(currentStyle.dashArray);
+  const hasFill = Boolean(currentStyle.fillColor && currentStyle.fillColor !== 'transparent');
+  // El patrón discontinuo es proporcional al grosor: se recalcula al cambiar de grosor
+  const changeWidth = (w: number) =>
+    setCurrentStyle({ strokeWidth: w, dashArray: dashArrayFor(lineStyle, w) });
 
   const selectTool = (tool: ToolDefinition) => {
     if (TEXT_LAYER_TOOLS.includes(tool.type) && pageHasText[currentPageIndex] === false) {
@@ -152,9 +171,11 @@ export const Ribbon: React.FC = () => {
         </RibbonGroup>
       ))}
 
-      <RibbonGroup label="Estilo" testId="ribbon-group-style">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-1">
+      <RibbonGroup label="Estilo (marcas nuevas)" testId="ribbon-group-style">
+        <div className="grid grid-cols-[auto_auto] gap-x-3 gap-y-1 items-center">
+          {/* Fila 1: color de trazo y relleno */}
+          <div className="flex items-center gap-1" title="Color de trazo">
+            <span className="text-[10px] text-gray-500 w-9">Trazo</span>
             {STROKE_COLORS.map((c) => (
               <button
                 key={c}
@@ -170,13 +191,44 @@ export const Ribbon: React.FC = () => {
               />
             ))}
           </div>
-          <label className="flex items-center gap-1 text-[11px] text-gray-400">
-            Grosor
+          <div className="flex items-center gap-1" title="Relleno de las formas cerradas">
+            <span className="text-[10px] text-gray-500 w-9">Relleno</span>
+            <button
+              type="button"
+              data-testid="ribbon-fill-none"
+              onClick={() => setCurrentStyle({ fillColor: 'transparent' })}
+              title="Sin relleno"
+              className={`w-4 h-4 rounded-full border border-gray-500 bg-cad-ribbon relative overflow-hidden ${
+                !hasFill ? 'ring-2 ring-cad-accent ring-offset-1 ring-offset-cad-ribbon' : ''
+              }`}
+            >
+              <span className="absolute inset-0 m-auto w-[140%] h-px bg-rose-500 rotate-45 -translate-x-[15%]" />
+            </button>
+            {STROKE_COLORS.map((c) => {
+              const fill = translucentFill(c, 0.25);
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setCurrentStyle({ fillColor: fill })}
+                  style={{ backgroundColor: fill, borderColor: c }}
+                  className={`w-4 h-4 rounded-full border ${
+                    currentStyle.fillColor === fill ? 'ring-2 ring-cad-accent ring-offset-1 ring-offset-cad-ribbon' : ''
+                  }`}
+                  title={`Relleno translúcido: ${c}`}
+                />
+              );
+            })}
+          </div>
+
+          {/* Fila 2: grosor, tipo de línea, extremos y opacidad */}
+          <div className="flex items-center gap-1.5 text-[11px] text-gray-400 col-span-2">
             <select
               data-testid="ribbon-stroke-width"
               value={currentStyle.strokeWidth ?? 2}
-              onChange={(e) => setCurrentStyle({ strokeWidth: Number(e.target.value) })}
-              className="bg-cad-panel border border-cad-border rounded px-1 py-0 text-[11px] text-gray-200"
+              onChange={(e) => changeWidth(Number(e.target.value))}
+              className={selectClass}
+              title="Grosor de línea"
             >
               {STROKE_WIDTHS.map((w) => (
                 <option key={w} value={w}>
@@ -184,7 +236,63 @@ export const Ribbon: React.FC = () => {
                 </option>
               ))}
             </select>
-          </label>
+            <select
+              data-testid="ribbon-line-style"
+              value={lineStyle}
+              onChange={(e) =>
+                setCurrentStyle({
+                  dashArray: dashArrayFor(e.target.value as LineStyleId, currentStyle.strokeWidth ?? 2),
+                })
+              }
+              className={selectClass}
+              title="Tipo de línea"
+            >
+              {(Object.keys(LINE_STYLE_LABELS) as LineStyleId[]).map((id) => (
+                <option key={id} value={id}>
+                  {LINE_STYLE_LABELS[id]}
+                </option>
+              ))}
+            </select>
+            <select
+              data-testid="ribbon-line-start"
+              value={currentStyle.lineEndingStart ?? 'none'}
+              onChange={(e) => setCurrentStyle({ lineEndingStart: e.target.value as LineEndingStyle })}
+              className={selectClass}
+              title="Extremo inicial (líneas, flechas y polilíneas)"
+            >
+              {ENDINGS.map((id) => (
+                <option key={id} value={id}>
+                  Inicio: {LINE_ENDING_LABELS[id]}
+                </option>
+              ))}
+            </select>
+            <select
+              data-testid="ribbon-line-end"
+              value={currentStyle.lineEndingEnd ?? 'none'}
+              onChange={(e) => setCurrentStyle({ lineEndingEnd: e.target.value as LineEndingStyle })}
+              className={selectClass}
+              title="Extremo final (líneas, flechas y polilíneas). La herramienta Flecha usa flecha cerrada si es Ninguno"
+            >
+              {ENDINGS.map((id) => (
+                <option key={id} value={id}>
+                  Final: {LINE_ENDING_LABELS[id]}
+                </option>
+              ))}
+            </select>
+            <select
+              data-testid="ribbon-opacity"
+              value={currentStyle.opacity ?? 1}
+              onChange={(e) => setCurrentStyle({ opacity: Number(e.target.value) })}
+              className={selectClass}
+              title="Opacidad"
+            >
+              {OPACITIES.map((o) => (
+                <option key={o} value={o}>
+                  {Math.round(o * 100)} %
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </RibbonGroup>
     </div>

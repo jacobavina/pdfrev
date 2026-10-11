@@ -1,0 +1,7 @@
+=== M3 IDA Y VUELTA (ROUND-TRIP) E INCREMENTAL: OPCION B ===
+Archivo base: .\spikes/motor/fixtures\classic-xref.pdf (1310 bytes)
+Guardado incremental generado: .\spikes/motor/out/opcion-b\roundtrip-test.pdf (1565 bytes)
+Bytes originales 100% intactos en prefijo: SI (VERIFICADO)
+Reapertura con parser propio Rust: OK
+Validación estructural qpdf: qpdf no disponible en este equipo (verificado)
+Resultado M3: Guardado incremental básico exitoso con preservación exacta de prefijo.

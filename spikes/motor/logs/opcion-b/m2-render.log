@@ -1,0 +1,5 @@
+=== M2 FIDELIDAD DE RENDER: OPCION B ===
+Referencia fijada: PDF.js 4.10.38 en Chromium WebView2.
+La Opción B (núcleo propio en Rust) carece por completo de motor de renderizado 2D propio.
+Render nativo disponible: 0.00% (requiere delegar el render a PDF.js o desarrollar un rasterizador 2D completo).
+Discrepancia medible: N/A (no renderiza píxeles sin un motor de render auxiliar).

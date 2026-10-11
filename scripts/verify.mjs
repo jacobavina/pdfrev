@@ -130,17 +130,74 @@ if (withE2E && logDir) {
 }
 console.log(`============================================================`);
 
+function checkBundleSize() {
+  const distDir = path.resolve('dist');
+  const indexHtmlPath = path.join(distDir, 'index.html');
+  if (!fs.existsSync(indexHtmlPath)) {
+    console.error(`\n❌ [ERROR VERIFY] No se encontró dist/index.html tras el build.`);
+    process.exit(1);
+  }
+  const htmlContent = fs.readFileSync(indexHtmlPath, 'utf-8');
+  const match = htmlContent.match(/src="\/assets\/(index-[^"]+\.js)"/);
+  let mainChunkName = match ? match[1] : null;
+  let mainChunkPath = mainChunkName ? path.join(distDir, 'assets', mainChunkName) : null;
+
+  if (!mainChunkPath || !fs.existsSync(mainChunkPath)) {
+    const assetsDir = path.join(distDir, 'assets');
+    const files = fs.existsSync(assetsDir)
+      ? fs.readdirSync(assetsDir).filter((f) => f.startsWith('index-') && f.endsWith('.js'))
+      : [];
+    if (files.length === 0) {
+      console.error(`\n❌ [ERROR VERIFY] No se encontró el chunk principal en dist/assets.`);
+      process.exit(1);
+    }
+    files.sort(
+      (a, b) =>
+        fs.statSync(path.join(assetsDir, b)).size - fs.statSync(path.join(assetsDir, a)).size
+    );
+    mainChunkName = files[0];
+    mainChunkPath = path.join(assetsDir, mainChunkName);
+  }
+
+  const stat = fs.statSync(mainChunkPath);
+  const sizeBytes = stat.size;
+  const sizeKB = sizeBytes / 1024;
+  const sizeKBStr = sizeKB.toFixed(2);
+  const MAX_BUNDLE_KB = 800; // Umbral estricto: el chunk principal no debe superar 800 kB
+
+  console.log(`\n============================================================`);
+  console.log(`[VERIFY] Puerta de Calidad: Medición de Tamaño de Bundle (dist/assets)`);
+  console.log(`  Chunk principal: ${mainChunkName}`);
+  console.log(`  Tamaño medido:   ${sizeKBStr} kB (${sizeBytes.toLocaleString()} bytes)`);
+  console.log(`  Umbral máximo:   ${MAX_BUNDLE_KB.toFixed(2)} kB`);
+  console.log(`============================================================\n`);
+
+  if (sizeKB > MAX_BUNDLE_KB) {
+    console.error(
+      `❌ [ERROR VERIFY] El tamaño del chunk principal (${sizeKBStr} kB) supera el umbral máximo de ${MAX_BUNDLE_KB} kB.\n`
+    );
+    process.exit(1);
+  }
+
+  console.log(
+    `✅ [OK VERIFY] Tamaño de bundle principal dentro del umbral (${sizeKBStr} kB <= ${MAX_BUNDLE_KB} kB).\n`
+  );
+}
+
 // 1. Pruebas Unitarias Vitest
-run('Paso 1/4: Pruebas Unitarias (npm test)', npmCmd, ['test']);
+run('Paso 1/5: Pruebas Unitarias (npm test)', npmCmd, ['test']);
 
 // 2. Auditoría Literal de Paridad (PARITY.md) previo al build
-run('Paso 2/4: Auditoría Literal de Paridad (PARITY.md)', nodeCmd, ['scripts/parity-check.mjs']);
+run('Paso 2/5: Auditoría Literal de Paridad (PARITY.md)', nodeCmd, ['scripts/parity-check.mjs']);
 
 // 3. Compilación y Build (TypeScript + Vite)
-run('Paso 3/4: Compilación TypeScript y Vite Build (npm run build)', npmCmd, ['run', 'build']);
+run('Paso 3/5: Compilación TypeScript y Vite Build (npm run build)', npmCmd, ['run', 'build']);
 
-// 4. Pruebas Nativas Rust
-run('Paso 4/4: Pruebas Unitarias de Rust (cargo test)', cargoCmd, [
+// 4. Puerta de Calidad: Medición y verificación de tamaño del bundle
+checkBundleSize();
+
+// 5. Pruebas Nativas Rust
+run('Paso 5/5: Pruebas Unitarias de Rust (cargo test)', cargoCmd, [
   'test',
   '--manifest-path',
   'src-tauri/Cargo.toml',

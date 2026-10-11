@@ -1383,6 +1383,112 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await collapseBtn.click();
     await expect(toolChestPanel).toHaveAttribute('data-collapsed', 'true');
   });
+
+  test('Sub-entregable P2-C.2: Menú contextual de estados técnicos en MarkupsList y sincronización atómica de grupos (Condición 3)', async ({
+    page,
+  }) => {
+    // 1. Cargar la aplicación
+    await page.goto('/');
+
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    const markupsPanel = page.locator('[data-testid="markups-list-panel"]');
+    await expect(markupsPanel).toBeVisible();
+
+    const calibRow = page.locator('[data-testid="markup-row-calibration-markup-1"]');
+    await expect(calibRow).toBeVisible();
+
+    // 2. Menú contextual mediante clic derecho en la fila
+    await calibRow.click({ button: 'right' });
+    const contextMenu = page.locator('[data-testid="markups-list-context-menu"]');
+    await expect(contextMenu).toBeVisible();
+
+    // Verificar presencia de opciones de estado y Tool Chest
+    await expect(page.locator('[data-testid="context-menu-add-to-toolchest"]')).toBeVisible();
+    await expect(page.locator('[data-testid="context-menu-status-pending"]')).toBeVisible();
+    await expect(page.locator('[data-testid="context-menu-status-accepted"]')).toBeVisible();
+    await expect(page.locator('[data-testid="context-menu-status-rejected"]')).toBeVisible();
+    await expect(page.locator('[data-testid="context-menu-status-completed"]')).toBeVisible();
+    await expect(page.locator('[data-testid="context-menu-status-cancelled"]')).toBeVisible();
+
+    // 3. Cambiar estado a 'rejected' desde el menú contextual
+    await page.locator('[data-testid="context-menu-status-rejected"]').click();
+    await expect(contextMenu).not.toBeVisible();
+
+    // Verificar que la fila refleja el nuevo estado
+    const statusSelect = calibRow.locator('select');
+    await expect(statusSelect).toHaveValue('rejected');
+
+    // 4. Reversión atómica con Ctrl+Z
+    await page.keyboard.press('Control+z');
+    await expect(statusSelect).toHaveValue('pending');
+
+    // Rehacer con Ctrl+Y
+    await page.keyboard.press('Control+y');
+    await expect(statusSelect).toHaveValue('rejected');
+
+    // 5. Condición 3: Crear un grupo multilínea y verificar sincronización atómica de estado
+    const textLayer = page.locator('[data-testid="pdf-text-layer"]');
+    await expect(textLayer).toBeVisible();
+
+    const line1Span = textLayer.locator('span').filter({ hasText: 'RECTÁNGULO DE CONTROL' }).first();
+    const line2Span = textLayer.locator('span').filter({ hasText: 'Norm: x=' }).first();
+    await expect(line1Span).toBeVisible();
+    await expect(line2Span).toBeVisible();
+
+    // Activar resaltador de texto con Shift+H
+    await page.keyboard.press('Shift+H');
+
+    const span1Box = (await line1Span.boundingBox())!;
+    const span2Box = (await line2Span.boundingBox())!;
+
+    const initialGroups = overlaySvg.locator('g[data-testid^="markup-g-"]');
+    const countBeforeMulti = await initialGroups.count();
+
+    await page.mouse.move(span1Box.x + 10, span1Box.y + span1Box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(span2Box.x + span2Box.width / 2, span2Box.y + span2Box.height / 2, { steps: 5 });
+    await page.mouse.up();
+
+    const countAfterMulti = await initialGroups.count();
+    expect(countAfterMulti).toBeGreaterThan(countBeforeMulti);
+    const multiLinesCount = countAfterMulti - countBeforeMulti;
+    expect(multiLinesCount).toBeGreaterThanOrEqual(2);
+
+    // Salir del modo dibujo
+    await page.keyboard.press('Escape');
+
+    // Localizar las filas recién creadas del grupo en MarkupsList
+    const allRows = markupsPanel.locator('tbody tr');
+    const totalRowCount = await allRows.count();
+    const groupRow1 = allRows.nth(totalRowCount - 2);
+    const groupRow2 = allRows.nth(totalRowCount - 1);
+
+    const groupSelect1 = groupRow1.locator('select');
+    const groupSelect2 = groupRow2.locator('select');
+    await expect(groupSelect1).toHaveValue('pending');
+    await expect(groupSelect2).toHaveValue('pending');
+
+    // Clic derecho en la primera fila del grupo y cambiar estado a 'completed'
+    await groupRow1.click({ button: 'right' });
+    await expect(contextMenu).toBeVisible();
+    await page.locator('[data-testid="context-menu-status-completed"]').click();
+    await expect(contextMenu).not.toBeVisible();
+
+    // AMBAS marcas del grupo deben haberse actualizado a 'completed' atómicamente
+    await expect(groupSelect1).toHaveValue('completed');
+    await expect(groupSelect2).toHaveValue('completed');
+
+    // 1 Ctrl+Z revierte TODO el grupo de nuevo a 'pending'
+    await page.keyboard.press('Control+z');
+    await expect(groupSelect1).toHaveValue('pending');
+    await expect(groupSelect2).toHaveValue('pending');
+
+    // 1 Ctrl+Y vuelve a aplicar 'completed' a TODO el grupo
+    await page.keyboard.press('Control+y');
+    await expect(groupSelect1).toHaveValue('completed');
+    await expect(groupSelect2).toHaveValue('completed');
+  });
 });
 
 

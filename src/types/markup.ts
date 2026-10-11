@@ -22,6 +22,7 @@ export const VALID_MARKUP_STATUSES = [
   'accepted',
   'rejected',
   'completed',
+  'cancelled',
 ] as const;
 
 export type MarkupStatus = (typeof VALID_MARKUP_STATUSES)[number];

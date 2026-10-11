@@ -62,6 +62,88 @@ describe('useMarkupStore Integration & History', () => {
 
     useMarkupStore.getState().undo();
     expect(useMarkupStore.getState().markups[0].status).toBe('pending');
+
+    useMarkupStore.getState().redo();
+    expect(useMarkupStore.getState().markups[0].status).toBe('accepted');
+  });
+
+  it('Condición 3: el estado de una marca agrupada se aplica a todo el grupo atómicamente y se revierte con undo', () => {
+    const m1 = { ...createMockMarkup('m1'), groupId: 'grp-highlight-multiline' };
+    const m2 = { ...createMockMarkup('m2'), groupId: 'grp-highlight-multiline' };
+    const m3 = { ...createMockMarkup('m3'), groupId: 'grp-highlight-multiline' };
+    const mIndependent = createMockMarkup('m-indep');
+
+    useMarkupStore.getState().addMarkup(m1);
+    useMarkupStore.getState().addMarkup(m2);
+    useMarkupStore.getState().addMarkup(m3);
+    useMarkupStore.getState().addMarkup(mIndependent);
+
+    const prevMarkupsRef = useMarkupStore.getState().markups;
+
+    // Actualizar estado de una sola marca del grupo a 'rejected'
+    useMarkupStore.getState().updateMarkupStatus('m1', 'rejected');
+
+    const updatedMarkups = useMarkupStore.getState().markups;
+    expect(updatedMarkups).not.toBe(prevMarkupsRef);
+
+    // Todos los miembros del grupo ahora son 'rejected'
+    expect(updatedMarkups.find((m) => m.id === 'm1')?.status).toBe('rejected');
+    expect(updatedMarkups.find((m) => m.id === 'm2')?.status).toBe('rejected');
+    expect(updatedMarkups.find((m) => m.id === 'm3')?.status).toBe('rejected');
+
+    // La marca independiente no se ve afectada
+    expect(updatedMarkups.find((m) => m.id === 'm-indep')?.status).toBe('pending');
+    expect(updatedMarkups.find((m) => m.id === 'm-indep')).toBe(prevMarkupsRef.find((m) => m.id === 'm-indep'));
+
+    // Undo revierte las 3 marcas del grupo en UN SOLO paso
+    useMarkupStore.getState().undo();
+    const undoneMarkups = useMarkupStore.getState().markups;
+    expect(undoneMarkups.find((m) => m.id === 'm1')?.status).toBe('pending');
+    expect(undoneMarkups.find((m) => m.id === 'm2')?.status).toBe('pending');
+    expect(undoneMarkups.find((m) => m.id === 'm3')?.status).toBe('pending');
+
+    // Redo vuelve a poner las 3 marcas en 'rejected' en UN SOLO paso
+    useMarkupStore.getState().redo();
+    const redoneMarkups = useMarkupStore.getState().markups;
+    expect(redoneMarkups.find((m) => m.id === 'm1')?.status).toBe('rejected');
+    expect(redoneMarkups.find((m) => m.id === 'm2')?.status).toBe('rejected');
+    expect(redoneMarkups.find((m) => m.id === 'm3')?.status).toBe('rejected');
+  });
+
+  it('Condición 3: sincronización atómica con estados iniciales heterogéneos dentro de un grupo', () => {
+    // Grupo donde m1 era 'pending' y m2 era 'rejected'
+    const m1 = { ...createMockMarkup('m1'), status: 'pending' as const, groupId: 'grp-hetero' };
+    const m2 = { ...createMockMarkup('m2'), status: 'rejected' as const, groupId: 'grp-hetero' };
+
+    useMarkupStore.getState().addMarkup(m1);
+    useMarkupStore.getState().addMarkup(m2);
+
+    // Cambiar a 'completed'
+    useMarkupStore.getState().updateMarkupStatus('m1', 'completed');
+
+    expect(useMarkupStore.getState().markups.find((m) => m.id === 'm1')?.status).toBe('completed');
+    expect(useMarkupStore.getState().markups.find((m) => m.id === 'm2')?.status).toBe('completed');
+
+    // Deshacer debe restaurar cada miembro a su estado previo particular
+    useMarkupStore.getState().undo();
+    expect(useMarkupStore.getState().markups.find((m) => m.id === 'm1')?.status).toBe('pending');
+    expect(useMarkupStore.getState().markups.find((m) => m.id === 'm2')?.status).toBe('rejected');
+  });
+
+  it('guarda de no-op: actualizar al mismo estado no emite comando de historial ni ensucia estado', () => {
+    const markup = createMockMarkup('m1'); // status = 'pending'
+    useMarkupStore.getState().addMarkup(markup);
+
+    expect(useMarkupStore.getState().canUndo).toBe(true);
+    // Llamar con el mismo estado existente
+    useMarkupStore.getState().updateMarkupStatus('m1', 'pending');
+    expect(useMarkupStore.getState().canUndo).toBe(true);
+
+    // El estado sigue siendo 'pending' y no se apiló comando extra
+    expect(useMarkupStore.getState().markups[0].status).toBe('pending');
+    // Si sólo había 1 comando previo (addMarkup), deshacerlo debe quitar la marca directamente
+    useMarkupStore.getState().undo();
+    expect(useMarkupStore.getState().markups).toHaveLength(0);
   });
 
   it('deletes markup with undo/redo support', () => {

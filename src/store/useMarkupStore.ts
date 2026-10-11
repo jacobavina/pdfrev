@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Markup, MarkupPoint, MarkupStatus, MarkupStyle, MarkupTextFormat } from '../types/markup';
 import { Command, HistoryManager } from './history/command';
+import { UpdateMarkupStatusCommand, MarkupStatusTarget } from './history/UpdateMarkupStatusCommand';
 
 // Instancia compartida del gestor de historial con 50 pasos mínimo
 export const markupHistory = new HistoryManager(50);
@@ -239,7 +240,68 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
     },
 
     updateMarkupStatus: (id: string, status: MarkupStatus) => {
-      get().updateMarkup(id, { status });
+      const currentMarkups = get().markups;
+      const target = currentMarkups.find((m) => m.id === id);
+      if (!target) return;
+
+      const selectedIds = get().selectedMarkupIds;
+      const initialIds = selectedIds.includes(id) ? selectedIds : [id];
+
+      // Condición 3: Expandir a grupos completos si alguna marca tiene groupId
+      const targetIdsSet = new Set<string>();
+      for (const tId of initialIds) {
+        const m = currentMarkups.find((item) => item.id === tId);
+        if (!m) continue;
+        if (m.groupId) {
+          currentMarkups
+            .filter((item) => item.groupId === m.groupId)
+            .forEach((item) => targetIdsSet.add(item.id));
+        } else {
+          targetIdsSet.add(m.id);
+        }
+      }
+
+      const targetsToUpdate = currentMarkups.filter((m) => targetIdsSet.has(m.id));
+      if (targetsToUpdate.length === 0) return;
+
+      // Guarda de no-op: si todas las marcas objetivo ya tienen el nuevo estado, no emitir comando
+      const hasAnyDifference = targetsToUpdate.some((m) => m.status !== status);
+      if (!hasAnyDifference) return;
+
+      const targets: MarkupStatusTarget[] = targetsToUpdate.map((m) => ({
+        id: m.id,
+        previousStatus: m.status,
+      }));
+
+      const now = new Date().toISOString();
+      const desc =
+        targets.length > 1
+          ? `Cambiar estado de grupo a ${status}`
+          : `Cambiar estado a ${status}`;
+
+      const command = new UpdateMarkupStatusCommand(
+        targets,
+        status,
+        (updates) => {
+          const statusMap = new Map(updates.map((u) => [u.id, u.status]));
+          set((state) => ({
+            markups: state.markups.map((m) => {
+              const newSt = statusMap.get(m.id);
+              if (!newSt) return m;
+              return {
+                ...m,
+                status: newSt,
+                updatedAt: now,
+              };
+            }),
+            isDirty: true,
+          }));
+        },
+        desc
+      );
+
+      markupHistory.execute(command);
+      syncHistoryFlags();
     },
 
     deleteMarkup: (id: string) => {

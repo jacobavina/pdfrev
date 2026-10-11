@@ -21,10 +21,12 @@ describe('ToolChestPanel (Panel Lateral de Tool Chest B.4)', () => {
       tools: [],
       activeToolId: null,
       recentTools: [],
-      isLoading: false,
+      isLoading: true,
       isPersistent: true,
       persistenceError: null,
     });
+    await useToolChestStore.getState().init();
+
     useMarkupStore.setState({
       markups: [],
       selectedMarkupIds: [],

@@ -5,6 +5,7 @@ import { useMarkupStore } from '../store/useMarkupStore';
 import { useToolChestStore } from '../store/useToolChestStore';
 import * as toolChestService from '../services/toolChestService';
 import { IDBFactory } from 'fake-indexeddb';
+import { Markup } from '../types/markup';
 
 describe('MarkupsList Context Menu (Añadir a Tool Chest B.4)', () => {
   beforeEach(async () => {
@@ -223,6 +224,89 @@ describe('MarkupsList Context Menu (Añadir a Tool Chest B.4)', () => {
       rows = screen.getAllByTestId(/^markup-row-/);
       expect(rows[0]).toHaveAttribute('data-testid', 'markup-row-m-1');
       expect(rows[1]).toHaveAttribute('data-testid', 'markup-row-m-2');
+    });
+
+    it('abre menú contextual con clic derecho en la fila y muestra opciones de estado técnico', () => {
+      render(<MarkupsList />);
+      const row = screen.getByTestId('markup-row-m-1');
+
+      // Clic derecho en la fila
+      fireEvent.contextMenu(row, { clientX: 100, clientY: 200 });
+
+      const menu = screen.getByTestId('markups-list-context-menu');
+      expect(menu).toBeInTheDocument();
+      expect(screen.getByTestId('context-menu-add-to-toolchest')).toBeInTheDocument();
+      expect(screen.getByTestId('context-menu-status-pending')).toBeInTheDocument();
+      expect(screen.getByTestId('context-menu-status-accepted')).toBeInTheDocument();
+      expect(screen.getByTestId('context-menu-status-rejected')).toBeInTheDocument();
+      expect(screen.getByTestId('context-menu-status-completed')).toBeInTheDocument();
+      expect(screen.getByTestId('context-menu-status-cancelled')).toBeInTheDocument();
+    });
+
+    it('permite cambiar estado a aceptado desde el menú contextual y cierra el menú', () => {
+      render(<MarkupsList />);
+      const row = screen.getByTestId('markup-row-m-1');
+
+      fireEvent.contextMenu(row, { clientX: 100, clientY: 200 });
+      const acceptedOption = screen.getByTestId('context-menu-status-accepted');
+      fireEvent.click(acceptedOption);
+
+      // El menú debe cerrarse
+      expect(screen.queryByTestId('markups-list-context-menu')).not.toBeInTheDocument();
+
+      // El estado de m-1 debe ser 'accepted' en el store
+      expect(useMarkupStore.getState().markups.find((m) => m.id === 'm-1')?.status).toBe('accepted');
+    });
+
+    it('cierra el menú contextual al presionar la tecla Escape', () => {
+      render(<MarkupsList />);
+      const row = screen.getByTestId('markup-row-m-1');
+
+      fireEvent.contextMenu(row, { clientX: 100, clientY: 200 });
+      expect(screen.getByTestId('markups-list-context-menu')).toBeInTheDocument();
+
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(screen.queryByTestId('markups-list-context-menu')).not.toBeInTheDocument();
+    });
+
+    it('Condición 3: cambia el estado de todo el grupo desde el menú contextual', () => {
+      const g1: Markup = {
+        id: 'grp-item-1',
+        type: 'highlightText',
+        pageIndex: 0,
+        points: [{ x: 0.1, y: 0.1 }, { x: 0.3, y: 0.15 }],
+        style: { strokeColor: '#ffff00', strokeWidth: 1, opacity: 0.5 },
+        status: 'pending',
+        groupId: 'multiline-text-group',
+        author: 'Revisor',
+        createdAt: '2026-10-10T10:00:00.000Z',
+        updatedAt: '2026-10-10T10:00:00.000Z',
+      };
+      const g2: Markup = {
+        id: 'grp-item-2',
+        type: 'highlightText',
+        pageIndex: 0,
+        points: [{ x: 0.1, y: 0.16 }, { x: 0.35, y: 0.21 }],
+        style: { strokeColor: '#ffff00', strokeWidth: 1, opacity: 0.5 },
+        status: 'pending',
+        groupId: 'multiline-text-group',
+        author: 'Revisor',
+        createdAt: '2026-10-10T10:00:00.000Z',
+        updatedAt: '2026-10-10T10:00:00.000Z',
+      };
+      useMarkupStore.setState({ markups: [g1, g2] });
+
+      render(<MarkupsList />);
+      const row = screen.getByTestId('markup-row-grp-item-1');
+
+      fireEvent.contextMenu(row, { clientX: 120, clientY: 220 });
+      const completedOption = screen.getByTestId('context-menu-status-completed');
+      fireEvent.click(completedOption);
+
+      // Ambas marcas del grupo deben haberse actualizado atómicamente a 'completed'
+      const state = useMarkupStore.getState();
+      expect(state.markups.find((m) => m.id === 'grp-item-1')?.status).toBe('completed');
+      expect(state.markups.find((m) => m.id === 'grp-item-2')?.status).toBe('completed');
     });
   });
 });

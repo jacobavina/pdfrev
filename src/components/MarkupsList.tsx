@@ -12,6 +12,7 @@ import {
   Highlighter,
   StickyNote,
   Briefcase,
+  Check,
 } from 'lucide-react';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useDocumentStore } from '../store/useDocumentStore';
@@ -45,6 +46,12 @@ const STATUS_CONFIG: Record<
     bg: 'bg-blue-950/60',
     text: 'text-blue-300',
     border: 'border-blue-700',
+  },
+  cancelled: {
+    label: 'Cancelado',
+    bg: 'bg-zinc-800/60',
+    text: 'text-zinc-400',
+    border: 'border-zinc-600',
   },
 };
 
@@ -104,8 +111,15 @@ export const MarkupsList: React.FC = () => {
 
   React.useEffect(() => {
     const handleGlobalClick = () => setContextMenu(null);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setContextMenu(null);
+    };
     window.addEventListener('click', handleGlobalClick);
-    return () => window.removeEventListener('click', handleGlobalClick);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('click', handleGlobalClick);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   const uniqueAuthors = React.useMemo(() => {
@@ -307,6 +321,7 @@ export const MarkupsList: React.FC = () => {
             <option value="accepted">Aceptado</option>
             <option value="rejected">Rechazado</option>
             <option value="completed">Completado</option>
+            <option value="cancelled">Cancelado</option>
           </select>
 
           {/* Botón reset de filtros */}
@@ -396,10 +411,19 @@ export const MarkupsList: React.FC = () => {
                       onClick={(e) => handleRowClick(markup, e)}
                       onContextMenu={(e) => {
                         e.preventDefault();
-                        selectMarkup(markup.id, false);
+                        if (!selectedMarkupIds.includes(markup.id)) {
+                          selectMarkup(markup.id, false);
+                        }
+                        const menuWidth = 180;
+                        const menuHeight = 220;
+                        const posX = Math.min(e.clientX, Math.max(8, window.innerWidth - menuWidth - 8));
+                        const posY =
+                          e.clientY + menuHeight > window.innerHeight
+                            ? Math.max(8, e.clientY - menuHeight)
+                            : Math.max(8, e.clientY);
                         setContextMenu({
-                          x: e.clientX,
-                          y: e.clientY,
+                          x: posX,
+                          y: posY,
                           markup,
                         });
                       }}
@@ -471,6 +495,9 @@ export const MarkupsList: React.FC = () => {
                           <option value="completed" className="bg-cad-dark text-blue-300">
                             Completado
                           </option>
+                          <option value="cancelled" className="bg-cad-dark text-zinc-400">
+                            Cancelado
+                          </option>
                         </select>
                       </td>
 
@@ -507,11 +534,11 @@ export const MarkupsList: React.FC = () => {
         </div>
       )}
 
-      {/* Menú contextual: Añadir a Tool Chest */}
+      {/* Menú contextual: Añadir a Tool Chest y Estados Técnicos */}
       {contextMenu && (
         <div
           data-testid="markups-list-context-menu"
-          className="fixed z-50 bg-cad-panel border border-cad-border shadow-2xl rounded py-1 text-xs text-gray-200 min-w-[160px]"
+          className="fixed z-50 bg-cad-panel border border-cad-border shadow-2xl rounded py-1 text-xs text-gray-200 min-w-[170px]"
           style={{ top: contextMenu.y, left: contextMenu.x }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -530,6 +557,44 @@ export const MarkupsList: React.FC = () => {
             <Briefcase size={13} className="text-blue-400" />
             <span>Añadir a Tool Chest</span>
           </button>
+
+          <div className="border-t border-cad-border my-1" />
+
+          {/* Sección de Estados Técnicos (P2-C.2) */}
+          <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+            Estado
+          </div>
+
+          {(
+            [
+              { status: 'pending', label: 'Pendiente', color: 'bg-amber-400' },
+              { status: 'accepted', label: 'Aceptado', color: 'bg-emerald-400' },
+              { status: 'rejected', label: 'Rechazado', color: 'bg-rose-400' },
+              { status: 'completed', label: 'Completado', color: 'bg-blue-400' },
+              { status: 'cancelled', label: 'Cancelado', color: 'bg-zinc-400' },
+            ] as const
+          ).map((item) => {
+            const isCurrent = contextMenu.markup.status === item.status;
+            return (
+              <button
+                key={item.status}
+                data-testid={`context-menu-status-${item.status}`}
+                onClick={() => {
+                  updateMarkupStatus(contextMenu.markup.id, item.status);
+                  setContextMenu(null);
+                }}
+                className={`w-full text-left px-3 py-1.5 hover:bg-cad-hover flex items-center justify-between transition-colors cursor-pointer ${
+                  isCurrent ? 'text-white font-medium bg-cad-hover/50' : 'text-gray-300 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <span className={`w-2 h-2 rounded-full ${item.color}`} />
+                  <span>{item.label}</span>
+                </div>
+                {isCurrent && <Check size={12} className="text-cad-accent" />}
+              </button>
+            );
+          })}
         </div>
       )}
     </section>

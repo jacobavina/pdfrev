@@ -5,8 +5,10 @@ import { PdfViewer } from './components/PdfViewer';
 import { ToolChestPanel } from './components/toolchest/ToolChestPanel';
 import { PropertiesInspectorPanel } from './components/PropertiesInspectorPanel';
 import { MarkupsList } from './components/MarkupsList';
+import { SearchBar } from './components/SearchBar';
 import { useDocumentStore } from './store/useDocumentStore';
 import { useMarkupStore } from './store/useMarkupStore';
+import { useSearchStore } from './store/useSearchStore';
 import { useAutoSave } from './hooks/useAutoSave';
 import { loadPdfData } from './services/fileDialogService';
 import fixtureMeta from '../fixtures/test-blueprint.meta.json';
@@ -16,12 +18,15 @@ export const App: React.FC = () => {
   const { addMarkup } = useMarkupStore();
   const { saveNow } = useAutoSave();
 
-  // Atajo global Ctrl+S / Meta+S para guardar cambios
+  // Atajos globales: Ctrl+S (guardar) y Ctrl+F (buscar)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
         e.preventDefault();
         saveNow();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault();
+        useSearchStore.getState().setIsOpen(true);
       }
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
@@ -85,6 +90,7 @@ export const App: React.FC = () => {
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-cad-dark">
       {/* 1. Barra Superior (Herramientas, archivo, zoom) */}
       <TopBar />
+      <SearchBar />
 
       {/* 2. Área Central (Miniaturas a la izquierda + Visor al centro + Tool Chest y Propiedades a la derecha) */}
       <div className="flex-1 flex overflow-hidden relative">

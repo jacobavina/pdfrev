@@ -30,10 +30,12 @@ import {
   Ruler,
   Hash,
   Scale,
+  Search,
 } from 'lucide-react';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useToolStore, ToolType } from '../store/useToolStore';
+import { useSearchStore } from '../store/useSearchStore';
 import { openPdfDialog } from '../services/fileDialogService';
 import { useAutoSave } from '../hooks/useAutoSave';
 import { setBbxErrorHandler } from '../services/bbxPersistenceService';
@@ -436,6 +438,15 @@ export const TopBar: React.FC = () => {
             title="Rotar 90°"
           >
             <RotateCw size={15} />
+          </button>
+          <button
+            type="button"
+            data-testid="search-toggle-btn"
+            onClick={() => useSearchStore.getState().setIsOpen(true)}
+            className="p-1 text-gray-300 hover:text-white hover:bg-cad-subtle rounded transition-colors ml-1 border-l border-cad-border pl-2"
+            title="Buscar texto en plano (Ctrl+F)"
+          >
+            <Search size={15} />
           </button>
         </div>
       </div>

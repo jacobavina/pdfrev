@@ -44,6 +44,7 @@ import { showToast } from '../services/toastService';
 import { extractTextForLineRect, mergeLineRects } from '../utils/textLayerUtils';
 import { CalibrationModal } from './CalibrationModal';
 import { useCalibrationStore } from '../store/useCalibrationStore';
+import { useSearchStore } from '../store/useSearchStore';
 import {
   calculateLength,
   calculatePolylineLength,
@@ -94,6 +95,7 @@ export const PdfViewer: React.FC = () => {
     setPendingCalibrationPoints,
   } = useCalibrationStore();
   const currentPageCalibration = calibrations[currentPageIndex];
+  const { matches: searchMatches, activeMatchIndex } = useSearchStore();
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -1590,6 +1592,32 @@ export const PdfViewer: React.FC = () => {
             onDragOver={handleDragOver}
             onDrop={handleDrop}
           >
+            {/* Capa de resaltado de búsqueda (Paquete 5) */}
+            {searchMatches.map((match) => {
+              if (match.pageIndex !== currentPageIndex) return null;
+              const isActive = match.matchIndex === activeMatchIndex;
+              return match.rects.map((rect, rIdx) => {
+                const screenX = rect.x * viewportTransform.width;
+                const screenY = rect.y * viewportTransform.height;
+                const screenW = rect.width * viewportTransform.width;
+                const screenH = rect.height * viewportTransform.height;
+                return (
+                  <rect
+                    key={`search-${match.matchIndex}-${rIdx}`}
+                    data-testid={isActive ? 'search-active-highlight' : 'search-match-highlight'}
+                    x={screenX}
+                    y={screenY}
+                    width={screenW}
+                    height={screenH}
+                    fill={isActive ? 'rgba(249, 115, 22, 0.45)' : 'rgba(250, 204, 21, 0.35)'}
+                    stroke={isActive ? '#ea580c' : '#ca8a04'}
+                    strokeWidth={isActive ? 1.5 : 1}
+                    className="pointer-events-none"
+                  />
+                );
+              });
+            })}
+
             {/* Anotaciones guardadas en la página actual */}
             {pageMarkups.map((markup) => {
               const isSelected = selectedMarkupIds.includes(markup.id);

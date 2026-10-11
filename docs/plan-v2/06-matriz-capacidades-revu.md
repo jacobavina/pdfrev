@@ -103,16 +103,32 @@
 | Encabezados, pies, numeración, marca de agua | ⬜ | P5-C.2 | S | I |
 | Combinar PDFs | ⬜ | P5-C.3 | M | K I |
 | Aplanar marcas | ✅ (export aplanado) | — | M | I |
-| Procesos por lotes | ⬜ | P5-C.4 | S | K I |
-| OCR | ⬜ | P5-D.1 | C | K |
+| "Desaplanar" marcas propias de REA | ⬜ | P5-C.3 | S | I |
+| Procesos por lotes (enlaces, hojas de reemplazo, firmar, aplanar, resumen) | ⬜ | P5-C.4 / P6-C.1 | S | K I |
+| OCR | ⬜ | P7-E | S | K |
 | Comparar documentos | ⬜ | P6-A.2 | M | I |
 | Superponer páginas (overlay) | ⬜ | P6-A.1 | M | I |
 | Sets de planos, enlaces entre hojas | ⬜ | P6-C.1 | S | K I |
-| Formularios | ⬜ | — | W/C | I |
-| Firmas digitales (crear) | ⬜ | — | W | I |
-| Redacción real | ⬜ | — | W/C | I |
+| Abrir y guardar PDFs cifrados, permisos | ⬜ | P7-A | **M** | K I |
+| Formularios (rellenar y crear, sin JavaScript) | ⬜ | P7-B | S | I |
+| Firmas digitales (firmar, verificar, preservar) | ⬜ | P7-D | S | I |
+| Redacción real (incl. buscar y redactar) | ⬜ | P7-C | S | I |
 | Colaboración en la nube (Studio) | ⬜ | — | W | K I |
 | Crear PDF desde Office/CAD | ⬜ | — | W | K I |
+
+### 1.6 Funciones propias de Revu añadidas el 2026-10-11 (conocimiento público, **a validar por el usuario**)
+
+| Capacidad | REA hoy | Fase / hito | Prio. | Público |
+|---|---|---|---|---|
+| Leyendas de marcas en el plano (tabla automática de símbolos y cantidades) | ⬜ | Fase 4 | S | K |
+| Espacios (regiones con nombre que agrupan marcas y medidas) | ⬜ | Fase 4 | S | K |
+| Relleno dinámico de áreas (Dynamic Fill) | ⬜ | Fase 4 | C | K |
+| Vínculo de cantidades a hoja de cálculo (Quantity Link) | ⬜ | Fase 4 | S | K |
+| Secuencias numeradas de marcas | ⬜ | Fase 5 | C | I |
+| Perfiles de interfaz (paneles y barras por tarea) | ⬜ | Fase 5 | C | K I |
+
+> **Cambio 2026-10-11:** cifrado, formularios, firmas, redacción y OCR pasan de W/C a planificados en Fase 7 por el
+> objetivo "funciones de Revu con la completitud de pdfcraft" (`07`).
 
 ## 2. Nota sobre la columna "Prio." de Interoperabilidad
 

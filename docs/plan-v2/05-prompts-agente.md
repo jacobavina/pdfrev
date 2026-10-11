@@ -84,24 +84,62 @@ Entrega el checklist de verificación nativa para el usuario. PARITY.md: fila C.
 del archivo de tests.
 ```
 
-## 3. P3-A.1 — Spike de guardado (investigación; no toca `src/`)
+## 3. P3-A.1 — Spike de MOTOR de cuatro opciones (aprobado 2026-10-11; investigación, no toca el producto)
+
+> Sustituye al antiguo "spike de guardado". Este prompt es **autosuficiente** (incluye sus propias reglas); no hace
+> falta pegar el preámbulo común.
 
 ```
-[Pegar el preámbulo común]
+Trabajas en el repositorio C:\dev\rea (REA: editor de marcado de PDF para planos de construcción e ingeniería; Tauri 2 + React 18 +
+TypeScript + Vite + PDF.js + pdf-lib + Zustand + Vitest + Playwright; backend Rust en src-tauri). Idioma: español. Windows (PowerShell).
+Entorno en cada comando: $env:PATH = "C:\Program Files\nodejs;C:\Users\jmm_j\.cargo\bin;$env:PATH"; $env:NODE_OPTIONS = "--use-system-ca"
 
-TAREA: hito P3-A.1 (docs/plan-v2/03 §3 y 02-arquitectura-interop.md §7). Es una INVESTIGACIÓN con mediciones; el código de
-spike vive en scripts/spikes/ y NO entra a src/. Decisión D-1 debe estar aprobada.
-Compara tres estrategias para guardar anotaciones en un PDF existente:
- A) pdf-lib reescritura completa; B) actualización incremental (append: objetos nuevos + xref + /Prev) en Rust con lopdf o un
- escritor mínimo propio; C) reescritura en Rust.
-Mide con PDFs SINTÉTICOS (genera los que falten; nada de PDFs ajenos): tamaños ~2 kB, 5 MB, 50 MB, 100 MB; estructuras: xref
-clásica, xref stream, object streams, linearizado, con /Annots previas; documentos con /Encrypt y con /Sig simulada.
-Para cada combinación registra tiempo, memoria pico, validez (carga en PDF.js y en pdf-lib; qpdf --check si está disponible),
-si conserva bytes originales y efecto sobre firma/cifrado.
-Cierra con evidencia las hipótesis H-8 y H-9 de 02-arquitectura-interop.md §11.
-Entregables: docs/perf/SPIKE-GUARDADO.md (tablas + comando y salida LITERAL de cada medición, con ruta del log) y un borrador de
-ADR-0011 con la decisión recomendada y el plan de fallback. NO instales dependencias en el proyecto: usa un directorio de spike
-aislado y declara cada dependencia y su licencia. NO modifiques src/ ni src-tauri/ del producto.
+LEE ANTES: AGENTS.md (manda sobre todo), CLAUDE.md, docs/plan-v2/README.md, docs/plan-v2/07-estrategia-de-motor-y-completitud.md (ES TU
+ESPECIFICACIÓN), docs/plan-v2/02-arquitectura-interop.md §2, §3, §7 y §11. Comprueba: git status limpio y git log -5. Si no está limpio, DETENTE.
+
+OBJETIVO DEL PRODUCTO (aprobado por el usuario): las FUNCIONES de Bluebeam Revu con la COMPLETITUD técnica de pdfcraft
+(github.com/storytold/pdfcraft, MIT/Apache-2.0, usado como inspiración). Necesitamos elegir el MOTOR PDF.
+
+TAREA — hito P3-A.1: spike de motor de CUATRO opciones, medido con las métricas M1–M9 de 07 §3.1 y la rúbrica de 07 §3.2:
+ A) Actual ampliado: PDF.js (render) + pdf-lib (construir objetos) + escritor de ACTUALIZACIÓN INCREMENTAL propio (append de objetos + xref + /Prev).
+ B) Núcleo propio en Rust: prototipo MÍNIMO de capa de objetos (lectura de xref clásica y xref stream, objetos, object streams) + escritor incremental
+    con una anotación. No construyas un motor: mide lo que cuesta y extrapola M9 con argumentos.
+ C) Crates de pdfcraft: clona github.com/storytold/pdfcraft en spikes/motor/vendor/ (ignorado por git), FIJA el commit (hash en el informe), lee su
+    LICENSE y NOTICE, y úsalos como dependencia de un binario de spike (path dependency). ¿Están publicados en crates.io? Regístralo.
+ D) PDFium: vía un crate de enlace (p. ej. pdfium-render) y un binario de PDFium para Windows x64. Antes de descargar CUALQUIER binario, registra URL, versión,
+    licencia leída y SHA-256; si no puedes verificar procedencia y licencia, DETENTE con esa opción y regístralo como bloqueada.
+ Excluido: cualquier componente GPL/AGPL (p. ej. MuPDF). Puedes recomendar un híbrido si los datos lo justifican.
+
+CORPUS:
+ - Genera fixtures SINTÉTICOS deterministas en spikes/motor/fixtures/ (script incluido): xref clásica, xref stream, object streams, linearizado,
+   con /Annots previas, con /Sig simulada (sin criptografía), página con /Rotate 90, CropBox != MediaBox, hoja E (>= 3600x2400 pt, decenas de miles
+   de trazos), 300 páginas, ~100 MB con imágenes. Cifrados (RC4, AES-128, AES-256): genéralos con qpdf SI ya está instalado; si no lo está, NO lo
+   instales: regístralo y pide al usuario que decida.
+ - Corpus externo (07 §5): SOLO si el usuario aprobó D-11 en el mensaje que acompaña a este prompt. Si no, usa solo fixtures sintéticos y decláralo.
+ - Nunca commitees PDFs ajenos ni binarios. Añade a .gitignore: spikes/**/vendor/, spikes/**/target/, spikes/**/node_modules/, corpus/.
+
+MÉTRICAS (07 §3.1): M1 robustez de apertura (timeout por archivo), M2 fidelidad de render contra una referencia FIJA que declares y justifiques
+(sugerencia: PDF.js en Chromium vía Playwright, que ya está en el proyecto), M3 ida y vuelta (añadir Square, FreeText, Highlight, Ink y Text con /AP,
+guardar INCREMENTAL, reabrir, bytes originales intactos, qpdf --check si existe), M4 archivos difíciles, M5 planos grandes (primer render y memoria
+pico), M6 escritura de /OC, /Measure + /VP, /Stamp con /AP, /StateModel Review, /IRT /RT /Group, M7 integración en Windows/Tauri (compila, tamaño,
+cómo llegan los píxeles a la UI), M8 licencia y procedencia, M9 coste argumentado hasta M1 >= 95 % y M3 >= 95 %.
+Para M6, deja por opción un PDF de muestra en spikes/motor/out/<opcion>/muestra-revu.pdf para que el USUARIO lo abra en Revu y Acrobat
+(tú no puedes declarar compatibilidad: entrégale la lista de qué mirar).
+
+REGLAS:
+ 1. Nada en src/, src-tauri/src/ ni en el package.json raíz. Todo en spikes/motor/ (cada opción con su propio Cargo.toml/package.json).
+ 2. Caja de tiempo: si una opción no compila o no abre los fixtures básicos en un tiempo razonable, regístralo como resultado y sigue.
+ 3. EVIDENCIA: cada cifra del informe cita su log en spikes/motor/logs/<opcion>/... (logs de texto, sí se commitean). PROHIBIDO escribir listas de
+    resultados que no salgan de un log; las tablas se generan con un script a partir de los logs (incluye el script). Informes anteriores de agentes
+    inventaron listas de tests y nombres: eso invalida la entrega.
+ 4. Commits con git add explícito: uno por opción ("spike(p3-a.1): opcion A ...", etc.) y uno final de documentación.
+ 5. No instales nada a nivel de sistema ni descargues binarios sin registrar procedencia, licencia y SHA-256. Ante la duda, DETENTE y pregunta.
+
+ENTREGABLES: docs/perf/SPIKE-MOTOR.md (resumen, tabla M1–M9 por opción generada desde los logs, rúbrica aplicada con pesos, recomendación y
+riesgos), borrador docs/DECISIONS/ADR-<siguiente número libre>-motor-pdf.md en estado "Propuesto" (NO aceptado: lo aprueba el usuario), y una
+fila en la tabla de control de cambios de docs/plan-v2/README.md §9.
+INFORME FINAL: (a) archivos por commit copiados de git show --stat; (b) tabla de resultados con ruta de log por cifra; (c) qué NO se pudo medir y
+por qué; (d) recomendación con la rúbrica; (e) lista para el usuario: qué abrir en Revu y en Acrobat (rutas exactas) y qué comprobar en cada archivo.
 ```
 
 ## 4. P3-A.2 + P3-A.3 — Fixtures y núcleo puro

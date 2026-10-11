@@ -39,6 +39,7 @@ necesarios y prompts listos para arrancar cada paso.
 | `04-gobernanza-y-contabilidad.md` | Cambios exactos a `SCOPE/ROADMAP/STATUS/PARITY/AGENTS`, nuevas reglas, protocolo de verificación en Revu/Acrobat | Para el hito `Z.0` y al cerrar cada bloque |
 | `05-prompts-agente.md` | Prompts listos para copiar (preámbulo + pasos concretos) | Para delegar a otro agente |
 | `06-matriz-capacidades-revu.md` | Capacidades de Revu → prioridad → fase; escenarios de aceptación de extremo a extremo; cuestionario al usuario | Para priorizar y para definir "terminado" a nivel producto |
+| `07-estrategia-de-motor-y-completitud.md` | **Objetivo aprobado (2026-10-11):** funciones de Revu con la completitud de pdfcraft; spike de motor de 4 opciones (aprobado), corpus, paridad cuantitativa, CLI headless, Fases 7 y 8 | **Antes de cualquier hito de Fase 3** |
 
 ## 3. Resumen ejecutivo
 
@@ -64,6 +65,10 @@ necesarios y prompts listos para arrancar cada paso.
    agrupa esas verificaciones en "ventanas" por bloque, con checklist preparado, para no frenar el ritmo.
 7. **Lo que NO cambia:** la disciplina de `AGENTS.md`. Esta propuesta la extiende (nuevas reglas de
    evidencia para interoperabilidad) pero no la relaja.
+8. **Objetivo reformulado (2026-10-11, aprobado por el usuario):** las **funciones de Revu** con la **completitud
+   técnica de pdfcraft** (`github.com/storytold/pdfcraft`, usado como inspiración). Eso exige un **motor PDF real**
+   (reparación, cifrado, escritura incremental, formularios, redacción, firmas, render por mosaicos) y añade las
+   **Fases 7 y 8**. El motor se elige con un **spike de cuatro opciones** ya aprobado (`07`).
 
 ## 4. Decisiones pendientes del usuario
 
@@ -80,6 +85,9 @@ Cada decisión indica la recomendación por defecto. **Un agente no debe asumir 
 | **D-7** | ¿Fase 5 incluye rendimiento de planos grandes por mosaicos? (OJO: no es la "Fase 5 de GPU" eliminada; aquí es por medición.) | Sí, guiado por benchmarks / No | **Sí**, gated por `P5-A.1`. |
 | **D-8** | ¿Revisión de nombre y extensión (`REA = Revu Engineering Architecture`, `.bbx.json`) por riesgo de marca? | Revisar / Mantener | **Revisar** antes de distribuir (ver `04` §7). |
 | **D-9** | Excel: ¿`.xlsx` con librería o escritor propio mínimo (OOXML)? | Librería (peso) / Propio | Decidir con ADR en `P4-D.2`; no bloquea nada antes. |
+| **D-10** | ¿De dónde sale el motor PDF? | A actual ampliado · B núcleo propio Rust · C crates de pdfcraft · D PDFium (`07` §3) | **Spike APROBADO 2026-10-11.** La elección sale del spike + ADR + aprobación del usuario. |
+| **D-11** | ¿Corpus de PDFs ajenos para medir fidelidad, solo local y con manifiesto versionado? | Sí con reglas (`07` §5) / Solo fixtures propios | **Sí**, con ADR (no entra ningún PDF ajeno al repo). |
+| **D-12** | ¿Qué funciones de Revu usas de verdad? | Cuestionario `06` §4 | Responderlo antes de cerrar el spike: fija los pesos de la paridad cuantitativa. |
 
 ## 5. Mapa de fases
 
@@ -99,8 +107,13 @@ flowchart TD
     F3 --> F4["Fase 4 · Medición y Takeoff<br/>escala, herramientas, datos, informes"]
     F4 --> F5["Fase 5 · Documento, Navegación y Rendimiento<br/>planos grandes, multipágina, páginas"]
     F5 --> F6["Fase 6 · Comparación y Sets<br/>overlay, split view, sets"]
+    F6 --> F7["Fase 7 · Documento protegido, formularios y firmas<br/>cifrado, formularios, redacción, firmas, OCR"]
+    F7 --> F8["Fase 8 · Endurecimiento y distribución<br/>corpus, fuzzing, validadores, instalador"]
     F3 -. "A.1 y P5-A.1 pueden correr en paralelo<br/>(spike de rendimiento)" .- F5
 ```
+
+> Desde 2026-10-11, `P3-A.1` es el **spike de motor de cuatro opciones** (`07` §3). El resto de la Fase 3 se
+> reordena según su resultado (`07` §4).
 
 Tabla resumen (tamaños: **S** ≈ una sesión corta · **M** ≈ una sesión larga · **L** ≈ varias sesiones;
 ver `04` §4 sobre cadencia observada):
@@ -113,6 +126,8 @@ ver `04` §4 sobre cadencia observada):
 | 4 | Medición y takeoff (A–E) | ~19 | L |
 | 5 | Documento, navegación, rendimiento (A–D) | ~17 | L |
 | 6 | Comparación y Sets (A–C) | ~6 | M–L |
+| 7 | Documento protegido, formularios, redacción, firmas, OCR | por definir tras el spike | L |
+| 8 | Endurecimiento (corpus, fuzzing, validadores) y distribución | continuo | L |
 
 Los ids antiguos `P3-0.x` y `P4-0.x` del `ROADMAP.md` **no están citados en ningún commit ni en
 `PARITY.md`** (verificado con búsqueda en el repo), por lo que renumerar las fases futuras no rompe
@@ -132,22 +147,21 @@ trazabilidad. Mapa de equivalencias en `04` §2.
 ## 7. Qué NO hacer hasta que haya aprobación
 
 - No tocar `ROADMAP.md`, `SCOPE.md`, `STATUS.md`, `PARITY.md` ni `AGENTS.md` (salvo el hito `Z.0` ya aprobado).
-- No empezar ningún hito `P3-*`, `P4-*`, `P5-*`, `P6-*` ni `P2-C.6`.
+- No empezar ningún hito `P3-*`, `P4-*`, `P5-*`, `P6-*`, `P7-*`, `P8-*` ni `P2-C.6`, **salvo `P3-A.1`
+  (spike de motor), aprobado el 2026-10-11**: es investigación y no toca `src/` ni `src-tauri/src/`.
 - No añadir dependencias (p. ej. `lopdf`, librerías de XLSX) sin el ADR correspondiente.
 - No asumir ningún comportamiento de Revu/Acrobat: **todo lo no probado está en el registro de hipótesis
   (`02` §11)** y solo se da por cierto con evidencia.
 
 ## 8. Advertencia operativa
 
-Esta carpeta se creó mientras otras sesiones trabajaban en el árbol (`P2-C.2`, E2E). Son archivos **nuevos
-y sin commitear**. Antes de que cualquier agente haga `git add -A`, conviene commitear esta carpeta aparte:
+La carpeta se commiteó en `e3f3269`. Cualquier cambio posterior al plan va en un commit **solo de
+documentación** (no cambia el conteo de tests ni requiere E2E) y se registra en §9.
 
-```powershell
-git add docs/plan-v2
-git commit -m "docs(plan): plan maestro v2 propuesto (interoperabilidad, medicion, navegacion)"
-```
-
-(Un commit de solo documentación no cambia el conteo de tests ni requiere E2E.)
+**Lección de las entregas de 2026-10-10/11:** dos informes de agentes incluyeron datos inventados (nombres de
+archivos, tipos, listas de tests que no existen, atajos que el código no tiene) aunque el código y los totales eran
+correctos. Por eso **cada entrega se audita contra el disco** antes de darla por buena (prompt de auditor, `05` §7),
+y toda lista de resultados se copia de un log en disco.
 
 ## 9. Control de cambios de este plan
 
@@ -158,3 +172,4 @@ plan y `AGENTS.md`, **gana `AGENTS.md`**.
 |---|---|---|
 | 2026-10-10 | Claude (Sonnet 5.5) | Versión inicial (propuesta). Base: commit `d310a87`; estado de fases según el usuario. |
 | 2026-10-11 | Antigravity (Gemini) | Hito P2-C.3 completado: parser de gramática cerrada, evaluador con ciclos, ordenación/filtrado y UI de columnas personalizadas (ADR-0009). |
+| 2026-10-11 | Claude (Opus 5.5) | Objetivo reformulado por el usuario (funciones de Revu + completitud de pdfcraft). Nuevo `07`; `P3-A.1` pasa a spike de motor de 4 opciones (aprobado); decisiones D-10..D-12; Fases 7 y 8; alcance ampliado en `03` §8 y `06`. ADR-0009 lo ocupó C.3: la numeración tentativa de ADR de `04` §1.8 se desplaza +1. |

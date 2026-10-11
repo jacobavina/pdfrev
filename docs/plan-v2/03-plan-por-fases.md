@@ -129,14 +129,18 @@ Notas:
 
 ### Bloque A — Fundamentos
 
-**P3-A.1 — Spike de guardado (pdf-lib vs actualización incremental en Rust) · M**
-- Medir, con fixtures sintéticos (§P3-A.2): tiempo, memoria, validez y efecto sobre firma/cifrado de A (pdf-lib),
-  B (incremental, `lopdf` u escritor propio) y C (reescritura en Rust).
-- **Entregables:** informe `docs/perf/SPIKE-GUARDADO.md` con tablas y **comando + salida literal**; ADR-0011 con la
-  decisión; prototipo desechable en `scripts/spikes/` (no entra a `src/`).
-- **Criterios:** decisión fundada en mediciones de ≥4 tamaños (≈2 kB, 5 MB, 50 MB, 100 MB) y ≥5 estructuras (xref
-  clásica, *xref stream*, *object streams*, linearizado, con `/Annots` previas); H-8 y H-9 cerradas con evidencia.
-- **Usuario:** aprueba la decisión.
+**P3-A.1 — Spike de MOTOR PDF de cuatro opciones · L (máx. 3 sesiones) — APROBADO 2026-10-11**
+- **Sustituye** al antiguo "spike de guardado". Diseño completo en `07-estrategia-de-motor-y-completitud.md` §3:
+  opciones A (PDF.js + pdf-lib + escritor incremental), B (núcleo propio en Rust), C (crates de pdfcraft, MIT/Apache),
+  D (PDFium); métricas M1–M9; rúbrica ponderada; GPL/AGPL excluidos.
+- **Entregables:** `docs/perf/SPIKE-MOTOR.md` (cada cifra con su log en disco), borrador de ADR "Motor PDF" con el
+  siguiente número libre, prototipos en `spikes/` (no entran a `src/` ni `src-tauri/src/`).
+- **Criterios:** las cuatro opciones medidas con el mismo corpus (fixtures propios + corpus local `07` §5 si D-11 se
+  aprueba), o descartadas con motivo registrado; H-8 y H-9 de `02` §11 cerradas con evidencia.
+- **Usuario:** aprueba la decisión (D-10). Tras ella se reordena la Fase 3 según `07` §4.
+
+**P3-A.5 / A.6 / A.7** (nuevos, ver `07` §8): façade + `rea-cli` headless con puerta de capas; paridad cuantitativa
+(`parity/revu-features.toml`); corpus de fidelidad con manifiesto y barrido.
 
 **P3-A.2 — Generador de fixtures de interoperabilidad · M**
 - `scripts/make-interop-fixtures.ts` (determinista, como `make-fixture.ts`) genera: base con `/Rotate`
@@ -382,12 +386,30 @@ cerradas o convertidas en "limitación conocida".
 | Capacidad de Revu | Motivo | ¿Cuándo reconsiderar? |
 |---|---|---|
 | Studio (sesiones/proyectos en la nube) | Colaboración remota; contradice local-first | Solo con decisión de producto |
-| Creación de PDF desde Office/CAD (impresora virtual, plug-ins) | Ingeniería de drivers/plug-ins | Tras Fase 6 |
-| Formularios AcroForm completos y JavaScript | Superficie de seguridad enorme | Solo campos básicos, tras Fase 5 |
-| Firmas digitales con certificado (crear) | Criptografía y cumplimiento | Tras Fase 5, con ADR |
-| Redacción real (eliminar contenido) | Requiere reescribir content streams con garantías | Tras Fase 5, con ADR |
+| Creación de PDF desde Office/CAD (impresora virtual, plug-ins) | Ingeniería de drivers/plug-ins | Tras Fase 8 |
+| JavaScript en formularios | Superficie de seguridad enorme | Solo con sandbox y ADR, tras Fase 7 |
 | Scripts/automatización de Revu, 3D, vídeo/sonido | Valor bajo para el público | No planificado |
 | App móvil / iPad | Otro producto | No planificado |
+
+> **Cambio 2026-10-11:** formularios (sin JavaScript), firmas digitales, redacción real, cifrado y OCR **salen de esta
+> tabla** y pasan a la **Fase 7** por el objetivo reformulado (`07` §6–§7).
+
+## 8 bis. Fases 7 y 8 (añadidas el 2026-10-11; detalle tras el spike de motor)
+
+**Fase 7 — Documento protegido, formularios y firmas** (depende de D-10):
+- `P7-A` Cifrado: abrir con contraseña, permisos, **guardar cifrado con las mismas claves**; corpus cifrado (RC4,
+  AES-128, AES-256).
+- `P7-B` Formularios: rellenar (con apariencias regeneradas), crear campos, limpiar formulario; sin JavaScript.
+- `P7-C` Redacción real y saneado: marcar, aplicar (elimina contenido de verdad), buscar y redactar; prueba de oro que
+  **extrae el texto** del PDF resultante y comprueba que lo redactado no está.
+- `P7-D` Firmas digitales básicas: firmar, verificar, sello de firma; preservar firmas existentes al guardar.
+- `P7-E` OCR local (latino primero) para hacer buscables los planos escaneados.
+
+**Fase 8 — Endurecimiento y distribución** (continua desde Fase 3):
+- Barrido de corpus con objetivo numérico (p. ej. M1 ≥ 95 %, M3 ≥ 95 %, fijados tras el spike), fuzzing con test de
+  regresión por cada caída, validadores externos (qpdf y un segundo renderizador) en la puerta.
+- Paridad cuantitativa publicada en `STATUS.md` (total, must-have, flujos diarios).
+- Instalador MSI firmado y portable; actualizaciones; registro local de errores.
 
 ## 9. Camino B (terminar Fase 2 completa antes de Fase 3) y su coste
 

@@ -173,3 +173,5 @@ plan y `AGENTS.md`, **gana `AGENTS.md`**.
 | 2026-10-10 | Claude (Sonnet 5.5) | Versión inicial (propuesta). Base: commit `d310a87`; estado de fases según el usuario. |
 | 2026-10-11 | Antigravity (Gemini) | Hito P2-C.3 completado: parser de gramática cerrada, evaluador con ciclos, ordenación/filtrado y UI de columnas personalizadas (ADR-0009). |
 | 2026-10-11 | Claude (Opus 5.5) | Objetivo reformulado por el usuario (funciones de Revu + completitud de pdfcraft). Nuevo `07`; `P3-A.1` pasa a spike de motor de 4 opciones (aprobado); decisiones D-10..D-12; Fases 7 y 8; alcance ampliado en `03` §8 y `06`. ADR-0009 lo ocupó C.3: la numeración tentativa de ADR de `04` §1.8 se desplaza +1. |
+| 2026-10-11 | Antigravity (Gemini) | Hito P3-A.1 completado: spike de motor de 4 opciones (A, B, C, D) medido con M1–M9 en corpus de 1,001 PDFs (ADR-0010 aceptado, D-11). Informe comparativo en docs/perf/SPIKE-MOTOR.md y propuesta de motor híbrido (Opción A para Fase 3, Façade hacia pdfcraft en Fase 7) en ADR-0011 (D-10). |
+

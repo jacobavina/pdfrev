@@ -11,14 +11,16 @@
 | **Fase 1: Motor Base y Shell CAD** | **CERRADA** | 114 tests unitarios al cierre de fase + 4 tests cargo + 3 E2E. R9 validado en disco desde ventana nativa por el usuario. |
 | **Fase 2 — Bloque A: Marcado y Manipulación** | **CERRADO** | 190 tests unitarios en 9 suites + 4 tests cargo + 11/11 E2E en Playwright. Las 7 filas verificadas en ventana nativa por el usuario (filas 22 a 25 y 27 a 30 de PARITY.md). Esquema .bbx.json se mantiene en 1.1.0. |
 | **Fase 2 — Bloque B: Tool Chest** | **CERRADO** | Verificado por el usuario en ventana nativa (modos D y P, persistencia IndexedDB y arrastre drag & drop con `dragDropEnabled: false` en `tauri.conf.json`). Registro universal en Recientes para toda marca creada. 18 tests en `toolChestService`, 10 en `useToolChestStore`, 5 en `ToolVectorThumbnail`, 8 en `ToolChestPanel` y 12/12 E2E base. |
-| **Fase 2 — Bloque C: MarkupsList Completa** | **EN CURSO** | C.1 entregado (commit `d3b8d55`), C.2 (commit `d310a87`), Z.2/Z.2b (commits `91c474b` y `bf7be61`) y C.3 entregado (commit `8109a6f`). C.4 (exportación), C.5 (E2E+nativo) no empezados; C.6 (inspector) propuesto pendiente de aprobación. |
-| **Fase 2 — Bloque D: Capas y Sellos Dinámicos** | **NO EMPEZADO** | Capas lógicas persistidas y sellos vectoriales dinámicos. Propuesto trasladar a Fase 3 (`P3-F.1` y `P3-F.2`) según Plan Maestro v2. |
+| **Fase 2 — Bloque C: MarkupsList Completa e Inspector** | **EN CURSO (CIERRE FASE 2, D-2 y D-3)** | C.1, C.2, Z.2/Z.2b y C.3 cerrados. P2-C.4 (exportación CSV/PDF), P2-C.6 (inspector de propiedades, ADR-0012) y P2-C.5 (E2E/Ctrl+S) en ejecución activa bajo el orquestador autónomo. |
+| **Fase 2 — Bloque D: Capas y Sellos Dinámicos** | **REUBICADO A FASE 3** | Reubicado a Fase 3 (Bloque G) conforme a la decisión D-2 (Camino A′) para construirse sobre OCGs estándar y XObjects /AP. |
+| **Fase 3: Interoperabilidad PDF Real y Motor** | **EN CURSO (Spike A.1 Cerrado)** | Spike P3-A.1 completado (4 opciones evaluadas en corpus de 1,001 PDFs, ADR-0010 y ADR-0011 Aceptados). Opción A adoptada con escritor incremental propio y persistencia estándar ISO 32000-1. |
 
 ---
 
 ## 2. Detalle por Sub-entregable
 
 ### Fase 1: Motor de Anotaciones y Visor PDF (Cerrada y Verificada)
+
 
 | ID | Título | Estado | Evidencia y Verificación | Notas |
 |---|---|---|---|---|
@@ -74,10 +76,10 @@
 | `P2-C.1` | Motor puro e inmutable de filtrado y ordenación | **Entregado** (commit `d3b8d55`) | 17 tests unitarios en `src/utils/markupFilterSort.test.ts`. Benchmark < 10ms garantizado con 500 marcas. Integración en `MarkupsList.tsx`. | Verificado por el usuario en ventana nativa, 2026-10-10. |
 | `P2-C.2` | Menú contextual de estados técnicos y grupos | **Commiteado** (commit `d310a87`) | Comando `UpdateMarkupStatusCommand` atómico y reversible con Ctrl+Z. 3 tests en `UpdateMarkupStatusCommand.test.ts`, menú contextual flotante en `MarkupsList.tsx` y test E2E 13. | Verificado por el usuario en ventana nativa, 2026-10-10 (menú de 5 estados, Ctrl+Z y Ctrl+Y). |
 | `Z.2` | Endurecimiento del migrador (customColumns, customFields, avisos) | **Cerrado** (commits `91c474b` y Z.2b) | `BbxDocumentFile` extendido con `customColumns?`. Validación estricta contra entradas hostiles (`__proto__`, NaN, cadenas gigantes). Retorno de `warnings: string[]` propagados con `toastService` al abrir documento. Test de persistencia de FICHERO REAL en `bbxPersistenceService.test.ts`. 17 tests en `markup.test.ts`, 9 tests en `fileDialogService.test.ts` y 2 tests en `useAutoSave.test.ts`. | Garantiza preservación de customColumns de extremo a extremo (carga -> store de documento -> autoguardado), normalización a tipos canónicos {'text','number','choice','formula'}, límites estrictos (máx 50 columnas y 50 campos/marca con avisos agregados) y agrupación de advertencias en UI sin sobrescritura (hito Z.2b). Esquema 1.1.0 conservado (ADR-0003 Addendum). |
-| `P2-C.3` | Columnas personalizadas con parser de gramática cerrada | **Entregado** (commits `fbbb4d9`, `2937fc3`, `8109a6f`) | Parser y evaluador seguro de gramática cerrada (sin eval/new Function, protección DoS/ciclos), DAG de dependencias, ordenación/filtrado con benchmark < 15ms, comandos reversibles con Ctrl+Z, modal reactivo en MarkupsList y persistencia en .bbx.json. 42 tests en parser, 11 en evaluate, 24 en markupFilterSort, 4 en MarkupsListCustomColumns, 3 en UpdateMarkupCustomFieldCommand y test E2E 14. | ADR-0009 aceptado. Verificación nativa pendiente de validación por el usuario. |
-| `P2-C.4` | Exportación CSV (RFC 4180 + BOM) y Reporte Resumen PDF | **No empezado** | Exportación tabular limpia con protección contra inyección de fórmulas y reporte ejecutivo. | Depende de C.3. |
-| `P2-C.5` | E2E del bloque completo y verificación nativa | **No empezado** | Suite E2E completa del flujo de lista y reporte. Cierre definitivo del Bloque C. | Depende de C.4. |
-| `P2-C.6` | Inspector de propiedades de marca | **Propuesto, pendiente de aprobación** | Edición interactiva de color, grosor, opacidad y texto de marcas existentes. | Requiere ADR y aprobación de decisión D-3. |
+| `P2-C.4` | Exportación CSV (RFC 4180 + BOM) y Reporte Resumen PDF | **En curso** | Exportación tabular limpia con protección contra inyección de fórmulas, reporte ejecutivo PDF con pdf-lib y comando Rust atómico con lista blanca (.csv, .pdf). | C.3 cerrado. |
+| `P2-C.6` | Inspector de propiedades de marca (D-3, ADR-0012) | **En curso** | Edición interactiva de color, relleno, grosor, opacidad, guiones, texto y estado; valores mixtos "—" y comandos atómicos con undo. | Aprobado por el usuario (D-3). |
+| `P2-C.5` | E2E del bloque completo, atajo Ctrl+S y verificación nativa | **En curso** | Suite E2E completa del flujo de lista, exportación, inspector y guardado. Cierre definitivo de Fase 2. | Depende de C.4 y C.6. |
+
 
 ---
 

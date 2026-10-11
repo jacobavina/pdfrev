@@ -33,6 +33,8 @@ Este documento registra la paridad funcional real implementada en REA, vinculand
 | **P2-C.2: Menú contextual de estados técnicos con comando de historial (Bloque C)** | `shipped` | `tests/e2e/pdf-viewer.spec.ts` | `Sub-entregable P2-C.2: Menú contextual de estados técnicos en MarkupsList y sincronización atómica de grupos (Condición 3)` | Verificado por el usuario en ventana nativa, 2026-10-10 (capturas y prueba manual sobre HEAD bf7be61) |
 | **P2-C.3: Parser de columnas personalizadas sin eval y persistencia en .bbx.json (Bloque C)** | `shipped` | `tests/e2e/pdf-viewer.spec.ts` | `Sub-entregable P2-C.3: Columnas personalizadas con parser de gramática cerrada, edición en línea y ordenación` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **P2-C.4: Exportación estructurada a CSV con BOM y Reporte Resumen PDF (Bloque C)** | `todo` | `-` | `Pendiente de implementación (P2-C.4)` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
-| **Capas lógicas persistidas y Sellos dinámicos (Bloque D)** | `todo` | `-` | `Pendiente de implementación (P2-D)` | Pendiente de implementación |
+| **P2-C.6: Inspector de propiedades de marca (Bloque C, D-3)** | `todo` | `-` | `Pendiente de implementación (P2-C.6)` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **Capas lógicas OCG y Sellos dinámicos PDF (Reubicado a Fase 3 - D-2)** | `todo` | `-` | `Pendiente de implementación (Fase 3 Bloque G)` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Automatización nativa con tauri-driver (Hito P2-X)** | `shipped` | `scripts/native-smoke.mjs` | `Hito P2-X (ADR-0008): Smoke Test de Ventana Nativa con tauri-driver` | Verificado por el usuario en ventana nativa, 2026-10-10 (`npm run test:native:build` sobre HEAD bf7be61: arranque, canvas, IPC Rust y dibujo W3C) |
+
 

@@ -1,6 +1,6 @@
 # ADR-0011: Selección de Motor PDF y Persistencia Incremental (D-10)
 
-- **Estado:** Propuesto (pendiente de aprobación del usuario)
+- **Estado:** Aceptado (aprobado por el usuario, 2026-10-11)
 - **Fecha:** 2026-10-11
 - **Autores:** Equipo REA
 - **Relacionado con:** [ADR-0010](file:///C:/dev/rea/docs/DECISIONS/ADR-0010-corpus-fidelidad-local.md), [07-estrategia-de-motor-y-completitud.md](file:///C:/dev/rea/docs/plan-v2/07-estrategia-de-motor-y-completitud.md), [SPIKE-MOTOR.md](file:///C:/dev/rea/docs/perf/SPIKE-MOTOR.md)

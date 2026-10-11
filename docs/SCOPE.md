@@ -41,38 +41,58 @@
   - Arrastrar y soltar (drag & drop) de herramientas y estilos al lienzo (ejecuta `addMarkup` una sola vez dentro de tolerancia $\pm 5$ px).
   - Menú contextual de `MarkupsList`: única acción permitida "Añadir a Tool Chest" (columnas, filtros y ordenación quedan reservados para Bloque C).
   - Resiliencia y fallback ruidoso: notificación visible en UI ante fallo de persistencia o cuota agotada de IndexedDB sin interrumpir la operatividad en memoria.
-- **Bloque C: MarkupsList Completa**
-  - Ordenación y filtros avanzados por estado, autor, tipo y capa.
-  - Columnas personalizadas con parser propio de lista blanca.
-  - Gestión de estados con menú contextual interactivo.
-  - Exportación estructurada de la tabla de marcas a CSV (RFC 4180 compatible con Excel con BOM UTF-8) y Reporte Resumen en PDF (vía pdf-lib sin dependencias nuevas). La exportación a libro binario .xlsx con fórmulas de takeoff permanece en Fase 3.
-- **Bloque D: Capas Lógicas y Sellos Dinámicos**
-  - Capas CAD lógicas con visibilidad persistida en el modelo `.bbx.json`.
-  - Sellos dinámicos técnicos basados en descriptores vectoriales limpios (donde residen los sellos).
+- **Bloque C: MarkupsList Completa e Inspector (Cierre de Fase 2, Camino A′ - D-2 y D-3)**
+  - Ordenación y filtros avanzados por estado, autor, tipo y capa. **[CERRADO]**
+  - Columnas personalizadas con parser propio de lista blanca y fórmulas aritméticas (`P2-C.3`). **[CERRADO]**
+  - Gestión de estados con menú contextual interactivo. **[CERRADO]**
+  - Exportación estructurada de marcas (`P2-C.4`): CSV RFC 4180 con BOM UTF-8 y mitigación de inyección de fórmulas; Reporte Resumen en PDF vía pdf-lib; comando Rust atómico con lista blanca (.csv, .pdf).
+  - Inspector de propiedades (`P2-C.6` - D-3, ADR-0012): panel lateral para la selección (color, relleno, grosor, opacidad, estilo, fuentes, texto, estado) con valores mixtos "—", comando atómico con undo por cambio y guardas numéricas.
+  - Botón Guardar y atajo `Ctrl+S` para persistencia en PDF / BBX.
+  - Validación E2E del bloque C (`P2-C.5`).
+- **Bloque D (Capas y Sellos):**
+  - Conforme a la decisión **D-2 (Camino A′)**, Capas Lógicas y Sellos Dinámicos se trasladan a la **Fase 3** (Interoperabilidad PDF nativa, Bloque G) para construirse directamente sobre OCGs estándar y XObjects de apariencia (`/AP`).
 
-### OUT EXPLÍCITO DE LA FASE 2 (Terminantemente Prohibido sin ADR y Aprobación)
-1. **Calibración y Acotación:** La calibración de escala y acotación lineal/área está terminantemente prohibida en Fase 2 (pertenece a la Fase 3).
-2. **Adelanto de Bloques:** Prohibido implementar características de los Bloques B, C o D antes de cerrar por completo y auditar el Bloque A.
-3. **Features no aprobadas en IN:** No se implementan polilíneas abiertas, flechas independientes, snap ortogonal, inspector contextual flotante de propiedades ni duplicación con offset paramétrico. Cualquier inclusión futura requerirá su respectivo ADR y aprobación explícita del usuario.
-4. **Texto Enriquecido (Rich Text):** Prohibido el formateo por carácter (negrita/cursiva parcial, colores por palabra o etiquetas HTML/BBCode). Todo texto es texto plano (plain text).
-5. **Takeoff y Estimación:** No se construyen motores de costeo, despiece ni fórmulas complejas de presupuesto (reservado para Fase 3).
-6. **Comparación de Versiones y Document Sets:** Prohibida la superposición de planos (Overlay Pages) o sincronización de múltiples archivos (reservado para Fase 4).
-7. **AcroForm con JavaScript:** Prohibida la ejecución de scripts o campos de formulario dinámicos evaluados con JS dentro de sellos.
-8. **Escritura de Nuevos OCGs (Capas PDF Nativas):** No se escriben diccionarios de capas PDF en el archivo exportado (se preservan capas a nivel de modelo de marcas `.bbx.json`).
-9. **Colaboración en la Nube / Conectividad Remota:** La arquitectura es estrictamente offline y local-first; no se implementan sockets, APIs remotas ni persistencia externa.
+### OUT EXPLÍCITO DE LA FASE 2
+1. **Calibración y Acotación:** Pertenece a la Fase 4 (Medición y Takeoff).
+2. **Capas y Sellos:** Trasladados a Fase 3 (D-2).
+3. **Texto Enriquecido (Rich Text):** Prohibido el formateo por carácter; todo texto es texto plano.
+4. **Colaboración en la Nube / Conectividad Remota:** Arquitectura estrictamente offline y local-first.
 
 ---
 
-## 3. Fases Futuras (Planificación Vigente)
+## 3. Fases Futuras (Planificación Vigente y Alineada con Plan v2)
 
-### Fase 3: Calibración, Acotación, Takeoff y Estimaciones
-- Herramienta de calibración de escala sobre distancia conocida del plano.
-- Acotación lineal, perimetral y de áreas en escala real.
-- Conteo automático de símbolos y marcas.
-- Tablas de takeoff con asignación de materiales y costes unitarios.
-- Exportación estructurada a Microsoft Excel (`.xlsx`) y CSV.
+### Fase 3: Interoperabilidad PDF Real, Motor y Herramientas Revu (ADR-0011, D-1)
+- Persistencia de marcas como anotaciones PDF estándar ISO 32000-1 con flujos de apariencia (`/AP`). El PDF es la fuente de verdad (D-1).
+- Escritor incremental en disco (append-only) que preserva el 100% de los bytes originales.
+- Comando Rust `save_pdf` atómico con respaldo y validación estructural previa.
+- Importación bidireccional de anotaciones PDF existentes con render dual.
+- Capas PDF estándar (`/OCG`) y Sellos de aprobación con `/AP`.
+- Herramientas faltantes de Revu: flecha con extremos (`/LE`), polilínea abierta, tachado/subrayado, duplicación y bloqueo (`/F 1`).
 
-### Fase 4: Comparativa Avanzada y Gestión Documental
-- Comparación diferencial visual de planos (resaltado en verde/rojo de discrepancias vectoriales).
-- Vista dividida (Split View) sincronizada horizontal y vertical.
-- Gestión de colecciones de planos (Document Sets) con control de revisiones e hipervínculos.
+### Fase 4: Medición, Calibración y Takeoff
+- Calibración por página (dos puntos y distancia real con guardas).
+- Herramientas Longitud, Polilínea de medida, Área y Conteo.
+- Columnas de medición en lista de marcas y exportación.
+
+### Fase 5: Documento, Navegación y Rendimiento
+- Operaciones de página (rotar, insertar, eliminar, extraer).
+- Renderizado de altas prestaciones por mosaicos.
+- Aplanado y desaplanado selectivo de marcas (Flatten/Unflatten).
+
+### Fase 6: Comparación de Planos y Document Sets
+- Comparación diferencial visual vectorial (Overlay Pages).
+- Vista dividida sincronizada (Split View).
+- Conjuntos de planos (Document Sets).
+
+### Fase 7: Documento Protegido, Formularios y Seguridad Avanzada (pdfcraft)
+- Integración de crates especializados `pdfcraft-cos` y `pdfcraft-crypt` detrás de la Façade Rust (ADR-0011).
+- Lectura y guardado de PDFs cifrados (R2 a R6), contraseñas y permisos.
+- Formularios interactivos AcroForm y firmas digitales básicas.
+- Redacción documental permanente.
+
+### Fase 8: Endurecimiento Continuo y Distribución
+- Barrido continuo de corpus externo y fuzzing.
+- Validadores externos en la puerta de calidad (`qpdf`, etc.).
+- Empaquetado firmado para Windows (MSI y portable).
+

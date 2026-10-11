@@ -61,41 +61,58 @@ flowchart LR
 
 ---
 
-### Bloque C: MarkupsList Completa (EN CURSO)
+### Bloque C: MarkupsList Completa e Inspector (EN CURSO - CIERRE FASE 2, D-2 Y D-3)
 
 | ID | Hito | Estado | Dependencia |
 |---|---|---|---|
-| `P2-C.1` | Ordenación bidireccional y filtrado multicriterio con benchmark < 10ms | **Entregado** (commit `d3b8d55`); verificación nativa pendiente | Bloque B completo |
-| `P2-C.2` | Menú contextual de estados técnicos con comando atómico y sincronización de grupos | **Commiteado** (commit `d310a87`); verificación nativa pendiente | `P2-C.1` |
-| `P2-C.3` | Columnas personalizadas con parser de gramática cerrada y persistencia en .bbx.json | **No empezado** (depende de Z.2) | `P2-C.2` |
-| `P2-C.4` | Exportación CSV (RFC 4180 + BOM) y Reporte Resumen PDF | **No empezado** | `P2-C.3` |
-| `P2-C.5` | E2E del bloque completo y verificación nativa | **No empezado** | `P2-C.4` |
-| `P2-C.6` | Inspector de propiedades de marca | **Propuesto, pendiente de aprobación** (requiere ADR y decisión D-3) | `P2-C.5` |
+| `P2-C.1` | Ordenación bidireccional y filtrado multicriterio con benchmark < 10ms | **CERRADO** (commit `d3b8d55`); verificación nativa pendiente | Bloque B completo |
+| `P2-C.2` | Menú contextual de estados técnicos con comando atómico y sincronización de grupos | **CERRADO** (commit `d310a87`); verificación nativa pendiente | `P2-C.1` |
+| `P2-C.3` | Columnas personalizadas con parser de gramática cerrada, evaluador y persistencia | **CERRADO** (commit `bc8defd`, ADR-0009) | `P2-C.2` |
+| `P2-C.4` | Exportación CSV (RFC 4180 + BOM) y Reporte Resumen PDF con I/O atómico Rust | **En curso** | `P2-C.3` |
+| `P2-C.6` | Inspector de propiedades de marca (D-3, ADR-0012) | **En curso** | `P2-C.4` |
+| `P2-C.5` | E2E del bloque completo, atajo Ctrl+S y verificación nativa | **En curso** | `P2-C.6` |
 
 ---
 
 ### Bloque D: Capas Lógicas y Sellos Dinámicos
-
-| ID | Hito | Estado | Dependencia |
-|---|---|---|---|
-| `P2-D.1` | Capas CAD lógicas con visibilidad persistida en el modelo `.bbx.json` | **No empezado** (propuesto reubicar a Fase 3 `P3-F.1`) | Bloque C completo |
-| `P2-D.2` | Sellos dinámicos técnicos basados en primitivas vectoriales limpias | **No empezado** (propuesto reubicar a Fase 3 `P3-F.2`) | `P2-D.1` |
+*Reubicado a Fase 3 (Bloque G) conforme a la decisión **D-2 (Camino A′)** para construirse sobre OCGs estándar y XObjects de apariencia en PDF.*
 
 ---
 
-## Fases Futuras
+## Fases Futuras (Plan Maestro v2 Aprobado)
 
-> [!NOTE]
-> Las Fases 3 y 4 están sujetas a la propuesta de reestructuración del Plan Maestro v2 hacia interoperabilidad PDF estándar con Bluebeam Revu y Adobe Acrobat. Véase [`docs/plan-v2/`](docs/plan-v2/README.md) para el detalle de la propuesta pendiente de aprobación del usuario.
+### Fase 3: Interoperabilidad PDF Real, Motor y Herramientas Revu (ADR-0011, D-1)
+- Persistencia de marcas como anotaciones PDF estándar ISO 32000-1 con `/AP` (el PDF es la fuente de verdad).
+- Escritura incremental en disco (append-only) que preserva 100% los bytes originales.
+- Comando Rust `save_pdf` atómico con respaldo y validación estructural previa.
+- Importación bidireccional de anotaciones PDF existentes con render dual.
+- Capas PDF estándar (`/OCG`) y Sellos de aprobación con `/AP`.
+- Herramientas faltantes de Revu: flecha con extremos (`/LE`), polilínea abierta, tachado/subrayado, duplicación y bloqueo (`/F 1`).
 
-### Fase 3: Calibración, Acotación, Takeoff y Estimación de Costes
-- `P3-0.1` — Calibración de escala de plano sobre segmento conocido.
-- `P3-0.2` — Acotación lineal, perimetral y superficial en escala real de ingeniería.
-- `P3-0.3` — Conteo automático de símbolos y etiquetas técnicas.
-- `P3-0.4` — Tablas de cubicación y takeoff de materiales con costes unitarios.
-- `P3-0.5` — Exportación estructurada avanzada a Excel (`.xlsx`) y CSV.
+### Fase 4: Medición, Calibración y Takeoff
+- Calibración por página (dos puntos y distancia real con guardas contra 0 y NaN).
+- Herramientas Longitud, Polilínea de medida, Área y Conteo.
+- Columnas de medición en lista de marcas y exportación CSV.
 
-### Fase 4: Comparación Diferencial y Juegos de Planos (Sets)
-- `P4-0.1` — Superposición de planos (Overlay Pages) con código cromático de diferencias.
-- `P4-0.2` — Comparación lado a lado con Split View y paneo sincronizado.
+### Fase 5: Documento, Navegación y Rendimiento
+- Operaciones de página (rotar, insertar, eliminar, extraer).
+- Renderizado de altas prestaciones por mosaicos.
+- Aplanado y desaplanado selectivo de marcas (Flatten/Unflatten).
+
+### Fase 6: Comparación de Planos y Document Sets
+- Comparación diferencial visual vectorial (Overlay Pages).
+- Vista dividida sincronizada (Split View).
+- Conjuntos de planos (Document Sets).
+
+### Fase 7: Documento Protegido, Formularios y Seguridad Avanzada (pdfcraft)
+- Integración de crates especializados `pdfcraft-cos` y `pdfcraft-crypt` detrás de la Façade Rust (ADR-0011).
+- Lectura y guardado de PDFs cifrados (R2 a R6), contraseñas y permisos.
+- Formularios interactivos AcroForm y firmas digitales básicas.
+- Redacción documental permanente.
+
+### Fase 8: Endurecimiento Continuo y Distribución
+- Barrido continuo de corpus externo y fuzzing.
+- Validadores externos en la puerta de calidad (`qpdf`, etc.).
+- Empaquetado firmado para Windows (MSI y portable).
+
 - `P4-0.3` — Gestión de conjuntos de planos (Document Sets) con vinculación de hiperenlaces.

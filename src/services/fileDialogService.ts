@@ -105,7 +105,7 @@ export async function loadPdfData(
     return;
   }
 
-  // Modo demo o archivo sin ruta en disco: no intentar cargar .bbx.json
+  // Modo demo o archivo sin ruta en disco: no intentar cargar .bbx.json ni importar anotaciones
   if (!filePath) {
     setCustomColumns(undefined);
     return;
@@ -138,12 +138,39 @@ export async function loadPdfData(
       }
     } else {
       setCustomColumns(undefined);
-      setMarkups([]);
+      await tryImportPdfAnnotations(bytes);
     }
   } catch (bbxErr: unknown) {
     const bbxMsg = bbxErr instanceof Error ? bbxErr.message : String(bbxErr);
     console.error(`[BBX] Error al leer archivo de marcas .bbx.json: ${bbxMsg}`);
     setCustomColumns(undefined);
+    await tryImportPdfAnnotations(bytes);
+  }
+}
+
+/**
+ * Intenta importar marcas de anotaciones estándar ISO 32000-1 directamente del PDF.
+ */
+async function tryImportPdfAnnotations(bytes: Uint8Array): Promise<void> {
+  const { setMarkups } = useMarkupStore.getState();
+  if (!bytes || bytes.length === 0) {
+    setMarkups([]);
+    return;
+  }
+  try {
+    const { importPdfAnnotations } = await import('../core/pdf/annotationReader');
+    const pdfImport = await importPdfAnnotations(bytes);
+    if (pdfImport.markups.length > 0) {
+      console.log(`[PDF] ${pdfImport.markups.length} marcas importadas desde anotaciones PDF`);
+      setMarkups(pdfImport.markups);
+    } else {
+      setMarkups([]);
+    }
+    if (pdfImport.foreignUnsupportedCount > 0) {
+      showToast(`Documento contiene ${pdfImport.foreignUnsupportedCount} anotaciones no editables`);
+    }
+  } catch (pdfErr) {
+    console.warn('[PDF] No se pudieron leer anotaciones estándar del PDF:', pdfErr);
     setMarkups([]);
   }
 }

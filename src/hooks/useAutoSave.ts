@@ -21,6 +21,11 @@ export function useAutoSave(intervalMs = 30000) {
     isSavingRef.current = true;
     try {
       const ok = await saveBbxForPdf(filePath, markups, author, customColumns);
+      const pdfBytes = useDocumentStore.getState().pdfBytes;
+      if (pdfBytes && pdfBytes.length > 0) {
+        const { savePdfIncremental } = await import('../services/pdfPersistenceService');
+        await savePdfIncremental(filePath, pdfBytes, markups);
+      }
       if (ok) {
         markAsClean();
       }

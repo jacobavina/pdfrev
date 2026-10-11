@@ -44,6 +44,7 @@ interface DocumentState {
   rotateClockwise: () => void;
   setPageDimensions: (pageIndex: number, width: number, height: number) => void;
   setPageHasText: (pageIndex: number, hasText: boolean) => void;
+  setPdfBytes: (bytes: Uint8Array) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   closeDocument: () => void;
@@ -165,6 +166,8 @@ export const useDocumentStore = create<DocumentState>((set) => ({
         [pageIndex]: hasText,
       },
     })),
+
+  setPdfBytes: (pdfBytes) => set({ pdfBytes }),
 
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error, isLoading: false }),

@@ -13,7 +13,7 @@
 | **Fase 2 — Bloque B: Tool Chest** | **CERRADO** | Verificado por el usuario en ventana nativa (modos D y P, persistencia IndexedDB y arrastre drag & drop con `dragDropEnabled: false` en `tauri.conf.json`). Registro universal en Recientes para toda marca creada. 18 tests en `toolChestService`, 10 en `useToolChestStore`, 5 en `ToolVectorThumbnail`, 8 en `ToolChestPanel` y 12/12 E2E base. |
 | **Fase 2 — Bloque C: MarkupsList Completa e Inspector** | **CERRADO (CIERRE FASE 2, D-2 y D-3)** | C.1, C.2, Z.2/Z.2b, C.3, C.4, C.6 y C.5 cerrados. Suite de 371 tests unitarios + 8 tests cargo + 15/15 E2E Playwright en 3 pasadas consecutivas. |
 | **Fase 2 — Bloque D: Capas y Sellos Dinámicos** | **REUBICADO A FASE 3** | Reubicado a Fase 3 (Bloque G) conforme a la decisión D-2 (Camino A′) para construirse sobre OCGs estándar y XObjects /AP. |
-| **Fase 3: Interoperabilidad PDF Real y Motor** | **EN CURSO (Spike A.1 Cerrado)** | Spike P3-A.1 completado (4 opciones evaluadas en corpus de 1,001 PDFs, ADR-0010 y ADR-0011 Aceptados). Opción A adoptada con escritor incremental propio y persistencia estándar ISO 32000-1. |
+| **Fase 3: Interoperabilidad PDF Real y Motor** | **EN CURSO (P3-Interop Cerrado)** | Spike P3-A.1 completado (4 opciones evaluadas en corpus de 1,001 PDFs, ADR-0010 y ADR-0011 Aceptados). Hito P3-Interop cerrado (ADR-0013): emisor puro de operadores, escritor incremental tipado ISO 32000-1 §7.5.6, comando Rust `save_pdf`, lector/importador de anotaciones, render dual y muestra `plan/interop/muestra-rea.pdf`. 394 tests unitarios en 29 suites + 11 tests cargo + 15/15 E2E. |
 
 ---
 
@@ -91,11 +91,19 @@
 
 ---
 
+### Fase 3: Interoperabilidad PDF Real y Actualización Incremental
+
+| ID | Hito / Característica | Estado | Evidencia y Verificación | Notas |
+|---|---|---|---|---|
+| `P3-Interop` | Persistencia incremental ISO 32000-1 y render dual | **Cerrado** | ADR-0013. Invariante dura `output[..origLen] == origBytes`. Emisor puro de operadores (`operators.ts`, 12 tests). Escritor incremental (`incrementalWriter.ts`, 6 tests) con `/AP /N`, `/REA` y `/StateModel (Review)`. Comando Rust atómico `save_pdf` con backup (11 tests cargo). Lector/importador de anotaciones (`annotationReader.ts`, 3 tests). Render dual con `AnnotationMode.DISABLE`. Muestra física certificada en `plan/interop/muestra-rea.pdf`. | Verificación visual nativa PENDIENTE DE VALIDACIÓN por el usuario. |
+
+---
+
 ## 3. Registro de Puertas de Calidad Actual
 
-- **Pruebas Unitarias:** 371 / 371 pasadas en Vitest (`src/`) distribuidas en 25 suites.
-- **Auditoría Literal de Paridad:** Superada (`node scripts/parity-check.mjs`: 25 shipped verificadas literalmente, 1 todo con guion).
-- **Pruebas Rust:** 8 / 8 pasadas en `cargo test` (`src-tauri/`).
+- **Pruebas Unitarias:** 394 / 394 pasadas en Vitest (`src/`) distribuidas en 29 suites (+23 tests nuevos).
+- **Auditoría Literal de Paridad:** Superada (`node scripts/parity-check.mjs`: 26 shipped verificadas literalmente, 1 todo con guion).
+- **Pruebas Rust:** 11 / 11 pasadas en `cargo test` (`src-tauri/`).
 - **Compilación de Producción:** Exitosa (`tsc && vite build`), bundle principal medido en 667.30 kB <= 800 kB (puerta de calidad superada).
 - **Pruebas E2E:** 15 / 15 en Playwright suite (`tests/e2e/pdf-viewer.spec.ts`) en 3 pasadas consecutivas verdes.
 - **Smoke Test Nativo (P2-X):** Implementado y superado localmente con `tauri-driver` (`npm run test:native` y `verify.mjs --with-native`). Adhesión WebDriver, render de canvas, IPC real de Rust y acciones W3C.

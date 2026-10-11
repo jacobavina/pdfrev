@@ -103,6 +103,7 @@ export async function renderPageToCanvas(
   const renderContext = {
     canvasContext: offscreenCtx,
     viewport: viewport,
+    annotationMode: 0, // AnnotationMode.DISABLE: render dual, REA dibuja las marcas interactivas
   };
 
   const renderTask = page.render(renderContext);

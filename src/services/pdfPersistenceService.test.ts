@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import fs from 'fs';
+import path from 'path';
 import { savePdfIncremental } from './pdfPersistenceService';
 import * as incrementalWriter from '../core/pdf/incrementalWriter';
 import * as bbxPersistenceService from './bbxPersistenceService';
@@ -26,17 +28,35 @@ describe('pdfPersistenceService (P3-B.3 y B.4)', () => {
   ];
 
   it('guarda incrementalmente y actualiza los bytes del documento en el store', async () => {
-    const originalBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x31]);
-    const updatedBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x31, 0x99]);
-
-    vi.spyOn(incrementalWriter, 'saveIncrementalMarkups').mockResolvedValue(updatedBytes);
+    // PDF real: desde la auditoría 2026-10-11 el resultado se valida (abre, páginas, sin duplicados)
+    // antes de escribirse, así que un PDF falso ya no basta.
+    const originalBytes = new Uint8Array(
+      fs.readFileSync(path.resolve(__dirname, '../../fixtures/test-blueprint.pdf'))
+    );
     vi.spyOn(bbxPersistenceService, 'isTauriEnvironment').mockReturnValue(false);
 
     const result = await savePdfIncremental('C:/documentos/plano.pdf', originalBytes, dummyMarkups);
 
     expect(result.success).toBe(true);
-    expect(result.bytes).toBe(updatedBytes);
-    expect(useDocumentStore.getState().pdfBytes).toBe(updatedBytes);
+    expect(result.bytes!.length).toBeGreaterThan(originalBytes.length);
+    expect(useDocumentStore.getState().pdfBytes).toBe(result.bytes);
+  });
+
+  it('no escribe si la validación detecta un resultado inválido (bytes originales alterados)', async () => {
+    const originalBytes = new Uint8Array(
+      fs.readFileSync(path.resolve(__dirname, '../../fixtures/test-blueprint.pdf'))
+    );
+    const corrupted = new Uint8Array(originalBytes.length + 10);
+    corrupted.set(originalBytes);
+    corrupted[0] = 0x00; // rompe el prefijo original
+    vi.spyOn(incrementalWriter, 'saveIncrementalMarkups').mockResolvedValue(corrupted);
+    vi.spyOn(bbxPersistenceService, 'isTauriEnvironment').mockReturnValue(false);
+
+    const result = await savePdfIncremental('C:/documentos/plano.pdf', originalBytes, dummyMarkups);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('bytes originales');
+    expect(useDocumentStore.getState().pdfBytes).not.toBe(corrupted);
   });
 
   it('maneja y reporta errores si el escritor incremental falla', async () => {

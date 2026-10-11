@@ -249,9 +249,9 @@ export const TopBar: React.FC = () => {
   const colors = ['#e02424', '#0284c7', '#16a34a', '#d97706', '#9333ea', '#111827'];
 
   return (
-    <header className="h-12 bg-cad-panel border-b border-cad-border flex items-center justify-between px-3 text-sm text-gray-200 select-none z-20">
+    <header className="h-12 min-w-0 gap-2 bg-cad-panel border-b border-cad-border flex items-center justify-between px-3 text-sm text-gray-200 select-none z-20">
       {/* Sección Izquierda: Archivo y Guardado */}
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2 shrink-0">
         <button
           onClick={openPdfDialog}
           className="flex items-center space-x-1.5 px-3 py-1.5 bg-cad-subtle hover:bg-cad-hover text-white rounded border border-cad-border text-xs font-medium transition-colors"
@@ -274,7 +274,7 @@ export const TopBar: React.FC = () => {
             !filePath
               ? 'Modo demostración (sin autoguardado). Abra un PDF para guardar.'
               : isDirty
-              ? 'Guardar cambios en .bbx.json (Autoguardado en 30s)'
+              ? 'Guardar las marcas en el PDF (Ctrl+S). El autoguardado cada 30 s solo escribe la copia de recuperación .bbx.json'
               : 'Sin cambios pendientes'
           }
         >
@@ -298,7 +298,7 @@ export const TopBar: React.FC = () => {
         </button>
 
         {fileName && (
-          <div className="flex items-center space-x-1.5 ml-2 pl-3 border-l border-cad-border text-xs text-gray-300 max-w-sm truncate">
+          <div className="flex items-center space-x-1.5 ml-2 pl-3 border-l border-cad-border text-xs text-gray-300 max-w-[14rem] truncate">
             <FileCheck size={14} className="text-emerald-400 shrink-0" />
             <span className="truncate font-mono" title={fileName}>
               {fileName}
@@ -313,7 +313,7 @@ export const TopBar: React.FC = () => {
       </div>
 
       {/* Sección Central: Herramientas de Marcado */}
-      <div className="flex items-center space-x-1 bg-cad-dark p-1 rounded border border-cad-border">
+      <div data-testid="toolbar-tools" className="flex items-center space-x-1 bg-cad-dark p-1 rounded border border-cad-border min-w-0 flex-1 overflow-x-auto">
         {toolButtons.map((btn) => {
           const isActive = activeTool === btn.type;
           return (
@@ -334,7 +334,7 @@ export const TopBar: React.FC = () => {
                 setActiveTool(btn.type);
               }}
               title={btn.label}
-              className={`p-1.5 rounded transition-all flex items-center justify-center ${
+              className={`p-1.5 rounded transition-all flex items-center justify-center shrink-0 ${
                 isActive
                   ? 'bg-cad-accent text-white shadow-sm'
                   : 'text-gray-400 hover:text-gray-100 hover:bg-cad-subtle'
@@ -347,7 +347,7 @@ export const TopBar: React.FC = () => {
 
         {/* Selector de color de trazo */}
         <div className="h-4 w-px bg-cad-border mx-1" />
-        <div className="flex items-center space-x-1 px-1">
+        <div className="flex items-center space-x-1 px-1 shrink-0">
           {colors.map((c) => (
             <button
               key={c}
@@ -363,7 +363,7 @@ export const TopBar: React.FC = () => {
       </div>
 
       {/* Sección Derecha: Zoom, Rotación, Undo/Redo y Paginación */}
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2 shrink-0">
         {/* Undo / Redo */}
         <div className="flex items-center space-x-0.5 border-r border-cad-border pr-2">
           <button

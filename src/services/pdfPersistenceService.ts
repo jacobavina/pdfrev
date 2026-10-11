@@ -1,3 +1,4 @@
+import { PDFDocument, PDFArray, PDFDict, PDFName, PDFString, PDFHexString } from 'pdf-lib';
 import { isTauriEnvironment } from './bbxPersistenceService';
 import { saveIncrementalMarkups } from '../core/pdf/incrementalWriter';
 import { useDocumentStore } from '../store/useDocumentStore';
@@ -11,6 +12,51 @@ export interface SavePdfResult {
 }
 
 /**
+ * Comprueba el PDF generado antes de escribirlo: los bytes originales siguen intactos como prefijo,
+ * abre con pdf-lib, conserva el número de páginas y cada marca del modelo aparece exactamente una vez
+ * como anotación de REA (sin duplicados). Lanza error si algo no cuadra.
+ */
+export async function validateSavedPdf(
+  originalBytes: Uint8Array,
+  updatedBytes: Uint8Array,
+  markups: Markup[]
+): Promise<void> {
+  if (updatedBytes.length < originalBytes.length) {
+    throw new Error('Validación: el PDF guardado es más corto que el original');
+  }
+  for (let i = 0; i < originalBytes.length; i++) {
+    if (updatedBytes[i] !== originalBytes[i]) {
+      throw new Error('Validación: los bytes originales del PDF no se conservaron');
+    }
+  }
+  const [orig, saved] = await Promise.all([
+    PDFDocument.load(originalBytes, { updateMetadata: false }),
+    PDFDocument.load(updatedBytes, { updateMetadata: false }),
+  ]);
+  if (orig.getPageCount() !== saved.getPageCount()) {
+    throw new Error('Validación: el número de páginas cambió al guardar');
+  }
+  const seen = new Map<string, number>();
+  for (const page of saved.getPages()) {
+    const annots = page.node.Annots();
+    if (!(annots instanceof PDFArray)) continue;
+    for (let i = 0; i < annots.size(); i++) {
+      const d = saved.context.lookup(annots.get(i));
+      if (!(d instanceof PDFDict) || !(d.get(PDFName.of('REA')) instanceof PDFDict)) continue;
+      const nm = d.get(PDFName.of('NM'));
+      const id = nm instanceof PDFString || nm instanceof PDFHexString ? nm.decodeText() : '';
+      seen.set(id, (seen.get(id) ?? 0) + 1);
+    }
+  }
+  for (const m of markups) {
+    const n = seen.get(m.id) ?? 0;
+    if (n !== 1) {
+      throw new Error(`Validación: la marca ${m.id} aparece ${n} veces en el PDF guardado`);
+    }
+  }
+}
+
+/**
  * Guarda marcas incrementalmente en el archivo PDF actual.
  * En Tauri: invoca el comando nativo `save_pdf` con escritura atómica y backup.
  * En Browser: actualiza el estado en memoria y retorna los bytes generados.
@@ -21,7 +67,11 @@ export async function savePdfIncremental(
   markups: Markup[]
 ): Promise<SavePdfResult> {
   try {
-    const updatedBytes = await saveIncrementalMarkups(originalBytes, markups);
+    const importedIds = useDocumentStore.getState().importedAnnotationIds ?? [];
+    const updatedBytes = await saveIncrementalMarkups(originalBytes, markups, {}, { importedIds });
+
+    // Validación ANTES de escribir en disco: si falla, el archivo del usuario no se toca
+    await validateSavedPdf(originalBytes, updatedBytes, markups);
 
     if (isTauriEnvironment()) {
       const { invoke } = await import('@tauri-apps/api/core');

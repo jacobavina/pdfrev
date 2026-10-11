@@ -3,6 +3,7 @@ import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { loadPdfDocument } from './pdfService';
 import { showToast } from './toastService';
+import type { Markup } from '../types/markup';
 
 /**
  * Abre un archivo PDF utilizando el diálogo nativo en Tauri
@@ -111,7 +112,8 @@ export async function loadPdfData(
     return;
   }
 
-  // Cargar automáticamente .bbx.json si existe (independiente del procesamiento del PDF)
+  // 1. Sidecar .bbx.json: metadatos del documento (columnas) y marcas de respaldo (D-1)
+  let sidecarMarkups: Markup[] | null = null;
   try {
     const bbxResult = await loadBbxForPdf(filePath);
     if (bbxResult) {
@@ -131,46 +133,55 @@ export async function loadPdfData(
         setCustomColumns(undefined);
       }
       if (bbxData && Array.isArray(bbxData.markups)) {
-        console.log(`[BBX] ${bbxData.markups.length} marcas cargadas automáticamente desde .bbx.json`);
-        setMarkups(bbxData.markups);
-      } else {
-        setMarkups([]);
+        sidecarMarkups = bbxData.markups;
       }
     } else {
       setCustomColumns(undefined);
-      await tryImportPdfAnnotations(bytes);
     }
   } catch (bbxErr: unknown) {
     const bbxMsg = bbxErr instanceof Error ? bbxErr.message : String(bbxErr);
     console.error(`[BBX] Error al leer archivo de marcas .bbx.json: ${bbxMsg}`);
     setCustomColumns(undefined);
-    await tryImportPdfAnnotations(bytes);
+  }
+
+  // 2. El PDF es la fuente de verdad (D-1): si contiene anotaciones, mandan sobre el sidecar.
+  //    Así, lo editado en Revu/Acrobat no se pisa con una copia vieja del sidecar al guardar.
+  //    Sin anotaciones en el PDF (documento legado o aún no guardado en PDF), se usa el sidecar.
+  const importedCount = await tryImportPdfAnnotations(bytes);
+  if (importedCount === 0) {
+    if (sidecarMarkups) {
+      console.log(`[BBX] ${sidecarMarkups.length} marcas cargadas automáticamente desde .bbx.json`);
+      setMarkups(sidecarMarkups);
+    } else {
+      setMarkups([]);
+    }
   }
 }
 
 /**
  * Intenta importar marcas de anotaciones estándar ISO 32000-1 directamente del PDF.
  */
-async function tryImportPdfAnnotations(bytes: Uint8Array): Promise<void> {
+async function tryImportPdfAnnotations(bytes: Uint8Array): Promise<number> {
   const { setMarkups } = useMarkupStore.getState();
   if (!bytes || bytes.length === 0) {
-    setMarkups([]);
-    return;
+    return 0;
   }
   try {
     const { importPdfAnnotations } = await import('../core/pdf/annotationReader');
     const pdfImport = await importPdfAnnotations(bytes);
+    useDocumentStore.getState().setImportedAnnotationIds(pdfImport.markups.map((m) => m.id));
     if (pdfImport.markups.length > 0) {
       console.log(`[PDF] ${pdfImport.markups.length} marcas importadas desde anotaciones PDF`);
       setMarkups(pdfImport.markups);
-    } else {
-      setMarkups([]);
     }
     if (pdfImport.foreignUnsupportedCount > 0) {
       showToast(`Documento contiene ${pdfImport.foreignUnsupportedCount} anotaciones no editables`);
     }
+    return pdfImport.markups.length;
   } catch (pdfErr) {
+    const message = pdfErr instanceof Error ? pdfErr.message : String(pdfErr);
     console.warn('[PDF] No se pudieron leer anotaciones estándar del PDF:', pdfErr);
-    setMarkups([]);
+    showToast(`No se pudieron leer las anotaciones del PDF: ${message}`);
+    return 0;
   }
 }

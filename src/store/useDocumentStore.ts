@@ -21,6 +21,8 @@ interface DocumentState {
   pageHasText: Record<number, boolean>;
   // Justificación AGENTS.md §4: customColumns es metadato de esquema a nivel de documento sin historial undo/redo, por lo que pertenece a useDocumentStore y no a useMarkupStore.
   customColumns?: BbxCustomColumn[];
+  // Ids de las anotaciones importadas del PDF al abrirlo: el escritor retira las que el usuario borre
+  importedAnnotationIds: string[];
   isLoading: boolean;
   error: string | null;
 
@@ -33,6 +35,7 @@ interface DocumentState {
     pdfDoc: pdfjsLib.PDFDocumentProxy
   ) => void;
   setCustomColumns: (customColumns?: BbxCustomColumn[]) => void;
+  setImportedAnnotationIds: (ids: string[]) => void;
   addCustomColumn: (column: BbxCustomColumn) => void;
   updateCustomColumn: (columnId: string, updates: Partial<BbxCustomColumn>) => void;
   removeCustomColumn: (columnId: string) => void;
@@ -66,6 +69,7 @@ export const useDocumentStore = create<DocumentState>((set) => ({
   pageDimensions: {},
   pageHasText: {},
   customColumns: undefined,
+  importedAnnotationIds: [],
   isLoading: false,
   error: null,
 
@@ -82,11 +86,14 @@ export const useDocumentStore = create<DocumentState>((set) => ({
       pageDimensions: {},
       pageHasText: {},
       customColumns: undefined,
+      importedAnnotationIds: [],
       error: null,
       isLoading: false,
     }),
 
   setCustomColumns: (customColumns) => set({ customColumns }),
+
+  setImportedAnnotationIds: (ids) => set({ importedAnnotationIds: ids }),
 
   addCustomColumn: (column) => {
     set((state) => {

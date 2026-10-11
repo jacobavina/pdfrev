@@ -21,9 +21,40 @@ export interface ImportAnnotationsResult {
  */
 function extractPdfStringValue(obj: unknown): string {
   if (obj instanceof PDFString || obj instanceof PDFHexString) {
-    return obj.asString();
+    // decodeText resuelve escapes, PDFDocEncoding y UTF-16BE con BOM (acentos, ñ)
+    return obj.decodeText();
   }
   return '';
+}
+
+/**
+ * Decodifica un nombre PDF (`/Coste#20unitario` → `Coste unitario`): quita la barra y resuelve las
+ * secuencias #xx como bytes UTF-8 (inverso de `toPdfName` del escritor).
+ */
+function decodePdfName(raw: string): string {
+  const body = raw.replace(/^\//, '');
+  if (!body.includes('#')) return body;
+  const bytes: number[] = [];
+  for (let i = 0; i < body.length; i++) {
+    if (body[i] === '#' && /^[0-9A-Fa-f]{2}$/.test(body.slice(i + 1, i + 3))) {
+      bytes.push(parseInt(body.slice(i + 1, i + 3), 16));
+      i += 2;
+    } else {
+      bytes.push(body.charCodeAt(i) & 0xff);
+    }
+  }
+  return new TextDecoder().decode(new Uint8Array(bytes));
+}
+
+/**
+ * Identificador estable de una anotación: su /NM o, si no tiene, su referencia de objeto.
+ * Debe coincidir con `annotationKeyFor` del escritor incremental para no duplicar al guardar.
+ */
+function annotationIdFor(dict: PDFDict, ref: unknown, fallback: string): string {
+  const nm = extractPdfStringValue(dict.get(PDFName.of('NM')));
+  if (nm) return nm;
+  if (ref instanceof PDFRef) return `pdfobj-${ref.objectNumber}-${ref.generationNumber}`;
+  return fallback;
 }
 
 /**
@@ -103,13 +134,13 @@ export async function importPdfAnnotations(
           if (irtObj instanceof PDFRef) {
             const parentDict = pdfDoc.context.lookup(irtObj);
             if (parentDict instanceof PDFDict) {
-              const parentNm = parentDict.get(PDFName.of('NM'));
-              parentId = extractPdfStringValue(parentNm);
+              parentId = annotationIdFor(parentDict, irtObj, '');
             }
           }
 
           if (parentId) {
-            if (stateStr === 'accepted') reviewStatesByParentId.set(parentId, 'accepted');
+            if (stateStr === 'none') reviewStatesByParentId.set(parentId, 'pending');
+            else if (stateStr === 'accepted') reviewStatesByParentId.set(parentId, 'accepted');
             else if (stateStr === 'rejected') reviewStatesByParentId.set(parentId, 'rejected');
             else if (stateStr === 'completed') reviewStatesByParentId.set(parentId, 'completed');
             else if (stateStr === 'cancelled') reviewStatesByParentId.set(parentId, 'cancelled');
@@ -123,8 +154,7 @@ export async function importPdfAnnotations(
       const isRea = reaObj instanceof PDFDict;
 
       // Identificador único (/NM) o generado
-      const nmObj = annotDict.get(PDFName.of('NM'));
-      const id = extractPdfStringValue(nmObj) || `foreign-${pageIdx}-${aIdx}-${Date.now()}`;
+      const id = annotationIdFor(annotDict, annotRefOrDict, `foreign-${pageIdx}-${aIdx}`);
 
       // Contenido y autor
       const contentsObj = annotDict.get(PDFName.of('Contents'));
@@ -166,11 +196,11 @@ export async function importPdfAnnotations(
         const fieldsObj = reaObj.get(PDFName.of('fields'));
         if (fieldsObj instanceof PDFDict) {
           for (const [k, v] of fieldsObj.entries()) {
-            const keyStr = k.asString().replace(/^\//, '');
+            const keyStr = decodePdfName(k.asString());
             if (keyStr === 'arcStep' && typeof customFields.arcStep === 'number') {
               continue;
             }
-            customFields[keyStr] = extractPdfStringValue(v);
+            customFields[keyStr] = v instanceof PDFNumber ? v.asNumber() : extractPdfStringValue(v);
           }
         }
       }

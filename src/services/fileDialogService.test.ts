@@ -6,6 +6,14 @@ import { registerToastListener } from './toastService';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { PDFDocumentProxy } from 'pdfjs-dist';
+import fs from 'fs';
+import path from 'path';
+
+// PDF real sin anotaciones: desde la auditoría 2026-10-11 loadPdfData importa las anotaciones del PDF
+// (fuente de verdad, D-1) y avisa si no puede leerlas; unos bytes falsos dispararían ese aviso.
+const fixturePdfBytes = new Uint8Array(
+  fs.readFileSync(path.resolve(__dirname, '../../fixtures/test-blueprint.pdf'))
+);
 
 describe('summarizeMigrationWarnings (Z.2b)', () => {
   it('retorna cadena vacía para 0 avisos', () => {
@@ -80,7 +88,7 @@ describe('fileDialogService - Carga de Documentos y Avisos BBX (Z.2 / Z.2b)', ()
     const unsubscribe = registerToastListener(toastListener);
 
     try {
-      await loadPdfData('C:/proyectos/planta.pdf', 'planta.pdf', new Uint8Array([0x25, 0x50, 0x44, 0x46]));
+      await loadPdfData('C:/proyectos/planta.pdf', 'planta.pdf', fixturePdfBytes);
 
       expect(toastListener).toHaveBeenCalledTimes(1);
       expect(toastListener).toHaveBeenCalledWith(
@@ -114,7 +122,7 @@ describe('fileDialogService - Carga de Documentos y Avisos BBX (Z.2 / Z.2b)', ()
     const unsubscribe = registerToastListener(toastListener);
 
     try {
-      await loadPdfData('C:/proyectos/limpio.pdf', 'limpio.pdf', new Uint8Array([0x25, 0x50, 0x44, 0x46]));
+      await loadPdfData('C:/proyectos/limpio.pdf', 'limpio.pdf', fixturePdfBytes);
       expect(toastListener).not.toHaveBeenCalled();
     } finally {
       unsubscribe();
@@ -150,7 +158,7 @@ describe('fileDialogService - Carga de Documentos y Avisos BBX (Z.2 / Z.2b)', ()
     const unsubscribe = registerToastListener(toastListener);
 
     try {
-      await loadPdfData('C:/proyectos/cinco_errores.pdf', 'cinco_errores.pdf', new Uint8Array([0x25, 0x50, 0x44, 0x46]));
+      await loadPdfData('C:/proyectos/cinco_errores.pdf', 'cinco_errores.pdf', fixturePdfBytes);
 
       // Debe llamarse UNA sola vez (no cinco veces como en el bucle original)
       expect(toastListener).toHaveBeenCalledTimes(1);
@@ -192,7 +200,7 @@ describe('fileDialogService - Carga de Documentos y Avisos BBX (Z.2 / Z.2b)', ()
       warnings: [],
     });
 
-    await loadPdfData('C:/proyectos/documentoA.pdf', 'documentoA.pdf', new Uint8Array([0x25, 0x50, 0x44, 0x46]));
+    await loadPdfData('C:/proyectos/documentoA.pdf', 'documentoA.pdf', fixturePdfBytes);
     expect(useDocumentStore.getState().customColumns).toEqual([
       { id: 'col-a', nombre: 'Columna Proyecto A', tipo: 'text' },
     ]);
@@ -210,7 +218,7 @@ describe('fileDialogService - Carga de Documentos y Avisos BBX (Z.2 / Z.2b)', ()
       warnings: [],
     });
 
-    await loadPdfData('C:/proyectos/documentoB.pdf', 'documentoB.pdf', new Uint8Array([0x25, 0x50, 0x44, 0x46]));
+    await loadPdfData('C:/proyectos/documentoB.pdf', 'documentoB.pdf', fixturePdfBytes);
     // El documento B no debe arrastrar las columnas de A
     expect(useDocumentStore.getState().customColumns).toBeUndefined();
   });

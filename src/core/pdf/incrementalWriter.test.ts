@@ -2,13 +2,16 @@ import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import * as pdfjs from 'pdfjs-dist';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, PDFArray, PDFDict, PDFName, PDFRef, PDFString } from 'pdf-lib';
 import {
   IncrementalWriter,
   saveIncrementalMarkups,
   formatPdfDate,
   escapePdfString,
+  toPdfName,
 } from './incrementalWriter';
+import { importPdfAnnotations } from './annotationReader';
+import { validateSavedPdf } from '../../services/pdfPersistenceService';
 import { Markup } from '../../types/markup';
 
 describe('Incremental Writer (P3-B.1 / ISO 32000-1 §7.5.6)', () => {
@@ -23,8 +26,18 @@ describe('Incremental Writer (P3-B.1 / ISO 32000-1 §7.5.6)', () => {
 
     it('escapa paréntesis y barras invertidas en cadenas literales', () => {
       expect(escapePdfString('Texto normal')).toBe('(Texto normal)');
-      expect(escapePdfString('Texto con (paréntesis)')).toBe('(Texto con \\(paréntesis\\))');
+      expect(escapePdfString('Texto con (parentesis)')).toBe('(Texto con \\(parentesis\\))');
       expect(escapePdfString('Ruta C:\\archivos\\')).toBe('(Ruta C:\\\\archivos\\\\)');
+    });
+
+    it('serializa texto no ASCII (acentos, ñ) como UTF-16BE con BOM, legible en Acrobat y Revu', () => {
+      expect(escapePdfString('Técnico')).toBe('<FEFF005400E90063006E00690063006F>');
+      expect(escapePdfString('ñ')).toBe('<FEFF00F1>');
+    });
+
+    it('codifica claves arbitrarias como nombres PDF válidos (#xx)', () => {
+      expect(toPdfName('Coste')).toBe('/Coste');
+      expect(toPdfName('Coste unitario (€)')).toBe('/Coste#20unitario#20#28#E2#82#AC#29');
     });
   });
 
@@ -148,7 +161,9 @@ describe('Incremental Writer (P3-B.1 / ISO 32000-1 §7.5.6)', () => {
 
       // Claves canónicas presentes en el cuerpo agregado
       expect(text).toContain('/NM (mk-rect-test)');
-      expect(text).toContain('/Contents (Caja de inspección estructural)');
+      // Texto con acentos: UTF-16BE con BOM (un literal UTF-8 se vería como "inspecciÃ³n" en Acrobat/Revu)
+      expect(text).toContain(`/Contents ${escapePdfString('Caja de inspección estructural')}`);
+      expect(escapePdfString('Caja de inspección estructural').startsWith('<FEFF')).toBe(true);
       expect(text).toContain('/REA << /v 1 /tool (rectangle)');
       expect(text).toContain('/arcStep 25');
       expect(text).toContain('/AP << /N');
@@ -232,6 +247,132 @@ describe('Incremental Writer (P3-B.1 / ISO 32000-1 §7.5.6)', () => {
       expect(text).toContain('/Subtype /StrikeOut');
       // Verificación de QuadPoints para Underline y StrikeOut
       expect(text).toContain('/QuadPoints [');
+    });
+  });
+
+  describe('Guardados repetidos, borrados y anotaciones ajenas (auditoría 2026-10-11)', () => {
+    const baseMarkup: Markup = {
+      id: 'mk-repetida',
+      type: 'rectangle',
+      pageIndex: 0,
+      points: [{ x: 0.1, y: 0.1 }, { x: 0.2, y: 0.2 }],
+      style: { strokeColor: '#ff0000', strokeWidth: 2, opacity: 1 },
+      author: 'Revisor Técnico',
+      createdAt: '2026-10-11T12:00:00Z',
+      updatedAt: '2026-10-11T12:00:00Z',
+      status: 'accepted',
+    };
+
+    /** Cuenta las anotaciones listadas en /Annots de la página 1, separando las de REA y los estados. */
+    async function annotSummary(bytes: Uint8Array) {
+      const doc = await PDFDocument.load(bytes, { updateMetadata: false });
+      const annots = doc.getPages()[0].node.Annots();
+      const out = { total: 0, rea: 0, states: 0, foreign: 0 };
+      if (!(annots instanceof PDFArray)) return out;
+      for (let i = 0; i < annots.size(); i++) {
+        const d = doc.context.lookup(annots.get(i));
+        if (!(d instanceof PDFDict)) continue;
+        out.total++;
+        if (d.get(PDFName.of('REA')) instanceof PDFDict) out.rea++;
+        else if (d.get(PDFName.of('StateModel')) !== undefined) out.states++;
+        else out.foreign++;
+      }
+      return out;
+    }
+
+    /** PDF con una anotación ajena (sin /REA ni /NM), como la que dejaría otro visor. */
+    async function withForeignSquare(): Promise<Uint8Array> {
+      const doc = await PDFDocument.load(originalBytes);
+      const page = doc.getPages()[0];
+      const annot = doc.context.obj({
+        Type: 'Annot',
+        Subtype: 'Square',
+        Rect: [50, 50, 150, 150],
+        C: [0, 0, 1],
+        Contents: PDFString.of('Marca de otro visor'),
+      });
+      page.node.set(PDFName.of('Annots'), doc.context.obj([doc.context.register(annot)]));
+      return doc.save({ useObjectStreams: false });
+    }
+
+    it('guardar tres veces la misma marca deja UNA anotación y UN estado (sin duplicados)', async () => {
+      let bytes: Uint8Array = originalBytes;
+      for (let i = 0; i < 3; i++) {
+        bytes = await saveIncrementalMarkups(bytes, [baseMarkup]);
+      }
+      const s = await annotSummary(bytes);
+      expect(s.rea).toBe(1);
+      expect(s.states).toBe(1);
+      await expect(validateSavedPdf(originalBytes, bytes, [baseMarkup])).resolves.toBeUndefined();
+    });
+
+    it('una marca borrada desaparece del PDF al guardar', async () => {
+      const once = await saveIncrementalMarkups(originalBytes, [baseMarkup]);
+      const afterDelete = await saveIncrementalMarkups(once, []);
+      const s = await annotSummary(afterDelete);
+      expect(s.rea).toBe(0);
+      expect(s.states).toBe(0);
+    });
+
+    it('conserva intacta una anotación ajena que no se importó', async () => {
+      const foreignPdf = await withForeignSquare();
+      const saved = await saveIncrementalMarkups(foreignPdf, [baseMarkup]);
+      const s = await annotSummary(saved);
+      expect(s.foreign).toBe(1);
+      expect(s.rea).toBe(1);
+    });
+
+    it('una anotación ajena importada se reescribe una sola vez y, si el usuario la borra, se retira', async () => {
+      const foreignPdf = await withForeignSquare();
+      const imported = await importPdfAnnotations(foreignPdf);
+      expect(imported.markups).toHaveLength(1);
+      const importedIds = imported.markups.map((m) => m.id);
+
+      // Guardar con la marca importada en el modelo: no queda duplicada (ajena original + copia de REA)
+      const kept = await saveIncrementalMarkups(foreignPdf, imported.markups, {}, { importedIds });
+      const s1 = await annotSummary(kept);
+      expect(s1.foreign).toBe(0);
+      expect(s1.rea).toBe(1);
+
+      // Guardar tras borrarla del modelo: se retira del PDF
+      const removed = await saveIncrementalMarkups(foreignPdf, [], {}, { importedIds });
+      const s2 = await annotSummary(removed);
+      expect(s2.foreign + s2.rea).toBe(0);
+    });
+
+    it('ida y vuelta de campos personalizados con espacios, paréntesis, acentos y números', async () => {
+      const m: Markup = {
+        ...baseMarkup,
+        id: 'mk-campos',
+        text: 'Revisión (ver detalle) \\ ñandú',
+        customFields: { 'Coste unitario (€)': 12.5, Nota: 'Ver plano (A-101) \\ revisión' },
+      };
+      const saved = await saveIncrementalMarkups(originalBytes, [m]);
+      const back = await importPdfAnnotations(saved);
+      const r = back.markups.find((x) => x.id === 'mk-campos');
+      expect(r).toBeDefined();
+      expect(r!.author).toBe('Revisor Técnico');
+      expect(r!.text).toBe('Revisión (ver detalle) \\ ñandú');
+      expect(r!.customFields?.['Coste unitario (€)']).toBe(12.5);
+      expect(r!.customFields?.Nota).toBe('Ver plano (A-101) \\ revisión');
+    });
+
+    it('la validación rechaza un PDF con una marca duplicada', async () => {
+      const once = await saveIncrementalMarkups(originalBytes, [baseMarkup]);
+      // Simula el escritor antiguo: añade otra copia sin retirar la primera
+      const writer = new IncrementalWriter(once);
+      const doc = await PDFDocument.load(once);
+      const page = doc.getPages()[0];
+      const existing = page.node.Annots() as PDFArray;
+      const dupNum = writer.allocateObjectNumber();
+      writer.addObject(
+        dupNum,
+        `<< /Type /Annot /Subtype /Square /Rect [0 0 10 10] /NM (mk-repetida) /REA << /v 1 >> >>`
+      );
+      page.node.set(PDFName.of('Annots'), doc.context.obj([...existing.asArray(), PDFRef.of(dupNum, 0)]));
+      writer.addObject(page.ref.objectNumber, page.node.toString());
+      const duplicated = writer.build();
+      await expect(validateSavedPdf(originalBytes, duplicated, [baseMarkup])).rejects.toThrow(/2 veces/);
     });
   });
 });

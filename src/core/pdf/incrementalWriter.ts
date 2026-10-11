@@ -1,4 +1,13 @@
-import { PDFDocument, PDFName, PDFArray, PDFRef } from 'pdf-lib';
+import {
+  PDFDocument,
+  PDFName,
+  PDFArray,
+  PDFRef,
+  PDFDict,
+  PDFString,
+  PDFHexString,
+  PDFObject,
+} from 'pdf-lib';
 import { Markup, MarkupStatus } from '../../types/markup';
 import {
   emitMarkupOperators,
@@ -15,6 +24,11 @@ export interface NewPdfObject {
 
 export interface IncrementalSaveOptions {
   authorDefault?: string;
+  /**
+   * Ids de las anotaciones que se importaron del PDF al abrirlo. Las que ya no estén en el modelo
+   * se interpretan como borradas por el usuario y se retiran de /Annots al guardar.
+   */
+  importedIds?: string[];
 }
 
 /**
@@ -33,11 +47,48 @@ export function formatPdfDate(isoDateStr?: string): string {
 }
 
 /**
- * Escapa caracteres especiales (, ), \ en cadenas literales de PDF.
+ * Serializa una cadena como string de PDF.
+ * ASCII imprimible: literal con (, ) y \ escapados.
+ * Cualquier otro carácter (acentos, ñ, emojis): string hexadecimal UTF-16BE con BOM, que es la
+ * única forma que Acrobat y Revu leen correctamente (ISO 32000-1 §7.9.2.2).
  */
 export function escapePdfString(str: string): string {
+  if (/[^\x20-\x7E]/.test(str)) {
+    let hex = 'FEFF';
+    for (let i = 0; i < str.length; i++) {
+      hex += str.charCodeAt(i).toString(16).toUpperCase().padStart(4, '0');
+    }
+    return `<${hex}>`;
+  }
   const sanitized = str.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
   return `(${sanitized})`;
+}
+
+/**
+ * Serializa una clave arbitraria como nombre PDF válido, codificando con #xx los bytes UTF-8
+ * de delimitadores, espacios y caracteres no ASCII (ISO 32000-1 §7.3.5).
+ */
+export function toPdfName(key: string): string {
+  const bytes = new TextEncoder().encode(key);
+  let out = '/';
+  for (const b of bytes) {
+    const isRegular = b > 0x20 && b < 0x7f && !'()<>[]{}/%#'.includes(String.fromCharCode(b));
+    out += isRegular ? String.fromCharCode(b) : `#${b.toString(16).toUpperCase().padStart(2, '0')}`;
+  }
+  return out;
+}
+
+/**
+ * Identificador estable de una anotación existente: su /NM, o su referencia de objeto si no tiene /NM.
+ * Debe coincidir con el que asigna `importPdfAnnotations` al leer.
+ */
+export function annotationKeyFor(dict: PDFDict, ref?: PDFRef): string | undefined {
+  const nm = dict.get(PDFName.of('NM'));
+  if (nm instanceof PDFString || nm instanceof PDFHexString) {
+    const text = nm.decodeText();
+    if (text) return text;
+  }
+  return ref ? `pdfobj-${ref.objectNumber}-${ref.generationNumber}` : undefined;
 }
 
 /**
@@ -263,6 +314,9 @@ export async function saveIncrementalMarkups(
   const pdfDoc = await PDFDocument.load(originalBytes);
   const pages = pdfDoc.getPages();
 
+  // Ids que el modelo reescribe en este guardado y que el usuario borró desde la importación
+  const replacedIds = new Set<string>([...markups.map((m) => m.id), ...(options.importedIds ?? [])]);
+
   // Agrupar marcas por índice de página
   const markupsByPage = new Map<number, Markup[]>();
   for (const m of markups) {
@@ -285,17 +339,51 @@ export async function saveIncrementalMarkups(
       originY: 0,
     };
 
-    // Obtener referencias de anotaciones existentes en la página
+    // Anotaciones existentes en la página. Se retiran de /Annots (para reescribirlas desde el modelo,
+    // sin duplicar) las propias de REA (/REA), las que el modelo contiene (por /NM o referencia) y las
+    // importadas que el usuario borró; con ellas, sus estados de revisión y popups dependientes.
+    // Todo lo demás (anotaciones ajenas no importadas, enlaces, widgets, respuestas) se conserva intacto.
     const existingAnnotsRef = page.node.Annots();
-    const existingAnnotRefsList: string[] = [];
+    const existingItems: { obj: PDFObject; dict?: PDFDict; ref?: PDFRef; drop: boolean }[] = [];
     if (existingAnnotsRef instanceof PDFArray) {
       for (let i = 0; i < existingAnnotsRef.size(); i++) {
         const item = existingAnnotsRef.get(i);
-        if (item instanceof PDFRef) {
-          existingAnnotRefsList.push(`${item.objectNumber} 0 R`);
-        }
+        const resolved = item instanceof PDFRef ? pdfDoc.context.lookup(item) : item;
+        existingItems.push({
+          obj: item,
+          dict: resolved instanceof PDFDict ? resolved : undefined,
+          ref: item instanceof PDFRef ? item : undefined,
+          drop: false,
+        });
       }
     }
+
+    const droppedRefKeys = new Set<string>();
+    const refKey = (r: PDFRef) => `${r.objectNumber} ${r.generationNumber}`;
+    for (const it of existingItems) {
+      if (!it.dict || it.dict.get(PDFName.of('StateModel')) !== undefined) continue;
+      const isRea = it.dict.get(PDFName.of('REA')) instanceof PDFDict;
+      const key = annotationKeyFor(it.dict, it.ref);
+      if (isRea || (key !== undefined && replacedIds.has(key))) {
+        it.drop = true;
+        if (it.ref) droppedRefKeys.add(refKey(it.ref));
+      }
+    }
+    for (const it of existingItems) {
+      if (!it.dict || it.drop) continue;
+      const irt = it.dict.get(PDFName.of('IRT'));
+      const parent = it.dict.get(PDFName.of('Parent'));
+      const isReviewState = it.dict.get(PDFName.of('StateModel')) !== undefined;
+      const isPopup = it.dict.get(PDFName.of('Subtype'))?.toString() === '/Popup';
+      if (
+        (isReviewState && irt instanceof PDFRef && droppedRefKeys.has(refKey(irt))) ||
+        (isPopup && parent instanceof PDFRef && droppedRefKeys.has(refKey(parent)))
+      ) {
+        it.drop = true;
+      }
+    }
+    const keptObjects: PDFObject[] = existingItems.filter((it) => !it.drop).map((it) => it.obj);
+    const removedCount = existingItems.length - keptObjects.length;
 
     const newAnnotRefsList: string[] = [];
 
@@ -354,13 +442,15 @@ endstream`;
       if (markup.customFields) {
         for (const [k, v] of Object.entries(markup.customFields)) {
           if (k === 'arcStep') continue;
-          if (v !== undefined && v !== null) {
-            reaCustomFields.push(`/${k} (${String(v)})`);
+          if (typeof v === 'number' && Number.isFinite(v)) {
+            reaCustomFields.push(`${toPdfName(k)} ${v}`);
+          } else if (v !== undefined && v !== null) {
+            reaCustomFields.push(`${toPdfName(k)} ${escapePdfString(String(v))}`);
           }
         }
       }
 
-      let reaDict = `<< /v 1 /tool (${markup.type})`;
+      let reaDict = `<< /v 1 /tool ${escapePdfString(markup.type)}`;
       if (typeof markup.customFields?.arcStep === 'number') {
         reaDict += ` /arcStep ${markup.customFields.arcStep}`;
       }
@@ -374,7 +464,7 @@ endstream`;
         reaDict += ` /fields << ${reaCustomFields.join(' ')} >>`;
       }
       if (markup.measurement) {
-        reaDict += ` /measurement << /type (${markup.type}) /value ${markup.measurement.value.toFixed(4)} /unit (${markup.measurement.unit}) /formatted (${escapePdfString(markup.measurement.formatted)})`;
+        reaDict += ` /measurement << /type ${escapePdfString(markup.type)} /value ${markup.measurement.value.toFixed(4)} /unit ${escapePdfString(markup.measurement.unit)} /formatted ${escapePdfString(markup.measurement.formatted)}`;
         if (typeof markup.measurement.perimeter === 'number') {
           reaDict += ` /perimeter ${markup.measurement.perimeter.toFixed(4)}`;
         }
@@ -391,7 +481,7 @@ endstream`;
   /Subtype /${annotTypeSubtype}
   /Rect ${rectStr}
   /P ${pageObjNum} 0 R
-  /NM (${markup.id})
+  /NM ${escapePdfString(markup.id)}
   /T ${escapePdfString(markup.author || options.authorDefault || 'Revisor')}
   /Contents ${escapePdfString(markup.text || '')}
   /M ${formatPdfDate(markup.updatedAt || markup.createdAt)}
@@ -498,17 +588,15 @@ endstream`;
       }
     }
 
-    // 5. Actualizar el diccionario de página con el array /Annots
-    if (newAnnotRefsList.length > 0) {
-      const allAnnots = [...existingAnnotRefsList, ...newAnnotRefsList];
+    // 5. Actualizar el diccionario de página con el array /Annots (también si solo hubo borrados)
+    if (newAnnotRefsList.length > 0 || removedCount > 0) {
+      const newRefs = newAnnotRefsList.map((refStr) => {
+        const parts = refStr.split(' ');
+        return PDFRef.of(parseInt(parts[0], 10), parseInt(parts[1], 10));
+      });
 
       // Actualizar el nodo de la página en pdf-lib y obtener su serialización
-      const newAnnotsArray = pdfDoc.context.obj(
-        allAnnots.map((refStr) => {
-          const parts = refStr.split(' ');
-          return PDFRef.of(parseInt(parts[0], 10), parseInt(parts[1], 10));
-        })
-      );
+      const newAnnotsArray = pdfDoc.context.obj([...keptObjects, ...newRefs]);
       page.node.set(PDFName.of('Annots'), newAnnotsArray);
 
       // Escribir el diccionario actualizado de la página

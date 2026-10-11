@@ -1676,6 +1676,28 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const pdfDownload = await pdfDownloadPromise;
     expect(pdfDownload.suggestedFilename()).toMatch(/\.pdf$/i);
   });
+  test('Regresión de diseño: la barra de herramientas no desborda la ventana a 1280 px (controles de zoom visibles)', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto('/');
+    await expect(page.locator('[data-testid="markup-overlay-svg"]')).toBeVisible({ timeout: 15000 });
+
+    // El contenedor raíz de la app no debe tener contenido más ancho que la ventana
+    const overflow = await page.evaluate(() => {
+      const root = document.querySelector('header')?.parentElement as HTMLElement | null;
+      return root ? { sw: root.scrollWidth, cw: root.clientWidth } : null;
+    });
+    expect(overflow).not.toBeNull();
+    expect(overflow!.sw).toBeLessThanOrEqual(overflow!.cw);
+
+    // Los controles de la derecha (zoom) quedan dentro de la ventana
+    const zoomIn = page.locator('button[title="Acercar (+)"]');
+    await expect(zoomIn).toBeVisible();
+    const box = (await zoomIn.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(1280);
+  });
 });
 
 

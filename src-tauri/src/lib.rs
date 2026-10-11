@@ -83,6 +83,68 @@ fn read_bbx(file_path: String) -> Result<Option<String>, String> {
   }
 }
 
+#[tauri::command]
+fn save_export_file(file_path: String, bytes: Vec<u8>) -> Result<(), String> {
+  let path = Path::new(&file_path);
+
+  // 1. Validar que la ruta es absoluta
+  if !path.is_absolute() {
+    return Err("La ruta debe ser absoluta".to_string());
+  }
+
+  // 2. Validar extensión en lista blanca (.csv o .pdf)
+  let ext = path
+    .extension()
+    .and_then(|s| s.to_str())
+    .map(|s| s.to_lowercase())
+    .unwrap_or_default();
+
+  if ext != "csv" && ext != "pdf" {
+    return Err("La extensión del archivo debe ser .csv o .pdf".to_string());
+  }
+
+  // 3. Validar que el directorio padre existe y es accesible
+  let parent = path
+    .parent()
+    .ok_or_else(|| "No se pudo obtener el directorio padre".to_string())?;
+
+  if !parent.exists() {
+    return Err(format!(
+      "El directorio padre no existe: {}",
+      parent.display()
+    ));
+  }
+
+  // 4. Escritura atómica: escribir primero a <path>.tmp y luego renombrar
+  let tmp_path = format!("{}.tmp", file_path);
+  let tmp_path_obj = Path::new(&tmp_path);
+
+  let write_result = (|| -> Result<(), String> {
+    let mut file = File::create(tmp_path_obj)
+      .map_err(|e| format!("Error creando archivo temporal: {}", e))?;
+    file
+      .write_all(&bytes)
+      .map_err(|e| format!("Error escribiendo archivo temporal: {}", e))?;
+    file
+      .sync_all()
+      .map_err(|e| format!("Error sincronizando archivo temporal: {}", e))?;
+    Ok(())
+  })();
+
+  if let Err(e) = write_result {
+    let _ = fs::remove_file(tmp_path_obj);
+    return Err(e);
+  }
+
+  // Renombrar atómicamente al destino final
+  if let Err(e) = fs::rename(tmp_path_obj, path) {
+    let _ = fs::remove_file(tmp_path_obj);
+    return Err(format!("Error renombrando archivo atómicamente a {}: {}", file_path, e));
+  }
+
+  Ok(())
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -134,6 +196,60 @@ mod tests {
     let res = read_bbx(file_path);
     assert_eq!(res, Ok(None));
   }
+
+  #[test]
+  fn test_save_export_file_rejects_relative_path() {
+    let res = save_export_file("report.csv".to_string(), b"a,b,c".to_vec());
+    assert!(res.is_err());
+    assert!(res.unwrap_err().contains("absoluta"));
+  }
+
+  #[test]
+  fn test_save_export_file_rejects_disallowed_extension() {
+    let temp_dir = env::temp_dir();
+    let abs_path = temp_dir.join("export.exe").to_string_lossy().to_string();
+    let res = save_export_file(abs_path, b"test".to_vec());
+    assert!(res.is_err());
+    assert!(res.unwrap_err().contains(".csv o .pdf"));
+  }
+
+  #[test]
+  fn test_save_export_file_atomic_success_csv() {
+    let temp_dir = env::temp_dir();
+    let file_path = temp_dir.join("test_export_atomic.csv");
+    let file_path_str = file_path.to_string_lossy().to_string();
+    let tmp_path = format!("{}.tmp", file_path_str);
+
+    let bytes = b"\xEF\xBB\xBFCol1,Col2\r\nVal1,Val2\r\n".to_vec();
+    let res = save_export_file(file_path_str.clone(), bytes.clone());
+    assert!(res.is_ok());
+
+    assert!(file_path.exists());
+    let read_back = fs::read(&file_path).unwrap();
+    assert_eq!(read_back, bytes);
+    assert!(!Path::new(&tmp_path).exists());
+
+    let _ = fs::remove_file(&file_path);
+  }
+
+  #[test]
+  fn test_save_export_file_atomic_success_pdf() {
+    let temp_dir = env::temp_dir();
+    let file_path = temp_dir.join("test_export_atomic.pdf");
+    let file_path_str = file_path.to_string_lossy().to_string();
+    let tmp_path = format!("{}.tmp", file_path_str);
+
+    let bytes = b"%PDF-1.4\n%test\n".to_vec();
+    let res = save_export_file(file_path_str.clone(), bytes.clone());
+    assert!(res.is_ok());
+
+    assert!(file_path.exists());
+    let read_back = fs::read(&file_path).unwrap();
+    assert_eq!(read_back, bytes);
+    assert!(!Path::new(&tmp_path).exists());
+
+    let _ = fs::remove_file(&file_path);
+  }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -151,7 +267,8 @@ pub fn run() {
     })
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_fs::init())
-    .invoke_handler(tauri::generate_handler![write_bbx, read_bbx])
+    .invoke_handler(tauri::generate_handler![write_bbx, read_bbx, save_export_file])
     .run(tauri::generate_context!())
     .expect("error while building tauri application");
 }
+

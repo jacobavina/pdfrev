@@ -33,6 +33,8 @@ interface MarkupState {
       text?: string;
       textFormat?: MarkupTextFormat;
       layer?: string;
+      status?: MarkupStatus;
+      author?: string;
     },
     description?: string
   ) => void;
@@ -158,6 +160,8 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
         text?: string;
         textFormat?: MarkupTextFormat;
         layer?: string;
+        status?: MarkupStatus;
+        author?: string;
       },
       description?: string
     ) => {
@@ -179,6 +183,8 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
         }
         if (updates.text !== undefined && m.text !== updates.text) hasAnyChange = true;
         if (updates.layer !== undefined && m.layer !== updates.layer) hasAnyChange = true;
+        if (updates.status !== undefined && m.status !== updates.status) hasAnyChange = true;
+        if (updates.author !== undefined && m.author !== updates.author) hasAnyChange = true;
         if (updates.textFormat !== undefined) {
           if (!m.textFormat || JSON.stringify(m.textFormat) !== JSON.stringify(updates.textFormat)) {
             hasAnyChange = true;
@@ -216,6 +222,8 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
                 ...m,
                 ...(updates.style ? { style: { ...m.style, ...updates.style } } : {}),
                 ...(updates.text !== undefined ? { text: updates.text } : {}),
+                ...(updates.status !== undefined ? { status: updates.status } : {}),
+                ...(updates.author !== undefined ? { author: updates.author } : {}),
                 ...(updates.textFormat !== undefined
                   ? { textFormat: updates.textFormat ? { ...updates.textFormat } : undefined }
                   : {}),

@@ -3,15 +3,30 @@ import { TopBar } from './components/TopBar';
 import { ThumbnailsSidebar } from './components/ThumbnailsSidebar';
 import { PdfViewer } from './components/PdfViewer';
 import { ToolChestPanel } from './components/toolchest/ToolChestPanel';
+import { PropertiesInspectorPanel } from './components/PropertiesInspectorPanel';
 import { MarkupsList } from './components/MarkupsList';
 import { useDocumentStore } from './store/useDocumentStore';
 import { useMarkupStore } from './store/useMarkupStore';
+import { useAutoSave } from './hooks/useAutoSave';
 import { loadPdfData } from './services/fileDialogService';
 import fixtureMeta from '../fixtures/test-blueprint.meta.json';
 
 export const App: React.FC = () => {
   const { pdfBytes, setLoading } = useDocumentStore();
   const { addMarkup } = useMarkupStore();
+  const { saveNow } = useAutoSave();
+
+  // Atajo global Ctrl+S / Meta+S para guardar cambios
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        saveNow();
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [saveNow]);
 
   // Carga automática inicial del plano de calibración para desarrollo y E2E
   useEffect(() => {
@@ -71,11 +86,12 @@ export const App: React.FC = () => {
       {/* 1. Barra Superior (Herramientas, archivo, zoom) */}
       <TopBar />
 
-      {/* 2. Área Central (Miniaturas a la izquierda + Visor al centro + Tool Chest a la derecha) */}
+      {/* 2. Área Central (Miniaturas a la izquierda + Visor al centro + Tool Chest y Propiedades a la derecha) */}
       <div className="flex-1 flex overflow-hidden relative">
         <ThumbnailsSidebar />
         <PdfViewer />
         <ToolChestPanel />
+        <PropertiesInspectorPanel defaultCollapsed={true} />
       </div>
 
       {/* 3. Panel Inferior (Lista de marcas técnica con sincronización bidireccional) */}

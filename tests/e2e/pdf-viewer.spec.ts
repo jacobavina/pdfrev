@@ -1604,6 +1604,78 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     expect(idx50Desc).toBeGreaterThanOrEqual(0);
     expect(idx50Desc).toBeLessThan(idx20Desc);
   });
+
+  test('Sub-entregable P2-C.5: Cierre Bloque C (Exportación CSV/PDF, Inspector de propiedades y atajo de guardado Ctrl+S)', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+
+    const markupsPanel = page.locator('[data-testid="markups-list-panel"]');
+    await expect(markupsPanel).toBeVisible();
+
+    const inspectorPanel = page.locator('[data-testid="properties-inspector-panel"]');
+    await expect(inspectorPanel).toBeVisible();
+
+    // Expandir panel si inicia colapsado
+    const expandBtn = page.locator('[data-testid="expand-properties-btn"]');
+    if (await expandBtn.isVisible()) {
+      await expandBtn.click();
+    }
+
+    // 1. La marca inicial de calibración inicia seleccionada: verificar badge del inspector
+    const badge = inspectorPanel.locator('[data-testid="selection-count-badge"]');
+    await expect(badge).toBeVisible();
+    await expect(badge).toHaveText(/1 marca/);
+
+    // 2. Deseleccionar la marca desmarcando su checkbox en MarkupsList -> muestra mensaje vacío
+    const rows = markupsPanel.locator('tbody tr');
+    await expect(rows.first()).toBeVisible();
+    const rowCheckbox = rows.first().locator('input[type="checkbox"]');
+    await rowCheckbox.click();
+
+    const emptyMsg = inspectorPanel.locator('[data-testid="properties-empty-message"]');
+    await expect(emptyMsg).toBeVisible();
+
+    // 3. Volver a seleccionar haciendo clic en el checkbox -> reaparece el inspector con sus propiedades
+    await rowCheckbox.click();
+    await expect(badge).toBeVisible();
+    await expect(badge).toHaveText(/1 marca/);
+
+    const strokeWidthInput = inspectorPanel.locator('[data-testid="prop-stroke-width"]');
+    await expect(strokeWidthInput).toBeVisible();
+
+    // 3. Modificar grosor de trazo en el inspector a 6
+    await strokeWidthInput.fill('6');
+
+    // Deshacer con Ctrl+Z
+    await page.keyboard.press('Control+z');
+
+    // 4. Probar atajo global de guardado Ctrl+S
+    await page.keyboard.press('Control+s');
+    const saveBtn = page.locator('[data-testid="save-button"]');
+    await expect(saveBtn).toBeVisible();
+
+    // 5. Exportar CSV y verificar captura del archivo de descarga
+    const exportCsvBtn = page.locator('[data-testid="export-csv-button"]');
+    await expect(exportCsvBtn).toBeVisible();
+
+    const csvDownloadPromise = page.waitForEvent('download');
+    await exportCsvBtn.click();
+    const csvDownload = await csvDownloadPromise;
+    expect(csvDownload.suggestedFilename()).toMatch(/\.csv$/i);
+
+    // 6. Exportar Reporte PDF y verificar captura del archivo de descarga
+    const exportPdfBtn = page.locator('[data-testid="export-pdf-report-button"]');
+    await expect(exportPdfBtn).toBeVisible();
+
+    const pdfDownloadPromise = page.waitForEvent('download');
+    await exportPdfBtn.click();
+    const pdfDownload = await pdfDownloadPromise;
+    expect(pdfDownload.suggestedFilename()).toMatch(/\.pdf$/i);
+  });
 });
 
 

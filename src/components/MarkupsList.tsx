@@ -15,10 +15,13 @@ import {
   Check,
   Plus,
   AlertTriangle,
+  FileSpreadsheet,
+  FileText,
 } from 'lucide-react';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useToolChestStore } from '../store/useToolChestStore';
+
 import {
   Markup,
   MarkupStatus,
@@ -116,6 +119,7 @@ export const MarkupsList: React.FC = () => {
     customColumns,
     addCustomColumn,
     removeCustomColumn,
+    fileName,
   } = useDocumentStore();
 
   const [isExpanded, setIsExpanded] = useState(true);
@@ -326,6 +330,30 @@ export const MarkupsList: React.FC = () => {
     );
   };
 
+  const handleExportCsv = async () => {
+    try {
+      const { buildCsvContent, saveExportFileWithDialog } = await import('../services/exportService');
+      const defaultBase = fileName ? fileName.replace(/\.[^/.]+$/, '') : 'marcas';
+      const defaultName = `${defaultBase}-marcas.csv`;
+      const bytes = buildCsvContent(displayedMarkups, customColumns, evaluationMatrix);
+      await saveExportFileWithDialog(defaultName, 'csv', bytes);
+    } catch (err) {
+      console.error('Error al exportar CSV:', err);
+    }
+  };
+
+  const handleExportPdfReport = async () => {
+    try {
+      const { buildPdfReportContent, saveExportFileWithDialog } = await import('../services/exportService');
+      const defaultBase = fileName ? fileName.replace(/\.[^/.]+$/, '') : 'reporte';
+      const defaultName = `${defaultBase}-reporte-marcas.pdf`;
+      const bytes = await buildPdfReportContent(fileName || 'Documento PDF', displayedMarkups);
+      await saveExportFileWithDialog(defaultName, 'pdf', bytes);
+    } catch (err) {
+      console.error('Error al generar Reporte PDF:', err);
+    }
+  };
+
   return (
     <section
       data-testid="markups-list-panel"
@@ -360,6 +388,26 @@ export const MarkupsList: React.FC = () => {
 
         {isExpanded && (
           <div className="flex items-center space-x-2">
+            <button
+              data-testid="export-csv-button"
+              onClick={handleExportCsv}
+              className="flex items-center space-x-1 px-2 py-0.5 bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 rounded border border-emerald-700 text-xs transition-colors"
+              title="Exportar marcas visibles a CSV (RFC 4180)"
+            >
+              <FileSpreadsheet size={12} />
+              <span>CSV</span>
+            </button>
+
+            <button
+              data-testid="export-pdf-report-button"
+              onClick={handleExportPdfReport}
+              className="flex items-center space-x-1 px-2 py-0.5 bg-purple-900/60 hover:bg-purple-800 text-purple-200 rounded border border-purple-700 text-xs transition-colors"
+              title="Generar Reporte Resumen en PDF"
+            >
+              <FileText size={12} />
+              <span>Reporte PDF</span>
+            </button>
+
             <button
               data-testid="add-custom-column-button"
               onClick={() => {

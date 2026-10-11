@@ -309,4 +309,17 @@ describe('MarkupsList Context Menu (Añadir a Tool Chest B.4)', () => {
       expect(state.markups.find((m) => m.id === 'grp-item-2')?.status).toBe('completed');
     });
   });
+
+  describe('Botones de Exportación (P2-C.4)', () => {
+    it('renderiza los botones de exportar CSV y Reporte PDF en la cabecera', () => {
+      render(<MarkupsList />);
+      const csvBtn = screen.getByTestId('export-csv-button');
+      const pdfBtn = screen.getByTestId('export-pdf-report-button');
+      expect(csvBtn).toBeInTheDocument();
+      expect(pdfBtn).toBeInTheDocument();
+      expect(csvBtn).toHaveTextContent('CSV');
+      expect(pdfBtn).toHaveTextContent('Reporte PDF');
+    });
+  });
 });
+

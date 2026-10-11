@@ -141,6 +141,7 @@ export const TopBar: React.FC = () => {
         </button>
 
         <button
+          data-testid="save-button"
           onClick={() => saveNow()}
           disabled={!isDirty || !filePath}
           className={`flex items-center space-x-1.5 px-3 py-1.5 rounded border text-xs font-medium transition-colors ${

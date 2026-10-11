@@ -1,0 +1,11 @@
+=== M8 LICENCIA Y PROCEDENCIA: OPCION A ===
+Componente 1: PDF.js (mozilla/pdf.js)
+ - Licencia: Apache License 2.0 (Permisiva)
+ - Archivo de licencia: LICENSE oficial verificado
+ - Autor / Mantenedor: Mozilla y colaboradores de la comunidad
+Componente 2: pdf-lib (Hopding/pdf-lib)
+ - Licencia: MIT License (Permisiva)
+ - Autor: Andrew Dillon
+Componente 3: IncrementalWriter propio
+ - Licencia: Propia del proyecto REA (MIT / Apache-2.0 compatible)
+Riesgo de copyleft / GPL: NINGUNO (0 dependencias GPL/AGPL).

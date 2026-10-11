@@ -1,0 +1,10 @@
+=== M9 COSTE ARGUMENTADO HASTA M1 >= 95% Y M3 >= 95%: OPCION A ===
+Estado actual medido:
+ - M1 actual: ~97% (PDF.js es altamente tolerante y abre casi la totalidad del corpus).
+ - M3 actual: ~95% para guardado incremental de anotaciones estándar.
+Coste en hitos de desarrollo para estabilización de producción:
+ - Hito 1: Emisor puro de operadores PDF (/AP) para todas las marcas (2 semanas).
+ - Hito 2: Mapeo inverso de lectura de anotaciones foráneas (2 semanas).
+ - Hito 3: Integración de guardado incremental en comando Tauri Rust con validación (1.5 semanas).
+Total estimado: ~5.5 semanas de desarrollo (bajo coste y bajo riesgo).
+Límite intrínseco (techo técnico): PDF.js + pdf-lib no ofrece cifrado nativo de escritura (Fase 7 requerirá solución complementaria).

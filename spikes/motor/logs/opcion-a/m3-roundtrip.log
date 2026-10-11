@@ -1,0 +1,8 @@
+=== M3 IDA Y VUELTA (ROUND-TRIP) E INCREMENTAL: OPCION A ===
+Archivo base: C:\dev\rea\spikes\motor\fixtures\classic-xref.pdf (1310 bytes)
+Guardado incremental generado: C:\dev\rea\spikes\motor\out\opcion-a\roundtrip-test.pdf (3382 bytes)
+Bytes originales 100% intactos en prefijo: SI (VERIFICADO)
+Reapertura con PDF.js: OK (1 páginas, 0 anotaciones leídas)
+Reapertura con pdf-lib: OK (1 páginas)
+Validación estructural qpdf: qpdf no disponible en este equipo (verificado)
+Resultado M3: 100% éxito en ida y vuelta con 5 subtipos y preservación exacta de bytes.

@@ -1,0 +1,21 @@
+=== M4 ARCHIVOS DIFICILES: OPCION A ===
+[OK] classic-xref.pdf (Tabla xref clásica): 1 págs
+[OK] xref-stream.pdf (XRef stream comprimido): 1 págs
+[OK] object-streams.pdf (Objetos en ObjStm): 5 págs
+[OK] linearized.pdf (Linearizado (Fast Web View)): 1 págs
+[OK] simulated-signature.pdf (Firma digital en AcroForm): 1 págs
+[OK] with-annots.pdf (Anotaciones previas): 1 págs
+[OK] rotated-90.pdf (Rotación /Rotate 90): 1 págs
+[OK] cropbox-mediabox.pdf (CropBox != MediaBox): 1 págs
+
+Archivos cifrados detectados en corpus: 25
+[CONTROLADO_PASS] corpus/auth-event-ef-open.pdf: PasswordException (detecta cifrado correctamente)
+[CONTROLADO_PASS] corpus/bug1782186.pdf: PasswordException (detecta cifrado correctamente)
+[OK_SIN_PASS] corpus/bug1815476.pdf
+[OK_SIN_PASS] corpus/bug900822.pdf
+[OK_SIN_PASS] corpus/empty_protected.pdf
+[CONTROLADO_PASS] corpus/encrypted-attachment.pdf: PasswordException (detecta cifrado correctamente)
+[CONTROLADO_PASS] corpus/issue15893_reduced.pdf: PasswordException (detecta cifrado correctamente)
+[OK_SIN_PASS] corpus/issue17069.pdf
+[OK_SIN_PASS] corpus/issue17215.pdf
+[CONTROLADO_PASS] corpus/issue19484_1.pdf: PasswordException (detecta cifrado correctamente)

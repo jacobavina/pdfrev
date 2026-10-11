@@ -1,0 +1,7 @@
+=== M5 PLANOS GRANDES: OPCION A ===
+Hoja E Densa (3600x2400 pt, 15k trazos):
+ - Tiempo al primer parseo/render: 1.3 ms
+ - Memoria heap diferencial: 0.20 MB
+PDF Gran Volumen (~100 MB con imágenes raster):
+ - Tiempo al primer parseo/render: 69.3 ms
+ - Memoria heap diferencial: -56.31 MB

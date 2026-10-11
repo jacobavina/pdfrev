@@ -1,0 +1,8 @@
+=== M6 ESCRITURA DE REQUISITOS REVU: OPCION A ===
+Archivo generado con éxito: C:\dev\rea\spikes\motor\out\opcion-a\muestra-revu.pdf (4739 bytes)
+Estructuras escritas:
+ - /OC (Capa OCG): 'Capas REA - Arquitectura'
+ - /Measure + /VP: '1 in = 10 ft'
+ - /Stamp: 'APROBADO REA' con /AP vectorial
+ - /StateModel (Review): Estado 'Accepted' vinculado a marca padre
+ - /IRT /RT /Group: Agrupación entre líder y FreeText hijo

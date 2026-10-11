@@ -53,3 +53,8 @@ Anclas de implementación verificadas:
   4. Los avisos por degradación de tipo/estado o descarte de campos/columnas inválidos se propagan a través de `loadBbxForPdf` y se notifican en la interfaz de usuario mediante `toastService` al abrir el documento.
   5. La versión del esquema se mantiene en `1.1.0`, ya que se trata de una extensión de compatibilidad aditiva y opcional; versiones incompatibles (ej. $\ge 2.0.0$) continúan lanzando excepción controlada.
 - **Evidencia:** Cobertura de pruebas unitarias en `src/types/markup.test.ts` y pruebas de persistencia sobre fichero real en `src/services/bbxPersistenceService.test.ts` y `src/services/fileDialogService.test.ts`.
+
+- **Tipos Canónicos y Límites de Cantidad (Hito Z.2b):**
+  1. El conjunto canónico de tipos de columna (`BbxCustomColumnType`) se fija en `{'text', 'number', 'choice', 'formula'}`. El migrador admite alias en español (`texto`, `número`, `numero`, `opción`, `opcion`, `calculada`) como entrada y los normaliza automáticamente al canónico sin generar avisos. Solo se persisten y retienen en memoria los tipos canónicos.
+  2. Se establecen límites cuantitativos estrictos: `MAX_CUSTOM_COLUMNS = 50` columnas por documento y `MAX_CUSTOM_FIELDS_PER_MARKUP = 50` campos por marca, emitiendo un único aviso agregado si se superan los topes y conservando los primeros elementos válidos.
+  3. `customColumns` se preserva de extremo a extremo a través del store de documento (`useDocumentStore`) hacia el hook de autoguardado (`useAutoSave`), y las notificaciones de apertura se agrupan en un único toast resumen (`summarizeMigrationWarnings`) para evitar sobrescrituras en la UI.

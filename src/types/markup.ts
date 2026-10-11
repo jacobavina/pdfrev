@@ -131,20 +131,32 @@ export interface ViewportTransform {
   rotation?: number; // 0, 90, 180, 270
 }
 
-export const VALID_CUSTOM_COLUMN_TYPES = [
+export const CANONICAL_CUSTOM_COLUMN_TYPES = [
   'text',
   'number',
   'choice',
   'formula',
-  'texto',
-  'número',
-  'numero',
-  'opción',
-  'opcion',
-  'calculada',
 ] as const;
 
-export type BbxCustomColumnType = (typeof VALID_CUSTOM_COLUMN_TYPES)[number];
+export type BbxCustomColumnType = (typeof CANONICAL_CUSTOM_COLUMN_TYPES)[number];
+
+export const VALID_CUSTOM_COLUMN_TYPES = CANONICAL_CUSTOM_COLUMN_TYPES;
+
+export const CUSTOM_COLUMN_TYPE_ALIASES: Record<string, BbxCustomColumnType> = {
+  text: 'text',
+  texto: 'text',
+  number: 'number',
+  número: 'number',
+  numero: 'number',
+  choice: 'choice',
+  opción: 'choice',
+  opcion: 'choice',
+  formula: 'formula',
+  calculada: 'formula',
+};
+
+export const MAX_CUSTOM_COLUMNS = 50;
+export const MAX_CUSTOM_FIELDS_PER_MARKUP = 50;
 
 export interface BbxCustomColumn {
   id: string;
@@ -207,6 +219,7 @@ export function migrateBbxDocument(raw: unknown): BbxMigrationResult {
       warnings.push('El campo "customColumns" no es un arreglo válido; se descarta');
     } else {
       const validCols: BbxCustomColumn[] = [];
+      let limitExceeded = false;
       for (let i = 0; i < obj.customColumns.length; i++) {
         const col = obj.customColumns[i];
         if (!col || typeof col !== 'object' || Array.isArray(col)) {
@@ -228,15 +241,21 @@ export function migrateBbxDocument(raw: unknown): BbxMigrationResult {
           continue;
         }
 
-        if (!VALID_CUSTOM_COLUMN_TYPES.includes(tipoRaw as BbxCustomColumnType)) {
+        const normalizedTipo = CUSTOM_COLUMN_TYPE_ALIASES[tipoRaw.toLowerCase()];
+        if (!normalizedTipo) {
           warnings.push(`Columna personalizada "${id}" descartada: tipo desconocido "${tipoRaw}"`);
+          continue;
+        }
+
+        if (validCols.length >= MAX_CUSTOM_COLUMNS) {
+          limitExceeded = true;
           continue;
         }
 
         const validCol: BbxCustomColumn = {
           id,
           nombre,
-          tipo: tipoRaw as BbxCustomColumnType,
+          tipo: normalizedTipo,
         };
 
         if (Array.isArray(colObj.opciones)) {
@@ -250,6 +269,12 @@ export function migrateBbxDocument(raw: unknown): BbxMigrationResult {
         }
 
         validCols.push(validCol);
+      }
+
+      if (limitExceeded) {
+        warnings.push(
+          `Se excedió el límite máximo de columnas personalizadas (${MAX_CUSTOM_COLUMNS}); se conservan las primeras ${MAX_CUSTOM_COLUMNS}`
+        );
       }
 
       if (validCols.length > 0) {
@@ -324,6 +349,8 @@ export function migrateBbxDocument(raw: unknown): BbxMigrationResult {
       } else {
         const rawEntries = Object.entries(item.customFields as Record<string, unknown>);
         const sanitized: Record<string, string | number> = {};
+        let fieldsLimitExceeded = false;
+        let validFieldsCount = 0;
         for (const [k, v] of rawEntries) {
           if (k === '__proto__' || k === 'constructor' || k === 'prototype') {
             warnings.push(
@@ -337,9 +364,11 @@ export function migrateBbxDocument(raw: unknown): BbxMigrationResult {
             );
             continue;
           }
+
+          let validVal: string | number | undefined;
           if (typeof v === 'number') {
             if (Number.isFinite(v)) {
-              sanitized[k] = v;
+              validVal = v;
             } else {
               warnings.push(
                 `Valor numérico no finito para campo "${k}" descartado en marca "${markupId}"`
@@ -347,7 +376,7 @@ export function migrateBbxDocument(raw: unknown): BbxMigrationResult {
             }
           } else if (typeof v === 'string') {
             if (v.length <= 2000) {
-              sanitized[k] = v;
+              validVal = v;
             } else {
               warnings.push(
                 `Valor de cadena para campo "${k}" excede longitud permitida en marca "${markupId}"`
@@ -358,7 +387,23 @@ export function migrateBbxDocument(raw: unknown): BbxMigrationResult {
               `Tipo de dato no permitido (${typeof v}) para campo "${k}" descartado en marca "${markupId}"`
             );
           }
+
+          if (validVal !== undefined) {
+            if (validFieldsCount >= MAX_CUSTOM_FIELDS_PER_MARKUP) {
+              fieldsLimitExceeded = true;
+            } else {
+              sanitized[k] = validVal;
+              validFieldsCount++;
+            }
+          }
         }
+
+        if (fieldsLimitExceeded) {
+          warnings.push(
+            `Se excedió el límite de campos personalizados por marca (${MAX_CUSTOM_FIELDS_PER_MARKUP}) en marca "${markupId}"; se conservan los primeros ${MAX_CUSTOM_FIELDS_PER_MARKUP}`
+          );
+        }
+
         if (Object.keys(sanitized).length > 0) {
           customFields = sanitized;
         }

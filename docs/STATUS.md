@@ -73,7 +73,7 @@
 |---|---|---|---|---|
 | `P2-C.1` | Motor puro e inmutable de filtrado y ordenación | **Entregado** (commit `d3b8d55`) | 17 tests unitarios en `src/utils/markupFilterSort.test.ts`. Benchmark < 10ms garantizado con 500 marcas. Integración en `MarkupsList.tsx`. | Verificación nativa por el usuario PENDIENTE. |
 | `P2-C.2` | Menú contextual de estados técnicos y grupos | **Commiteado** (commit `d310a87`) | Comando `UpdateMarkupStatusCommand` atómico y reversible con Ctrl+Z. 3 tests en `UpdateMarkupStatusCommand.test.ts`, menú contextual flotante en `MarkupsList.tsx` y test E2E 13. | Verificación nativa por el usuario PENDIENTE. |
-| `Z.2` | Endurecimiento del migrador (customColumns, customFields, avisos) | **Cerrado** (commit `91c474b`) | `BbxDocumentFile` extendido con `customColumns?`. Validación estricta contra entradas hostiles (`__proto__`, NaN, cadenas gigantes). Retorno de `warnings: string[]` propagados con `toastService` al abrir documento. Test de persistencia de FICHERO REAL en `bbxPersistenceService.test.ts`. 12 tests en `markup.test.ts` y 2 tests en `fileDialogService.test.ts`. | Cero degradación silenciosa; esquema 1.1.0 conservado (ADR-0003 Addendum). |
+| `Z.2` | Endurecimiento del migrador (customColumns, customFields, avisos) | **Cerrado** (commits `91c474b` y Z.2b) | `BbxDocumentFile` extendido con `customColumns?`. Validación estricta contra entradas hostiles (`__proto__`, NaN, cadenas gigantes). Retorno de `warnings: string[]` propagados con `toastService` al abrir documento. Test de persistencia de FICHERO REAL en `bbxPersistenceService.test.ts`. 17 tests en `markup.test.ts`, 9 tests en `fileDialogService.test.ts` y 2 tests en `useAutoSave.test.ts`. | Garantiza preservación de customColumns de extremo a extremo (carga -> store de documento -> autoguardado), normalización a tipos canónicos {'text','number','choice','formula'}, límites estrictos (máx 50 columnas y 50 campos/marca con avisos agregados) y agrupación de advertencias en UI sin sobrescritura (hito Z.2b). Esquema 1.1.0 conservado (ADR-0003 Addendum). |
 | `P2-C.3` | Columnas personalizadas con parser de gramática cerrada | **No empezado** | Definición `{ id, nombre, tipo, opciones?, expresion? }`. Depende de Z.2 (migrador endurecido). | Siguiente hito a iniciar. |
 | `P2-C.4` | Exportación CSV (RFC 4180 + BOM) y Reporte Resumen PDF | **No empezado** | Exportación tabular limpia con protección contra inyección de fórmulas y reporte ejecutivo. | Depende de C.3. |
 | `P2-C.5` | E2E del bloque completo y verificación nativa | **No empezado** | Suite E2E completa del flujo de lista y reporte. Cierre definitivo del Bloque C. | Depende de C.4. |
@@ -91,7 +91,7 @@
 
 ## 3. Registro de Puertas de Calidad Actual
 
-- **Pruebas Unitarias:** 277 / 277 pasadas en Vitest (`src/`) distribuidas en 17 suites.
+- **Pruebas Unitarias:** 291 / 291 pasadas en Vitest (`src/`) distribuidas en 18 suites.
 - **Auditoría Literal de Paridad:** Superada (`node scripts/parity-check.mjs`: 22 shipped verificadas literalmente, 3 todo con guion).
 - **Pruebas Rust:** 4 / 4 pasadas en `cargo test` (`src-tauri/`).
 - **Compilación de Producción:** Exitosa (`tsc && vite build`), bundle limpio sin errores de tipos.

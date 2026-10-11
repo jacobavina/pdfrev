@@ -10,6 +10,7 @@ export function useAutoSave(intervalMs = 30000) {
   const markAsClean = useMarkupStore((state) => state.markAsClean);
 
   const filePath = useDocumentStore((state) => state.filePath);
+  const customColumns = useDocumentStore((state) => state.customColumns);
   const author = useToolStore((state) => state.author);
 
   const isSavingRef = useRef(false);
@@ -19,7 +20,7 @@ export function useAutoSave(intervalMs = 30000) {
 
     isSavingRef.current = true;
     try {
-      const ok = await saveBbxForPdf(filePath, markups, author);
+      const ok = await saveBbxForPdf(filePath, markups, author, customColumns);
       if (ok) {
         markAsClean();
       }
@@ -27,7 +28,7 @@ export function useAutoSave(intervalMs = 30000) {
     } finally {
       isSavingRef.current = false;
     }
-  }, [filePath, markups, author, markAsClean]);
+  }, [filePath, markups, author, customColumns, markAsClean]);
 
   useEffect(() => {
     if (!filePath) return;

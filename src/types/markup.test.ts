@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { migrateBbxDocument, BbxDocumentFile } from './markup';
+import {
+  migrateBbxDocument,
+  BbxDocumentFile,
+  CANONICAL_CUSTOM_COLUMN_TYPES,
+  MAX_CUSTOM_COLUMNS,
+  MAX_CUSTOM_FIELDS_PER_MARKUP,
+} from './markup';
 
 describe('BbxDocumentFile Migration & Backward Compatibility (P1 / P2)', () => {
   it('correctly migrates a legacy v1.0.0 document to v1.1.0 without data loss', () => {
@@ -250,7 +256,7 @@ describe('BbxDocumentFile Migration & Backward Compatibility (P1 / P2)', () => {
           { id: 'col-peso', nombre: 'Peso (kg)', tipo: 'number' },
           { id: 'col-estado', nombre: 'Estado Obra', tipo: 'choice', opciones: ['Pediente', 'Montado'] },
           { id: 'col-calc', nombre: 'Subtotal', tipo: 'formula', expresion: 'col-peso * 1.21' },
-          { id: 'col-txt', nombre: 'Comentario', tipo: 'texto' },
+          { id: 'col-txt', nombre: 'Comentario', tipo: 'text' },
         ],
         markups: [],
       };
@@ -381,6 +387,160 @@ describe('BbxDocumentFile Migration & Backward Compatibility (P1 / P2)', () => {
       const { document: migrated, warnings } = migrateBbxDocument(invalidFieldsDoc);
       expect(migrated.markups[0].customFields).toBeUndefined();
       expect(warnings.some((w) => w.includes('customFields'))).toBe(true);
+    });
+
+    it('normaliza alias de tipos de columna en español a su forma canónica sin emitir advertencia (Z.2b)', () => {
+      const docWithAliases = {
+        version: '1.1.0',
+        pdfFileName: 'alias.pdf',
+        customColumns: [
+          { id: 'c-texto', nombre: 'Texto', tipo: 'texto' },
+          { id: 'c-numero-acento', nombre: 'Número con acento', tipo: 'número' },
+          { id: 'c-numero-sin-acento', nombre: 'Numero sin acento', tipo: 'numero' },
+          { id: 'c-opcion-acento', nombre: 'Opción con acento', tipo: 'opción' },
+          { id: 'c-opcion-sin-acento', nombre: 'Opcion sin acento', tipo: 'opcion' },
+          { id: 'c-calculada', nombre: 'Calculada', tipo: 'calculada' },
+          { id: 'c-text', nombre: 'Text en inglés', tipo: 'text' },
+          { id: 'c-number', nombre: 'Number en inglés', tipo: 'number' },
+          { id: 'c-choice', nombre: 'Choice en inglés', tipo: 'choice' },
+          { id: 'c-formula', nombre: 'Formula en inglés', tipo: 'formula' },
+        ],
+        markups: [],
+      };
+
+      const { document: migrated, warnings } = migrateBbxDocument(docWithAliases);
+
+      expect(warnings).toHaveLength(0);
+      expect(migrated.customColumns).toBeDefined();
+      expect(migrated.customColumns).toHaveLength(10);
+
+      const tiposResultantes = migrated.customColumns!.map((col) => col.tipo);
+      expect(tiposResultantes).toEqual([
+        'text',
+        'number',
+        'number',
+        'choice',
+        'choice',
+        'formula',
+        'text',
+        'number',
+        'choice',
+        'formula',
+      ]);
+
+      for (const col of migrated.customColumns!) {
+        expect(CANONICAL_CUSTOM_COLUMN_TYPES).toContain(col.tipo);
+      }
+    });
+
+    it('descarta tipos de columna desconocidos con advertencia explícita (Z.2b)', () => {
+      const docWithBadType = {
+        version: '1.1.0',
+        customColumns: [
+          { id: 'col-valida', nombre: 'Valida', tipo: 'texto' },
+          { id: 'col-invalida', nombre: 'Invalida', tipo: 'fecha' },
+        ],
+        markups: [],
+      };
+
+      const { document: migrated, warnings } = migrateBbxDocument(docWithBadType);
+
+      expect(migrated.customColumns).toHaveLength(1);
+      expect(migrated.customColumns![0].id).toBe('col-valida');
+      expect(migrated.customColumns![0].tipo).toBe('text');
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain('tipo desconocido "fecha"');
+    });
+
+    it('ida y vuelta serializa únicamente tipos canónicos en el JSON en disco (Z.2b)', () => {
+      const docWithAliases = {
+        version: '1.1.0',
+        pdfFileName: 'roundtrip-alias.pdf',
+        customColumns: [
+          { id: 'col-calc', nombre: 'Coste', tipo: 'calculada', expresion: 'a*2' },
+          { id: 'col-num', nombre: 'Medida', tipo: 'número' },
+          { id: 'col-txt', nombre: 'Zona', tipo: 'texto' },
+        ],
+        markups: [],
+      };
+
+      const { document: migrated } = migrateBbxDocument(docWithAliases);
+      const serializedJson = JSON.stringify(migrated);
+      const parsed = JSON.parse(serializedJson);
+
+      expect(parsed.customColumns).toEqual([
+        { id: 'col-calc', nombre: 'Coste', tipo: 'formula', expresion: 'a*2' },
+        { id: 'col-num', nombre: 'Medida', tipo: 'number' },
+        { id: 'col-txt', nombre: 'Zona', tipo: 'text' },
+      ]);
+      expect(serializedJson).not.toContain('"calculada"');
+      expect(serializedJson).not.toContain('"número"');
+      expect(serializedJson).not.toContain('"texto"');
+    });
+
+    it('aplica tope MAX_CUSTOM_COLUMNS (50) conservando las primeras 50 y emitiendo un solo warning agregado (Z.2b)', () => {
+      const cols51 = Array.from({ length: 51 }, (_, i) => ({
+        id: `col-${i}`,
+        nombre: `Columna ${i}`,
+        tipo: 'texto',
+      }));
+
+      const doc51Cols = {
+        version: '1.1.0',
+        customColumns: cols51,
+        markups: [],
+      };
+
+      const { document: migrated, warnings } = migrateBbxDocument(doc51Cols);
+
+      expect(migrated.customColumns).toBeDefined();
+      expect(migrated.customColumns).toHaveLength(MAX_CUSTOM_COLUMNS);
+      expect(migrated.customColumns![0].id).toBe('col-0');
+      expect(migrated.customColumns![49].id).toBe('col-49');
+      // No contiene col-50
+      expect(migrated.customColumns!.some((c) => c.id === 'col-50')).toBe(false);
+
+      // Exactamente un aviso agregado por categoría
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain(
+        `Se excedió el límite máximo de columnas personalizadas (${MAX_CUSTOM_COLUMNS}); se conservan las primeras ${MAX_CUSTOM_COLUMNS}`
+      );
+    });
+
+    it('aplica tope MAX_CUSTOM_FIELDS_PER_MARKUP (50) conservando las primeras 50 claves y emitiendo un solo warning agregado (Z.2b)', () => {
+      const fields51: Record<string, number> = {};
+      for (let i = 0; i < 51; i++) {
+        fields51[`campo_${i}`] = i * 10;
+      }
+
+      const doc51Fields = {
+        version: '1.1.0',
+        markups: [
+          {
+            id: 'm-51-fields',
+            type: 'rectangle',
+            points: [{ x: 0.1, y: 0.1 }],
+            status: 'pending',
+            customFields: fields51,
+          },
+        ],
+      };
+
+      const { document: migrated, warnings } = migrateBbxDocument(doc51Fields);
+
+      const fields = migrated.markups[0].customFields;
+      expect(fields).toBeDefined();
+      const keys = Object.keys(fields!);
+      expect(keys).toHaveLength(MAX_CUSTOM_FIELDS_PER_MARKUP);
+      expect(fields!['campo_0']).toBe(0);
+      expect(fields!['campo_49']).toBe(490);
+      expect(fields!['campo_50']).toBeUndefined();
+
+      // Exactamente un aviso agregado para la marca
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain(
+        `Se excedió el límite de campos personalizados por marca (${MAX_CUSTOM_FIELDS_PER_MARKUP}) en marca "m-51-fields"; se conservan los primeros ${MAX_CUSTOM_FIELDS_PER_MARKUP}`
+      );
     });
   });
 });

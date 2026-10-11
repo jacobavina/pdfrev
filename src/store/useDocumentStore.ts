@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import * as pdfjsLib from 'pdfjs-dist';
+import { BbxCustomColumn } from '../types/markup';
 
 export interface PageDimension {
   width: number;
@@ -17,6 +18,8 @@ interface DocumentState {
   rotation: number; // 0, 90, 180, 270
   pageDimensions: Record<number, PageDimension>;
   pageHasText: Record<number, boolean>;
+  // Justificación AGENTS.md §4: customColumns es metadato de esquema a nivel de documento sin historial undo/redo, por lo que pertenece a useDocumentStore y no a useMarkupStore.
+  customColumns?: BbxCustomColumn[];
   isLoading: boolean;
   error: string | null;
 
@@ -28,6 +31,7 @@ interface DocumentState {
     numPages: number,
     pdfDoc: pdfjsLib.PDFDocumentProxy
   ) => void;
+  setCustomColumns: (customColumns?: BbxCustomColumn[]) => void;
   setCurrentPage: (pageIndex: number) => void;
   setScale: (scale: number) => void;
   zoomIn: () => void;
@@ -56,6 +60,7 @@ export const useDocumentStore = create<DocumentState>((set) => ({
   rotation: 0,
   pageDimensions: {},
   pageHasText: {},
+  customColumns: undefined,
   isLoading: false,
   error: null,
 
@@ -71,9 +76,12 @@ export const useDocumentStore = create<DocumentState>((set) => ({
       rotation: 0,
       pageDimensions: {},
       pageHasText: {},
+      customColumns: undefined,
       error: null,
       isLoading: false,
     }),
+
+  setCustomColumns: (customColumns) => set({ customColumns }),
 
   setCurrentPage: (pageIndex) =>
     set((state) => ({
@@ -135,6 +143,7 @@ export const useDocumentStore = create<DocumentState>((set) => ({
       scale: 1.0,
       rotation: 0,
       pageDimensions: {},
+      customColumns: undefined,
       error: null,
       isLoading: false,
     }),

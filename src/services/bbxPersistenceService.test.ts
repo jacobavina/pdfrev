@@ -457,5 +457,84 @@ describe('BBX Persistence Service (.bbx.json)', () => {
         }
       }
     });
+
+    it('Sub-entregable P2-C.3: Persistencia y evaluación de columnas calculadas en FICHERO REAL', async () => {
+      const realPdfPath = path.resolve('fixtures', 'test-p2-c3-disk.pdf');
+      const realBbxPath = path.resolve('fixtures', 'test-p2-c3-disk.bbx.json');
+
+      const invokeMock = vi.fn(async (cmd: string, args: { filePath: string; jsonContent?: string }) => {
+        if (cmd === 'write_bbx') {
+          fs.writeFileSync(args.filePath, args.jsonContent!, 'utf-8');
+          return undefined;
+        }
+        if (cmd === 'read_bbx') {
+          if (!fs.existsSync(args.filePath)) return null;
+          return fs.readFileSync(args.filePath, 'utf-8');
+        }
+        throw new Error(`Comando no simulado: ${cmd}`);
+      });
+
+      (window as unknown as { __TAURI_INTERNALS__: { invoke: typeof invokeMock } }).__TAURI_INTERNALS__ = {
+        invoke: invokeMock,
+      };
+
+      const testMarkups: Markup[] = [
+        {
+          id: 'mk-c3-real',
+          type: 'rectangle',
+          pageIndex: 0,
+          points: [{ x: 0.1, y: 0.1 }, { x: 0.5, y: 0.5 }],
+          style: { strokeColor: '#0000ff', strokeWidth: 4, opacity: 0.8 },
+          text: 'Viga HEB 200',
+          author: 'Ingeniero Estructural',
+          createdAt: '2026-10-11T10:00:00.000Z',
+          updatedAt: '2026-10-11T10:00:00.000Z',
+          status: 'accepted',
+          customFields: {
+            longitud: 12,
+            ancho: 5,
+          },
+        },
+      ];
+
+      const testColumns: BbxCustomColumn[] = [
+        { id: 'longitud', nombre: 'Longitud', tipo: 'number' },
+        { id: 'ancho', nombre: 'Ancho', tipo: 'number' },
+        {
+          id: 'volumen',
+          nombre: 'Volumen',
+          tipo: 'formula',
+          expresion: '{longitud} * {ancho} * strokeWidth',
+        },
+      ];
+
+      try {
+        const saved = await saveBbxForPdf(realPdfPath, testMarkups, 'Ingeniero Estructural', testColumns);
+        expect(saved).toBe(true);
+
+        const loaded = await loadBbxForPdf(realPdfPath);
+        expect(loaded).not.toBeNull();
+        expect(loaded?.warnings).toHaveLength(0);
+        expect(loaded?.document.customColumns).toEqual(testColumns);
+
+        // Importar dinámicamente y evaluar para verificar integración end-to-end con el motor puro
+        const { evaluateDocumentCustomColumns } = await import('../core/columns');
+        const matrix = evaluateDocumentCustomColumns(
+          loaded!.document.markups,
+          loaded!.document.customColumns!
+        );
+        const evalRes = matrix.get('mk-c3-real')?.get('volumen');
+        expect(evalRes).toBeDefined();
+        expect(evalRes?.ok).toBe(true);
+        if (evalRes?.ok) {
+          // 12 * 5 * 4 = 240
+          expect(evalRes.value).toBe(240);
+        }
+      } finally {
+        if (fs.existsSync(realBbxPath)) {
+          fs.unlinkSync(realBbxPath);
+        }
+      }
+    });
   });
 });

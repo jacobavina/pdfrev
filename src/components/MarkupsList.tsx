@@ -13,11 +13,29 @@ import {
   StickyNote,
   Briefcase,
   Check,
+  Plus,
+  AlertTriangle,
 } from 'lucide-react';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useToolChestStore } from '../store/useToolChestStore';
-import { Markup, MarkupStatus, MarkupType } from '../types/markup';
+import {
+  Markup,
+  MarkupStatus,
+  MarkupType,
+  BbxCustomColumn,
+  BbxCustomColumnType,
+  CANONICAL_CUSTOM_COLUMN_TYPES,
+} from '../types/markup';
+import {
+  filterAndSortMarkups,
+  MarkupSortField,
+  SortDirection,
+} from '../utils/markupFilterSort';
+import {
+  parseExpression,
+  evaluateDocumentCustomColumns,
+} from '../core/columns';
 
 const STATUS_CONFIG: Record<
   MarkupStatus,
@@ -80,8 +98,6 @@ function getMarkupIcon(type: MarkupType) {
   }
 }
 
-import { filterAndSortMarkups, MarkupSortField, SortDirection } from '../utils/markupFilterSort';
-
 export const MarkupsList: React.FC = () => {
   const {
     markups,
@@ -91,9 +107,17 @@ export const MarkupsList: React.FC = () => {
     deleteSelectedMarkups,
     updateMarkupStatus,
     updateMarkup,
+    updateMarkupCustomField,
   } = useMarkupStore();
 
-  const { currentPageIndex, setCurrentPage } = useDocumentStore();
+  const {
+    currentPageIndex,
+    setCurrentPage,
+    customColumns,
+    addCustomColumn,
+    removeCustomColumn,
+  } = useDocumentStore();
+
   const [isExpanded, setIsExpanded] = useState(true);
   const [filterPageOnly, setFilterPageOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -102,6 +126,16 @@ export const MarkupsList: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<MarkupStatus | 'all'>('all');
   const [sortField, setSortField] = useState<MarkupSortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  // Estado para modal de creación de columnas personalizadas
+  const [isAddColumnModalOpen, setIsAddColumnModalOpen] = useState(false);
+  const [newColName, setNewColName] = useState('');
+  const [newColType, setNewColType] = useState<BbxCustomColumnType>('text');
+  const [newColOptions, setNewColOptions] = useState('');
+  const [newColExpr, setNewColExpr] = useState('');
+
+  // Estado para modal de confirmación de eliminación de columna
+  const [columnToDelete, setColumnToDelete] = useState<BbxCustomColumn | null>(null);
 
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -112,7 +146,11 @@ export const MarkupsList: React.FC = () => {
   React.useEffect(() => {
     const handleGlobalClick = () => setContextMenu(null);
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setContextMenu(null);
+      if (e.key === 'Escape') {
+        setContextMenu(null);
+        setIsAddColumnModalOpen(false);
+        setColumnToDelete(null);
+      }
     };
     window.addEventListener('click', handleGlobalClick);
     window.addEventListener('keydown', handleKeyDown);
@@ -129,6 +167,11 @@ export const MarkupsList: React.FC = () => {
     });
     return Array.from(set).sort();
   }, [markups]);
+
+  // Matriz de evaluación precomputada para columnas calculadas
+  const evaluationMatrix = React.useMemo(() => {
+    return evaluateDocumentCustomColumns(markups, customColumns || []);
+  }, [markups, customColumns]);
 
   const hasActiveFilters =
     searchQuery.trim().length > 0 ||
@@ -166,10 +209,14 @@ export const MarkupsList: React.FC = () => {
         author: filterAuthor,
         status: filterStatus,
         pageIndex: filterPageOnly ? currentPageIndex : 'all',
+        customColumns,
+        evaluationMatrix,
       },
       {
         field: sortField,
         direction: sortDirection,
+        customColumns,
+        evaluationMatrix,
       }
     );
   }, [
@@ -182,7 +229,76 @@ export const MarkupsList: React.FC = () => {
     currentPageIndex,
     sortField,
     sortDirection,
+    customColumns,
+    evaluationMatrix,
   ]);
+
+  // Validación en tiempo real de la fórmula ingresada en el modal
+  const formulaValidation = React.useMemo(() => {
+    if (newColType !== 'formula') {
+      return { ok: true, message: '' };
+    }
+    const trimmed = newColExpr.trim();
+    if (!trimmed) {
+      return { ok: false, message: 'La expresión no puede estar vacía' };
+    }
+    const res = parseExpression(trimmed);
+    if (!res.ok) {
+      return { ok: false, message: res.message };
+    }
+    return { ok: true, message: 'Expresión sintácticamente correcta' };
+  }, [newColType, newColExpr]);
+
+  const handleCreateColumn = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedName = newColName.trim();
+    if (!trimmedName) return;
+
+    if (newColType === 'formula' && !formulaValidation.ok) {
+      return;
+    }
+
+    const slug =
+      trimmedName
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9_]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '')
+        .slice(0, 30) || 'col';
+
+    const baseId = slug;
+    let id = baseId;
+    let counter = 1;
+    while (customColumns?.some((c) => c.id === id)) {
+      counter++;
+      id = `${baseId}_${counter}`;
+    }
+
+    let opciones: string[] | undefined;
+    if (newColType === 'choice') {
+      opciones = newColOptions
+        .split(',')
+        .map((opt) => opt.trim())
+        .filter((opt) => opt.length > 0);
+    }
+
+    const newCol: BbxCustomColumn = {
+      id,
+      nombre: trimmedName,
+      tipo: newColType,
+      opciones: opciones && opciones.length > 0 ? opciones : undefined,
+      expresion: newColType === 'formula' ? newColExpr.trim() : undefined,
+    };
+
+    addCustomColumn(newCol);
+    setIsAddColumnModalOpen(false);
+    setNewColName('');
+    setNewColType('text');
+    setNewColOptions('');
+    setNewColExpr('');
+  };
 
   const handleRowClick = (markup: Markup, e: React.MouseEvent) => {
     // Si la marca pertenece a otra página, saltamos automáticamente
@@ -244,6 +360,22 @@ export const MarkupsList: React.FC = () => {
 
         {isExpanded && (
           <div className="flex items-center space-x-2">
+            <button
+              data-testid="add-custom-column-button"
+              onClick={() => {
+                setNewColName('');
+                setNewColType('text');
+                setNewColOptions('');
+                setNewColExpr('');
+                setIsAddColumnModalOpen(true);
+              }}
+              className="flex items-center space-x-1 px-2 py-0.5 bg-blue-900/60 hover:bg-blue-800 text-blue-200 rounded border border-blue-700 text-xs transition-colors"
+              title="Añadir columna personalizada"
+            >
+              <Plus size={12} />
+              <span>+ Columna</span>
+            </button>
+
             {selectedMarkupIds.length > 0 && (
               <button
                 onClick={deleteSelectedMarkups}
@@ -258,13 +390,13 @@ export const MarkupsList: React.FC = () => {
         )}
       </div>
 
-      {/* Barra de herramientas de filtros y ordenación (sub-contenedor dedicado en modo expandido) */}
+      {/* Barra de herramientas de filtros y ordenación */}
       {isExpanded && (
         <div
           data-testid="markups-toolbar"
           className="bg-cad-panel/95 px-3 py-1 flex flex-wrap items-center gap-2 border-b border-cad-border text-xs"
         >
-          {/* Búsqueda rápida por texto o autor (type="search" para no interferir con input[type="text"]) */}
+          {/* Búsqueda rápida por texto o autor */}
           <input
             type="search"
             data-testid="markups-search-input"
@@ -397,6 +529,35 @@ export const MarkupsList: React.FC = () => {
                   >
                     Estado {renderSortIndicator('status')}
                   </th>
+
+                  {/* Cabeceras dinámicas de Columnas Personalizadas (P2-C.3) */}
+                  {customColumns?.map((col) => (
+                    <th
+                      key={col.id}
+                      data-testid={`custom-column-header-${col.id}`}
+                      onClick={() => handleSort(`custom:${col.id}`)}
+                      className="py-1 px-2 font-medium min-w-[110px] cursor-pointer hover:text-white select-none group"
+                      title={`Ordenar por ${col.nombre} (${col.tipo})`}
+                    >
+                      <div className="flex items-center justify-between space-x-1">
+                        <span className="truncate">
+                          {col.nombre} {renderSortIndicator(`custom:${col.id}`)}
+                        </span>
+                        <button
+                          data-testid={`delete-column-btn-${col.id}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setColumnToDelete(col);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-rose-400 text-gray-500 transition-opacity"
+                          title={`Eliminar columna ${col.nombre}`}
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      </div>
+                    </th>
+                  ))}
+
                   <th className="py-1 px-2 font-medium w-12 text-center">Acción</th>
                 </tr>
               </thead>
@@ -501,6 +662,120 @@ export const MarkupsList: React.FC = () => {
                         </select>
                       </td>
 
+                      {/* Celdas de Columnas Personalizadas (P2-C.3) */}
+                      {customColumns?.map((col) => {
+                        const cellTestId = `custom-column-cell-${markup.id}-${col.id}`;
+
+                        if (col.tipo === 'formula') {
+                          const evalRes = evaluationMatrix.get(markup.id)?.get(col.id);
+                          let content: React.ReactNode;
+                          if (!evalRes) {
+                            content = <span className="text-gray-500 italic">—</span>;
+                          } else if (evalRes.ok) {
+                            content = (
+                              <span className="font-mono text-emerald-400 font-medium">
+                                {evalRes.value}
+                              </span>
+                            );
+                          } else {
+                            content = (
+                              <span
+                                className="text-rose-400 font-mono text-[11px] bg-rose-950/60 px-1 py-0.5 rounded border border-rose-800"
+                                title={evalRes.message}
+                                data-testid={`cell-error-${evalRes.error}`}
+                              >
+                                #{evalRes.error}!
+                              </span>
+                            );
+                          }
+                          return (
+                            <td
+                              key={col.id}
+                              data-testid={cellTestId}
+                              className="py-1 px-2 text-center"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {content}
+                            </td>
+                          );
+                        }
+
+                        if (col.tipo === 'choice') {
+                          const val = (markup.customFields?.[col.id] as string) || '';
+                          return (
+                            <td
+                              key={col.id}
+                              data-testid={cellTestId}
+                              className="py-1 px-2 text-center"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <select
+                                value={val}
+                                onChange={(e) =>
+                                  updateMarkupCustomField(markup.id, col.id, e.target.value)
+                                }
+                                className="bg-cad-dark border border-cad-border rounded px-1.5 py-0.5 text-xs text-gray-200 outline-none w-full"
+                              >
+                                <option value="">—</option>
+                                {col.opciones?.map((opt) => (
+                                  <option key={opt} value={opt}>
+                                    {opt}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                          );
+                        }
+
+                        if (col.tipo === 'number') {
+                          const val =
+                            markup.customFields?.[col.id] !== undefined
+                              ? markup.customFields[col.id]
+                              : '';
+                          return (
+                            <td
+                              key={col.id}
+                              data-testid={cellTestId}
+                              className="py-1 px-2 text-right"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <input
+                                type="number"
+                                value={val}
+                                onChange={(e) => {
+                                  const raw = e.target.value;
+                                  const num = raw === '' ? undefined : Number(raw);
+                                  updateMarkupCustomField(markup.id, col.id, num);
+                                }}
+                                placeholder="—"
+                                className="w-full bg-transparent hover:bg-cad-dark/50 focus:bg-cad-dark px-1.5 py-0.5 rounded border border-transparent focus:border-cad-border text-xs text-right text-gray-200 outline-none font-mono"
+                              />
+                            </td>
+                          );
+                        }
+
+                        // tipo text
+                        const val = (markup.customFields?.[col.id] as string) || '';
+                        return (
+                          <td
+                            key={col.id}
+                            data-testid={cellTestId}
+                            className="py-1 px-2"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <input
+                              type="text"
+                              value={val}
+                              onChange={(e) =>
+                                updateMarkupCustomField(markup.id, col.id, e.target.value)
+                              }
+                              placeholder="—"
+                              className="w-full bg-transparent hover:bg-cad-dark/50 focus:bg-cad-dark px-1.5 py-0.5 rounded border border-transparent focus:border-cad-border text-xs text-gray-200 outline-none"
+                            />
+                          </td>
+                        );
+                      })}
+
                       {/* Acciones */}
                       <td className="py-1 px-2 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <button
@@ -531,6 +806,175 @@ export const MarkupsList: React.FC = () => {
               </tbody>
             </table>
           )}
+        </div>
+      )}
+
+      {/* Modal para Crear Columna Personalizada (P2-C.3) */}
+      {isAddColumnModalOpen && (
+        <div
+          data-testid="add-column-modal"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setIsAddColumnModalOpen(false)}
+        >
+          <div
+            className="bg-cad-panel border border-cad-border rounded-lg shadow-2xl w-full max-w-md p-4 text-xs text-gray-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-sm font-semibold text-white mb-3">
+              Crear Nueva Columna Personalizada
+            </h3>
+            <form onSubmit={handleCreateColumn} className="space-y-3">
+              <div>
+                <label className="block text-gray-400 mb-1 font-medium">
+                  Nombre de la columna
+                </label>
+                <input
+                  type="text"
+                  data-testid="column-name-input"
+                  value={newColName}
+                  onChange={(e) => setNewColName(e.target.value)}
+                  placeholder="ej. Longitud, Costo estimado, Categoría..."
+                  required
+                  className="w-full px-2.5 py-1.5 bg-cad-dark border border-cad-border rounded text-gray-200 focus:outline-none focus:border-cad-accent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-400 mb-1 font-medium">
+                  Tipo de columna
+                </label>
+                <select
+                  data-testid="column-type-select"
+                  value={newColType}
+                  onChange={(e) =>
+                    setNewColType(e.target.value as BbxCustomColumnType)
+                  }
+                  className="w-full px-2.5 py-1.5 bg-cad-dark border border-cad-border rounded text-gray-200 focus:outline-none focus:border-cad-accent"
+                >
+                  {CANONICAL_CUSTOM_COLUMN_TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {t === 'text' && 'Texto (text)'}
+                      {t === 'number' && 'Número (number)'}
+                      {t === 'choice' && 'Opción / Desplegable (choice)'}
+                      {t === 'formula' && 'Calculada / Fórmula (formula)'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {newColType === 'choice' && (
+                <div>
+                  <label className="block text-gray-400 mb-1 font-medium">
+                    Opciones (separadas por comas)
+                  </label>
+                  <input
+                    type="text"
+                    data-testid="column-options-input"
+                    value={newColOptions}
+                    onChange={(e) => setNewColOptions(e.target.value)}
+                    placeholder="ej. Alta, Media, Baja"
+                    className="w-full px-2.5 py-1.5 bg-cad-dark border border-cad-border rounded text-gray-200 focus:outline-none focus:border-cad-accent"
+                  />
+                </div>
+              )}
+
+              {newColType === 'formula' && (
+                <div>
+                  <label className="block text-gray-400 mb-1 font-medium">
+                    Expresión matemática
+                  </label>
+                  <input
+                    type="text"
+                    data-testid="column-expression-input"
+                    value={newColExpr}
+                    onChange={(e) => setNewColExpr(e.target.value)}
+                    placeholder="ej. strokeWidth * 2.5 + {otra_columna}"
+                    className="w-full px-2.5 py-1.5 bg-cad-dark border border-cad-border rounded text-gray-200 font-mono focus:outline-none focus:border-cad-accent"
+                  />
+                  {!formulaValidation.ok && newColExpr.trim().length > 0 && (
+                    <p
+                      data-testid="formula-syntax-error"
+                      className="text-rose-400 text-[11px] mt-1 flex items-center space-x-1"
+                    >
+                      <AlertTriangle size={12} className="inline mr-1" />
+                      <span>{formulaValidation.message}</span>
+                    </p>
+                  )}
+                  {formulaValidation.ok && newColExpr.trim().length > 0 && (
+                    <p className="text-emerald-400 text-[11px] mt-1">
+                      ✓ Expresión válida
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div className="flex justify-end space-x-2 pt-2 border-t border-cad-border">
+                <button
+                  type="button"
+                  data-testid="cancel-column-button"
+                  onClick={() => setIsAddColumnModalOpen(false)}
+                  className="px-3 py-1 bg-cad-hover text-gray-300 hover:text-white rounded transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  data-testid="save-column-button"
+                  disabled={
+                    !newColName.trim() ||
+                    (newColType === 'formula' && !formulaValidation.ok)
+                  }
+                  className="px-3 py-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded transition-colors"
+                >
+                  Guardar Columna
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmación de Eliminación de Columna */}
+      {columnToDelete && (
+        <div
+          data-testid="delete-column-confirmation-modal"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setColumnToDelete(null)}
+        >
+          <div
+            className="bg-cad-panel border border-cad-border rounded-lg shadow-2xl w-full max-w-sm p-4 text-xs text-gray-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-sm font-semibold text-rose-300 mb-2 flex items-center space-x-1.5">
+              <AlertTriangle size={16} className="text-rose-400" />
+              <span>Eliminar Columna Personalizada</span>
+            </h3>
+            <p className="text-gray-300 mb-4 leading-relaxed">
+              ¿Estás seguro de que deseas eliminar la columna{' '}
+              <strong className="text-white">"{columnToDelete.nombre}"</strong>?
+              Se eliminarán también todos los valores asociados en las marcas del
+              documento.
+            </p>
+            <div className="flex justify-end space-x-2">
+              <button
+                data-testid="cancel-delete-column-btn"
+                onClick={() => setColumnToDelete(null)}
+                className="px-3 py-1 bg-cad-hover text-gray-300 hover:text-white rounded transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                data-testid="confirm-delete-column-btn"
+                onClick={() => {
+                  removeCustomColumn(columnToDelete.id);
+                  setColumnToDelete(null);
+                }}
+                className="px-3 py-1 bg-rose-700 hover:bg-rose-600 text-white font-medium rounded transition-colors"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

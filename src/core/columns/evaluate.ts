@@ -74,7 +74,19 @@ export function evaluateAst(
 
     case 'ColumnReference': {
       const colId = ast.columnId;
-      const colDef = context.columnsMap.get(colId);
+      let colDef = context.columnsMap.get(colId);
+
+      if (!colDef) {
+        for (const c of context.columnsMap.values()) {
+          if (
+            c.nombre.localeCompare(colId, undefined, { sensitivity: 'base' }) === 0 ||
+            c.id.localeCompare(colId, undefined, { sensitivity: 'base' }) === 0
+          ) {
+            colDef = c;
+            break;
+          }
+        }
+      }
 
       if (!colDef) {
         return {
@@ -85,8 +97,8 @@ export function evaluateAst(
       }
 
       if (colDef.tipo === 'number') {
-        // En columnas numéricas, leer customFields
-        const rawVal = markup.customFields?.[colId];
+        // En columnas numéricas, leer customFields usando colDef.id
+        const rawVal = markup.customFields?.[colDef.id];
         if (rawVal === undefined || rawVal === null || rawVal === '') {
           return {
             ok: false,
@@ -113,8 +125,9 @@ export function evaluateAst(
       }
 
       if (colDef.tipo === 'formula') {
+        const resolvedId = colDef.id;
         // Chequeo de ciclo de dependencias
-        if (context.visitedCols.has(colId)) {
+        if (context.visitedCols.has(resolvedId)) {
           return {
             ok: false,
             error: 'CYCLE',
@@ -122,14 +135,14 @@ export function evaluateAst(
           };
         }
 
-        const cacheKey = `${markup.id}:${colId}`;
+        const cacheKey = `${markup.id}:${resolvedId}`;
         const cached = context.valueCache.get(cacheKey);
         if (cached) {
           return cached;
         }
 
         // Obtener AST compilado de la fórmula
-        let exprAst = context.astCache.get(colId);
+        let exprAst = context.astCache.get(resolvedId);
         if (exprAst === undefined) {
           const expr = colDef.expresion ?? '';
           const parseRes = parseExpression(expr);
@@ -138,7 +151,7 @@ export function evaluateAst(
           } else {
             exprAst = null;
           }
-          context.astCache.set(colId, exprAst);
+          context.astCache.set(resolvedId, exprAst);
         }
 
         if (!exprAst) {
@@ -152,7 +165,7 @@ export function evaluateAst(
         }
 
         const nextVisited = new Set(context.visitedCols);
-        nextVisited.add(colId);
+        nextVisited.add(resolvedId);
 
         const subContext: EvaluationContext = {
           ...context,

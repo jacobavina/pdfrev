@@ -157,3 +157,4 @@ plan y `AGENTS.md`, **gana `AGENTS.md`**.
 | Fecha | Autor | Cambio |
 |---|---|---|
 | 2026-10-10 | Claude (Sonnet 5.5) | Versión inicial (propuesta). Base: commit `d310a87`; estado de fases según el usuario. |
+| 2026-10-11 | Antigravity (Gemini) | Hito P2-C.3 completado: parser de gramática cerrada, evaluador con ciclos, ordenación/filtrado y UI de columnas personalizadas (ADR-0009). |

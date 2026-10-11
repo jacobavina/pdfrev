@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { Markup, MarkupPoint, MarkupStatus, MarkupStyle, MarkupTextFormat } from '../types/markup';
 import { Command, HistoryManager } from './history/command';
 import { UpdateMarkupStatusCommand, MarkupStatusTarget } from './history/UpdateMarkupStatusCommand';
+import { UpdateMarkupCustomFieldCommand } from './history/UpdateMarkupCustomFieldCommand';
 
 // Instancia compartida del gestor de historial con 50 pasos mínimo
 export const markupHistory = new HistoryManager(50);
@@ -44,6 +45,13 @@ interface MarkupState {
   setMarkups: (markups: Markup[]) => void;
   setMarkupsTransient: (markups: Markup[]) => void;
   commitMoveMarkups: (moves: MoveMarkupItem[]) => void;
+  updateMarkupCustomField: (
+    markupId: string,
+    columnId: string,
+    value: string | number | undefined
+  ) => void;
+  removeCustomColumnValues: (columnId: string) => void;
+  markDirty: () => void;
   markAsClean: () => void;
 
   // Historial
@@ -477,6 +485,88 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
 
       markupHistory.execute(command);
       syncHistoryFlags();
+    },
+
+    markDirty: () => {
+      set({ isDirty: true });
+    },
+
+    updateMarkupCustomField: (
+      markupId: string,
+      columnId: string,
+      value: string | number | undefined
+    ) => {
+      const current = get().markups.find((m) => m.id === markupId);
+      if (!current) return;
+
+      const previousValue = current.customFields?.[columnId];
+      if (previousValue === value) return;
+
+      const applyValue = (
+        mId: string,
+        cId: string,
+        val: string | number | undefined
+      ) => {
+        const now = new Date().toISOString();
+        set((state) => ({
+          markups: state.markups.map((m) => {
+            if (m.id !== mId) return m;
+            const newFields = { ...(m.customFields || {}) };
+            if (val === undefined || val === '') {
+              delete newFields[cId];
+            } else {
+              newFields[cId] = val;
+            }
+            return {
+              ...m,
+              customFields: Object.keys(newFields).length > 0 ? newFields : undefined,
+              updatedAt: now,
+            };
+          }),
+          isDirty: true,
+        }));
+      };
+
+      const command = new UpdateMarkupCustomFieldCommand(
+        markupId,
+        columnId,
+        previousValue,
+        value,
+        applyValue
+      );
+
+      markupHistory.execute(command);
+      syncHistoryFlags();
+    },
+
+    removeCustomColumnValues: (columnId: string) => {
+      const currentMarkups = get().markups;
+      const anyHasCol = currentMarkups.some(
+        (m) =>
+          m.customFields &&
+          Object.prototype.hasOwnProperty.call(m.customFields, columnId)
+      );
+      if (!anyHasCol) return;
+
+      const now = new Date().toISOString();
+      set((state) => ({
+        markups: state.markups.map((m) => {
+          if (
+            !m.customFields ||
+            !Object.prototype.hasOwnProperty.call(m.customFields, columnId)
+          ) {
+            return m;
+          }
+          const nextFields = { ...m.customFields };
+          delete nextFields[columnId];
+          return {
+            ...m,
+            customFields: Object.keys(nextFields).length > 0 ? nextFields : undefined,
+            updatedAt: now,
+          };
+        }),
+        isDirty: true,
+      }));
     },
 
     markAsClean: () => {

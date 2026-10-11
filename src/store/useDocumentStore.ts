@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import * as pdfjsLib from 'pdfjs-dist';
-import { BbxCustomColumn } from '../types/markup';
+import { BbxCustomColumn, MAX_CUSTOM_COLUMNS } from '../types/markup';
+import { useMarkupStore } from './useMarkupStore';
 
 export interface PageDimension {
   width: number;
@@ -32,6 +33,9 @@ interface DocumentState {
     pdfDoc: pdfjsLib.PDFDocumentProxy
   ) => void;
   setCustomColumns: (customColumns?: BbxCustomColumn[]) => void;
+  addCustomColumn: (column: BbxCustomColumn) => void;
+  updateCustomColumn: (columnId: string, updates: Partial<BbxCustomColumn>) => void;
+  removeCustomColumn: (columnId: string) => void;
   setCurrentPage: (pageIndex: number) => void;
   setScale: (scale: number) => void;
   zoomIn: () => void;
@@ -82,6 +86,39 @@ export const useDocumentStore = create<DocumentState>((set) => ({
     }),
 
   setCustomColumns: (customColumns) => set({ customColumns }),
+
+  addCustomColumn: (column) => {
+    set((state) => {
+      const current = state.customColumns ?? [];
+      if (current.length >= MAX_CUSTOM_COLUMNS) return state;
+      if (current.some((c) => c.id === column.id)) return state;
+      return { customColumns: [...current, column] };
+    });
+    useMarkupStore.getState().markDirty();
+  },
+
+  updateCustomColumn: (columnId, updates) => {
+    set((state) => {
+      if (!state.customColumns) return state;
+      return {
+        customColumns: state.customColumns.map((c) =>
+          c.id === columnId ? { ...c, ...updates } : c
+        ),
+      };
+    });
+    useMarkupStore.getState().markDirty();
+  },
+
+  removeCustomColumn: (columnId) => {
+    set((state) => {
+      if (!state.customColumns) return state;
+      return {
+        customColumns: state.customColumns.filter((c) => c.id !== columnId),
+      };
+    });
+    useMarkupStore.getState().removeCustomColumnValues(columnId);
+    useMarkupStore.getState().markDirty();
+  },
 
   setCurrentPage: (pageIndex) =>
     set((state) => ({

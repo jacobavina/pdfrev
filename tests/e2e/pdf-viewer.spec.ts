@@ -1489,6 +1489,121 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(groupSelect1).toHaveValue('completed');
     await expect(groupSelect2).toHaveValue('completed');
   });
+
+  test('Sub-entregable P2-C.3: Columnas personalizadas con parser de gramática cerrada, edición en línea y ordenación', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+
+    const markupsPanel = page.locator('[data-testid="markups-list-panel"]');
+    await expect(markupsPanel).toBeVisible();
+
+    const svgBox = await overlaySvg.boundingBox();
+    expect(svgBox).not.toBeNull();
+    if (!svgBox) return;
+
+    // 1. Dibujar dos rectángulos
+    const rectBtn = page.locator('button[title*="Rectángulo"]');
+    await rectBtn.click();
+
+    // Rectángulo 1: (100, 100) a (180, 180)
+    await page.mouse.move(svgBox.x + 100, svgBox.y + 100);
+    await page.mouse.down();
+    await page.mouse.move(svgBox.x + 180, svgBox.y + 180);
+    await page.mouse.up();
+
+    // Rectángulo 2: (220, 100) a (300, 180)
+    await page.mouse.move(svgBox.x + 220, svgBox.y + 100);
+    await page.mouse.down();
+    await page.mouse.move(svgBox.x + 300, svgBox.y + 180);
+    await page.mouse.up();
+
+    await page.keyboard.press('Escape');
+
+    // 2. Abrir modal para añadir columna numérica "Largo"
+    const addColBtn = page.locator('[data-testid="add-custom-column-button"]');
+    await expect(addColBtn).toBeVisible();
+    await addColBtn.click();
+
+    const addModal = page.locator('[data-testid="add-column-modal"]');
+    await expect(addModal).toBeVisible();
+
+    await page.locator('[data-testid="column-name-input"]').fill('Largo');
+    await page.locator('[data-testid="column-type-select"]').selectOption('number');
+    await page.locator('[data-testid="save-column-button"]').click();
+    await expect(addModal).not.toBeVisible();
+
+    // Verificar cabecera de la columna creada
+    const largoHeader = page.locator('[data-testid="custom-column-header-largo"]');
+    await expect(largoHeader).toBeVisible();
+
+    // 3. Abrir modal para añadir columna calculada "Área" con validación de sintaxis
+    await addColBtn.click();
+    await expect(addModal).toBeVisible();
+    await page.locator('[data-testid="column-name-input"]').fill('Área');
+    await page.locator('[data-testid="column-type-select"]').selectOption('formula');
+
+    // Sintaxis inválida primero
+    const exprInput = page.locator('[data-testid="column-expression-input"]');
+    await exprInput.fill('10 + * 2');
+    const syntaxError = page.locator('[data-testid="formula-syntax-error"]');
+    await expect(syntaxError).toBeVisible();
+    const saveBtn = page.locator('[data-testid="save-column-button"]');
+    await expect(saveBtn).toBeDisabled();
+
+    // Sintaxis válida
+    await exprInput.fill('{largo} * 2');
+    await expect(syntaxError).not.toBeVisible();
+    await expect(saveBtn).toBeEnabled();
+    await saveBtn.click();
+    await expect(addModal).not.toBeVisible();
+
+    const areaHeader = page.locator('[data-testid="custom-column-header-area"]');
+    await expect(areaHeader).toBeVisible();
+
+    // 4. Editar celdas numéricas en las marcas recién creadas
+    const rows = markupsPanel.locator('tbody tr');
+    const rowCount = await rows.count();
+    expect(rowCount).toBeGreaterThanOrEqual(2);
+
+    const firstRow = rows.nth(rowCount - 2);
+    const secondRow = rows.nth(rowCount - 1);
+
+    const firstRowLargoInput = firstRow.locator('[data-testid*="custom-column-cell-"][data-testid*="-largo"] input');
+    await firstRowLargoInput.fill('10');
+
+    const secondRowLargoInput = secondRow.locator('[data-testid*="custom-column-cell-"][data-testid*="-largo"] input');
+    await secondRowLargoInput.fill('25');
+
+    // 5. Verificar que la columna de fórmula evaluó dinámicamente {largo} * 2 (10*2=20, 25*2=50)
+    const firstRowAreaCell = firstRow.locator('[data-testid*="custom-column-cell-"][data-testid*="-area"]');
+    const secondRowAreaCell = secondRow.locator('[data-testid*="custom-column-cell-"][data-testid*="-area"]');
+    await expect(firstRowAreaCell).toContainText('20');
+    await expect(secondRowAreaCell).toContainText('50');
+
+    // 6. Ordenar por la columna personalizada calculada (clic en cabecera de Área)
+    await areaHeader.click();
+    // En orden ascendente: la marca con valor 20 aparece antes que la de 50
+    const allAreaCells = markupsPanel.locator('[data-testid*="custom-column-cell-"][data-testid*="-area"]');
+    const areaTextsAsc = await allAreaCells.allInnerTexts();
+    const idx20Asc = areaTextsAsc.indexOf('20');
+    const idx50Asc = areaTextsAsc.indexOf('50');
+    expect(idx20Asc).toBeGreaterThanOrEqual(0);
+    expect(idx50Asc).toBeGreaterThanOrEqual(0);
+    expect(idx20Asc).toBeLessThan(idx50Asc);
+
+    // Segundo clic: descendente (50 antes que 20)
+    await areaHeader.click();
+    const areaTextsDesc = await allAreaCells.allInnerTexts();
+    const idx20Desc = areaTextsDesc.indexOf('20');
+    const idx50Desc = areaTextsDesc.indexOf('50');
+    expect(idx20Desc).toBeGreaterThanOrEqual(0);
+    expect(idx50Desc).toBeGreaterThanOrEqual(0);
+    expect(idx50Desc).toBeLessThan(idx20Desc);
+  });
 });
 
 

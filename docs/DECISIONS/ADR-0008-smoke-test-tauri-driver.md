@@ -80,6 +80,14 @@ Es imperativo documentar con total honestidad qué cubre `tauri-driver` y qué p
     2. **Inspección estricta de bytes (Prerrequisito 1.5):** El runner lee los bytes del binario con `fs.readFileSync` antes de lanzar y aborta con error explicativo si contiene `localhost:1420` o si carece de marcadores de frontend incrustado (`index.html`).
     3. **Flag `--build`:** Soporte de compilación desatendida mediante `npm.cmd run test:native -- --build` (o `npm.cmd run test:native:build`), que compila el frontend, ejecuta `tauri build --debug --no-bundle -c '{"build":{"devUrl":null}}'` y copia el resultado a `src-tauri/target/smoke/app.exe`.
     4. **Comando para PowerShell:** `npm.cmd run test:native`.
+- **Superficie de prueba estrecha y de solo lectura (`window.__REA_TEST_HOOKS__`):**
+  - Los stores de Zustand (`useMarkupStore`, `useToolStore`) no se exponen globalmente en `window`.
+  - En su lugar, se expone un objeto congelado de solo lectura `window.__REA_TEST_HOOKS__` con getters atómicos (`getMarkupCount`, `getMarkupIds`, `getSelectedMarkupIds`, `getLastMarkup`, `getActiveTool`, `getMarkupText`).
+  - No expone referencias mutables ni despachadores de acciones. Permanece activo sin `import.meta.env.DEV` para permitir que el smoke test automatizado inspeccione el estado sobre el binario empaquetado (`dist/` con `DEV=false`).
+- **Limitación conocida (Bundle Debug incrustado):**
+  - El binario del smoke test incrusta el bundle de DEBUG (sin minificar y con sourcemaps), no el de producción.
+  - Esto obedece a que `tauri build --debug` compila con `TAURI_ENV_DEBUG=true`, activando la regla de `vite.config.ts` (líneas 27-28: `minify: !TAURI_ENV_DEBUG, sourcemap: !!TAURI_ENV_DEBUG`).
+  - Es una limitación conocida y aceptable para un smoke test centrado en fontanería nativa (IPC Rust, WebView2, W3C actions y renderizado de canvas).
 - **Negativas / Mitigaciones:**
   - Requiere dependencias externas del entorno (`tauri-driver.exe` en Cargo y `msedgedriver.exe` en el equipo).
   - Mitigado mediante la detección anticipada de prerrequisitos con mensajes de error formativos y la exclusión del smoke test de la puerta de verificación rápida habitual (`verify.mjs` por defecto).
@@ -102,8 +110,8 @@ Es imperativo documentar con total honestidad qué cubre `tauri-driver` y qué p
    - Ventana configurada a dimensión realista de 1280x900 px vía `POST /session/:id/window/rect`.
    - 12,610 píxeles opacos detectados en el canvas principal `#pdf-render-canvas` (800x600 px).
    - Trazo de rectángulo calculado con coordenadas proporcionales dentro del lienzo (del 25% al 65% de ancho y 25% al 55% de alto).
-   - **Aserción estricta de store:** comprobación de que `useMarkupStore.getState().markups.length` incrementa exactamente de 1 a 2 marcas (+1) con autor por defecto `'Revisor Técnico'`.
-   - **Aserción estricta de selección:** clic sobre el borde del rectángulo trazado activa la selección y añade el ID de la marca a `selectedMarkupIds`.
+   - **Aserción estricta de store vía `__REA_TEST_HOOKS__`:** comprobación de que `getMarkupCount()` incrementa exactamente de 1 a 2 marcas (+1) con autor por defecto `'Revisor Técnico'`.
+   - **Aserción estricta de selección:** clic sobre el borde del rectángulo trazado activa la selección y añade el ID de la marca a `getSelectedMarkupIds()`.
    - Artefactos visuales generados en `tests/native-artifacts/pdf-canvas-smoke.png` y `tests/native-artifacts/native-rectangle-drawn.png` (mostrando visualmente "LISTA DE MARCAS (2)" con las dos filas en el panel inferior).
 4. **Verificación en frío con puerto 1420 vacío:**
    - Confirmado con `Get-NetTCPConnection -LocalPort 1420` arrojando vacío.

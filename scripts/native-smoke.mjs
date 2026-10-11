@@ -475,9 +475,9 @@ try {
   // (d) Interacciones reales W3C Actions API (dibujar rectángulo y seleccionarlo)
   console.log('\n  [Sub-verificación D] Acciones de ratón W3C (dibujar y seleccionar rectángulo)...');
 
-  // Contar marcas en el store antes de la interacción
+  // Contar marcas antes de la interacción
   const countBefore = await executeSync(`
-    return window.useMarkupStore ? window.useMarkupStore.getState().markups.length : 0;
+    return window.__REA_TEST_HOOKS__ ? window.__REA_TEST_HOOKS__.getMarkupCount() : 0;
   `);
   console.log(`    Marcas antes de dibujar: ${countBefore}`);
 
@@ -485,12 +485,12 @@ try {
   const toolActivated = await executeSync(`
     const btn = document.querySelector('button[title*="Rectángulo"]');
     if (btn) btn.click();
-    return window.useToolStore ? window.useToolStore.getState().activeTool : null;
+    return window.__REA_TEST_HOOKS__ ? window.__REA_TEST_HOOKS__.getActiveTool() : null;
   `);
   if (toolActivated !== 'rectangle') {
     throw new Error(`Fallo al activar herramienta Rectángulo: estado actual '${toolActivated}'`);
   }
-  console.log('    ✓ Herramienta Rectángulo activada y verificada en useToolStore.');
+  console.log('    ✓ Herramienta Rectángulo activada y verificada vía __REA_TEST_HOOKS__.');
 
   // Obtener caja del lienzo principal de renderizado
   const canvasRect = await executeSync(`
@@ -533,35 +533,35 @@ try {
   await fetch(`${DRIVER_URL}/session/${sessionId}/actions`, { method: 'DELETE' });
   await new Promise((r) => setTimeout(r, 600));
 
-  // ASERCIÓN ESTRICTA DE EFECTO: marcas en el store deben incrementarse exactamente en +1
+  // ASERCIÓN ESTRICTA DE EFECTO: marcas deben incrementarse exactamente en +1
   const markupsAfter = await executeSync(`
-    const state = window.useMarkupStore ? window.useMarkupStore.getState() : null;
+    const hooks = window.__REA_TEST_HOOKS__;
     return {
-      count: state ? state.markups.length : null,
-      lastMarkup: state && state.markups.length > 0 ? state.markups[state.markups.length - 1] : null
+      count: hooks ? hooks.getMarkupCount() : null,
+      lastMarkup: hooks ? hooks.getLastMarkup() : null
     };
   `);
 
   if (!markupsAfter || markupsAfter.count !== countBefore + 1) {
     throw new Error(
-      `ASSERTION FAILED: Se esperaba exactamente ${countBefore + 1} marcas en el store, pero hay ${markupsAfter?.count}.`
+      `ASSERTION FAILED: Se esperaba exactamente ${countBefore + 1} marcas, pero hay ${markupsAfter?.count}.`
     );
   }
   const newMarkup = markupsAfter.lastMarkup;
-  if (newMarkup.type !== 'rectangle') {
-    throw new Error(`ASSERTION FAILED: El tipo de la marca creada no es 'rectangle': ${newMarkup.type}`);
+  if (!newMarkup || newMarkup.type !== 'rectangle') {
+    throw new Error(`ASSERTION FAILED: El tipo de la marca creada no es 'rectangle': ${newMarkup?.type}`);
   }
   if (newMarkup.author !== 'Revisor Técnico') {
     throw new Error(`ASSERTION FAILED: El autor esperado era 'Revisor Técnico', se obtuvo: '${newMarkup.author}'`);
   }
-  console.log(`    ✓ Aserción superada: Store incrementó de ${countBefore} a ${markupsAfter.count} marcas.`);
+  console.log(`    ✓ Aserción superada: Conteo incrementó de ${countBefore} a ${markupsAfter.count} marcas.`);
   console.log(`    ✓ Marca creada: ID ${newMarkup.id}, Tipo '${newMarkup.type}', Autor '${newMarkup.author}'.`);
 
   // Activar herramienta Seleccionar
   const selectActivated = await executeSync(`
     const btn = document.querySelector('button[title*="Seleccionar"]');
     if (btn) btn.click();
-    return window.useToolStore ? window.useToolStore.getState().activeTool : null;
+    return window.__REA_TEST_HOOKS__ ? window.__REA_TEST_HOOKS__.getActiveTool() : null;
   `);
   if (selectActivated !== 'select') {
     throw new Error(`Fallo al activar herramienta Seleccionar: estado actual '${selectActivated}'`);
@@ -591,9 +591,9 @@ try {
   await fetch(`${DRIVER_URL}/session/${sessionId}/actions`, { method: 'DELETE' });
   await new Promise((r) => setTimeout(r, 400));
 
-  // ASERCIÓN DE SELECCIÓN: comprobar que la marca recién creada está en selectedMarkupIds
+  // ASERCIÓN DE SELECCIÓN: comprobar que la marca recién creada está en getSelectedMarkupIds()
   const selectedIds = await executeSync(`
-    return window.useMarkupStore ? window.useMarkupStore.getState().selectedMarkupIds : [];
+    return window.__REA_TEST_HOOKS__ ? window.__REA_TEST_HOOKS__.getSelectedMarkupIds() : [];
   `);
   if (!selectedIds.includes(newMarkup.id)) {
     throw new Error(

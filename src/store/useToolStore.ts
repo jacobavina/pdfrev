@@ -35,7 +35,3 @@ export const useToolStore = create<ToolState>((set) => ({
   setAuthor: (author) => set({ author }),
   setActiveLayer: (activeLayer) => set({ activeLayer }),
 }));
-
-if (typeof window !== 'undefined') {
-  (window as unknown as { useToolStore: typeof useToolStore }).useToolStore = useToolStore;
-}

@@ -439,7 +439,3 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
     },
   };
 });
-
-if (typeof window !== 'undefined') {
-  (window as unknown as { useMarkupStore: typeof useMarkupStore }).useMarkupStore = useMarkupStore;
-}

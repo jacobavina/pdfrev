@@ -12,3 +12,14 @@ tests/native-artifacts/
 
 # Generated fixtures runtime persistence
 fixtures/*.bbx.json
+
+# Local fidelity corpus and spike vendor/build artifacts
+corpus/
+spikes/**/vendor/
+spikes/**/target/
+spikes/**/node_modules/
+spikes/**/out/large/
+spikes/motor/fixtures/sheet-e-dense.pdf
+spikes/motor/fixtures/pages-300.pdf
+spikes/motor/fixtures/large-100mb.pdf
+

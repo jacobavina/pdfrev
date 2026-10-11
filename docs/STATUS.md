@@ -8,11 +8,11 @@
 
 | Fase / Bloque | Estado General | Cobertura / Evidencia |
 |---|---|---|
-| **Fase 1: Motor Base y Shell CAD** | **CERRADA** | 114 tests unitarios al cierre de fase + 4 tests cargo + 3 E2E (actualmente 152 tests unitarios tras A.2). R9 validado en disco desde ventana nativa por el usuario. |
-| **Fase 2 — Bloque A: Marcado y Manipulación** | **CERRADO** | 190 tests unitarios en 9 suites + 4 tests cargo + 11/11 E2E en Playwright. Las 7 filas verificadas en ventana nativa por el usuario (filas 22 a 25 y 27 a 30 de PARITY.md). Las seis nuevas herramientas se añadieron sin subir versión de esquema .bbx.json (se mantiene en 1.1.0). |
-| **Fase 2 — Bloque B: Tool Chest** | **PENDIENTE DE VERIFICACIÓN NATIVA FINAL** | Modos D y P verificados por el usuario. Defecto de arrastre corregido con `dragDropEnabled: false` en `tauri.conf.json` y registro universal en Recientes para toda marca creada. 235 tests unitarios en 14 suites + 4 tests cargo + 12/12 E2E en Playwright. Cierre final supeditado a la confirmación del arrastre en ventana nativa por el usuario. |
-| **Fase 2 — Bloque C: MarkupsList Completa** | **NO EMPEZADO** | Ordenación, filtros multicriterio, columnas personalizadas, estados y reportes. Siguiente hito a iniciar. |
-| **Fase 2 — Bloque D: Capas y Sellos Dinámicos** | **NO EMPEZADO** | Capas lógicas persistidas y sellos vectoriales dinámicos. Pendiente de cierre del Bloque C. |
+| **Fase 1: Motor Base y Shell CAD** | **CERRADA** | 114 tests unitarios al cierre de fase + 4 tests cargo + 3 E2E. R9 validado en disco desde ventana nativa por el usuario. |
+| **Fase 2 — Bloque A: Marcado y Manipulación** | **CERRADO** | 190 tests unitarios en 9 suites + 4 tests cargo + 11/11 E2E en Playwright. Las 7 filas verificadas en ventana nativa por el usuario (filas 22 a 25 y 27 a 30 de PARITY.md). Esquema .bbx.json se mantiene en 1.1.0. |
+| **Fase 2 — Bloque B: Tool Chest** | **CERRADO** | Verificado por el usuario en ventana nativa (modos D y P, persistencia IndexedDB y arrastre drag & drop con `dragDropEnabled: false` en `tauri.conf.json`). Registro universal en Recientes para toda marca creada. 18 tests en `toolChestService`, 10 en `useToolChestStore`, 5 en `ToolVectorThumbnail`, 8 en `ToolChestPanel` y 12/12 E2E base. |
+| **Fase 2 — Bloque C: MarkupsList Completa** | **EN CURSO** | C.1 entregado (commit `d3b8d55`) y C.2 commiteado (commit `d310a87`), ambos con verificación nativa del usuario PENDIENTE. Hito Z.2 de endurecimiento del migrador cerrado (commit `91c474b`). C.3 (columnas), C.4 (exportación), C.5 (E2E+nativo) no empezados; C.6 (inspector) propuesto pendiente de aprobación. |
+| **Fase 2 — Bloque D: Capas y Sellos Dinámicos** | **NO EMPEZADO** | Capas lógicas persistidas y sellos vectoriales dinámicos. Propuesto trasladar a Fase 3 (`P3-F.1` y `P3-F.2`) según Plan Maestro v2. |
 
 ---
 
@@ -47,7 +47,7 @@
 
 ---
 
-### Fase 2: Bloque B — Tool Chest (Pendiente de Verificación Nativa Final de Drag & Drop)
+### Fase 2: Bloque B — Tool Chest (Cerrado y Verificado por el Usuario)
 
 | ID | Hito / Característica | Estado | Evidencia y Verificación | Notas |
 |---|---|---|---|---|
@@ -55,7 +55,7 @@
 | `P2-B.2` | Store Zustand de Tool Chest | **Cerrado** | Commit `0edeaa3`. Inmutabilidad verificada con `expect(nuevo).not.toBe(viejo)` en arrays y elementos. Modos Dibujo (D) y Propiedad (P). Aplicación de estilo sobre $K$ marcas seleccionadas como único comando atómico reversible con Ctrl+Z y guarda no-op si los estilos coinciden. 10 tests en `useToolChestStore.test.ts`. | Integración directa con `useMarkupStore`. |
 | `P2-B.3` | Miniaturas Vectoriales Canónicas | **Cerrado** | `ToolVectorThumbnail.tsx` refactorizado bajo Opción (A) según `ADR-0007`: reutiliza el pipeline canónico unificado `createSampleMarkup` + `getMarkupSvgDescriptor` + `renderSvgDescriptor`. Sin motores paralelos de dibujo. 5 tests en `ToolVectorThumbnail.test.tsx`. | Cero riesgo de divergencia visual. |
 | `P2-B.4` | Panel Lateral Tool Chest y Contexto | **Cerrado** | `ToolChestPanel.tsx` con selector de paletas, creación/eliminación interactiva, drag handle nativo HTML5, alternancia 'D'/'P', botón limpiar recientes y colapso para protección de viewport. `MarkupsList.tsx` enriquecido con menú contextual de clic derecho y botón de fila "Añadir a Tool Chest" sin tocar columnas ni filtros. 8 tests en `ToolChestPanel.test.tsx` y 2 tests en `MarkupsList.test.tsx`. | Sin alteración del layout canvas preexistente. |
-| `P2-B.5` | Drag & Drop al Canvas con Tolerancia <= 5px | **Pendiente de confirmación nativa** | `PdfViewer.tsx` con soporte `application/rea-tool` en `dragover` y `drop`. Centrado exacto del elemento respecto al cursor con tolerancia comprobada $\le 5\text{ px}$. Creación con invocación única de `addMarkup` (1 comando de historial) y registro asíncrono en recientes (ampliado a toda marca creada). Intercepción nativa de Windows WebView2 resuelta con `dragDropEnabled: false` en `tauri.conf.json`. Test 12 en `pdf-viewer.spec.ts`. | Modos D y P verificados por el usuario. Arrastre pendiente de confirmación en ventana nativa. |
+| `P2-B.5` | Drag & Drop al Canvas con Tolerancia <= 5px | **Cerrado** | `PdfViewer.tsx` con soporte `application/rea-tool` en `dragover` y `drop`. Centrado exacto del elemento respecto al cursor con tolerancia comprobada $\le 5\text{ px}$. Creación con invocación única de `addMarkup` (1 comando de historial) y registro asíncrono en recientes (ampliado a toda marca creada). Intercepción nativa de Windows WebView2 resuelta con `dragDropEnabled: false` en `tauri.conf.json`. Test 12 en `pdf-viewer.spec.ts`. | Verificado por el usuario en ventana nativa (modos D y P, y arrastre). |
 
 ---
 
@@ -63,26 +63,40 @@
 
 | ID | Hito / Característica | Estado | Evidencia y Verificación | Notas |
 |---|---|---|---|---|
-| `P2-X` | Smoke Test Nativo con `tauri-driver` | **Implementado (Pendiente de Verificación por el Usuario)** | `scripts/native-smoke.mjs` (`npm run test:native`) adherido a sesión real de WebView2. Canvas con 12,610 píxeles reales, IPC real de Rust (`write_bbx` y `read_bbx` atómico sobre disco sin `.tmp`), herramienta rectángulo trazada con acciones W3C y capturas PNG en `tests/native-artifacts/`. `verify.mjs --with-native` en verde. ADR-0008 documentado. | Requiere `tauri-driver.exe` y `msedgedriver.exe` en versión coincidente. |
+| `P2-X` | Smoke Test Nativo con `tauri-driver` | **Cerrado y verificado en frío** | `scripts/native-smoke.mjs` (`npm run test:native`) adherido a sesión real de WebView2. Canvas con 12,610 píxeles reales, IPC real de Rust (`write_bbx` y `read_bbx` atómico sobre disco sin `.tmp`), herramienta rectángulo trazada con acciones W3C y capturas PNG en `tests/native-artifacts/`. `verify.mjs --with-native` en verde. ADR-0008 documentado. | Requiere `tauri-driver.exe` y `msedgedriver.exe` en versión coincidente. |
 
 ---
 
-### Fase 2: Bloques C y D
+### Fase 2: Bloque C — MarkupsList Completa (En curso)
+
+| ID | Hito / Característica | Estado | Evidencia y Verificación | Notas |
+|---|---|---|---|---|
+| `P2-C.1` | Motor puro e inmutable de filtrado y ordenación | **Entregado** (commit `d3b8d55`) | 17 tests unitarios en `src/utils/markupFilterSort.test.ts`. Benchmark < 10ms garantizado con 500 marcas. Integración en `MarkupsList.tsx`. | Verificación nativa por el usuario PENDIENTE. |
+| `P2-C.2` | Menú contextual de estados técnicos y grupos | **Commiteado** (commit `d310a87`) | Comando `UpdateMarkupStatusCommand` atómico y reversible con Ctrl+Z. 3 tests en `UpdateMarkupStatusCommand.test.ts`, menú contextual flotante en `MarkupsList.tsx` y test E2E 13. | Verificación nativa por el usuario PENDIENTE. |
+| `Z.2` | Endurecimiento del migrador (customColumns, customFields, avisos) | **Cerrado** (commit `91c474b`) | `BbxDocumentFile` extendido con `customColumns?`. Validación estricta contra entradas hostiles (`__proto__`, NaN, cadenas gigantes). Retorno de `warnings: string[]` propagados con `toastService` al abrir documento. Test de persistencia de FICHERO REAL en `bbxPersistenceService.test.ts`. 12 tests en `markup.test.ts` y 2 tests en `fileDialogService.test.ts`. | Cero degradación silenciosa; esquema 1.1.0 conservado (ADR-0003 Addendum). |
+| `P2-C.3` | Columnas personalizadas con parser de gramática cerrada | **No empezado** | Definición `{ id, nombre, tipo, opciones?, expresion? }`. Depende de Z.2 (migrador endurecido). | Siguiente hito a iniciar. |
+| `P2-C.4` | Exportación CSV (RFC 4180 + BOM) y Reporte Resumen PDF | **No empezado** | Exportación tabular limpia con protección contra inyección de fórmulas y reporte ejecutivo. | Depende de C.3. |
+| `P2-C.5` | E2E del bloque completo y verificación nativa | **No empezado** | Suite E2E completa del flujo de lista y reporte. Cierre definitivo del Bloque C. | Depende de C.4. |
+| `P2-C.6` | Inspector de propiedades de marca | **Propuesto, pendiente de aprobación** | Edición interactiva de color, grosor, opacidad y texto de marcas existentes. | Requiere ADR y aprobación de decisión D-3. |
+
+---
+
+### Fase 2: Bloque D — Capas y Sellos Dinámicos
 
 | Bloque | Descripción | Estado | Prerrequisito |
 |---|---|---|---|
-| **Bloque C (MarkupsList Completa)** | Ordenación, filtros multicriterio, columnas personalizadas con lista blanca, menú contextual de estados y exportación de reportes (PDF/Excel/CSV). | **Siguiente Hito** | Bloque B cerrado y verificado. |
-| **Bloque D (Capas y Sellos Dinámicos)** | Capas lógicas CAD con visibilidad persistida y sellos dinámicos basados en primitivas vectoriales limpias. | **No empezado** | Cierre total y auditado del Bloque C. |
+| **Bloque D (Capas y Sellos Dinámicos)** | Capas lógicas CAD con visibilidad persistida y sellos dinámicos basados en primitivas vectoriales limpias. | **No empezado** | Pendiente de cierre del Bloque C. Propuesto reubicar a Fase 3 (`P3-F.1` y `P3-F.2`) en Plan Maestro v2. |
 
 ---
 
 ## 3. Registro de Puertas de Calidad Actual
 
-- **Pruebas Unitarias:** 235 / 235 pasadas en Vitest (`src/`) distribuidas en 14 suites.
-- **Auditoría Literal de Paridad:** Superada (19 shipped verificadas literalmente, 3 todo con guion `-`).
+- **Pruebas Unitarias:** 277 / 277 pasadas en Vitest (`src/`) distribuidas en 17 suites.
+- **Auditoría Literal de Paridad:** Superada (`node scripts/parity-check.mjs`: 22 shipped verificadas literalmente, 3 todo con guion).
 - **Pruebas Rust:** 4 / 4 pasadas en `cargo test` (`src-tauri/`).
-- **Compilación de Producción:** Exitosa (`tsc && vite build`), bundle limpio.
-- **Pruebas E2E:** 12 / 12 pasadas en Playwright suite completa (1 worker, Chromium).
+- **Compilación de Producción:** Exitosa (`tsc && vite build`), bundle limpio sin errores de tipos.
+- **Pruebas E2E:** 13 / 13 en Playwright suite (`tests/e2e/pdf-viewer.spec.ts`).
 - **Smoke Test Nativo (P2-X):** Implementado y superado localmente con `tauri-driver` (`npm run test:native` y `verify.mjs --with-native`). Adhesión WebDriver, render de canvas, IPC real de Rust y acciones W3C.
 - **Warnings en Consola:** 0 warnings reportados.
-- **Árbol de Git:** Listo para commit en rama `master`.
+- **Árbol de Git:** En rama `master`.
+

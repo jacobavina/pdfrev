@@ -1,0 +1,7 @@
+=== M6 ESCRITURA DE REQUISITOS REVU: OPCION D ===
+Archivo generado: .\spikes/motor/out/opcion-d\muestra-revu.pdf (1644 bytes)
+Estructuras escritas vía PDFium API:
+- Anotación /Square estándar
+- Anotación /Stamp estándar
+Limitación detectada: PDFium FPDFAnnot API no expone de serie campos propietarios como /OC o /StateModel (Review)
+sin invocar llamadas no documentadas de bajo nivel de FPDF_STRUCT_TREE.

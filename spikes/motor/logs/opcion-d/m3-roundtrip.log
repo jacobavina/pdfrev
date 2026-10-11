@@ -1,0 +1,9 @@
+=== M3 IDA Y VUELTA (ROUND-TRIP) E INCREMENTAL: OPCION D ===
+Archivo base: .\spikes/motor/fixtures\classic-xref.pdf (1310 bytes)
+Guardado generado por PDFium: .\spikes/motor/out/opcion-d\roundtrip-test.pdf (1490 bytes)
+Bytes originales 100% intactos en prefijo: NO (REESCRITURA COMPLETA)
+Hallazgo crítico: PDFium por defecto ejecuta un reescrito completo (SaveAsCopy/flags=0).
+No preserva prefijo byte a byte sin una capa de empaquetado incremental propia.
+Reapertura con PDFium: OK
+Validación estructural qpdf: qpdf no disponible en este equipo (verificado)
+Resultado M3: Guardado funcional como copia completa; actualización incremental no soportada de serie por pdfium-render.

@@ -131,6 +131,29 @@ export interface ViewportTransform {
   rotation?: number; // 0, 90, 180, 270
 }
 
+export const VALID_CUSTOM_COLUMN_TYPES = [
+  'text',
+  'number',
+  'choice',
+  'formula',
+  'texto',
+  'número',
+  'numero',
+  'opción',
+  'opcion',
+  'calculada',
+] as const;
+
+export type BbxCustomColumnType = (typeof VALID_CUSTOM_COLUMN_TYPES)[number];
+
+export interface BbxCustomColumn {
+  id: string;
+  nombre: string;
+  tipo: BbxCustomColumnType;
+  opciones?: string[];
+  expresion?: string;
+}
+
 /**
  * Persisted document data structure (.bbx.json)
  */
@@ -141,19 +164,27 @@ export interface BbxDocumentFile {
   lastSavedAt: string; // ISO
   author: string;
   markups: Markup[];
+  customColumns?: BbxCustomColumn[];
+}
+
+export interface BbxMigrationResult {
+  document: BbxDocumentFile;
+  warnings: string[];
 }
 
 /**
  * Migrador y validador estricto para archivos .bbx.json
  * Convierte esquemas v1.0.0 a v1.1.0 sin pérdida de datos.
  * Rechaza versiones futuras o incompatibles para evitar corrupción silenciosa.
+ * Retorna el documento normalizado y la lista de avisos (warnings) por datos degradados o descartados.
  */
-export function migrateBbxDocument(raw: unknown): BbxDocumentFile {
+export function migrateBbxDocument(raw: unknown): BbxMigrationResult {
   if (!raw || typeof raw !== 'object') {
     throw new Error('Formato .bbx.json inválido: se esperaba un objeto JSON');
   }
 
   const obj = raw as Record<string, unknown>;
+  const warnings: string[] = [];
 
   // P1: Validación de versión
   const version = typeof obj.version === 'string' ? obj.version : '1.0.0';
@@ -169,21 +200,98 @@ export function migrateBbxDocument(raw: unknown): BbxDocumentFile {
   const author = typeof obj.author === 'string' ? obj.author : 'Desconocido';
   const pdfFileSize = typeof obj.pdfFileSize === 'number' ? obj.pdfFileSize : undefined;
 
+  // Validación y preservación de customColumns (Z.2)
+  let customColumns: BbxCustomColumn[] | undefined;
+  if ('customColumns' in obj && obj.customColumns !== undefined) {
+    if (!Array.isArray(obj.customColumns)) {
+      warnings.push('El campo "customColumns" no es un arreglo válido; se descarta');
+    } else {
+      const validCols: BbxCustomColumn[] = [];
+      for (let i = 0; i < obj.customColumns.length; i++) {
+        const col = obj.customColumns[i];
+        if (!col || typeof col !== 'object' || Array.isArray(col)) {
+          warnings.push(`Columna personalizada en índice ${i} descartada: no es un objeto válido`);
+          continue;
+        }
+        const colObj = col as Record<string, unknown>;
+        const id = typeof colObj.id === 'string' ? colObj.id.trim() : '';
+        const nombre = typeof colObj.nombre === 'string' ? colObj.nombre.trim() : '';
+        const tipoRaw = typeof colObj.tipo === 'string' ? colObj.tipo.trim() : '';
+
+        if (!id || id.length > 100 || id === '__proto__' || id === 'constructor' || id === 'prototype') {
+          warnings.push(`Columna personalizada en índice ${i} descartada: "id" inválido o no seguro`);
+          continue;
+        }
+
+        if (!nombre || nombre.length > 100) {
+          warnings.push(`Columna personalizada "${id}" descartada: "nombre" inválido o excede longitud`);
+          continue;
+        }
+
+        if (!VALID_CUSTOM_COLUMN_TYPES.includes(tipoRaw as BbxCustomColumnType)) {
+          warnings.push(`Columna personalizada "${id}" descartada: tipo desconocido "${tipoRaw}"`);
+          continue;
+        }
+
+        const validCol: BbxCustomColumn = {
+          id,
+          nombre,
+          tipo: tipoRaw as BbxCustomColumnType,
+        };
+
+        if (Array.isArray(colObj.opciones)) {
+          validCol.opciones = colObj.opciones.filter(
+            (op): op is string => typeof op === 'string' && op.length > 0 && op.length <= 200
+          );
+        }
+
+        if (typeof colObj.expresion === 'string' && colObj.expresion.length <= 1000) {
+          validCol.expresion = colObj.expresion;
+        }
+
+        validCols.push(validCol);
+      }
+
+      if (validCols.length > 0) {
+        customColumns = validCols;
+      } else if (obj.customColumns.length === 0) {
+        customColumns = [];
+      }
+    }
+  }
+
   const rawMarkups = Array.isArray(obj.markups) ? obj.markups : [];
-  const markups: Markup[] = rawMarkups.map((m: unknown) => {
+  if ('markups' in obj && !Array.isArray(obj.markups)) {
+    warnings.push('El campo "markups" no es un arreglo válido; se inicializa como vacío');
+  }
+
+  const markups: Markup[] = rawMarkups.map((m: unknown, idx: number) => {
     const item = (m && typeof m === 'object' ? m : {}) as Record<string, unknown>;
+    const markupId = typeof item.id === 'string' && item.id.length > 0 ? item.id : `markup-${idx}`;
 
-    // P1: Validación de tipo conocido
+    // P1: Validación de tipo conocido (Z.2: aviso explícito ante degradación)
     const itemType = typeof item.type === 'string' ? item.type : '';
-    const type: MarkupType = VALID_MARKUP_TYPES.includes(itemType as MarkupType)
-      ? (itemType as MarkupType)
-      : 'rectangle';
+    let type: MarkupType;
+    if (VALID_MARKUP_TYPES.includes(itemType as MarkupType)) {
+      type = itemType as MarkupType;
+    } else {
+      type = 'rectangle';
+      warnings.push(
+        `Tipo de marca desconocido "${itemType || String(item.type)}" degradado a "rectangle" en marca "${markupId}"`
+      );
+    }
 
-    // P1: Validación de estado conocido (cae a 'pending' para evitar que statusInfo sea undefined)
+    // P1: Validación de estado conocido (Z.2: aviso explícito ante degradación; cancelled se conserva)
     const itemStatus = typeof item.status === 'string' ? item.status : '';
-    const status: MarkupStatus = VALID_MARKUP_STATUSES.includes(itemStatus as MarkupStatus)
-      ? (itemStatus as MarkupStatus)
-      : 'pending';
+    let status: MarkupStatus;
+    if (VALID_MARKUP_STATUSES.includes(itemStatus as MarkupStatus)) {
+      status = itemStatus as MarkupStatus;
+    } else {
+      status = 'pending';
+      warnings.push(
+        `Estado de marca desconocido "${itemStatus || String(item.status)}" degradado a "pending" en marca "${markupId}"`
+      );
+    }
 
     // P1: Validación estricta de points (solo números finitos, nunca NaN ni cadenas)
     const rawPoints = Array.isArray(item.points) ? item.points : [];
@@ -203,6 +311,57 @@ export function migrateBbxDocument(raw: unknown): BbxDocumentFile {
           x: Math.max(0, Math.min(1, (p as Record<string, unknown>).x as number)),
           y: Math.max(0, Math.min(1, (p as Record<string, unknown>).y as number)),
         });
+      }
+    }
+
+    // Validación y saneamiento de customFields (Z.2)
+    let customFields: Record<string, string | number> | undefined;
+    if ('customFields' in item && item.customFields !== undefined && item.customFields !== null) {
+      if (typeof item.customFields !== 'object' || Array.isArray(item.customFields)) {
+        warnings.push(
+          `customFields en marca "${markupId}" no es un objeto válido; descartado`
+        );
+      } else {
+        const rawEntries = Object.entries(item.customFields as Record<string, unknown>);
+        const sanitized: Record<string, string | number> = {};
+        for (const [k, v] of rawEntries) {
+          if (k === '__proto__' || k === 'constructor' || k === 'prototype') {
+            warnings.push(
+              `Clave prohibida "${k}" en customFields descartada en marca "${markupId}"`
+            );
+            continue;
+          }
+          if (k.length === 0 || k.length > 100) {
+            warnings.push(
+              `Clave de customFields excede longitud permitida (1-100 caracteres) en marca "${markupId}"`
+            );
+            continue;
+          }
+          if (typeof v === 'number') {
+            if (Number.isFinite(v)) {
+              sanitized[k] = v;
+            } else {
+              warnings.push(
+                `Valor numérico no finito para campo "${k}" descartado en marca "${markupId}"`
+              );
+            }
+          } else if (typeof v === 'string') {
+            if (v.length <= 2000) {
+              sanitized[k] = v;
+            } else {
+              warnings.push(
+                `Valor de cadena para campo "${k}" excede longitud permitida en marca "${markupId}"`
+              );
+            }
+          } else {
+            warnings.push(
+              `Tipo de dato no permitido (${typeof v}) para campo "${k}" descartado en marca "${markupId}"`
+            );
+          }
+        }
+        if (Object.keys(sanitized).length > 0) {
+          customFields = sanitized;
+        }
       }
     }
 
@@ -255,10 +414,7 @@ export function migrateBbxDocument(raw: unknown): BbxDocumentFile {
       updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : lastSavedAt,
       status,
       layer: typeof item.layer === 'string' ? item.layer : undefined,
-      customFields:
-        item.customFields && typeof item.customFields === 'object'
-          ? (item.customFields as Record<string, string | number>)
-          : undefined,
+      customFields,
       groupId: typeof item.groupId === 'string' ? item.groupId : undefined,
       leaders,
       textFormat:
@@ -274,11 +430,15 @@ export function migrateBbxDocument(raw: unknown): BbxDocumentFile {
   });
 
   return {
-    version: '1.1.0',
-    pdfFileName,
-    pdfFileSize,
-    lastSavedAt,
-    author,
-    markups,
+    document: {
+      version: '1.1.0',
+      pdfFileName,
+      pdfFileSize,
+      lastSavedAt,
+      author,
+      markups,
+      ...(customColumns !== undefined ? { customColumns } : {}),
+    },
+    warnings,
   };
 }

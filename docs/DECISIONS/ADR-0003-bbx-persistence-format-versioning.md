@@ -40,3 +40,16 @@ Anclas de implementación verificadas:
 
 ## 5. Evidencia
 - En `src/services/bbxPersistenceService.test.ts`, tests unitarios comprueban la migración exitosa de esquemas 1.0.0 a 1.1.0 y el rechazo explícito de versiones no compatibles.
+
+---
+
+## 6. Addendum 2026-10-10: Endurecimiento del Migrador (Hito Z.2)
+
+- **Contexto:** Identificada degradación silenciosa de datos en `migrateBbxDocument`: ausencia de `customColumns` en el esquema tipado `BbxDocumentFile`, omisión de validación en `Markup.customFields`, y degradación muda de tipos y estados no reconocidos hacia valores por defecto (`rectangle` y `pending`).
+- **Decisión:**
+  1. Extender `BbxDocumentFile` con la propiedad opcional `customColumns?: BbxCustomColumn[]`, sujeta a validación estricta de identificadores, nombres y tipos admitidos (`BbxCustomColumnType`). Columnas inválidas se descartan y generan advertencia.
+  2. Endurecer la validación de `Markup.customFields`: admisión exclusiva de valores `string` (longitud acotada $\le 2000$ caracteres) y `number` estrictamente finitos (`Number.isFinite`), descartando claves vacías, excesivas o reservadas/peligrosas (`__proto__`, `constructor`, `prototype`).
+  3. Modificar la firma de retorno de `migrateBbxDocument` para devolver `BbxMigrationResult { document: BbxDocumentFile; warnings: string[] }`.
+  4. Los avisos por degradación de tipo/estado o descarte de campos/columnas inválidos se propagan a través de `loadBbxForPdf` y se notifican en la interfaz de usuario mediante `toastService` al abrir el documento.
+  5. La versión del esquema se mantiene en `1.1.0`, ya que se trata de una extensión de compatibilidad aditiva y opcional; versiones incompatibles (ej. $\ge 2.0.0$) continúan lanzando excepción controlada.
+- **Evidencia:** Cobertura de pruebas unitarias en `src/types/markup.test.ts` y pruebas de persistencia sobre fichero real en `src/services/bbxPersistenceService.test.ts` y `src/services/fileDialogService.test.ts`.

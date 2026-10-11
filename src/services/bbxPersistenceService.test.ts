@@ -11,7 +11,7 @@ import {
   isAbsolutePath,
 } from './bbxPersistenceService';
 import { exportMarkupsToPdf } from './pdfExportService';
-import { Markup } from '../types/markup';
+import { BbxCustomColumn, Markup } from '../types/markup';
 
 describe('BBX Persistence Service (.bbx.json)', () => {
   beforeEach(() => {
@@ -63,12 +63,12 @@ describe('BBX Persistence Service (.bbx.json)', () => {
 
     const loaded = await loadBbxForPdf(pdfPath);
     expect(loaded).not.toBeNull();
-    expect(loaded?.version).toBe('1.1.0');
-    expect(loaded?.pdfFileName).toBe('estructural.pdf');
-    expect(loaded?.author).toBe('Ing. Supervisor');
-    expect(loaded?.markups).toHaveLength(1);
-    expect(loaded?.markups[0].id).toBe('bbx-test-1');
-    expect(loaded?.markups[0].status).toBe('accepted');
+    expect(loaded?.document.version).toBe('1.1.0');
+    expect(loaded?.document.pdfFileName).toBe('estructural.pdf');
+    expect(loaded?.document.author).toBe('Ing. Supervisor');
+    expect(loaded?.document.markups).toHaveLength(1);
+    expect(loaded?.document.markups[0].id).toBe('bbx-test-1');
+    expect(loaded?.document.markups[0].status).toBe('accepted');
   });
 
   it('returns null if .bbx.json does not exist in localStorage fallback', async () => {
@@ -99,13 +99,13 @@ describe('BBX Persistence Service (.bbx.json)', () => {
 
     const loaded = await loadBbxForPdf(pdfPath);
     expect(loaded).not.toBeNull();
-    expect(loaded?.markups).toHaveLength(1);
-    expect(loaded?.markups[0].customFields?.arcStep).toBe(20);
+    expect(loaded?.document.markups).toHaveLength(1);
+    expect(loaded?.document.markups[0].customFields?.arcStep).toBe(20);
 
     // Exportar con fixture PDF asegurando que el exportador consume el arcStep persistido
     const fixturePath = path.resolve(process.cwd(), 'fixtures/test-blueprint.pdf');
     const pdfBytes = fs.readFileSync(fixturePath);
-    const result = await exportMarkupsToPdf(new Uint8Array(pdfBytes), loaded!.markups);
+    const result = await exportMarkupsToPdf(new Uint8Array(pdfBytes), loaded!.document.markups);
     expect(result.pdfBytes.length).toBeGreaterThan(0);
   });
 
@@ -134,9 +134,9 @@ describe('BBX Persistence Service (.bbx.json)', () => {
 
     const loaded = await loadBbxForPdf(pdfPath);
     expect(loaded).not.toBeNull();
-    expect(loaded?.markups).toHaveLength(1);
+    expect(loaded?.document.markups).toHaveLength(1);
 
-    const loadedNote = loaded!.markups[0];
+    const loadedNote = loaded!.document.markups[0];
     expect(loadedNote.type).toBe('stickyNote');
     expect(loadedNote.points).toHaveLength(1);
     expect(loadedNote.points[0]).toEqual({ x: 0.35, y: 0.45 });
@@ -147,7 +147,7 @@ describe('BBX Persistence Service (.bbx.json)', () => {
     // Exportación exitosa con la nota recargada
     const fixturePath = path.resolve(process.cwd(), 'fixtures/test-blueprint.pdf');
     const pdfBytes = fs.readFileSync(fixturePath);
-    const result = await exportMarkupsToPdf(new Uint8Array(pdfBytes), loaded!.markups);
+    const result = await exportMarkupsToPdf(new Uint8Array(pdfBytes), loaded!.document.markups);
     expect(result.pdfBytes.length).toBeGreaterThan(0);
   });
 
@@ -177,8 +177,8 @@ describe('BBX Persistence Service (.bbx.json)', () => {
     const loaded = await loadBbxForPdf(pdfPath);
 
     expect(loaded).not.toBeNull();
-    expect(loaded!.markups).toHaveLength(1);
-    const loadedHl = loaded!.markups[0];
+    expect(loaded!.document.markups).toHaveLength(1);
+    const loadedHl = loaded!.document.markups[0];
     expect(loadedHl.id).toBe('hlv-bbx-1');
     expect(loadedHl.type).toBe('highlightVector');
     expect(loadedHl.points).toEqual([
@@ -368,6 +368,94 @@ describe('BBX Persistence Service (.bbx.json)', () => {
       expect(isAbsolutePath('fixtures/test-blueprint.pdf')).toBe(false);
       expect(isAbsolutePath('test-blueprint.bbx.json')).toBe(false);
       expect(isAbsolutePath('')).toBe(false);
+    });
+  });
+
+  describe('Sub-entregable Z.2: Persistencia de customColumns y customFields en FICHERO REAL', () => {
+    it('Ida y vuelta guardar -> leer del FICHERO REAL conservando customColumns y customFields', async () => {
+      // Ruta absoluta sobre fixtures para prueba de fichero real
+      const realPdfPath = path.resolve(process.cwd(), 'fixtures/test-real-disk-roundtrip.pdf');
+      const realBbxPath = getBbxPath(realPdfPath);
+
+      // Simular IPC de Tauri interactuando con el sistema de archivos real
+      const invokeMock = vi.fn(async (cmd: string, args: { filePath: string; jsonContent?: string }) => {
+        if (cmd === 'write_bbx') {
+          fs.writeFileSync(args.filePath, args.jsonContent!, 'utf-8');
+          return undefined;
+        }
+        if (cmd === 'read_bbx') {
+          if (!fs.existsSync(args.filePath)) return null;
+          return fs.readFileSync(args.filePath, 'utf-8');
+        }
+        throw new Error(`Comando no simulado: ${cmd}`);
+      });
+
+      (window as unknown as { __TAURI_INTERNALS__: { invoke: typeof invokeMock } }).__TAURI_INTERNALS__ = {
+        invoke: invokeMock,
+      };
+
+      const testMarkups: Markup[] = [
+        {
+          id: 'markup-real-disk-1',
+          type: 'rectangle',
+          pageIndex: 0,
+          points: [
+            { x: 0.1, y: 0.2 },
+            { x: 0.5, y: 0.6 },
+          ],
+          style: { strokeColor: '#10b981', strokeWidth: 2, opacity: 1 },
+          text: 'Zapata Z-1 con acero corrugado',
+          author: 'Calculista Senior',
+          createdAt: '2026-10-10T20:00:00.000Z',
+          updatedAt: '2026-10-10T20:00:00.000Z',
+          status: 'accepted',
+          customFields: {
+            arcStep: 20,
+            hormigonTipo: 'HA-30',
+            pesoAceroKg: 345.8,
+          },
+        },
+      ];
+
+      const testColumns: BbxCustomColumn[] = [
+        { id: 'col-hormigon', nombre: 'Tipo Hormigón', tipo: 'text' },
+        { id: 'col-peso', nombre: 'Peso Acero (kg)', tipo: 'number' },
+        { id: 'col-calc', nombre: 'Coste Material', tipo: 'formula', expresion: 'col-peso * 1.85' },
+      ];
+
+      try {
+        // 1. Guardar a través del servicio (desencadena write_bbx y escribe en disco)
+        const saved = await saveBbxForPdf(realPdfPath, testMarkups, 'Calculista Senior', testColumns);
+        expect(saved).toBe(true);
+
+        // 2. Comprobar directamente en el FICHERO REAL en disco
+        expect(fs.existsSync(realBbxPath)).toBe(true);
+        const diskRaw = fs.readFileSync(realBbxPath, 'utf-8');
+        const diskJson = JSON.parse(diskRaw);
+        expect(diskJson.version).toBe('1.1.0');
+        expect(diskJson.customColumns).toEqual(testColumns);
+        expect(diskJson.markups[0].customFields).toEqual({
+          arcStep: 20,
+          hormigonTipo: 'HA-30',
+          pesoAceroKg: 345.8,
+        });
+
+        // 3. Leer a través de loadBbxForPdf
+        const loaded = await loadBbxForPdf(realPdfPath);
+        expect(loaded).not.toBeNull();
+        expect(loaded?.warnings).toHaveLength(0);
+        expect(loaded?.document.customColumns).toEqual(testColumns);
+        expect(loaded?.document.markups[0].customFields).toEqual({
+          arcStep: 20,
+          hormigonTipo: 'HA-30',
+          pesoAceroKg: 345.8,
+        });
+      } finally {
+        // Limpieza atómica en disco
+        if (fs.existsSync(realBbxPath)) {
+          fs.unlinkSync(realBbxPath);
+        }
+      }
     });
   });
 });

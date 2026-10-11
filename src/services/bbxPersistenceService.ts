@@ -1,4 +1,4 @@
-import { BbxDocumentFile, Markup, migrateBbxDocument } from '../types/markup';
+import { BbxDocumentFile, BbxCustomColumn, BbxMigrationResult, Markup, migrateBbxDocument } from '../types/markup';
 
 // Detectar si estamos en un entorno nativo de Tauri 2
 export function isTauriEnvironment(): boolean {
@@ -99,7 +99,7 @@ export function validateBbxPath(pdfPath: string, bbxPath: string): boolean {
  * Distingue archivo inexistente (retorna null) de errores reales de E/S (notifica y lanza error).
  * En Tauri, si la ruta no es absoluta, no invoca IPC y retorna null sin lanzar.
  */
-export async function loadBbxForPdf(pdfPath: string | null): Promise<BbxDocumentFile | null> {
+export async function loadBbxForPdf(pdfPath: string | null): Promise<BbxMigrationResult | null> {
   if (!pdfPath || typeof pdfPath !== 'string') {
     return null;
   }
@@ -150,7 +150,8 @@ export async function loadBbxForPdf(pdfPath: string | null): Promise<BbxDocument
 export async function saveBbxForPdf(
   pdfPath: string | null,
   markups: Markup[],
-  author = 'Usuario'
+  author = 'Usuario',
+  customColumns?: BbxCustomColumn[]
 ): Promise<boolean> {
   if (!pdfPath || typeof pdfPath !== 'string') {
     return false;
@@ -164,6 +165,7 @@ export async function saveBbxForPdf(
     lastSavedAt: new Date().toISOString(),
     author,
     markups,
+    ...(customColumns !== undefined ? { customColumns } : {}),
   };
 
   const jsonContent = JSON.stringify(data, null, 2);

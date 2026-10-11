@@ -2,6 +2,7 @@ import { isTauriEnvironment, loadBbxForPdf } from './bbxPersistenceService';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { loadPdfDocument } from './pdfService';
+import { showToast } from './toastService';
 
 /**
  * Abre un archivo PDF utilizando el diálogo nativo en Tauri
@@ -85,10 +86,20 @@ export async function loadPdfData(
 
   // Cargar automáticamente .bbx.json si existe (independiente del procesamiento del PDF)
   try {
-    const bbxData = await loadBbxForPdf(filePath);
-    if (bbxData && Array.isArray(bbxData.markups)) {
-      console.log(`[BBX] ${bbxData.markups.length} marcas cargadas automáticamente desde .bbx.json`);
-      setMarkups(bbxData.markups);
+    const bbxResult = await loadBbxForPdf(filePath);
+    if (bbxResult) {
+      const { document: bbxData, warnings } = bbxResult;
+      if (warnings && warnings.length > 0) {
+        for (const warning of warnings) {
+          showToast(warning);
+        }
+      }
+      if (bbxData && Array.isArray(bbxData.markups)) {
+        console.log(`[BBX] ${bbxData.markups.length} marcas cargadas automáticamente desde .bbx.json`);
+        setMarkups(bbxData.markups);
+      } else {
+        setMarkups([]);
+      }
     } else {
       setMarkups([]);
     }

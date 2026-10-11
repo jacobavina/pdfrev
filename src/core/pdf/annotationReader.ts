@@ -175,6 +175,29 @@ export async function importPdfAnnotations(
         }
       }
 
+      let measurement: Markup['measurement'];
+      if (isRea && reaObj instanceof PDFDict) {
+        const measObj = reaObj.get(PDFName.of('measurement'));
+        if (measObj instanceof PDFDict) {
+          const valObj = measObj.get(PDFName.of('value'));
+          const unitVal = extractPdfStringValue(measObj.get(PDFName.of('unit')));
+          const fmtVal = extractPdfStringValue(measObj.get(PDFName.of('formatted')));
+          const perimObj = measObj.get(PDFName.of('perimeter'));
+          const cntObj = measObj.get(PDFName.of('countIndex'));
+
+          const numVal = valObj instanceof PDFNumber ? valObj.asNumber() : 0;
+          if (unitVal && fmtVal) {
+            measurement = {
+              value: numVal,
+              unit: unitVal as any,
+              formatted: fmtVal,
+              ...(perimObj instanceof PDFNumber ? { perimeter: perimObj.asNumber() } : {}),
+              ...(cntObj instanceof PDFNumber ? { countIndex: cntObj.asNumber() } : {}),
+            };
+          }
+        }
+      }
+
       // Reconstruir puntos según /Subtype
       const rectObj = annotDict.get(PDFName.of('Rect'));
       if (rectObj instanceof PDFArray && rectObj.size() >= 4) {
@@ -333,6 +356,7 @@ export async function importPdfAnnotations(
         updatedAt: dateStr,
         customFields: Object.keys(customFields).length > 0 ? customFields : undefined,
         locked: locked || undefined,
+        measurement,
       };
 
       markups.push(markup);

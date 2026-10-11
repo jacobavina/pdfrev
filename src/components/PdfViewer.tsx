@@ -42,6 +42,14 @@ import {
 import { InlineTextEditor } from './markup/InlineTextEditor';
 import { showToast } from '../services/toastService';
 import { extractTextForLineRect, mergeLineRects } from '../utils/textLayerUtils';
+import { CalibrationModal } from './CalibrationModal';
+import { useCalibrationStore } from '../store/useCalibrationStore';
+import {
+  calculateLength,
+  calculatePolylineLength,
+  calculateArea,
+  calculateCount,
+} from '../core/measurements/calculate';
 
 export const PdfViewer: React.FC = () => {
   const {
@@ -80,6 +88,12 @@ export const PdfViewer: React.FC = () => {
   } = useMarkupStore();
 
   const { activeTool, currentStyle, author, activeLayer } = useToolStore();
+  const {
+    calibrations,
+    setCalibrationModalOpen,
+    setPendingCalibrationPoints,
+  } = useCalibrationStore();
+  const currentPageCalibration = calibrations[currentPageIndex];
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -213,22 +227,36 @@ export const PdfViewer: React.FC = () => {
         return;
       }
 
-      // Enter finaliza el polígono o la polilínea
-      if (e.key === 'Enter' && (activeTool === 'polygon' || activeTool === 'polyLine')) {
-        const minPts = activeTool === 'polyLine' ? 2 : 3;
+      // Enter finaliza el polígono, la polilínea o la polilínea de medida
+      if (
+        e.key === 'Enter' &&
+        (activeTool === 'polygon' || activeTool === 'polyLine' || activeTool === 'polylineMeasure')
+      ) {
+        const minPts = (activeTool === 'polyLine' || activeTool === 'polylineMeasure') ? 2 : 3;
         if (polygonPoints.length >= minPts) {
           e.preventDefault();
+          const unscaledW = pageViewport.width / (scale || 1.0);
+          const unscaledH = pageViewport.height / (scale || 1.0);
+          const pageDimsPt = { width: unscaledW, height: unscaledH };
+          const calib = useCalibrationStore.getState().getPageCalibration(currentPageIndex);
+          let measurement: Markup['measurement'];
+          if (activeTool === 'polylineMeasure') {
+            measurement = calculatePolylineLength(polygonPoints, pageDimsPt, calib);
+          }
+
           const newMarkup: Markup = {
             id: uuidv4(),
             type: activeTool,
             pageIndex: currentPageIndex,
             points: [...polygonPoints],
             style: { ...currentStyle },
+            text: measurement ? measurement.formatted : undefined,
             author: author || 'Revisor',
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             status: 'pending',
             layer: activeLayer,
+            measurement,
           };
           addMarkup(newMarkup);
         }
@@ -467,8 +495,8 @@ export const PdfViewer: React.FC = () => {
       return;
     }
 
-    // 2. Modo Polígono o Polilínea (Multi-punto)
-    if (activeTool === 'polygon' || activeTool === 'polyLine') {
+    // 2. Modo Polígono, Polilínea o Polilínea de Medida (Multi-punto)
+    if (activeTool === 'polygon' || activeTool === 'polyLine' || activeTool === 'polylineMeasure') {
       if (polygonPoints.length === 0) {
         setPolygonPoints([pt]);
       } else {
@@ -508,12 +536,48 @@ export const PdfViewer: React.FC = () => {
       return;
     }
 
-    // 4. Modo Nota Adhesiva técnica (A.4: Se abre en mouseUp para evitar colisión con el ciclo de blur)
+    // 4. Modo Contador (Takeoff Count)
+    if (activeTool === 'count') {
+      const now = new Date().toISOString();
+      const existingCounts = markups.filter((m) => m.type === 'count').length;
+      const countIndex = existingCounts + 1;
+      const measurement = calculateCount(countIndex);
+      const newMarkup: Markup = {
+        id: uuidv4(),
+        type: 'count',
+        pageIndex: currentPageIndex,
+        points: [pt],
+        style: {
+          strokeColor: currentStyle.strokeColor || '#ff8800',
+          fillColor: 'transparent',
+          strokeWidth: 2,
+          opacity: 1,
+        },
+        text: String(countIndex),
+        author: author || 'Revisor',
+        createdAt: now,
+        updatedAt: now,
+        status: 'pending',
+        layer: activeLayer,
+        measurement,
+      };
+      addMarkup(newMarkup);
+      return;
+    }
+
+    // 5. Modo Calibración por arrastre de 2 puntos
+    if (activeTool === 'calibrate') {
+      setDrawingStart(pt);
+      setCurrentDrawPoint(pt);
+      return;
+    }
+
+    // 6. Modo Nota Adhesiva técnica (A.4: Se abre en mouseUp para evitar colisión con el ciclo de blur)
     if (activeTool === 'stickyNote') {
       return;
     }
 
-    // 5. Figuras de 2 puntos y Texto
+    // 7. Figuras de 2 puntos y Texto
     if (activeTool !== 'pan') {
       setDrawingStart(pt);
       setCurrentDrawPoint(pt);
@@ -696,6 +760,18 @@ export const PdfViewer: React.FC = () => {
       return;
     }
 
+    // Finalización de calibración por 2 puntos
+    if (activeTool === 'calibrate') {
+      if (drawingStart && currentDrawPoint) {
+        setPendingCalibrationPoints([drawingStart, currentDrawPoint]);
+        setCalibrationModalOpen(true);
+      }
+      setDrawingStart(null);
+      setCurrentDrawPoint(null);
+      useToolStore.getState().setActiveTool('select');
+      return;
+    }
+
     // Finalización de figuras de 2 puntos
     if (!drawingStart || !currentDrawPoint) {
       setDrawingStart(null);
@@ -865,19 +941,36 @@ export const PdfViewer: React.FC = () => {
               }
             : { ...currentStyle };
 
+        const unscaledW = pageViewport.width / (scale || 1.0);
+        const unscaledH = pageViewport.height / (scale || 1.0);
+        const pageDimsPt = { width: unscaledW, height: unscaledH };
+        const calib = useCalibrationStore.getState().getPageCalibration(currentPageIndex);
+
+        let measurement: Markup['measurement'];
+        let markupText: string | undefined = activeTool === 'text' ? 'Nota técnica' : undefined;
+
+        if (activeTool === 'length') {
+          measurement = calculateLength([drawingStart, currentDrawPoint], pageDimsPt, calib);
+          markupText = measurement.formatted;
+        } else if (activeTool === 'area') {
+          measurement = calculateArea([drawingStart, currentDrawPoint], pageDimsPt, calib, true);
+          markupText = measurement.formatted;
+        }
+
         const newMarkup: Markup = {
           id: newId,
           type: activeTool as MarkupType,
           pageIndex: currentPageIndex,
           points,
           style: markupStyle,
-          text: activeTool === 'text' ? 'Nota técnica' : undefined,
+          text: markupText,
           author: author || 'Revisor',
           createdAt: now,
           updatedAt: now,
           status: 'pending',
           layer: activeLayer,
           customFields,
+          measurement,
         };
 
         addMarkup(newMarkup);
@@ -900,20 +993,31 @@ export const PdfViewer: React.FC = () => {
 
   // Doble clic para finalizar polígono o polilínea o para abrir editor de texto
   const handleDoubleClick = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (activeTool === 'polygon' || activeTool === 'polyLine') {
-      const minPts = activeTool === 'polyLine' ? 2 : 3;
+    if (activeTool === 'polygon' || activeTool === 'polyLine' || activeTool === 'polylineMeasure') {
+      const minPts = (activeTool === 'polyLine' || activeTool === 'polylineMeasure') ? 2 : 3;
       if (polygonPoints.length >= minPts) {
+        const unscaledW = pageViewport.width / (scale || 1.0);
+        const unscaledH = pageViewport.height / (scale || 1.0);
+        const pageDimsPt = { width: unscaledW, height: unscaledH };
+        const calib = useCalibrationStore.getState().getPageCalibration(currentPageIndex);
+        let measurement: Markup['measurement'];
+        if (activeTool === 'polylineMeasure') {
+          measurement = calculatePolylineLength(polygonPoints, pageDimsPt, calib);
+        }
+
         const newMarkup: Markup = {
           id: uuidv4(),
           type: activeTool,
           pageIndex: currentPageIndex,
           points: [...polygonPoints],
           style: { ...currentStyle },
+          text: measurement ? measurement.formatted : undefined,
           author: author || 'Revisor',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           status: 'pending',
           layer: activeLayer,
+          measurement,
         };
         addMarkup(newMarkup);
         useToolChestStore.getState().recordRecent(newMarkup);
@@ -1645,7 +1749,7 @@ export const PdfViewer: React.FC = () => {
 
             {/* Previsualización en vivo mientras se dibuja */}
             {/* A. Polígono o Polilínea en construcción */}
-            {(activeTool === 'polygon' || activeTool === 'polyLine') && polygonPoints.length > 0 && (
+            {(activeTool === 'polygon' || activeTool === 'polyLine' || activeTool === 'polylineMeasure') && polygonPoints.length > 0 && (
               <g className="pointer-events-none">
                 <polyline
                   points={
@@ -1734,6 +1838,50 @@ export const PdfViewer: React.FC = () => {
                         y2={p2.y}
                         stroke={currentStyle.strokeColor}
                         strokeWidth={currentStyle.strokeWidth}
+                        strokeDasharray="4 2"
+                      />
+                    );
+                  }
+
+                  if (activeTool === 'length' || activeTool === 'calibrate') {
+                    return (
+                      <g>
+                        <line
+                          x1={p1.x}
+                          y1={p1.y}
+                          x2={p2.x}
+                          y2={p2.y}
+                          stroke={activeTool === 'calibrate' ? '#f59e0b' : currentStyle.strokeColor}
+                          strokeWidth={currentStyle.strokeWidth || 2}
+                          strokeDasharray="4 2"
+                        />
+                        <circle
+                          cx={p1.x}
+                          cy={p1.y}
+                          r={3}
+                          fill={activeTool === 'calibrate' ? '#f59e0b' : currentStyle.strokeColor}
+                        />
+                        <circle
+                          cx={p2.x}
+                          cy={p2.y}
+                          r={3}
+                          fill={activeTool === 'calibrate' ? '#f59e0b' : currentStyle.strokeColor}
+                        />
+                      </g>
+                    );
+                  }
+
+                  if (activeTool === 'area') {
+                    const rect = getRectGeometry(p1, p2);
+                    return (
+                      <rect
+                        x={rect.x}
+                        y={rect.y}
+                        width={rect.width}
+                        height={rect.height}
+                        stroke={currentStyle.strokeColor}
+                        strokeWidth={currentStyle.strokeWidth}
+                        fill="rgba(0, 180, 120, 0.2)"
                         strokeDasharray="4 2"
                       />
                     );
@@ -1891,6 +2039,45 @@ export const PdfViewer: React.FC = () => {
             })()}
           </svg>
         </div>
+      )}
+
+      {/* Indicador visual de escala y modal de calibración (Paquete 4) */}
+      {pdfBytes && (
+        <>
+          <div className="absolute bottom-2 left-2 z-20 flex items-center bg-cad-panel/95 border border-cad-border rounded shadow px-2.5 py-1 text-xs text-gray-200">
+            <button
+              type="button"
+              data-testid="calibration-indicator"
+              onClick={() => {
+                setPendingCalibrationPoints([]);
+                setCalibrationModalOpen(true);
+              }}
+              className="flex items-center space-x-1.5 hover:text-white transition-colors"
+              title="Haga clic para calibrar o ajustar la escala de esta página"
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  currentPageCalibration && currentPageCalibration.scale !== 1
+                    ? 'bg-emerald-400'
+                    : 'bg-amber-400'
+                }`}
+              />
+              <span className="font-mono text-[11px]">
+                {currentPageCalibration && currentPageCalibration.scale !== 1
+                  ? `Escala: 1 ${currentPageCalibration.unit} = ${(1 / currentPageCalibration.scale).toFixed(1)} pt`
+                  : 'Sin calibrar (1 pt = 1 pt)'}
+              </span>
+            </button>
+          </div>
+
+          <CalibrationModal
+            pageIndex={currentPageIndex}
+            pageSizePt={{
+              width: pageViewport.width / (scale || 1.0),
+              height: pageViewport.height / (scale || 1.0),
+            }}
+          />
+        </>
       )}
     </div>
   );

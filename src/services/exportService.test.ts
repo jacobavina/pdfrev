@@ -96,18 +96,48 @@ describe('Export Service (P2-C.4)', () => {
       // Cada salto de línea debe ser \r\n
       const lines = text.split('\r\n');
       expect(lines.length).toBe(4); // Cabecera + 2 filas + línea final vacía
-      expect(lines[0]).toContain('Página,Tipo,Texto,Autor,Fecha,Estado,Color,Presupuesto (€),Total Estimado');
+      expect(lines[0]).toContain(
+        'Página,Tipo,Texto,Autor,Fecha,Estado,Color,Medida,Unidad,Presupuesto (€),Total Estimado'
+      );
     });
 
     it('incluye valores calculados y sanitiza fórmulas en las filas de datos', () => {
       const bytes = buildCsvContent(mockMarkups, mockCustomColumns, evaluatedFields);
       const text = new TextDecoder('utf-8').decode(bytes.slice(3));
 
-      // Fila 1
-      expect(text).toContain('1,rectangle,Revisar cota estructural,Arquitecto A,2026-10-11T10:00:00Z,accepted,#0055ff,1500,1815');
+      // Fila 1 (sin medida)
+      expect(text).toContain(
+        '1,rectangle,Revisar cota estructural,Arquitecto A,2026-10-11T10:00:00Z,accepted,#0055ff,,,1500,1815'
+      );
 
       // Fila 2: la fórmula debe estar desarmada con comilla simple
-      expect(text).toContain("2,cloud,\"'=DDE(\"\"calc\"\";\"\"A1\"\")\",Ingeniero B,2026-10-11T11:00:00Z,rejected,#ff2200,250,302.5");
+      expect(text).toContain(
+        "2,cloud,\"'=DDE(\"\"calc\"\";\"\"A1\"\")\",Ingeniero B,2026-10-11T11:00:00Z,rejected,#ff2200,,,250,302.5"
+      );
+    });
+
+    it('incluye columnas Medida y Unidad correctamente formateadas para marcas de takeoff', () => {
+      const measureMarkup: Markup = {
+        id: 'm-meas-1',
+        type: 'length',
+        pageIndex: 0,
+        text: 'Tramo tubería',
+        author: 'Topógrafo',
+        createdAt: '2026-10-11T12:00:00Z',
+        updatedAt: '2026-10-11T12:00:00Z',
+        status: 'accepted',
+        style: { strokeColor: '#00aa00', strokeWidth: 2, opacity: 1 },
+        points: [{ x: 0.1, y: 0.1 }, { x: 0.5, y: 0.1 }],
+        measurement: {
+          value: 12.5,
+          unit: 'm',
+          formatted: '12.50 m',
+        },
+      };
+
+      const bytes = buildCsvContent([measureMarkup]);
+      const text = new TextDecoder('utf-8').decode(bytes.slice(3));
+      expect(text).toContain('1,length,Tramo tubería,Topógrafo,2026-10-11T12:00:00Z,accepted,#00aa00,12.50 m,m');
     });
   });
 

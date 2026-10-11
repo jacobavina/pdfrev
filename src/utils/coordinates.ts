@@ -190,6 +190,16 @@ export function getMarkupBounds(
     };
   }
 
+  if (markup.type === 'count' && markup.points.length >= 1) {
+    const r = 0.02;
+    return {
+      x: Math.max(0, markup.points[0].x - r),
+      y: Math.max(0, markup.points[0].y - r),
+      width: r * 2,
+      height: r * 2,
+    };
+  }
+
   for (const pt of markup.points) {
     if (pt.x < minX) minX = pt.x;
     if (pt.x > maxX) maxX = pt.x;
@@ -510,14 +520,43 @@ export function hitTestMarkup(
     return false;
   }
 
-  // 3. Polilínea abierta (PolyLine)
-  if (markup.type === 'polyLine' && markup.points.length >= 2) {
+  // 3. Polilínea abierta (PolyLine y PolylineMeasure)
+  if ((markup.type === 'polyLine' || markup.type === 'polylineMeasure') && markup.points.length >= 2) {
     for (let i = 1; i < markup.points.length; i++) {
       if (distanceToSegment(point, markup.points[i - 1], markup.points[i]) <= tolerance) {
         return true;
       }
     }
     return false;
+  }
+
+  // Herramienta de Área (rectángulo o polígono cerrado)
+  if (markup.type === 'area') {
+    if (markup.points.length <= 2) {
+      return (
+        point.x >= bounds.x - tolerance &&
+        point.x <= bounds.x + bounds.width + tolerance &&
+        point.y >= bounds.y - tolerance &&
+        point.y <= bounds.y + bounds.height + tolerance
+      );
+    } else {
+      if (isPointInPolygon(point, markup.points)) {
+        return true;
+      }
+      for (let i = 0, j = markup.points.length - 1; i < markup.points.length; j = i++) {
+        if (distanceToSegment(point, markup.points[j], markup.points[i]) <= tolerance) {
+          return true;
+        }
+      }
+      return false;
+    }
+  }
+
+  // Herramienta de Conteo (Count)
+  if (markup.type === 'count' && markup.points.length >= 1) {
+    const center = markup.points[0];
+    const dist = Math.hypot(point.x - center.x, point.y - center.y);
+    return dist <= tolerance + 0.025;
   }
 
   // 4. Trazo a mano alzada (Freehand con simplificación RDP si N > 50)
@@ -574,8 +613,8 @@ export function hitTestMarkup(
     return ((nearLeft || nearRight) && inYRange) || ((nearTop || nearBottom) && inXRange);
   }
 
-  // 5. Línea (distanceToSegment)
-  if (markup.type === 'line' && markup.points.length >= 2) {
+  // 5. Línea y Medida de Longitud (distanceToSegment)
+  if ((markup.type === 'line' || markup.type === 'length') && markup.points.length >= 2) {
     return distanceToSegment(point, markup.points[0], markup.points[1]) <= tolerance;
   }
 

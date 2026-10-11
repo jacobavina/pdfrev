@@ -257,7 +257,8 @@ export function emitMarkupOperators(
       break;
     }
 
-    case 'line': {
+    case 'line':
+    case 'length': {
       if (markup.points.length >= 2) {
         const p1 = normalizedToPdfCoordinates(markup.points[0], transform);
         const p2 = normalizedToPdfCoordinates(markup.points[1], transform);
@@ -272,7 +273,8 @@ export function emitMarkupOperators(
       break;
     }
 
-    case 'polyLine': {
+    case 'polyLine':
+    case 'polylineMeasure': {
       if (markup.points.length >= 2) {
         const pdfPts = markup.points.map((p) => normalizedToPdfCoordinates(p, transform));
         for (const pt of pdfPts) updateBBox(pt.x, pt.y);
@@ -328,6 +330,62 @@ export function emitMarkupOperators(
           lines.push(`${pdfPts[i].x.toFixed(2)} ${pdfPts[i].y.toFixed(2)} l`);
         }
         lines.push('h'); // Cerrar camino
+        lines.push(opPaint);
+      }
+      break;
+    }
+
+    case 'area': {
+      if (markup.points.length === 2) {
+        const p1 = normalizedToPdfCoordinates(markup.points[0], transform);
+        const p2 = normalizedToPdfCoordinates(markup.points[1], transform);
+        const x = Math.min(p1.x, p2.x);
+        const y = Math.min(p1.y, p2.y);
+        const w = Math.abs(p2.x - p1.x);
+        const h = Math.abs(p2.y - p1.y);
+
+        updateBBox(x, y);
+        updateBBox(x + w, y + h);
+
+        lines.push(`${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re`);
+        lines.push(opPaint);
+      } else if (markup.points.length > 2) {
+        const pdfPts = markup.points.map((p) => normalizedToPdfCoordinates(p, transform));
+        for (const pt of pdfPts) updateBBox(pt.x, pt.y);
+
+        lines.push(`${pdfPts[0].x.toFixed(2)} ${pdfPts[0].y.toFixed(2)} m`);
+        for (let i = 1; i < pdfPts.length; i++) {
+          lines.push(`${pdfPts[i].x.toFixed(2)} ${pdfPts[i].y.toFixed(2)} l`);
+        }
+        lines.push('h');
+        lines.push(opPaint);
+      }
+      break;
+    }
+
+    case 'count': {
+      if (markup.points.length >= 1) {
+        const center = normalizedToPdfCoordinates(markup.points[0], transform);
+        const r = 10;
+        const cx = center.x;
+        const cy = center.y;
+        updateBBox(cx - r, cy - r);
+        updateBBox(cx + r, cy + r);
+        const k = 0.5522847498;
+
+        lines.push(`${(cx + r).toFixed(2)} ${cy.toFixed(2)} m`);
+        lines.push(
+          `${(cx + r).toFixed(2)} ${(cy + r * k).toFixed(2)} ${(cx + r * k).toFixed(2)} ${(cy + r).toFixed(2)} ${cx.toFixed(2)} ${(cy + r).toFixed(2)} c`
+        );
+        lines.push(
+          `${(cx - r * k).toFixed(2)} ${(cy + r).toFixed(2)} ${(cx - r).toFixed(2)} ${(cy + r * k).toFixed(2)} ${(cx - r).toFixed(2)} ${cy.toFixed(2)} c`
+        );
+        lines.push(
+          `${(cx - r).toFixed(2)} ${(cy - r * k).toFixed(2)} ${(cx - r * k).toFixed(2)} ${(cy - r).toFixed(2)} ${cx.toFixed(2)} ${(cy - r).toFixed(2)} c`
+        );
+        lines.push(
+          `${(cx + r * k).toFixed(2)} ${(cy - r).toFixed(2)} ${(cx + r).toFixed(2)} ${(cy - r * k).toFixed(2)} ${(cx + r).toFixed(2)} ${cy.toFixed(2)} c`
+        );
         lines.push(opPaint);
       }
       break;

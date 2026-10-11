@@ -291,6 +291,43 @@ export const MarkupsList: React.FC = () => {
     evaluationMatrix,
   ]);
 
+  const measurementTotals = React.useMemo(() => {
+    const lengthsByUnit: Record<string, number> = {};
+    const areasByUnit: Record<string, number> = {};
+    let totalCount = 0;
+
+    for (const m of displayedMarkups) {
+      if (m.type === 'count') {
+        totalCount += (m.measurement?.value ?? 1);
+      } else if (m.type === 'length' || m.type === 'polylineMeasure') {
+        if (m.measurement) {
+          const unit = m.measurement.unit;
+          lengthsByUnit[unit] = (lengthsByUnit[unit] || 0) + m.measurement.value;
+        }
+      } else if (m.type === 'area') {
+        if (m.measurement) {
+          const unit = m.measurement.unit;
+          areasByUnit[unit] = (areasByUnit[unit] || 0) + m.measurement.value;
+        }
+      }
+    }
+
+    const lengthSummary = Object.entries(lengthsByUnit)
+      .map(([u, val]) => `${val.toFixed(2)} ${u}`)
+      .join(', ');
+
+    const areaSummary = Object.entries(areasByUnit)
+      .map(([u, val]) => `${val.toFixed(2)} ${u}²`)
+      .join(', ');
+
+    return {
+      lengthSummary,
+      areaSummary,
+      totalCount,
+      hasAny: Boolean(lengthSummary || areaSummary || totalCount > 0),
+    };
+  }, [displayedMarkups]);
+
   // Validación en tiempo real de la fórmula ingresada en el modal
   const formulaValidation = React.useMemo(() => {
     if (newColType !== 'formula') {
@@ -631,6 +668,16 @@ export const MarkupsList: React.FC = () => {
                   >
                     Estado {renderSortIndicator('status')}
                   </th>
+                  <th
+                    onClick={() => handleSort('measurement')}
+                    className="py-1 px-2 font-medium w-24 text-right cursor-pointer hover:text-white select-none"
+                    title="Ordenar por medida"
+                  >
+                    Medida {renderSortIndicator('measurement')}
+                  </th>
+                  <th className="py-1 px-2 font-medium w-16 text-center select-none">
+                    Unidad
+                  </th>
 
                   {/* Cabeceras dinámicas de Columnas Personalizadas (P2-C.3) */}
                   {customColumns?.map((col) => (
@@ -767,6 +814,16 @@ export const MarkupsList: React.FC = () => {
                             Cancelado
                           </option>
                         </select>
+                      </td>
+
+                      {/* Medida */}
+                      <td className="py-1 px-2 text-right font-mono text-gray-200">
+                        {markup.measurement?.formatted || (markup.measurement?.value !== undefined ? String(markup.measurement.value) : '—')}
+                      </td>
+
+                      {/* Unidad */}
+                      <td className="py-1 px-2 text-center text-gray-400 font-mono text-[11px]">
+                        {markup.measurement?.unit ? (markup.type === 'area' ? `${markup.measurement.unit}²` : markup.measurement.unit) : '—'}
                       </td>
 
                       {/* Celdas de Columnas Personalizadas (P2-C.3) */}
@@ -911,6 +968,31 @@ export const MarkupsList: React.FC = () => {
                   );
                 })}
               </tbody>
+              {measurementTotals.hasAny && (
+                <tfoot className="bg-cad-subtle border-t border-cad-border text-gray-300 font-medium">
+                  <tr data-testid="markups-totals-summary">
+                    <td colSpan={9} className="py-1.5 px-3 text-xs">
+                      <span className="font-semibold text-cad-accent mr-2">Totales de Medición:</span>
+                      {measurementTotals.lengthSummary && (
+                        <span className="mr-3">
+                          Longitud: <strong className="text-white font-mono">{measurementTotals.lengthSummary}</strong>
+                        </span>
+                      )}
+                      {measurementTotals.areaSummary && (
+                        <span className="mr-3">
+                          Área: <strong className="text-white font-mono">{measurementTotals.areaSummary}</strong>
+                        </span>
+                      )}
+                      {measurementTotals.totalCount > 0 && (
+                        <span>
+                          Conteo: <strong className="text-white font-mono">{measurementTotals.totalCount}</strong>
+                        </span>
+                      )}
+                    </td>
+                    <td colSpan={(customColumns?.length || 0) + 2}></td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           )}
         </div>

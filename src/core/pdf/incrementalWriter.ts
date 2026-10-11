@@ -373,6 +373,16 @@ endstream`;
       if (reaCustomFields.length > 0) {
         reaDict += ` /fields << ${reaCustomFields.join(' ')} >>`;
       }
+      if (markup.measurement) {
+        reaDict += ` /measurement << /type (${markup.type}) /value ${markup.measurement.value.toFixed(4)} /unit (${markup.measurement.unit}) /formatted (${escapePdfString(markup.measurement.formatted)})`;
+        if (typeof markup.measurement.perimeter === 'number') {
+          reaDict += ` /perimeter ${markup.measurement.perimeter.toFixed(4)}`;
+        }
+        if (typeof markup.measurement.countIndex === 'number') {
+          reaDict += ` /countIndex ${markup.measurement.countIndex}`;
+        }
+        reaDict += ` >>`;
+      }
       reaDict += ' >>';
 
       // Construcción del diccionario de anotación
@@ -518,13 +528,18 @@ function getPdfAnnotSubtype(markup: Markup): string {
     case 'rectangle':
       return 'Square';
     case 'circle':
+    case 'count':
       return 'Circle';
     case 'line':
+    case 'length':
       return 'Line';
     case 'polygon':
       if (markup.customFields?.isPolyLine) return 'PolyLine';
       return 'Polygon';
+    case 'area':
+      return markup.points.length === 2 ? 'Square' : 'Polygon';
     case 'polyLine':
+    case 'polylineMeasure':
       return 'PolyLine';
     case 'cloud':
       return 'Polygon';

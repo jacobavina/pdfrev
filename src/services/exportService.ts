@@ -42,7 +42,17 @@ export function buildCsvContent(
   evaluatedFields: EvaluatedMatrixInput = {}
 ): Uint8Array {
   // 1. Cabeceras base y columnas personalizadas
-  const baseHeaders = ['Página', 'Tipo', 'Texto', 'Autor', 'Fecha', 'Estado', 'Color'];
+  const baseHeaders = [
+    'Página',
+    'Tipo',
+    'Texto',
+    'Autor',
+    'Fecha',
+    'Estado',
+    'Color',
+    'Medida',
+    'Unidad',
+  ];
   const customHeaders = customColumns.map((col) => col.nombre);
   const allHeaders = [...baseHeaders, ...customHeaders];
 
@@ -59,8 +69,20 @@ export function buildCsvContent(
     const dateStr = markup.createdAt ?? '';
     const statusStr = markup.status ?? 'pending';
     const colorStr = markup.style?.strokeColor ?? '';
+    const measureStr = markup.measurement?.formatted ?? (markup.measurement?.value !== undefined ? String(markup.measurement.value) : '');
+    const unitStr = markup.measurement?.unit ?? '';
 
-    const baseValues = [pageNum, typeStr, textStr, authorStr, dateStr, statusStr, colorStr];
+    const baseValues = [
+      pageNum,
+      typeStr,
+      textStr,
+      authorStr,
+      dateStr,
+      statusStr,
+      colorStr,
+      measureStr,
+      unitStr,
+    ];
 
     const customValues = customColumns.map((col) => {
       let evaluatedVal: unknown;

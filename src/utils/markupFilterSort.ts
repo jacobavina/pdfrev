@@ -25,6 +25,7 @@ export type MarkupSortField =
   | 'pageIndex'
   | 'status'
   | 'color'
+  | 'measurement'
   | `custom:${string}`;
 
 export type SortDirection = 'asc' | 'desc';
@@ -307,6 +308,12 @@ export function sortMarkups(
         const colorA = a.style?.strokeColor || '';
         const colorB = b.style?.strokeColor || '';
         comparison = colorA.localeCompare(colorB);
+        break;
+      }
+      case 'measurement': {
+        const valA = a.measurement?.value ?? -Infinity;
+        const valB = b.measurement?.value ?? -Infinity;
+        comparison = valA - valB;
         break;
       }
       default:

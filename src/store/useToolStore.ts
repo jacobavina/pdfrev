@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { MarkupStyle, MarkupType } from '../types/markup';
 
-export type ToolType = MarkupType | 'select' | 'pan';
+export type ToolType = MarkupType | 'select' | 'pan' | 'calibrate';
 
 interface ToolState {
   activeTool: ToolType;

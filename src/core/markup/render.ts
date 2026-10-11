@@ -770,6 +770,237 @@ export function getMarkupSvgDescriptor(
       };
     }
 
+    // Herramientas de Medición y Takeoff (Paquete 4)
+    case 'length': {
+      const lineDescriptor: SvgRenderDescriptor = {
+        tag: 'line',
+        attrs: {
+          ...baseAttrs,
+          x1: p1Screen.x,
+          y1: p1Screen.y,
+          x2: p2Screen.x,
+          y2: p2Screen.y,
+        },
+      };
+
+      const label = markup.measurement?.formatted || markup.text || '0.00 m';
+      const midX = (p1Screen.x + p2Screen.x) / 2;
+      const midY = (p1Screen.y + p2Screen.y) / 2;
+      const textWidth = Math.max(50, label.length * 8 + 12);
+      const textHeight = 20;
+
+      const bgRect: SvgRenderDescriptor = {
+        tag: 'rect',
+        attrs: {
+          x: midX - textWidth / 2,
+          y: midY - textHeight / 2 - 2,
+          width: textWidth,
+          height: textHeight,
+          fill: '#ffffff',
+          stroke: style.strokeColor,
+          strokeWidth: 1,
+          rx: 3,
+          ry: 3,
+          opacity: 0.9,
+        },
+      };
+
+      const textNode: SvgRenderDescriptor = {
+        tag: 'text',
+        attrs: {
+          x: midX,
+          y: midY + 4,
+          fill: '#111827',
+          fontSize: 12,
+          fontFamily: 'sans-serif',
+          fontWeight: 'bold',
+          textAnchor: 'middle',
+        },
+        textNode: label,
+      };
+
+      return {
+        tag: 'g',
+        attrs: {
+          'data-testid': `markup-length-${markup.id}`,
+        },
+        children: [lineDescriptor, bgRect, textNode],
+      };
+    }
+
+    case 'polylineMeasure': {
+      const polylineDesc: SvgRenderDescriptor = {
+        tag: 'polyline',
+        attrs: {
+          ...baseAttrs,
+          fill: 'none',
+          points: pointsToSvgPointsString(markup.points, transform),
+          strokeLinejoin: 'round',
+        },
+      };
+
+      const label = markup.measurement?.formatted || markup.text || '0.00 m';
+      const lastPt = markup.points[markup.points.length - 1];
+      const lastScreen = lastPt ? normalizedToScreen(lastPt, transform) : p2Screen;
+      const textWidth = Math.max(50, label.length * 8 + 12);
+      const textHeight = 20;
+
+      const bgRect: SvgRenderDescriptor = {
+        tag: 'rect',
+        attrs: {
+          x: lastScreen.x - textWidth / 2,
+          y: lastScreen.y - textHeight / 2 - 12,
+          width: textWidth,
+          height: textHeight,
+          fill: '#ffffff',
+          stroke: style.strokeColor,
+          strokeWidth: 1,
+          rx: 3,
+          ry: 3,
+          opacity: 0.9,
+        },
+      };
+
+      const textNode: SvgRenderDescriptor = {
+        tag: 'text',
+        attrs: {
+          x: lastScreen.x,
+          y: lastScreen.y - 6,
+          fill: '#111827',
+          fontSize: 12,
+          fontFamily: 'sans-serif',
+          fontWeight: 'bold',
+          textAnchor: 'middle',
+        },
+        textNode: label,
+      };
+
+      return {
+        tag: 'g',
+        attrs: {
+          'data-testid': `markup-polyline-measure-${markup.id}`,
+        },
+        children: [polylineDesc, bgRect, textNode],
+      };
+    }
+
+    case 'area': {
+      let shapeDesc: SvgRenderDescriptor;
+      let centerPt: { x: number; y: number };
+
+      if (markup.points.length <= 2) {
+        const rect = getRectGeometry(p1Screen, p2Screen);
+        shapeDesc = {
+          tag: 'rect',
+          attrs: {
+            ...baseAttrs,
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height,
+            fill: style.fillColor || 'rgba(59, 130, 246, 0.25)',
+          },
+        };
+        centerPt = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+      } else {
+        shapeDesc = {
+          tag: 'polygon',
+          attrs: {
+            ...baseAttrs,
+            points: pointsToSvgPointsString(markup.points, transform),
+            fill: style.fillColor || 'rgba(59, 130, 246, 0.25)',
+          },
+        };
+        const screenPts = markup.points.map((p) => normalizedToScreen(p, transform));
+        const cx = screenPts.reduce((acc, p) => acc + p.x, 0) / screenPts.length;
+        const cy = screenPts.reduce((acc, p) => acc + p.y, 0) / screenPts.length;
+        centerPt = { x: cx, y: cy };
+      }
+
+      const label = markup.measurement?.formatted || markup.text || '0.00 m²';
+      const textWidth = Math.max(55, label.length * 8 + 14);
+      const textHeight = 22;
+
+      const bgRect: SvgRenderDescriptor = {
+        tag: 'rect',
+        attrs: {
+          x: centerPt.x - textWidth / 2,
+          y: centerPt.y - textHeight / 2,
+          width: textWidth,
+          height: textHeight,
+          fill: '#ffffff',
+          stroke: style.strokeColor,
+          strokeWidth: 1,
+          rx: 3,
+          ry: 3,
+          opacity: 0.9,
+        },
+      };
+
+      const textNode: SvgRenderDescriptor = {
+        tag: 'text',
+        attrs: {
+          x: centerPt.x,
+          y: centerPt.y + 4,
+          fill: '#111827',
+          fontSize: 12,
+          fontFamily: 'sans-serif',
+          fontWeight: 'bold',
+          textAnchor: 'middle',
+        },
+        textNode: label,
+      };
+
+      return {
+        tag: 'g',
+        attrs: {
+          'data-testid': `markup-area-${markup.id}`,
+        },
+        children: [shapeDesc, bgRect, textNode],
+      };
+    }
+
+    case 'count': {
+      const radius = 14;
+      const countIndex = markup.measurement?.countIndex || markup.text || '1';
+
+      const circleDesc: SvgRenderDescriptor = {
+        tag: 'ellipse',
+        attrs: {
+          ...baseAttrs,
+          cx: p1Screen.x,
+          cy: p1Screen.y,
+          rx: radius,
+          ry: radius,
+          fill: style.fillColor || '#3b82f6',
+          stroke: style.strokeColor || '#1d4ed8',
+          strokeWidth: style.strokeWidth || 2,
+        },
+      };
+
+      const textNode: SvgRenderDescriptor = {
+        tag: 'text',
+        attrs: {
+          x: p1Screen.x,
+          y: p1Screen.y + 5,
+          fill: '#ffffff',
+          fontSize: 13,
+          fontFamily: 'sans-serif',
+          fontWeight: 'bold',
+          textAnchor: 'middle',
+        },
+        textNode: String(countIndex),
+      };
+
+      return {
+        tag: 'g',
+        attrs: {
+          'data-testid': `markup-count-${markup.id}`,
+        },
+        children: [circleDesc, textNode],
+      };
+    }
+
     case 'freehand': {
       return {
         tag: 'path',

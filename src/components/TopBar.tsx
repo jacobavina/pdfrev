@@ -27,6 +27,9 @@ import {
   StickyNote,
   Highlighter,
   TextSelect,
+  Ruler,
+  Hash,
+  Scale,
 } from 'lucide-react';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
@@ -108,7 +111,7 @@ export const TopBar: React.FC = () => {
     if (currentPageIndex < numPages - 1) setCurrentPage(currentPageIndex + 1);
   };
 
-  const toolButtons: { type: ToolType; label: string; icon: React.ReactNode }[] = [
+  const toolButtons: { type: ToolType; label: string; icon: React.ReactNode; testId?: string }[] = [
     { type: 'select', label: 'Seleccionar (V)', icon: <MousePointer size={16} /> },
     { type: 'pan', label: 'Mover lienzo (Espacio)', icon: <Hand size={16} /> },
     { type: 'rectangle', label: 'Rectángulo (R)', icon: <Square size={16} /> },
@@ -180,6 +183,65 @@ export const TopBar: React.FC = () => {
     { type: 'callout', label: 'Nota técnica con directriz (Q)', icon: <MessageSquareText size={16} /> },
     { type: 'stickyNote', label: 'Nota adhesiva (N)', icon: <StickyNote size={16} /> },
     { type: 'text', label: 'Nota / Texto (T)', icon: <Type size={16} /> },
+    {
+      type: 'calibrate',
+      label: 'Calibrar escala por página',
+      icon: <Scale size={16} />,
+      testId: 'tool-calibrate',
+    },
+    {
+      type: 'length',
+      label: 'Medición de longitud',
+      icon: <Ruler size={16} />,
+      testId: 'tool-measure-length',
+    },
+    {
+      type: 'polylineMeasure',
+      label: 'Medición de polilínea',
+      icon: (
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="3 17 9 11 13 15 21 7" />
+          <path d="M18 7h3v3" />
+        </svg>
+      ),
+      testId: 'tool-measure-polyline',
+    },
+    {
+      type: 'area',
+      label: 'Medición de área',
+      icon: (
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <path d="M3 9h18" strokeDasharray="2 2" />
+          <path d="M9 3v18" strokeDasharray="2 2" />
+        </svg>
+      ),
+      testId: 'tool-measure-area',
+    },
+    {
+      type: 'count',
+      label: 'Conteo de elementos',
+      icon: <Hash size={16} />,
+      testId: 'tool-measure-count',
+    },
   ];
 
   const colors = ['#e02424', '#0284c7', '#16a34a', '#d97706', '#9333ea', '#111827'];
@@ -255,6 +317,7 @@ export const TopBar: React.FC = () => {
           return (
             <button
               key={btn.type}
+              data-testid={btn.testId || `tool-${btn.type}`}
               onClick={() => {
                 if (
                   (btn.type === 'highlightText' ||

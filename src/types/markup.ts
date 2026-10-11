@@ -16,9 +16,34 @@ export const VALID_MARKUP_TYPES = [
   'underline',
   'strikeOut',
   'stamp',
+  // Herramientas de Medición y Takeoff (Paquete 4)
+  'length',
+  'polylineMeasure',
+  'area',
+  'count',
 ] as const;
 
 export type MarkupType = (typeof VALID_MARKUP_TYPES)[number];
+
+export const VALID_MEASUREMENT_UNITS = ['m', 'cm', 'mm', 'ft', 'in'] as const;
+export type MeasurementUnit = (typeof VALID_MEASUREMENT_UNITS)[number];
+
+export interface PageCalibration {
+  scale: number; // Unidades del mundo real por punto PDF
+  unit: MeasurementUnit;
+  precision?: number; // Número de decimales para mostrar (default: 2)
+  rawInputLength?: number;
+  rawInputUnit?: MeasurementUnit;
+  ptDistance?: number;
+}
+
+export interface MarkupMeasurement {
+  value: number;
+  unit: MeasurementUnit;
+  formatted: string;
+  perimeter?: number;
+  countIndex?: number;
+}
 
 export const VALID_MARKUP_STATUSES = [
   'pending',
@@ -127,6 +152,7 @@ export interface Markup {
   stampId?: string; // D.2 (Identificador de catálogo de sello)
   resolvedFields?: Record<string, string>; // D.2 (Campos dinámicos {{fecha}}, etc.)
   locked?: boolean; // P3-H.5: Bloqueo de marca contra edición, arrastre y eliminación accidental
+  measurement?: MarkupMeasurement; // Paquete 4: Datos de medición para takeoff
 }
 
 export interface BoundingBox {
@@ -484,6 +510,23 @@ export function migrateBbxDocument(raw: unknown): BbxMigrationResult {
       resolvedFields:
         item.resolvedFields && typeof item.resolvedFields === 'object'
           ? (item.resolvedFields as Record<string, string>)
+          : undefined,
+      locked: typeof item.locked === 'boolean' ? item.locked : undefined,
+      measurement:
+        item.measurement && typeof item.measurement === 'object'
+          ? {
+              value: typeof (item.measurement as Record<string, unknown>).value === 'number'
+                ? (item.measurement as Record<string, unknown>).value as number
+                : 0,
+              unit: (item.measurement as Record<string, unknown>).unit as any,
+              formatted: String((item.measurement as Record<string, unknown>).formatted || ''),
+              ...(typeof (item.measurement as Record<string, unknown>).perimeter === 'number'
+                ? { perimeter: (item.measurement as Record<string, unknown>).perimeter as number }
+                : {}),
+              ...(typeof (item.measurement as Record<string, unknown>).countIndex === 'number'
+                ? { countIndex: (item.measurement as Record<string, unknown>).countIndex as number }
+                : {}),
+            }
           : undefined,
     };
   });

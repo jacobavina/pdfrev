@@ -15,6 +15,8 @@
 | **Fase 2 — Bloque D: Capas y Sellos Dinámicos** | **REUBICADO A FASE 3** | Reubicado a Fase 3 (Bloque G) conforme a la decisión D-2 (Camino A′) para construirse sobre OCGs estándar y XObjects /AP. |
 | **Fase 3: Interoperabilidad PDF Real y Motor** | **EN CURSO (P3-Interop Cerrado)** | Spike P3-A.1 completado (4 opciones evaluadas en corpus de 1,001 PDFs, ADR-0010 y ADR-0011 Aceptados). Hito P3-Interop cerrado (ADR-0013): emisor puro de operadores, escritor incremental tipado ISO 32000-1 §7.5.6, comando Rust `save_pdf`, lector/importador de anotaciones, render dual y muestra `plan/interop/muestra-rea.pdf`. 394 tests unitarios en 29 suites + 11 tests cargo + 15/15 E2E. |
 
+| **Espacio de trabajo tipo Revu (ADR-0017) y auditoría 2026-10-11** | **ENTREGADO (verificación nativa PENDIENTE del usuario)** | Auditoría del orquestador: guardado PDF sin duplicados ni escrituras automáticas, texto UTF-16, regresión A.6 corregida (`4c28ece`). Rediseño: menús, cinta agrupada, paneles con pestañas (Páginas, Marcadores, Capas · Propiedades, Mediciones, Tool Chest), barra de estado (página, zoom, escala, coordenadas), tema claro/oscuro, área por polígono con perímetro, menú contextual en el plano, capas ocultables, zoom centrado, lista redimensionable, escala de papel en mm sin calibrar, ventana nativa maximizada. `node scripts/verify.mjs --with-e2e --e2e-loop 3`: 507 tests unitarios en 44 archivos, 32 shipped en PARITY, bundle 742.98 kB, 11 tests cargo, 17/17 E2E en 3 pasadas consecutivas. Pendiente declarado: vista continua multipágina, varios documentos en pestañas, perfiles de interfaz. Benchmarks de tiempo (A.2 marquee, C.3 columnas) inestables bajo carga de la máquina. |
+
 ---
 
 ## 2. Detalle por Sub-entregable

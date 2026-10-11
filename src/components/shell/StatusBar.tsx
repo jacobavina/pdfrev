@@ -1,0 +1,138 @@
+import React from 'react';
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, Search, Crosshair } from 'lucide-react';
+import { useDocumentStore } from '../../store/useDocumentStore';
+import { useMarkupStore } from '../../store/useMarkupStore';
+import { useCalibrationStore } from '../../store/useCalibrationStore';
+import { useSearchStore } from '../../store/useSearchStore';
+import { useUiStore } from '../../store/useUiStore';
+import { goToPage } from './appActions';
+
+const Divider = () => <div className="h-4 w-px bg-cad-border mx-1.5 shrink-0" />;
+
+/**
+ * Barra de estado inferior (ADR-0017): navegación de páginas, zoom y rotación de la vista, escala de la
+ * página activa (clic para calibrar), coordenadas del cursor en unidades reales, selección y guardado.
+ */
+export const StatusBar: React.FC = () => {
+  const { numPages, currentPageIndex, scale, zoomIn, zoomOut, resetZoom, rotateClockwise, pdfBytes, filePath } =
+    useDocumentStore();
+  const { markups, selectedMarkupIds, isDirty } = useMarkupStore();
+  const { calibrations, getPageCalibration, setPendingCalibrationPoints, setCalibrationModalOpen } =
+    useCalibrationStore();
+  const cursorPt = useUiStore((s) => s.cursorPt);
+
+  const isCalibrated = calibrations[currentPageIndex] !== undefined;
+  const calib = getPageCalibration(currentPageIndex);
+  const precision = calib.precision ?? 2;
+  const fmt = (pt: number) => (pt * calib.scale).toFixed(precision);
+
+  return (
+    <footer
+      data-testid="status-bar"
+      className="h-7 min-w-0 bg-cad-status border-t border-cad-border flex items-center px-2 text-[11px] text-gray-300 select-none overflow-x-auto"
+    >
+      {/* Navegación de páginas */}
+      <button
+        type="button"
+        onClick={() => goToPage(-1)}
+        disabled={currentPageIndex <= 0}
+        className="p-0.5 rounded hover:bg-cad-hover hover:text-cad-strong disabled:opacity-30"
+        title="Página anterior"
+      >
+        <ChevronLeft size={15} />
+      </button>
+      <span data-testid="page-indicator" className="font-mono px-1 whitespace-nowrap">
+        {numPages > 0 ? `${currentPageIndex + 1} / ${numPages}` : '— / —'}
+      </span>
+      <button
+        type="button"
+        onClick={() => goToPage(1)}
+        disabled={currentPageIndex >= numPages - 1}
+        className="p-0.5 rounded hover:bg-cad-hover hover:text-cad-strong disabled:opacity-30"
+        title="Página siguiente"
+      >
+        <ChevronRight size={15} />
+      </button>
+
+      <Divider />
+
+      {/* Zoom y rotación */}
+      <button type="button" onClick={zoomOut} className="p-0.5 rounded hover:bg-cad-hover" title="Alejar (-)">
+        <ZoomOut size={14} />
+      </button>
+      <button
+        type="button"
+        onClick={resetZoom}
+        className="font-mono px-1.5 rounded hover:bg-cad-hover min-w-[3.25rem]"
+        title="Restablecer zoom a 100%"
+      >
+        {Math.round(scale * 100)}%
+      </button>
+      <button type="button" onClick={zoomIn} className="p-0.5 rounded hover:bg-cad-hover" title="Acercar (+)">
+        <ZoomIn size={14} />
+      </button>
+      <button type="button" onClick={rotateClockwise} className="p-0.5 rounded hover:bg-cad-hover ml-0.5" title="Rotar 90°">
+        <RotateCw size={13} />
+      </button>
+
+      <Divider />
+
+      {/* Escala de la página (clic para calibrar) */}
+      {pdfBytes && (
+        <button
+          type="button"
+          data-testid="calibration-indicator"
+          onClick={() => {
+            setPendingCalibrationPoints([]);
+            setCalibrationModalOpen(true);
+          }}
+          className="flex items-center gap-1.5 px-1.5 rounded hover:bg-cad-hover hover:text-cad-strong whitespace-nowrap"
+          title="Haga clic para calibrar o ajustar la escala de esta página"
+        >
+          <span className={`w-2 h-2 rounded-full ${isCalibrated ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+          <span className="font-mono">
+            {isCalibrated
+              ? `Escala: 1 ${calib.unit} = ${(1 / calib.scale).toFixed(1)} pt`
+              : `Sin calibrar (escala de papel, ${calib.unit})`}
+          </span>
+        </button>
+      )}
+
+      <Divider />
+
+      {/* Coordenadas del cursor en unidades reales */}
+      <span data-testid="cursor-coordinates" className="flex items-center gap-1 font-mono whitespace-nowrap min-w-[11rem]">
+        <Crosshair size={12} className="text-gray-500" />
+        {cursorPt ? `X ${fmt(cursorPt.x)}  Y ${fmt(cursorPt.y)} ${calib.unit}` : '—'}
+      </span>
+
+      <div className="flex-1" />
+
+      <span className="whitespace-nowrap">
+        {markups.length} marcas
+        {selectedMarkupIds.length > 0 && ` · ${selectedMarkupIds.length} seleccionada${selectedMarkupIds.length > 1 ? 's' : ''}`}
+      </span>
+
+      <Divider />
+
+      <span
+        data-testid="save-state"
+        className={`whitespace-nowrap ${!filePath ? 'text-gray-500' : isDirty ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}
+      >
+        {!filePath ? 'Demostración' : isDirty ? '● Cambios sin guardar' : 'Guardado'}
+      </span>
+
+      <Divider />
+
+      <button
+        type="button"
+        data-testid="search-toggle-btn"
+        onClick={() => useSearchStore.getState().setIsOpen(true)}
+        className="p-0.5 rounded hover:bg-cad-hover hover:text-cad-strong"
+        title="Buscar texto en plano (Ctrl+F)"
+      >
+        <Search size={13} />
+      </button>
+    </footer>
+  );
+};

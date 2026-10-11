@@ -138,7 +138,7 @@ export const SearchBar: React.FC = () => {
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="Buscar texto en plano..."
-        className="w-48 rounded border border-gray-600 bg-cad-dark px-2 py-1 text-xs text-white focus:border-blue-500 focus:outline-none"
+        className="w-48 rounded border border-gray-600 bg-cad-dark px-2 py-1 text-xs text-cad-strong focus:border-blue-500 focus:outline-none"
       />
 
       <span data-testid="search-count" className="min-w-[65px] font-mono text-[11px] text-gray-300">
@@ -151,7 +151,7 @@ export const SearchBar: React.FC = () => {
         onClick={prevMatch}
         disabled={matches.length === 0}
         title="Coincidencia anterior (Shift+Enter)"
-        className="rounded p-1 text-gray-300 hover:bg-cad-dark hover:text-white disabled:opacity-40"
+        className="rounded p-1 text-gray-300 hover:bg-cad-dark hover:text-cad-strong disabled:opacity-40"
       >
         <ChevronUp size={14} />
       </button>
@@ -162,7 +162,7 @@ export const SearchBar: React.FC = () => {
         onClick={nextMatch}
         disabled={matches.length === 0}
         title="Siguiente coincidencia (Enter)"
-        className="rounded p-1 text-gray-300 hover:bg-cad-dark hover:text-white disabled:opacity-40"
+        className="rounded p-1 text-gray-300 hover:bg-cad-dark hover:text-cad-strong disabled:opacity-40"
       >
         <ChevronDown size={14} />
       </button>
@@ -204,7 +204,7 @@ export const SearchBar: React.FC = () => {
         data-testid="search-close-btn"
         onClick={() => setIsOpen(false)}
         title="Cerrar búsqueda (Esc)"
-        className="rounded p-1 text-gray-400 hover:bg-cad-dark hover:text-white"
+        className="rounded p-1 text-gray-400 hover:bg-cad-dark hover:text-cad-strong"
       >
         <X size={14} />
       </button>

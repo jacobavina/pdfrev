@@ -23,6 +23,9 @@ import {
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useToolChestStore } from '../store/useToolChestStore';
+import { useUiStore } from '../store/useUiStore';
+import { showToast } from '../services/toastService';
+import { markupTypeLabel, MARKUP_TYPE_LABELS } from '../core/markup/typeLabels';
 
 import {
   Markup,
@@ -42,39 +45,44 @@ import {
   evaluateDocumentCustomColumns,
 } from '../core/columns';
 
+const LIST_HEIGHT_KEY = 'rea-markups-list-height';
+const DEFAULT_LIST_HEIGHT = 200;
+const MIN_LIST_HEIGHT = 120;
+
 const STATUS_CONFIG: Record<
   MarkupStatus,
   { label: string; bg: string; text: string; border: string }
 > = {
+  // Claro por defecto con variante oscura (ADR-0017): colores legibles en ambos temas
   pending: {
     label: 'Pendiente',
-    bg: 'bg-amber-950/60',
-    text: 'text-amber-300',
-    border: 'border-amber-700',
+    bg: 'bg-amber-100 dark:bg-amber-950/60',
+    text: 'text-amber-800 dark:text-amber-300',
+    border: 'border-amber-300 dark:border-amber-700',
   },
   accepted: {
     label: 'Aceptado',
-    bg: 'bg-emerald-950/60',
-    text: 'text-emerald-300',
-    border: 'border-emerald-700',
+    bg: 'bg-emerald-100 dark:bg-emerald-950/60',
+    text: 'text-emerald-800 dark:text-emerald-300',
+    border: 'border-emerald-300 dark:border-emerald-700',
   },
   rejected: {
     label: 'Rechazado',
-    bg: 'bg-rose-950/60',
-    text: 'text-rose-300',
-    border: 'border-rose-700',
+    bg: 'bg-rose-100 dark:bg-rose-950/60',
+    text: 'text-rose-800 dark:text-rose-300',
+    border: 'border-rose-300 dark:border-rose-700',
   },
   completed: {
     label: 'Completado',
-    bg: 'bg-blue-950/60',
-    text: 'text-blue-300',
-    border: 'border-blue-700',
+    bg: 'bg-blue-100 dark:bg-blue-950/60',
+    text: 'text-blue-800 dark:text-blue-300',
+    border: 'border-blue-300 dark:border-blue-700',
   },
   cancelled: {
     label: 'Cancelado',
-    bg: 'bg-zinc-800/60',
-    text: 'text-zinc-400',
-    border: 'border-zinc-600',
+    bg: 'bg-zinc-100 dark:bg-zinc-800/60',
+    text: 'text-zinc-600 dark:text-zinc-400',
+    border: 'border-zinc-300 dark:border-zinc-600',
   },
 };
 
@@ -430,6 +438,7 @@ export const MarkupsList: React.FC = () => {
       await saveExportFileWithDialog(defaultName, 'csv', bytes);
     } catch (err) {
       console.error('Error al exportar CSV:', err);
+      showToast(`Error al exportar CSV: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -442,21 +451,76 @@ export const MarkupsList: React.FC = () => {
       await saveExportFileWithDialog(defaultName, 'pdf', bytes);
     } catch (err) {
       console.error('Error al generar Reporte PDF:', err);
+      showToast(`Error al generar el reporte PDF: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
+
+  // Altura de la lista: redimensionable con el separador superior y recordada entre sesiones
+  const [listHeight, setListHeight] = useState<number>(() => {
+    try {
+      const stored = Number(localStorage.getItem(LIST_HEIGHT_KEY));
+      return stored >= MIN_LIST_HEIGHT && stored <= 1200 ? stored : DEFAULT_LIST_HEIGHT;
+    } catch {
+      return DEFAULT_LIST_HEIGHT;
+    }
+  });
+  const listHeightRef = React.useRef(listHeight);
+  listHeightRef.current = listHeight;
+  const startListResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startHeight = listHeightRef.current;
+    const onMove = (ev: MouseEvent) => {
+      const max = Math.max(MIN_LIST_HEIGHT, window.innerHeight * 0.7);
+      setListHeight(Math.round(Math.max(MIN_LIST_HEIGHT, Math.min(max, startHeight + (startY - ev.clientY)))));
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      try {
+        localStorage.setItem(LIST_HEIGHT_KEY, String(listHeightRef.current));
+      } catch {
+        // Preferencia no persistible: se mantiene solo en esta sesión
+      }
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  // Exportaciones pedidas desde los menús o el panel de mediciones: se ejecutan aquí para respetar
+  // los filtros, el orden y las columnas visibles de la lista (ADR-0017)
+  const exportRequest = useUiStore((s) => s.exportRequest);
+  const lastExportSeq = React.useRef(exportRequest?.seq ?? 0);
+  React.useEffect(() => {
+    if (!exportRequest || exportRequest.seq === lastExportSeq.current) return;
+    lastExportSeq.current = exportRequest.seq;
+    if (exportRequest.kind === 'csv') void handleExportCsv();
+    else void handleExportPdfReport();
+    // Solo debe reaccionar a peticiones nuevas
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exportRequest]);
 
   return (
     <section
       data-testid="markups-list-panel"
-      className="bg-cad-panel border-t border-cad-border flex flex-col transition-all duration-200 select-none z-10"
-      style={{ height: isExpanded ? '200px' : '32px' }}
+      className="bg-cad-panel border-t border-cad-border flex flex-col select-none z-10 relative shrink-0"
+      style={{ height: isExpanded ? `${listHeight}px` : '32px' }}
     >
+      {/* Separador arrastrable para redimensionar la lista (ADR-0017) */}
+      {isExpanded && (
+        <div
+          data-testid="markups-list-resizer"
+          onMouseDown={startListResize}
+          title="Arrastrar para cambiar la altura de la lista"
+          className="absolute -top-1 left-0 right-0 h-2 cursor-row-resize z-20 hover:bg-cad-accent/30"
+        />
+      )}
       {/* Barra de cabecera del panel de marcas */}
       <div className="h-8 bg-cad-dark px-3 flex items-center justify-between text-xs font-medium border-b border-cad-border">
         <div className="flex items-center space-x-3">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center space-x-1.5 text-gray-300 hover:text-white"
+            className="flex items-center space-x-1.5 text-gray-300 hover:text-cad-strong"
           >
             {isExpanded ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
             <span className="font-semibold tracking-wide uppercase">
@@ -482,20 +546,20 @@ export const MarkupsList: React.FC = () => {
             <button
               data-testid="export-csv-button"
               onClick={handleExportCsv}
-              className="flex items-center space-x-1 px-2 py-0.5 bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 rounded border border-emerald-700 text-xs transition-colors"
+              className="flex items-center space-x-1 px-2 py-0.5 bg-cad-ribbon hover:bg-cad-hover text-gray-200 rounded border border-cad-border text-xs transition-colors"
               title="Exportar marcas visibles a CSV (RFC 4180)"
             >
-              <FileSpreadsheet size={12} />
+              <FileSpreadsheet size={12} className="text-emerald-600 dark:text-emerald-400" />
               <span>CSV</span>
             </button>
 
             <button
               data-testid="export-pdf-report-button"
               onClick={handleExportPdfReport}
-              className="flex items-center space-x-1 px-2 py-0.5 bg-purple-900/60 hover:bg-purple-800 text-purple-200 rounded border border-purple-700 text-xs transition-colors"
+              className="flex items-center space-x-1 px-2 py-0.5 bg-cad-ribbon hover:bg-cad-hover text-gray-200 rounded border border-cad-border text-xs transition-colors"
               title="Generar Reporte Resumen en PDF"
             >
-              <FileText size={12} />
+              <FileText size={12} className="text-purple-600 dark:text-purple-400" />
               <span>Reporte PDF</span>
             </button>
 
@@ -508,17 +572,17 @@ export const MarkupsList: React.FC = () => {
                 setNewColExpr('');
                 setIsAddColumnModalOpen(true);
               }}
-              className="flex items-center space-x-1 px-2 py-0.5 bg-blue-900/60 hover:bg-blue-800 text-blue-200 rounded border border-blue-700 text-xs transition-colors"
+              className="flex items-center space-x-1 px-2 py-0.5 bg-cad-ribbon hover:bg-cad-hover text-gray-200 rounded border border-cad-border text-xs transition-colors"
               title="Añadir columna personalizada"
             >
-              <Plus size={12} />
-              <span>+ Columna</span>
+              <Plus size={12} className="text-cad-accent" />
+              <span>Columna</span>
             </button>
 
             {selectedMarkupIds.length > 0 && (
               <button
                 onClick={deleteSelectedMarkups}
-                className="flex items-center space-x-1 px-2 py-0.5 bg-rose-900/60 hover:bg-rose-800 text-rose-200 rounded border border-rose-700 text-xs transition-colors"
+                className="flex items-center space-x-1 px-2 py-0.5 bg-cad-ribbon hover:bg-rose-500/10 text-rose-700 dark:text-rose-300 rounded border border-rose-300 dark:border-rose-700 text-xs transition-colors"
                 title="Eliminar marcas seleccionadas (Supr)"
               >
                 <Trash2 size={12} />
@@ -553,16 +617,13 @@ export const MarkupsList: React.FC = () => {
             className="px-2 py-0.5 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent"
           >
             <option value="all">Todos los tipos</option>
-            <option value="rectangle">Rectángulo</option>
-            <option value="circle">Círculo</option>
-            <option value="line">Línea</option>
-            <option value="cloud">Nube</option>
-            <option value="cloudPlus">Cloud+</option>
-            <option value="text">Texto</option>
-            <option value="callout">Callout</option>
-            <option value="stickyNote">Nota adhesiva</option>
-            <option value="highlightVector">Resaltador vectorial</option>
-            <option value="highlightText">Resaltador de texto</option>
+            {(Object.keys(MARKUP_TYPE_LABELS) as MarkupType[])
+              .filter((t) => t !== 'highlight')
+              .map((t) => (
+                <option key={t} value={t}>
+                  {MARKUP_TYPE_LABELS[t]}
+                </option>
+              ))}
           </select>
 
           {/* Filtro por autor */}
@@ -600,7 +661,7 @@ export const MarkupsList: React.FC = () => {
             <button
               onClick={resetFilters}
               data-testid="markups-reset-filters-btn"
-              className="px-2 py-0.5 bg-cad-hover/70 hover:bg-cad-hover text-gray-300 hover:text-white rounded text-xs transition-colors"
+              className="px-2 py-0.5 bg-cad-hover/70 hover:bg-cad-hover text-gray-300 hover:text-cad-strong rounded text-xs transition-colors"
               title="Restablecer todos los filtros"
             >
               Restablecer
@@ -628,49 +689,49 @@ export const MarkupsList: React.FC = () => {
                   <th className="py-1 px-2.5 w-8 font-medium"></th>
                   <th
                     onClick={() => handleSort('type')}
-                    className="py-1 px-2 font-medium w-28 cursor-pointer hover:text-white select-none"
+                    className="py-1 px-2 font-medium w-28 cursor-pointer hover:text-cad-strong select-none"
                     title="Ordenar por tipo"
                   >
                     Tipo {renderSortIndicator('type')}
                   </th>
                   <th
                     onClick={() => handleSort('text')}
-                    className="py-1 px-2 font-medium min-w-[160px] cursor-pointer hover:text-white select-none"
+                    className="py-1 px-2 font-medium min-w-[160px] cursor-pointer hover:text-cad-strong select-none"
                     title="Ordenar por texto / comentario"
                   >
                     Texto / Comentario {renderSortIndicator('text')}
                   </th>
                   <th
                     onClick={() => handleSort('author')}
-                    className="py-1 px-2 font-medium w-32 cursor-pointer hover:text-white select-none"
+                    className="py-1 px-2 font-medium w-32 cursor-pointer hover:text-cad-strong select-none"
                     title="Ordenar por autor"
                   >
                     Autor {renderSortIndicator('author')}
                   </th>
                   <th
                     onClick={() => handleSort('createdAt')}
-                    className="py-1 px-2 font-medium w-32 cursor-pointer hover:text-white select-none"
+                    className="py-1 px-2 font-medium w-32 cursor-pointer hover:text-cad-strong select-none"
                     title="Ordenar por fecha"
                   >
                     Fecha {renderSortIndicator('createdAt')}
                   </th>
                   <th
                     onClick={() => handleSort('pageIndex')}
-                    className="py-1 px-2 font-medium w-20 text-center cursor-pointer hover:text-white select-none"
+                    className="py-1 px-2 font-medium w-20 text-center cursor-pointer hover:text-cad-strong select-none"
                     title="Ordenar por página"
                   >
                     Página {renderSortIndicator('pageIndex')}
                   </th>
                   <th
                     onClick={() => handleSort('status')}
-                    className="py-1 px-2 font-medium w-28 text-center cursor-pointer hover:text-white select-none"
+                    className="py-1 px-2 font-medium w-28 text-center cursor-pointer hover:text-cad-strong select-none"
                     title="Ordenar por estado"
                   >
                     Estado {renderSortIndicator('status')}
                   </th>
                   <th
                     onClick={() => handleSort('measurement')}
-                    className="py-1 px-2 font-medium w-24 text-right cursor-pointer hover:text-white select-none"
+                    className="py-1 px-2 font-medium w-24 text-right cursor-pointer hover:text-cad-strong select-none"
                     title="Ordenar por medida"
                   >
                     Medida {renderSortIndicator('measurement')}
@@ -685,7 +746,7 @@ export const MarkupsList: React.FC = () => {
                       key={col.id}
                       data-testid={`custom-column-header-${col.id}`}
                       onClick={() => handleSort(`custom:${col.id}`)}
-                      className="py-1 px-2 font-medium min-w-[110px] cursor-pointer hover:text-white select-none group"
+                      className="py-1 px-2 font-medium min-w-[110px] cursor-pointer hover:text-cad-strong select-none group"
                       title={`Ordenar por ${col.nombre} (${col.tipo})`}
                     >
                       <div className="flex items-center justify-between space-x-1">
@@ -755,9 +816,9 @@ export const MarkupsList: React.FC = () => {
                       </td>
 
                       {/* Tipo */}
-                      <td className="py-1 px-2 flex items-center space-x-1.5 capitalize">
+                      <td className="py-1 px-2 flex items-center space-x-1.5">
                         {getMarkupIcon(markup.type)}
-                        <span>{markup.type}</span>
+                        <span>{markupTypeLabel(markup.type)}</span>
                         {markup.locked && (
                           <span title="Marca bloqueada" data-testid={`markup-locked-badge-${markup.id}`}>
                             <Lock size={12} className="text-amber-400 shrink-0 ml-1" />
@@ -975,17 +1036,17 @@ export const MarkupsList: React.FC = () => {
                       <span className="font-semibold text-cad-accent mr-2">Totales de Medición:</span>
                       {measurementTotals.lengthSummary && (
                         <span className="mr-3">
-                          Longitud: <strong className="text-white font-mono">{measurementTotals.lengthSummary}</strong>
+                          Longitud: <strong className="text-cad-strong font-mono">{measurementTotals.lengthSummary}</strong>
                         </span>
                       )}
                       {measurementTotals.areaSummary && (
                         <span className="mr-3">
-                          Área: <strong className="text-white font-mono">{measurementTotals.areaSummary}</strong>
+                          Área: <strong className="text-cad-strong font-mono">{measurementTotals.areaSummary}</strong>
                         </span>
                       )}
                       {measurementTotals.totalCount > 0 && (
                         <span>
-                          Conteo: <strong className="text-white font-mono">{measurementTotals.totalCount}</strong>
+                          Conteo: <strong className="text-cad-strong font-mono">{measurementTotals.totalCount}</strong>
                         </span>
                       )}
                     </td>
@@ -1009,7 +1070,7 @@ export const MarkupsList: React.FC = () => {
             className="bg-cad-panel border border-cad-border rounded-lg shadow-2xl w-full max-w-md p-4 text-xs text-gray-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-sm font-semibold text-white mb-3">
+            <h3 className="text-sm font-semibold text-cad-strong mb-3">
               Crear Nueva Columna Personalizada
             </h3>
             <form onSubmit={handleCreateColumn} className="space-y-3">
@@ -1102,7 +1163,7 @@ export const MarkupsList: React.FC = () => {
                   type="button"
                   data-testid="cancel-column-button"
                   onClick={() => setIsAddColumnModalOpen(false)}
-                  className="px-3 py-1 bg-cad-hover text-gray-300 hover:text-white rounded transition-colors"
+                  className="px-3 py-1 bg-cad-hover text-gray-300 hover:text-cad-strong rounded transition-colors"
                 >
                   Cancelar
                 </button>
@@ -1140,7 +1201,7 @@ export const MarkupsList: React.FC = () => {
             </h3>
             <p className="text-gray-300 mb-4 leading-relaxed">
               ¿Estás seguro de que deseas eliminar la columna{' '}
-              <strong className="text-white">"{columnToDelete.nombre}"</strong>?
+              <strong className="text-cad-strong">"{columnToDelete.nombre}"</strong>?
               Se eliminarán también todos los valores asociados en las marcas del
               documento.
             </p>
@@ -1148,7 +1209,7 @@ export const MarkupsList: React.FC = () => {
               <button
                 data-testid="cancel-delete-column-btn"
                 onClick={() => setColumnToDelete(null)}
-                className="px-3 py-1 bg-cad-hover text-gray-300 hover:text-white rounded transition-colors"
+                className="px-3 py-1 bg-cad-hover text-gray-300 hover:text-cad-strong rounded transition-colors"
               >
                 Cancelar
               </button>
@@ -1185,7 +1246,7 @@ export const MarkupsList: React.FC = () => {
               }
               setContextMenu(null);
             }}
-            className="w-full text-left px-3 py-1.5 hover:bg-cad-hover flex items-center space-x-2 text-gray-200 hover:text-white transition-colors cursor-pointer"
+            className="w-full text-left px-3 py-1.5 hover:bg-cad-hover flex items-center space-x-2 text-gray-200 hover:text-cad-strong transition-colors cursor-pointer"
           >
             <Briefcase size={13} className="text-blue-400" />
             <span>Añadir a Tool Chest</span>
@@ -1197,7 +1258,7 @@ export const MarkupsList: React.FC = () => {
               toggleLockSelectedMarkups();
               setContextMenu(null);
             }}
-            className="w-full text-left px-3 py-1.5 hover:bg-cad-hover flex items-center space-x-2 text-gray-200 hover:text-white transition-colors cursor-pointer"
+            className="w-full text-left px-3 py-1.5 hover:bg-cad-hover flex items-center space-x-2 text-gray-200 hover:text-cad-strong transition-colors cursor-pointer"
           >
             {contextMenu.markup.locked ? (
               <>
@@ -1238,7 +1299,7 @@ export const MarkupsList: React.FC = () => {
                   setContextMenu(null);
                 }}
                 className={`w-full text-left px-3 py-1.5 hover:bg-cad-hover flex items-center justify-between transition-colors cursor-pointer ${
-                  isCurrent ? 'text-white font-medium bg-cad-hover/50' : 'text-gray-300 hover:text-white'
+                  isCurrent ? 'text-cad-strong font-medium bg-cad-hover/50' : 'text-gray-300 hover:text-cad-strong'
                 }`}
               >
                 <div className="flex items-center space-x-2">

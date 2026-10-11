@@ -95,7 +95,7 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({
                 setRealLengthStr(e.target.value);
                 setErrorMessage(null);
               }}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-cad-strong"
               data-testid="calibration-length-input"
               placeholder="Ej. 10.0"
               autoFocus
@@ -109,7 +109,7 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({
             <select
               value={unit}
               onChange={(e) => setUnit(e.target.value as MeasurementUnit)}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-cad-strong"
               data-testid="calibration-unit-select"
             >
               {VALID_MEASUREMENT_UNITS.map((u) => (
@@ -127,7 +127,7 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({
             <select
               value={precision}
               onChange={(e) => setPrecision(parseInt(e.target.value, 10))}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-cad-strong"
               data-testid="calibration-precision-select"
             >
               <option value={1}>1 decimal (0.0)</option>

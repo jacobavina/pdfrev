@@ -3,6 +3,59 @@
 @tailwind utilities;
 
 @layer base {
+  /* Tema claro (por defecto): espacio de trabajo técnico neutro, lienzo gris medio y hoja blanca (ADR-0017) */
+  :root {
+    --cad-dark: 226 229 233;
+    --cad-panel: 243 244 246;
+    --cad-subtle: 233 235 239;
+    --cad-border: 200 205 212;
+    --cad-accent: 0 102 204;
+    --cad-hover: 220 226 233;
+    --cad-canvas: 128 134 142;
+    --cad-strong: 17 20 24;
+    --cad-ribbon: 250 250 251;
+    --cad-status: 232 235 239;
+
+    /* Escala gray invertida: el "texto claro" de los componentes pasa a texto oscuro legible */
+    --gray-50: 10 12 15;
+    --gray-100: 22 26 31;
+    --gray-200: 33 38 44;
+    --gray-300: 52 58 66;
+    --gray-400: 86 94 104;
+    --gray-500: 112 120 130;
+    --gray-600: 150 157 166;
+    --gray-700: 190 196 203;
+    --gray-800: 216 220 226;
+    --gray-900: 236 238 241;
+    color-scheme: light;
+  }
+
+  /* Tema oscuro: paleta original de REA */
+  [data-theme='dark'] {
+    --cad-dark: 30 32 36;
+    --cad-panel: 40 44 52;
+    --cad-subtle: 50 54 62;
+    --cad-border: 60 64 72;
+    --cad-accent: 0 122 204;
+    --cad-hover: 58 63 75;
+    --cad-canvas: 22 24 27;
+    --cad-strong: 255 255 255;
+    --cad-ribbon: 36 39 46;
+    --cad-status: 30 32 36;
+
+    --gray-50: 249 250 251;
+    --gray-100: 243 244 246;
+    --gray-200: 229 231 235;
+    --gray-300: 209 213 219;
+    --gray-400: 156 163 175;
+    --gray-500: 107 114 128;
+    --gray-600: 75 85 99;
+    --gray-700: 55 65 81;
+    --gray-800: 31 41 55;
+    --gray-900: 17 24 39;
+    color-scheme: dark;
+  }
+
   * {
     box-sizing: border-box;
   }
@@ -10,26 +63,29 @@
   body {
     user-select: none;
     -webkit-user-select: none;
+    background: rgb(var(--cad-dark));
+    color: rgb(var(--gray-200));
   }
 }
 
-/* Custom scrollbars for technical/CAD feel */
+/* Barras de desplazamiento acordes al tema */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1e2024;
+  background: rgb(var(--cad-subtle));
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #3c4048;
-  border-radius: 4px;
+  background: rgb(var(--gray-600));
+  border-radius: 5px;
+  border: 2px solid rgb(var(--cad-subtle));
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #505560;
+  background: rgb(var(--gray-500));
 }
 
 /* Reglas dedicadas y scoped para TextLayer de PDF.js 4.x (Sub-entregable A.6) */

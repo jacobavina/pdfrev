@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
@@ -45,12 +45,31 @@ import { extractTextForLineRect, mergeLineRects } from '../utils/textLayerUtils'
 import { CalibrationModal } from './CalibrationModal';
 import { useCalibrationStore } from '../store/useCalibrationStore';
 import { useSearchStore } from '../store/useSearchStore';
+import { useUiStore, NO_LAYER } from '../store/useUiStore';
+import { CanvasContextMenu } from './shell/CanvasContextMenu';
+import { translucentFill } from '../core/markup/typeLabels';
 import {
   calculateLength,
   calculatePolylineLength,
   calculateArea,
   calculateCount,
 } from '../core/measurements/calculate';
+
+/** Herramientas que se trazan vértice a vértice (clic), y se cierran con Enter, doble clic o el primer vértice. */
+export function isMultiPointTool(tool: string): boolean {
+  return tool === 'polygon' || tool === 'polyLine' || tool === 'polylineMeasure' || tool === 'area';
+}
+
+export function minPointsFor(tool: string): number {
+  return tool === 'polyLine' || tool === 'polylineMeasure' ? 2 : 3;
+}
+
+/** Quita vértices consecutivos prácticamente iguales (los dos mousedown que preceden a un doble clic). */
+export function dedupeConsecutivePoints(points: MarkupPoint[], epsilon = 1e-4): MarkupPoint[] {
+  return points.filter(
+    (p, i) => i === 0 || Math.hypot(p.x - points[i - 1].x, p.y - points[i - 1].y) > epsilon
+  );
+}
 
 export const PdfViewer: React.FC = () => {
   const {
@@ -89,13 +108,29 @@ export const PdfViewer: React.FC = () => {
   } = useMarkupStore();
 
   const { activeTool, currentStyle, author, activeLayer } = useToolStore();
-  const {
-    calibrations,
-    setCalibrationModalOpen,
-    setPendingCalibrationPoints,
-  } = useCalibrationStore();
-  const currentPageCalibration = calibrations[currentPageIndex];
+  const { setCalibrationModalOpen, setPendingCalibrationPoints } = useCalibrationStore();
   const { matches: searchMatches, activeMatchIndex } = useSearchStore();
+
+  // Capas ocultas (panel Capas): sus marcas no se dibujan ni se pueden seleccionar en el plano (ADR-0017)
+  const hiddenLayers = useUiStore((s) => s.hiddenLayers);
+  const setCursorPt = useUiStore((s) => s.setCursorPt);
+  const isMarkupVisible = useCallback(
+    (m: Markup) => !hiddenLayers.includes(m.layer ?? NO_LAYER),
+    [hiddenLayers]
+  );
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+
+  // Zoom alrededor del centro de la vista (ADR-0017): se recuerda qué punto relativo del contenido está en el
+  // centro y, cuando la hoja cambia de tamaño (zoom/rotación), se restaura el scroll para mantenerlo centrado.
+  const viewCenterRef = useRef({ rx: 0.5, ry: 0.5 });
+  const updateViewCenter = useCallback(() => {
+    const el = containerRef.current;
+    if (!el || el.scrollWidth === 0 || el.scrollHeight === 0) return;
+    viewCenterRef.current = {
+      rx: (el.scrollLeft + el.clientWidth / 2) / el.scrollWidth,
+      ry: (el.scrollTop + el.clientHeight / 2) / el.scrollHeight,
+    };
+  }, []);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -130,6 +165,14 @@ export const PdfViewer: React.FC = () => {
     width: 800,
     height: 600,
   });
+
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const { rx, ry } = viewCenterRef.current;
+    el.scrollLeft = Math.max(0, rx * el.scrollWidth - el.clientWidth / 2);
+    el.scrollTop = Math.max(0, ry * el.scrollHeight - el.clientHeight / 2);
+  }, [pageViewport.width, pageViewport.height]);
 
   // Estado del dibujo para figuras de 2 puntos (rect, circle, line, cloud)
   const [drawingStart, setDrawingStart] = useState<MarkupPoint | null>(null);
@@ -229,40 +272,12 @@ export const PdfViewer: React.FC = () => {
         return;
       }
 
-      // Enter finaliza el polígono, la polilínea o la polilínea de medida
-      if (
-        e.key === 'Enter' &&
-        (activeTool === 'polygon' || activeTool === 'polyLine' || activeTool === 'polylineMeasure')
-      ) {
-        const minPts = (activeTool === 'polyLine' || activeTool === 'polylineMeasure') ? 2 : 3;
-        if (polygonPoints.length >= minPts) {
+      // Enter finaliza el polígono, la polilínea, la polilínea de medida o el área
+      if (e.key === 'Enter' && isMultiPointTool(activeTool)) {
+        if (polygonPoints.length >= minPointsFor(activeTool)) {
           e.preventDefault();
-          const unscaledW = pageViewport.width / (scale || 1.0);
-          const unscaledH = pageViewport.height / (scale || 1.0);
-          const pageDimsPt = { width: unscaledW, height: unscaledH };
-          const calib = useCalibrationStore.getState().getPageCalibration(currentPageIndex);
-          let measurement: Markup['measurement'];
-          if (activeTool === 'polylineMeasure') {
-            measurement = calculatePolylineLength(polygonPoints, pageDimsPt, calib);
-          }
-
-          const newMarkup: Markup = {
-            id: uuidv4(),
-            type: activeTool,
-            pageIndex: currentPageIndex,
-            points: [...polygonPoints],
-            style: { ...currentStyle },
-            text: measurement ? measurement.formatted : undefined,
-            author: author || 'Revisor',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            status: 'pending',
-            layer: activeLayer,
-            measurement,
-          };
-          addMarkup(newMarkup);
         }
-        setPolygonPoints([]);
+        finalizeMultiPoint(polygonPoints);
         return;
       }
 
@@ -371,6 +386,9 @@ export const PdfViewer: React.FC = () => {
     drawingStart,
     activeTool,
     currentPageIndex,
+    // finalizeMultiPoint (Enter) usa las dimensiones de la página para medir
+    pageViewport,
+    scale,
     pageHasText,
     currentStyle,
     author,
@@ -452,6 +470,68 @@ export const PdfViewer: React.FC = () => {
     [viewportTransform]
   );
 
+  /**
+   * Cierra una figura multipunto y crea la marca (un solo comando, deshacible). El área se mide como
+   * polígono (fórmula del área firmada) con su perímetro; la polilínea de medida, como longitud acumulada.
+   */
+  const finalizeMultiPoint = (points: MarkupPoint[]) => {
+    setPolygonPoints([]);
+    if (!isMultiPointTool(activeTool) || points.length < minPointsFor(activeTool)) return;
+
+    const pageDimsPt = {
+      width: pageViewport.width / (scale || 1.0),
+      height: pageViewport.height / (scale || 1.0),
+    };
+    const calib = useCalibrationStore.getState().getPageCalibration(currentPageIndex);
+    let measurement: Markup['measurement'];
+    if (activeTool === 'polylineMeasure') {
+      measurement = calculatePolylineLength(points, pageDimsPt, calib);
+    } else if (activeTool === 'area') {
+      measurement = calculateArea(points, pageDimsPt, calib, false);
+    }
+
+    const style = { ...currentStyle };
+    // El área se rellena con el color de trazo translúcido para que la superficie medida se vea
+    if (activeTool === 'area' && (!style.fillColor || style.fillColor === 'transparent')) {
+      style.fillColor = translucentFill(style.strokeColor);
+    }
+
+    const now = new Date().toISOString();
+    const newMarkup: Markup = {
+      id: uuidv4(),
+      type: activeTool as MarkupType,
+      pageIndex: currentPageIndex,
+      points: [...points],
+      style,
+      text: measurement ? measurement.formatted : undefined,
+      author: author || 'Revisor',
+      createdAt: now,
+      updatedAt: now,
+      status: 'pending',
+      layer: activeLayer,
+      measurement,
+    };
+    addMarkup(newMarkup);
+    useToolChestStore.getState().recordRecent(newMarkup);
+  };
+
+  // Clic derecho sobre una marca: seleccionarla (si no lo estaba) y abrir el menú contextual
+  const handleContextMenu = (e: React.MouseEvent<SVGSVGElement>) => {
+    e.preventDefault();
+    const pt = getEventPoint(e);
+    const pageDims = { width: pageViewport.width / (scale || 1.0), height: pageViewport.height / (scale || 1.0) };
+    const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex && isMarkupVisible(m));
+    const hit = [...pageMarkups].reverse().find((m) => hitTestMarkup(pt, m, 0.015, pageDims));
+    if (!hit) {
+      setContextMenu(null);
+      return;
+    }
+    if (!selectedMarkupIds.includes(hit.id)) {
+      setSelectedMarkupIds([hit.id]);
+    }
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
   // Inicio de interacción con el ratón
   const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
     if (e.button !== 0) return;
@@ -459,7 +539,7 @@ export const PdfViewer: React.FC = () => {
 
     // 1. Modo Selección (A.0 y A.2: Vacío -> Marquee, Marca -> Movimiento)
     if (activeTool === 'select') {
-      const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex);
+      const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex && isMarkupVisible(m));
       const isAdditive = Boolean(e.ctrlKey || e.metaKey || e.shiftKey);
       const unscaledW = pageViewport.width / (scale || 1.0);
       const unscaledH = pageViewport.height / (scale || 1.0);
@@ -497,32 +577,17 @@ export const PdfViewer: React.FC = () => {
       return;
     }
 
-    // 2. Modo Polígono, Polilínea o Polilínea de Medida (Multi-punto)
-    if (activeTool === 'polygon' || activeTool === 'polyLine' || activeTool === 'polylineMeasure') {
+    // 2. Herramientas multipunto: polígono, polilínea, polilínea de medida y área (polígono)
+    if (isMultiPointTool(activeTool)) {
       if (polygonPoints.length === 0) {
         setPolygonPoints([pt]);
       } else {
-        if (activeTool === 'polygon') {
-          // Comprobar si hace clic cerca del primer punto para cerrar el polígono
+        if (activeTool === 'polygon' || activeTool === 'area') {
+          // Clic cerca del primer vértice: cerrar la figura
           const firstPt = polygonPoints[0];
           const distToFirst = Math.hypot(pt.x - firstPt.x, pt.y - firstPt.y);
-
           if (distToFirst < 0.02 && polygonPoints.length >= 3) {
-            // Cerrar polígono
-            const newMarkup: Markup = {
-              id: uuidv4(),
-              type: 'polygon',
-              pageIndex: currentPageIndex,
-              points: [...polygonPoints],
-              style: { ...currentStyle },
-              author: author || 'Revisor',
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-              status: 'pending',
-              layer: activeLayer,
-            };
-            addMarkup(newMarkup);
-            setPolygonPoints([]);
+            finalizeMultiPoint(polygonPoints);
             return;
           }
         }
@@ -589,6 +654,11 @@ export const PdfViewer: React.FC = () => {
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const pt = getEventPoint(e);
     setMouseCursorPoint(pt);
+    // Coordenadas para la barra de estado, en puntos PDF desde la esquina superior izquierda
+    setCursorPt({
+      x: pt.x * (pageViewport.width / (scale || 1.0)),
+      y: pt.y * (pageViewport.height / (scale || 1.0)),
+    });
 
     // Arrastre independiente de ancla de directriz (Callout)
     if (anchorDragRef.current) {
@@ -646,7 +716,7 @@ export const PdfViewer: React.FC = () => {
           height: Math.max(0, maxY - minY),
         };
 
-        const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex);
+        const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex && isMarkupVisible(m));
         const intersectingIds = selectMarkupsInRect(pageMarkups, marqueeRect, pageDims);
 
         if (marqueeStateRef.current.isAdditive) {
@@ -954,9 +1024,6 @@ export const PdfViewer: React.FC = () => {
         if (activeTool === 'length') {
           measurement = calculateLength([drawingStart, currentDrawPoint], pageDimsPt, calib);
           markupText = measurement.formatted;
-        } else if (activeTool === 'area') {
-          measurement = calculateArea([drawingStart, currentDrawPoint], pageDimsPt, calib, true);
-          markupText = measurement.formatted;
         }
 
         const newMarkup: Markup = {
@@ -995,42 +1062,15 @@ export const PdfViewer: React.FC = () => {
 
   // Doble clic para finalizar polígono o polilínea o para abrir editor de texto
   const handleDoubleClick = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (activeTool === 'polygon' || activeTool === 'polyLine' || activeTool === 'polylineMeasure') {
-      const minPts = (activeTool === 'polyLine' || activeTool === 'polylineMeasure') ? 2 : 3;
-      if (polygonPoints.length >= minPts) {
-        const unscaledW = pageViewport.width / (scale || 1.0);
-        const unscaledH = pageViewport.height / (scale || 1.0);
-        const pageDimsPt = { width: unscaledW, height: unscaledH };
-        const calib = useCalibrationStore.getState().getPageCalibration(currentPageIndex);
-        let measurement: Markup['measurement'];
-        if (activeTool === 'polylineMeasure') {
-          measurement = calculatePolylineLength(polygonPoints, pageDimsPt, calib);
-        }
-
-        const newMarkup: Markup = {
-          id: uuidv4(),
-          type: activeTool,
-          pageIndex: currentPageIndex,
-          points: [...polygonPoints],
-          style: { ...currentStyle },
-          text: measurement ? measurement.formatted : undefined,
-          author: author || 'Revisor',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          status: 'pending',
-          layer: activeLayer,
-          measurement,
-        };
-        addMarkup(newMarkup);
-        useToolChestStore.getState().recordRecent(newMarkup);
-      }
-      setPolygonPoints([]);
+    if (isMultiPointTool(activeTool)) {
+      // El doble clic dispara antes dos mousedown en el mismo punto: se descartan vértices repetidos
+      finalizeMultiPoint(dedupeConsecutivePoints(polygonPoints));
       return;
     }
 
     // Doble clic sobre texto, callout o nota adhesiva existente para editar inline
     const pt = getEventPoint(e);
-    const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex);
+    const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex && isMarkupVisible(m));
     const unscaledW = pageViewport.width / (scale || 1.0);
     const unscaledH = pageViewport.height / (scale || 1.0);
     const hit = [...pageMarkups]
@@ -1226,7 +1266,7 @@ export const PdfViewer: React.FC = () => {
     selection.removeAllRanges();
   };
 
-  const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex);
+  const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex && isMarkupVisible(m));
 
   // Sub-entregable B.5: Arrastre y colocación de herramientas del Tool Chest sobre el lienzo
   const handleDragOver = (e: React.DragEvent) => {
@@ -1412,7 +1452,10 @@ export const PdfViewer: React.FC = () => {
     <div
       ref={containerRef}
       data-testid="pdf-viewer-container"
-      className="flex-1 bg-cad-canvas overflow-auto relative flex items-center justify-center p-8 select-none"
+      // Centrado con m-auto en los hijos (no justify-center): con zoom alto la hoja sigue siendo
+      // alcanzable por completo con el scroll, también por la izquierda y por arriba
+      className="flex-1 bg-cad-canvas overflow-auto relative flex p-8 select-none"
+      onScroll={updateViewCenter}
     >
       {isLoading && (
         <div className="absolute inset-0 bg-cad-canvas/80 flex items-center justify-center z-30">
@@ -1421,15 +1464,15 @@ export const PdfViewer: React.FC = () => {
       )}
 
       {error && (
-        <div className="p-4 bg-rose-950 border border-rose-700 text-rose-200 rounded max-w-md text-center">
+        <div className="m-auto p-4 bg-rose-100 dark:bg-rose-950 border border-rose-300 dark:border-rose-700 text-rose-800 dark:text-rose-200 rounded max-w-md text-center">
           {error}
         </div>
       )}
 
       {!pdfBytes && !isLoading && !error && (
-        <div className="text-center text-gray-500">
+        <div className="m-auto text-center text-white/90">
           <p className="text-base font-semibold mb-1">Ningún documento abierto</p>
-          <p className="text-xs">Usa el botón "Abrir PDF" en la barra superior para cargar un plano</p>
+          <p className="text-xs">Use Archivo → Abrir PDF (Ctrl+O) o el botón Abrir de la cinta</p>
         </div>
       )}
 
@@ -1439,7 +1482,7 @@ export const PdfViewer: React.FC = () => {
           data-testid="pdf-page-container"
           data-rendered-page={currentPageIndex}
           data-has-text={String(pageHasText[currentPageIndex] ?? 'loading')}
-          className="relative shadow-2xl bg-white select-text"
+          className="relative m-auto shrink-0 shadow-[0_2px_14px_rgba(0,0,0,0.35)] bg-white select-text"
           style={{ width: `${pageViewport.width}px`, height: `${pageViewport.height}px` }}
           onDragOver={handleDragOver}
           onDrop={handleDrop}
@@ -1588,6 +1631,8 @@ export const PdfViewer: React.FC = () => {
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
+            onMouseLeave={() => setCursorPt(null)}
+            onContextMenu={handleContextMenu}
             onDoubleClick={handleDoubleClick}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
@@ -1777,7 +1822,7 @@ export const PdfViewer: React.FC = () => {
 
             {/* Previsualización en vivo mientras se dibuja */}
             {/* A. Polígono o Polilínea en construcción */}
-            {(activeTool === 'polygon' || activeTool === 'polyLine' || activeTool === 'polylineMeasure') && polygonPoints.length > 0 && (
+            {isMultiPointTool(activeTool) && polygonPoints.length > 0 && (
               <g className="pointer-events-none">
                 <polyline
                   points={
@@ -1788,7 +1833,13 @@ export const PdfViewer: React.FC = () => {
                   }
                   stroke={currentStyle.strokeColor}
                   strokeWidth={currentStyle.strokeWidth}
-                  fill={activeTool === 'polygon' ? 'rgba(0, 122, 204, 0.1)' : 'none'}
+                  fill={
+                    activeTool === 'polygon'
+                      ? 'rgba(0, 122, 204, 0.1)'
+                      : activeTool === 'area'
+                      ? 'rgba(0, 160, 110, 0.18)'
+                      : 'none'
+                  }
                   strokeDasharray="4 2"
                 />
                 {polygonPoints.map((pt, idx) => {
@@ -1799,7 +1850,11 @@ export const PdfViewer: React.FC = () => {
                       cx={scr.x}
                       cy={scr.y}
                       r={idx === 0 ? 5 : 3}
-                      fill={idx === 0 && activeTool === 'polygon' ? '#10b981' : currentStyle.strokeColor}
+                      fill={
+                        idx === 0 && (activeTool === 'polygon' || activeTool === 'area')
+                          ? '#10b981'
+                          : currentStyle.strokeColor
+                      }
                     />
                   );
                 })}
@@ -1896,22 +1951,6 @@ export const PdfViewer: React.FC = () => {
                           fill={activeTool === 'calibrate' ? '#f59e0b' : currentStyle.strokeColor}
                         />
                       </g>
-                    );
-                  }
-
-                  if (activeTool === 'area') {
-                    const rect = getRectGeometry(p1, p2);
-                    return (
-                      <rect
-                        x={rect.x}
-                        y={rect.y}
-                        width={rect.width}
-                        height={rect.height}
-                        stroke={currentStyle.strokeColor}
-                        strokeWidth={currentStyle.strokeWidth}
-                        fill="rgba(0, 180, 120, 0.2)"
-                        strokeDasharray="4 2"
-                      />
                     );
                   }
 
@@ -2069,43 +2108,19 @@ export const PdfViewer: React.FC = () => {
         </div>
       )}
 
-      {/* Indicador visual de escala y modal de calibración (Paquete 4) */}
+      {/* Modal de calibración (el indicador de escala vive en la barra de estado, ADR-0017) */}
       {pdfBytes && (
-        <>
-          <div className="absolute bottom-2 left-2 z-20 flex items-center bg-cad-panel/95 border border-cad-border rounded shadow px-2.5 py-1 text-xs text-gray-200">
-            <button
-              type="button"
-              data-testid="calibration-indicator"
-              onClick={() => {
-                setPendingCalibrationPoints([]);
-                setCalibrationModalOpen(true);
-              }}
-              className="flex items-center space-x-1.5 hover:text-white transition-colors"
-              title="Haga clic para calibrar o ajustar la escala de esta página"
-            >
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  currentPageCalibration && currentPageCalibration.scale !== 1
-                    ? 'bg-emerald-400'
-                    : 'bg-amber-400'
-                }`}
-              />
-              <span className="font-mono text-[11px]">
-                {currentPageCalibration && currentPageCalibration.scale !== 1
-                  ? `Escala: 1 ${currentPageCalibration.unit} = ${(1 / currentPageCalibration.scale).toFixed(1)} pt`
-                  : 'Sin calibrar (1 pt = 1 pt)'}
-              </span>
-            </button>
-          </div>
+        <CalibrationModal
+          pageIndex={currentPageIndex}
+          pageSizePt={{
+            width: pageViewport.width / (scale || 1.0),
+            height: pageViewport.height / (scale || 1.0),
+          }}
+        />
+      )}
 
-          <CalibrationModal
-            pageIndex={currentPageIndex}
-            pageSizePt={{
-              width: pageViewport.width / (scale || 1.0),
-              height: pageViewport.height / (scale || 1.0),
-            }}
-          />
-        </>
+      {contextMenu && (
+        <CanvasContextMenu x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} />
       )}
     </div>
   );

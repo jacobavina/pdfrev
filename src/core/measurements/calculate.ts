@@ -11,13 +11,14 @@ export interface PageDimensionsPt {
 }
 
 /**
- * Calibración por defecto para páginas sin calibrar:
- * Asume 72 puntos por pulgada (1 pt = 1/72 in = 0.0254/72 m ≈ 0.000352778 m).
+ * Calibración por defecto para páginas sin calibrar: escala de papel en milímetros, como hacen los
+ * editores técnicos sin calibrar (1 pt = 1/72 in = 25.4/72 mm ≈ 0.3528 mm).
+ * Antes era "1 pt = 1 m", que mostraba una línea de 300 pt como "300.00 m" (auditoría 2026-10-11).
  */
 export const DEFAULT_PAGE_CALIBRATION: PageCalibration = {
-  scale: 1, // 1 punto PDF = 1 unidad por defecto
-  unit: 'm',
-  precision: 2,
+  scale: 25.4 / 72, // milímetros de papel por punto PDF
+  unit: 'mm',
+  precision: 1,
 };
 
 /**

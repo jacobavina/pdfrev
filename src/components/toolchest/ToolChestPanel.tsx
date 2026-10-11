@@ -80,7 +80,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
       >
         <button
           onClick={() => setIsCollapsed(false)}
-          className="p-1.5 text-gray-400 hover:text-white hover:bg-cad-hover rounded mb-3 transition-colors"
+          className="p-1.5 text-gray-400 hover:text-cad-strong hover:bg-cad-hover rounded mb-3 transition-colors"
           title="Expandir Tool Chest"
           data-testid="expand-tool-chest-btn"
         >
@@ -127,7 +127,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
 
         <button
           onClick={() => setIsCollapsed(true)}
-          className="p-1 text-gray-400 hover:text-white hover:bg-cad-hover rounded transition-colors"
+          className="p-1 text-gray-400 hover:text-cad-strong hover:bg-cad-hover rounded transition-colors"
           title="Colapsar Tool Chest"
           data-testid="collapse-tool-chest-btn"
         >

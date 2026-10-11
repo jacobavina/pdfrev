@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { SlidersHorizontal, ChevronRight, Lock, LockOpen } from 'lucide-react';
 import { useMarkupStore } from '../store/useMarkupStore';
+import { useUiStore } from '../store/useUiStore';
 import { Markup, MarkupStatus, VALID_MARKUP_STATUSES, LineEndingStyle } from '../types/markup';
 
 const STATUS_LABELS: Record<MarkupStatus, string> = {
@@ -24,6 +25,13 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
   const { markups, selectedMarkupIds, applyPropertiesToMarkups, toggleLockSelectedMarkups } =
     useMarkupStore();
 
+  // Menú contextual del plano o menú Ver → Panel de propiedades: abrir el panel (ADR-0017)
+  const propertiesOpenRequest = useUiStore((s) => s.propertiesOpenRequest);
+  const initialRequest = useRef(propertiesOpenRequest);
+  useEffect(() => {
+    if (propertiesOpenRequest !== initialRequest.current) setIsCollapsed(false);
+  }, [propertiesOpenRequest]);
+
   const selectedMarkups = useMemo(() => {
     return markups.filter((m) => selectedMarkupIds.includes(m.id));
   }, [markups, selectedMarkupIds]);
@@ -37,7 +45,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
       >
         <button
           onClick={() => setIsCollapsed(false)}
-          className="p-1.5 text-gray-400 hover:text-white hover:bg-cad-hover rounded mb-3 transition-colors"
+          className="p-1.5 text-gray-400 hover:text-cad-strong hover:bg-cad-hover rounded mb-3 transition-colors"
           title="Expandir propiedades"
           data-testid="expand-properties-btn"
         >
@@ -63,7 +71,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
           </span>
           <button
             onClick={() => setIsCollapsed(true)}
-            className="p-1 text-gray-400 hover:text-white hover:bg-cad-hover rounded transition-colors"
+            className="p-1 text-gray-400 hover:text-cad-strong hover:bg-cad-hover rounded transition-colors"
             title="Colapsar propiedades"
             data-testid="collapse-properties-btn"
           >
@@ -238,7 +246,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
         </div>
         <button
           onClick={() => setIsCollapsed(true)}
-          className="p-1 text-gray-400 hover:text-white hover:bg-cad-hover rounded transition-colors"
+          className="p-1 text-gray-400 hover:text-cad-strong hover:bg-cad-hover rounded transition-colors"
           title="Colapsar propiedades"
           data-testid="collapse-properties-btn"
         >

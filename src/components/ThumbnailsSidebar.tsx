@@ -80,7 +80,7 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
               await executeRotatePage(pageIndex, 90);
             }}
             title="Rotar página 90°"
-            className="p-0.5 rounded text-gray-400 hover:text-white hover:bg-cad-subtle"
+            className="p-0.5 rounded text-gray-400 hover:text-cad-strong hover:bg-cad-subtle"
           >
             <RotateCw size={12} />
           </button>
@@ -93,7 +93,7 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
               await executeInsertBlankPage(pageIndex + 1);
             }}
             title="Insertar página en blanco después"
-            className="p-0.5 rounded text-gray-400 hover:text-white hover:bg-cad-subtle"
+            className="p-0.5 rounded text-gray-400 hover:text-cad-strong hover:bg-cad-subtle"
           >
             <PlusSquare size={12} />
           </button>
@@ -106,7 +106,7 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
               await executeExtractPage(pageIndex);
             }}
             title="Extraer esta página"
-            className="p-0.5 rounded text-gray-400 hover:text-white hover:bg-cad-subtle"
+            className="p-0.5 rounded text-gray-400 hover:text-cad-strong hover:bg-cad-subtle"
           >
             <Download size={12} />
           </button>
@@ -160,7 +160,7 @@ export const ThumbnailsSidebar: React.FC = () => {
                   await executeInsertBlankPage(numPages);
                 }}
                 title="Añadir página en blanco al final"
-                className="p-1 hover:text-white rounded hover:bg-cad-subtle text-gray-400"
+                className="p-1 hover:text-cad-strong rounded hover:bg-cad-subtle text-gray-400"
               >
                 <PlusSquare size={13} />
               </button>
@@ -172,7 +172,7 @@ export const ThumbnailsSidebar: React.FC = () => {
                   await executeRotatePage(currentPageIndex, 90);
                 }}
                 title="Rotar página activa 90°"
-                className="p-1 hover:text-white rounded hover:bg-cad-subtle text-gray-400"
+                className="p-1 hover:text-cad-strong rounded hover:bg-cad-subtle text-gray-400"
               >
                 <RotateCw size={13} />
               </button>
@@ -181,7 +181,7 @@ export const ThumbnailsSidebar: React.FC = () => {
         )}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-1 hover:text-white rounded hover:bg-cad-subtle ml-auto"
+          className="p-1 hover:text-cad-strong rounded hover:bg-cad-subtle ml-auto"
           title={isCollapsed ? 'Expandir panel de páginas' : 'Colapsar panel'}
         >
           {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}

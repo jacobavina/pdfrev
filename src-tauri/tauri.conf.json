@@ -12,9 +12,13 @@
   "app": {
     "windows": [
       {
-        "title": "Rea - PDF Technical Markup",
-        "width": 800,
-        "height": 600,
+        "title": "REA · Revisión y medición de planos",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 1024,
+        "minHeight": 640,
+        "center": true,
+        "maximized": true,
         "resizable": true,
         "fullscreen": false,
         "dragDropEnabled": false

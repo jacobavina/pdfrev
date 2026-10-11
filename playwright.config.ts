@@ -14,7 +14,9 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      // Escritorio realista (ADR-0017): la app nativa abre maximizada; 1280x720 se prueba aparte
+      // en el test de regresión de desborde de la barra de herramientas.
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
     },
   ],
   webServer: {

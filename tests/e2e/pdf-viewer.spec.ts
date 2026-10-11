@@ -108,7 +108,8 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     // 7. Verificar sincronización bidireccional: la fila de la marca de calibración
     const calibrationRow = page.locator('[data-testid="markup-row-calibration-markup-1"]');
     await expect(calibrationRow).toBeVisible();
-    await expect(calibrationRow).toContainText('rectangle');
+    // Desde ADR-0017 la lista muestra el tipo en español
+    await expect(calibrationRow).toContainText('Rectángulo');
     await expect(calibrationRow).toContainText('Ing. Estructural');
 
     // 8. Edición de estado en vivo desde la tabla
@@ -156,7 +157,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
 
     // Comprobar que aparece en la lista de marcas
     const markupsPanel = page.locator('[data-testid="markups-list-panel"]');
-    await expect(markupsPanel).toContainText('circle');
+    await expect(markupsPanel.locator('tbody')).toContainText('Elipse');
 
     // 2. Dibuja Polígono con tecla Enter para cerrar (Criterio 3)
     const polygonBtn = page.locator('button[title*="Polígono"]');
@@ -172,7 +173,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     // Comprobar que existe un elemento <polygon> en el SVG overlay
     const polygonElem = overlaySvg.locator('polygon');
     await expect(polygonElem).toBeVisible();
-    await expect(markupsPanel).toContainText('polygon');
+    await expect(markupsPanel.locator('tbody')).toContainText('Polígono');
 
     // 3. Validar tecla Escape para cancelar trazo en curso (Criterio 3)
     // Con polígono activo, hacer 2 clics y pulsar Escape -> debe descartarse
@@ -350,8 +351,8 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
 
     // Comprobar que en la lista de marcas aparecen cloudPlus y callout
     const markupsPanel = page.locator('[data-testid="markups-list-panel"]');
-    await expect(markupsPanel).toContainText('cloudPlus');
-    await expect(markupsPanel).toContainText('callout');
+    await expect(markupsPanel.locator('tbody')).toContainText('Nube+');
+    await expect(markupsPanel.locator('tbody')).toContainText('Llamada');
 
     // 4. Cambiar a herramienta Seleccionar (V)
     const selectBtn = page.locator('button[title*="Seleccionar"]');
@@ -392,8 +393,8 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     // 9. Deshacer el borrado con Ctrl+Z: un solo paso restaura el grupo completo
     await page.keyboard.press('Control+z');
     await expect(overlaySvg.locator('text:has-text("Nota Cloud+")').last()).toBeVisible();
-    await expect(markupsPanel).toContainText('cloudPlus');
-    await expect(markupsPanel).toContainText('callout');
+    await expect(markupsPanel.locator('tbody')).toContainText('Nube+');
+    await expect(markupsPanel.locator('tbody')).toContainText('Llamada');
   });
 
   test('Sub-entregable A.2: Multiselección con Marquee por intersección, verificación de lista intacta, arrastre conjunto y undo atómico', async ({
@@ -561,7 +562,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(textElem).toContainText('Tubería de impulsión');
     const expandedBoxWidth = parseFloat((await calloutBox.getAttribute('width'))!);
     expect(expandedBoxWidth).toBeGreaterThan(initialBoxWidth);
-    await expect(markupsPanel).toContainText('callout');
+    await expect(markupsPanel.locator('tbody')).toContainText('Llamada');
 
     // 5. Cambiar a herramienta Seleccionar (V)
     const selectBtn = page.locator('button[title*="Seleccionar"]');
@@ -936,7 +937,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     // 6. Verificar presencia en MarkupsList con icono y tipo
     const tableRow = markupsPanel.locator('tbody tr').last();
     await expect(tableRow).toBeVisible();
-    await expect(tableRow.locator('td').nth(1)).toContainText('highlightVector');
+    await expect(tableRow.locator('td').nth(1)).toContainText('Marcador');
 
     // 7. Deshacer y Rehacer atómicos (Ctrl+Z y Ctrl+Y)
     await page.keyboard.press('Control+z');
@@ -1039,7 +1040,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(markupsPanel).toHaveCSS('height', '200px');
     const newRow = markupsPanel.locator('tbody tr').last();
     await expect(newRow).toBeVisible();
-    await expect(newRow.locator('td').nth(1)).toContainText('highlightText');
+    await expect(newRow.locator('td').nth(1)).toContainText('Texto resaltado');
     const textInRow = await newRow.locator('input[type="text"]').inputValue();
     expect(textInRow).toContain('PLANO DE PRUEBA');
 
@@ -1171,7 +1172,8 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await nextPageBtn.click(); // Página 2
     await nextPageBtn.click(); // Página 3
 
-    const pageIndicator = page.locator('header span.font-mono.px-1');
+    // Desde ADR-0017 la navegación de páginas vive en la barra de estado
+    const pageIndicator = page.locator('[data-testid="page-indicator"]');
     await expect(pageIndicator).toContainText('3 / 3');
 
     // Esperar a que la página 3 termine de renderizar con 0 texto (data-has-text="false")
@@ -1697,6 +1699,71 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const box = (await zoomIn.boundingBox())!;
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(1280);
+  });
+
+  test('Espacio de trabajo (ADR-0017): menú Medición → área por polígono, panel de mediciones, menú contextual, capas y tema', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="markup-row-calibration-markup-1"]')).toBeVisible();
+    const box = (await overlaySvg.boundingBox())!;
+    const at = (nx: number, ny: number) => ({ x: box.x + box.width * nx, y: box.y + box.height * ny });
+
+    // 1. Menú Medición → Área (la herramienta queda activa en la cinta)
+    await page.locator('[data-testid="menu-medicion"]').click();
+    await page.getByRole('menuitem', { name: /^Área/ }).click();
+    await expect(page.locator('[data-testid="tool-measure-area"]')).toHaveAttribute('aria-pressed', 'true');
+
+    // 2. Polígono de 4 vértices sobre zona libre de la página y cierre con Enter
+    for (const [nx, ny] of [
+      [0.6, 0.2],
+      [0.9, 0.2],
+      [0.9, 0.6],
+      [0.6, 0.6],
+    ]) {
+      const p = at(nx, ny);
+      await page.mouse.click(p.x, p.y);
+    }
+    await page.keyboard.press('Enter');
+
+    // 3. La medición aparece en la lista (tipo en español) y en el panel de mediciones con perímetro
+    const markupsPanel = page.locator('[data-testid="markups-list-panel"]');
+    await expect(markupsPanel.locator('tbody tr').filter({ hasText: 'Área' })).toHaveCount(1);
+    await page.locator('[data-testid="expand-measurements-btn"]').click();
+    const areaTotal = page.locator('[data-testid="measurements-total-area"]');
+    await expect(areaTotal).toContainText('mm²');
+    await expect(page.locator('[data-testid="measurements-totals"]')).toContainText('Perímetro');
+
+    // 4. Clic derecho sobre el borde izquierdo del rectángulo de control → menú contextual → Aceptado
+    await page.locator('[data-testid="tool-select"]').click();
+    const edge = at(0.125, 0.6);
+    await page.mouse.click(edge.x, edge.y, { button: 'right' });
+    const ctxMenu = page.locator('[data-testid="canvas-context-menu"]');
+    await expect(ctxMenu).toBeVisible();
+    await expect(ctxMenu).toContainText('Rectángulo');
+    await page.locator('[data-testid="canvas-menu-status-accepted"]').click();
+    await expect(ctxMenu).toHaveCount(0);
+    await expect(
+      page.locator('[data-testid="markup-row-calibration-markup-1"]').locator('select')
+    ).toHaveValue('accepted');
+
+    // 5. Panel Capas: ocultar la capa "Calibración" retira la marca del plano
+    await page.locator('[data-testid="left-tab-layers"]').click();
+    await expect(page.locator('[data-testid="layers-panel"]')).toContainText('Calibración');
+    await page.locator('[data-testid="layer-toggle-Calibración"]').click();
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(0);
+    await page.locator('[data-testid="layer-toggle-Calibración"]').click();
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
+
+    // 6. Barra de estado: coordenadas del cursor sobre la página y tema oscuro
+    const center = at(0.5, 0.5);
+    await page.mouse.move(center.x, center.y);
+    await expect(page.locator('[data-testid="cursor-coordinates"]')).toContainText('mm');
+    await page.locator('[data-testid="theme-toggle-btn"]').click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   });
 });
 

@@ -1,32 +1,64 @@
 import React, { useEffect } from 'react';
-import { TopBar } from './components/TopBar';
-import { ThumbnailsSidebar } from './components/ThumbnailsSidebar';
+import { FileText } from 'lucide-react';
 import { PdfViewer } from './components/PdfViewer';
 import { ToolChestPanel } from './components/toolchest/ToolChestPanel';
 import { PropertiesInspectorPanel } from './components/PropertiesInspectorPanel';
 import { MarkupsList } from './components/MarkupsList';
 import { SearchBar } from './components/SearchBar';
+import { MenuBar } from './components/shell/MenuBar';
+import { Ribbon } from './components/shell/Ribbon';
+import { LeftDock } from './components/shell/LeftDock';
+import { MeasurementsPanel } from './components/shell/MeasurementsPanel';
+import { StatusBar } from './components/shell/StatusBar';
+import { ToastHost } from './components/shell/ToastHost';
+import { ShortcutsDialog } from './components/shell/ShortcutsDialog';
 import { useDocumentStore } from './store/useDocumentStore';
 import { useMarkupStore } from './store/useMarkupStore';
 import { useSearchStore } from './store/useSearchStore';
+import { useUiStore } from './store/useUiStore';
 import { useAutoSave } from './hooks/useAutoSave';
-import { loadPdfData } from './services/fileDialogService';
+import { loadPdfData, openPdfDialog } from './services/fileDialogService';
 import fixtureMeta from '../fixtures/test-blueprint.meta.json';
+
+/** Pestaña del documento abierto sobre el área de trabajo. */
+const DocumentTab: React.FC = () => {
+  const { fileName, filePath } = useDocumentStore();
+  const isDirty = useMarkupStore((s) => s.isDirty);
+  if (!fileName) return null;
+  return (
+    <div className="h-8 bg-cad-subtle border-b border-cad-border flex items-end px-2 shrink-0" data-testid="document-tabs">
+      <div
+        className="flex items-center gap-1.5 h-7 px-3 bg-cad-canvas/0 bg-cad-ribbon border border-b-0 border-cad-border rounded-t text-xs text-gray-200 max-w-[22rem]"
+        title={filePath ?? fileName}
+      >
+        <FileText size={13} className="text-rose-600 dark:text-rose-400 shrink-0" />
+        <span className="truncate">{fileName}</span>
+        {isDirty && filePath && <span className="text-amber-600 dark:text-amber-400">●</span>}
+      </div>
+    </div>
+  );
+};
 
 export const App: React.FC = () => {
   const { pdfBytes, setLoading } = useDocumentStore();
   const { addMarkup } = useMarkupStore();
   const { saveNow } = useAutoSave();
 
-  // Atajos globales: Ctrl+S (guardar) y Ctrl+F (buscar)
+  // Atajos globales: Ctrl+S (guardar), Ctrl+O (abrir), Ctrl+F (buscar), F1 (atajos)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
         e.preventDefault();
         saveNow();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'o' || e.key === 'O')) {
+        e.preventDefault();
+        openPdfDialog();
       } else if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
         e.preventDefault();
         useSearchStore.getState().setIsOpen(true);
+      } else if (e.key === 'F1') {
+        e.preventDefault();
+        useUiStore.getState().setShortcutsOpen(true);
       }
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
@@ -88,20 +120,29 @@ export const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-cad-dark">
-      {/* 1. Barra Superior (Herramientas, archivo, zoom) */}
-      <TopBar />
+      {/* 1. Barra de menús (<header>) y cinta de herramientas agrupada (ADR-0017) */}
+      <MenuBar />
+      <Ribbon />
       <SearchBar />
 
-      {/* 2. Área Central (Miniaturas a la izquierda + Visor al centro + Tool Chest y Propiedades a la derecha) */}
-      <div className="flex-1 flex overflow-hidden relative">
-        <ThumbnailsSidebar />
-        <PdfViewer />
-        <ToolChestPanel />
+      {/* 2. Espacio de trabajo: panel izquierdo con pestañas · documento · paneles derechos */}
+      <div className="flex-1 flex overflow-hidden relative min-h-0">
+        <LeftDock />
+        <div className="flex-1 min-w-0 flex flex-col">
+          <DocumentTab />
+          <PdfViewer />
+        </div>
         <PropertiesInspectorPanel defaultCollapsed={true} />
+        <MeasurementsPanel defaultCollapsed={true} />
+        <ToolChestPanel />
       </div>
 
-      {/* 3. Panel Inferior (Lista de marcas técnica con sincronización bidireccional) */}
+      {/* 3. Lista de marcas y barra de estado */}
       <MarkupsList />
+      <StatusBar />
+
+      <ToastHost />
+      <ShortcutsDialog />
     </div>
   );
 };

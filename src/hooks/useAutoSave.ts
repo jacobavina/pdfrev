@@ -57,7 +57,8 @@ export function useAutoSave(intervalMs = 30000) {
   );
 
   useEffect(() => {
-    if (!filePath) return;
+    // intervalMs <= 0: solo se quiere `saveNow` (botones y menús), sin crear otro temporizador
+    if (!filePath || intervalMs <= 0) return;
 
     const timer = setInterval(() => {
       if (useMarkupStore.getState().isDirty) {

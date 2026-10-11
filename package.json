@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:native": "node scripts/native-smoke.mjs",
+    "test:native:build": "node scripts/native-smoke.mjs --build",
     "verify": "node scripts/verify.mjs",
     "make-fixture": "tsx scripts/make-fixture.ts"
   },

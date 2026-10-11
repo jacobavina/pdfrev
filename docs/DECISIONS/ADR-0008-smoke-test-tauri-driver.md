@@ -67,12 +67,19 @@ Es imperativo documentar con total honestidad qué cubre `tauri-driver` y qué p
 
 ---
 
-## 5. Consecuencias
+## 5. Consecuencias y Aislamiento del Binario (Self-Contained Build)
 
 - **Positivas:**
   - REA cuenta por primera vez con una suite automatizada capaz de ejercitar la capa Rust nativa y el WebView2 real.
   - Cero incremento en el árbol de dependencias (`node_modules` intacto).
   - Ejecución rápida (< 6 segundos en máquina local).
+- **Aislamiento crítico frente a `tauri dev`:**
+  - **Problema de fondo:** `tauri dev` genera un ejecutable en `src-tauri/target/debug/app.exe` configurado con `devUrl: "http://localhost:1420"`, sin empaquetar los assets del frontend. Si se ejecuta el smoke test sin un servidor Vite activo en el puerto 1420, WebView2 falla al cargar la página pero Tauri inyecta de todos modos `window.__TAURI_INTERNALS__`, produciendo un fallo determinista en la detección del DOM de la aplicación.
+  - **Solución implementada:**
+    1. **Ruta aislada:** El smoke test consume exclusivamente `src-tauri/target/smoke/app.exe`, una ruta que `tauri dev` jamás sobreescribe.
+    2. **Inspección estricta de bytes (Prerrequisito 1.5):** El runner lee los bytes del binario con `fs.readFileSync` antes de lanzar y aborta con error explicativo si contiene `localhost:1420` o si carece de marcadores de frontend incrustado (`index.html`).
+    3. **Flag `--build`:** Soporte de compilación desatendida mediante `npm.cmd run test:native -- --build` (o `npm.cmd run test:native:build`), que compila el frontend, ejecuta `tauri build --debug --no-bundle -c '{"build":{"devUrl":null}}'` y copia el resultado a `src-tauri/target/smoke/app.exe`.
+    4. **Comando para PowerShell:** `npm.cmd run test:native`.
 - **Negativas / Mitigaciones:**
   - Requiere dependencias externas del entorno (`tauri-driver.exe` en Cargo y `msedgedriver.exe` en el equipo).
   - Mitigado mediante la detección anticipada de prerrequisitos con mensajes de error formativos y la exclusión del smoke test de la puerta de verificación rápida habitual (`verify.mjs` por defecto).
@@ -98,3 +105,6 @@ Es imperativo documentar con total honestidad qué cubre `tauri-driver` y qué p
    - **Aserción estricta de store:** comprobación de que `useMarkupStore.getState().markups.length` incrementa exactamente de 1 a 2 marcas (+1) con autor por defecto `'Revisor Técnico'`.
    - **Aserción estricta de selección:** clic sobre el borde del rectángulo trazado activa la selección y añade el ID de la marca a `selectedMarkupIds`.
    - Artefactos visuales generados en `tests/native-artifacts/pdf-canvas-smoke.png` y `tests/native-artifacts/native-rectangle-drawn.png` (mostrando visualmente "LISTA DE MARCAS (2)" con las dos filas en el panel inferior).
+4. **Verificación en frío con puerto 1420 vacío:**
+   - Confirmado con `Get-NetTCPConnection -LocalPort 1420` arrojando vacío.
+   - Detección de binario autocontenido en `src-tauri/target/smoke/app.exe` sin dependencias de red local.

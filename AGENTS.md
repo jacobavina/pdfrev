@@ -194,10 +194,16 @@ ventana no aparece, y el agente puede creer que todo va bien. Está **demostrado
 
 > Hito implementado: `P2-X` — Smoke test de ventana nativa con `tauri-driver` (ADR-0008).
 > Permite automatizar la adhesión WebDriver, comprobar el render real en canvas (PNG), ejercitar
-> la capa IPC de Rust (`write_bbx`/`read_bbx`) e interactuar con acciones W3C.
+> la capa IPC de Rust (`write_bbx`/`read_bbx`) e interactuar con acciones W3C bajo aserciones estrictas.
+> - **Artefacto autocontenido:** El smoke test **exige obligatoriamente un binario con frontend incrustado** en
+>   `src-tauri/target/smoke/app.exe`. Una sesión de `tauri dev` sobreescribe `src-tauri/target/debug/app.exe` con
+>   un build de desarrollo dependiente de `http://localhost:1420` (invalida el smoke en frío). Por ello, el script
+>   inspecciona los bytes del ejecutable antes de iniciar y rechaza cualquier binario con `localhost:1420` o sin assets incrustados.
 > - **Prerrequisitos:** `tauri-driver.exe` (`cargo install tauri-driver --locked`), `msedgedriver.exe`
->   coincidiendo con la versión mayor de Edge/WebView2 instalada, y binario compilado `src-tauri/target/debug/app.exe`.
-> - **Ejecución directa:** `npm run test:native` (o `node scripts/native-smoke.mjs`).
+>   coincidiendo con la versión mayor de Edge/WebView2 instalada, y binario autocontenido en `src-tauri/target/smoke/app.exe`.
+> - **Compilación y ejecución en PowerShell:**
+>   - Para compilar el binario autocontenido y correr el smoke: `npm.cmd run test:native -- --build` (o `npm.cmd run test:native:build`).
+>   - Para ejecutar el smoke sobre el binario ya construido: `npm.cmd run test:native`.
 > - **Puerta de calidad:** Se integra en `scripts/verify.mjs` bajo el flag explícito `--with-native`
 >   (nunca en la puerta por defecto). Artefactos visuales en `tests/native-artifacts/`.
 

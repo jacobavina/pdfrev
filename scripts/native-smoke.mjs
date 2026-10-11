@@ -16,11 +16,52 @@ const SMOKE_TEST_TITLE = 'Hito P2-X (ADR-0008): Smoke Test de Ventana Nativa con
 const DRIVER_PORT = 4444;
 const DRIVER_URL = `http://127.0.0.1:${DRIVER_PORT}`;
 const ARTIFACTS_DIR = path.resolve('tests/native-artifacts');
-const APP_BIN_PATH = path.resolve('src-tauri/target/debug/app.exe');
+const APP_BIN_PATH = path.resolve('src-tauri/target/smoke/app.exe');
 
 console.log('============================================================');
 console.log(`  ${SMOKE_TEST_TITLE}`);
 console.log('============================================================\n');
+
+// ---------------------------------------------------------------------------
+// 0. GESTIÓN DEL FLAG --build (COMPILACIÓN AUTOCONTENIDA AISLADA)
+// ---------------------------------------------------------------------------
+const shouldBuild = process.argv.includes('--build');
+if (shouldBuild) {
+  console.log('[0/5] Flag --build detectado: construyendo binario autocontenido para smoke test...');
+  const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  const npxCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+
+  console.log('  1/3 Compilando frontend (npm run build)...');
+  const buildFrontend = process.platform === 'win32'
+    ? spawnSync('cmd.exe', ['/c', 'npm.cmd', 'run', 'build'], { stdio: 'inherit' })
+    : spawnSync('npm', ['run', 'build'], { stdio: 'inherit' });
+  if (buildFrontend.status !== 0) {
+    console.error('\n❌ [ERROR BUILD] Falló la compilación del frontend (npm run build).');
+    process.exit(1);
+  }
+
+  console.log('  2/3 Compilando binario Tauri debug con devUrl anulado (assets incrustados)...');
+  const configOverride = JSON.stringify({ build: { devUrl: null } });
+  const buildTauri = process.platform === 'win32'
+    ? spawnSync('cmd.exe', ['/c', 'npx.cmd', 'tauri', 'build', '--debug', '--no-bundle', '-c', configOverride], {
+        stdio: 'inherit',
+        env: process.env,
+      })
+    : spawnSync('npx', ['tauri', 'build', '--debug', '--no-bundle', '-c', configOverride], {
+        stdio: 'inherit',
+        env: process.env,
+      });
+  if (buildTauri.status !== 0) {
+    console.error('\n❌ [ERROR BUILD] Falló tauri build --debug --no-bundle.');
+    process.exit(1);
+  }
+
+  console.log(`  3/3 Copiando binario a ruta aislada de smoke: ${APP_BIN_PATH}...`);
+  const debugBin = path.resolve('src-tauri/target/debug/app.exe');
+  fs.mkdirSync(path.dirname(APP_BIN_PATH), { recursive: true });
+  fs.copyFileSync(debugBin, APP_BIN_PATH);
+  console.log('  ✓ Binario autocontenido generado y ubicado en ruta de smoke.\n');
+}
 
 // ---------------------------------------------------------------------------
 // 1. COMPROBACIÓN EXHAUSTIVA DE PRERREQUISITOS
@@ -107,13 +148,35 @@ if (installedMajor && installedMajor !== driverMajor) {
   process.exit(1);
 }
 
-// 1.4 Binario de la aplicación REA
+// 1.4 Binario de la aplicación REA (aislado en target/smoke/)
 if (!fs.existsSync(APP_BIN_PATH)) {
   console.error(`\n❌ [BINARIO NO ENCONTRADO] No existe ${APP_BIN_PATH}.`);
-  console.error('   Compilación requerida: npx tauri build --debug --no-bundle\n');
+  console.error('   El smoke test requiere un binario autocontenido en src-tauri/target/smoke/app.exe');
+  console.error('   para no ser invalidado por sesiones de "tauri dev".');
+  console.error('   Ejecute el comando de compilación:');
+  console.error('     npm.cmd run test:native -- --build\n');
   process.exit(1);
 }
-console.log(`  ✓ Binario de REA detectado: ${APP_BIN_PATH}`);
+
+// 1.5 Inspección de bytes del binario: debe ser un build autocontenido sin devUrl
+const binBuffer = fs.readFileSync(APP_BIN_PATH);
+const hasDevUrl = binBuffer.includes(Buffer.from('localhost:1420'));
+const hasFrontendAssets = binBuffer.includes(Buffer.from('index.html')) || binBuffer.includes(Buffer.from('assets/index'));
+
+if (hasDevUrl || !hasFrontendAssets) {
+  console.error(`\n❌ [BINARIO NO AUTOCONTENIDO] ${APP_BIN_PATH} es un build de desarrollo no válido.`);
+  if (hasDevUrl) {
+    console.error('   - Contiene la cadena "localhost:1420" (devUrl activo de Vite).');
+  }
+  if (!hasFrontendAssets) {
+    console.error('   - No contiene los marcadores de assets del frontend incrustado (index.html / assets/index).');
+  }
+  console.error('   Una sesión de "tauri dev" o un cargo build sin empaquetar no es válido para el smoke test.');
+  console.error('   Ejecute el build autocontenido antes de lanzar:');
+  console.error('     npm.cmd run test:native -- --build\n');
+  process.exit(1);
+}
+console.log(`  ✓ Binario de REA autocontenido detectado: ${APP_BIN_PATH}`);
 
 // Asegurar directorio de artefactos
 fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });

@@ -45,7 +45,7 @@
   - Ordenación y filtros avanzados por estado, autor, tipo y capa.
   - Columnas personalizadas con parser propio de lista blanca.
   - Gestión de estados con menú contextual interactivo.
-  - Exportación de reportes estructurados con hipervínculos en PDF más hojas en Excel y CSV.
+  - Exportación estructurada de la tabla de marcas a CSV (RFC 4180 compatible con Excel con BOM UTF-8) y Reporte Resumen en PDF (vía pdf-lib sin dependencias nuevas). La exportación a libro binario .xlsx con fórmulas de takeoff permanece en Fase 3.
 - **Bloque D: Capas Lógicas y Sellos Dinámicos**
   - Capas CAD lógicas con visibilidad persistida en el modelo `.bbx.json`.
   - Sellos dinámicos técnicos basados en descriptores vectoriales limpios (donde residen los sellos).

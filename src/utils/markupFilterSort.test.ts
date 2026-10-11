@@ -6,7 +6,7 @@ import {
   MarkupFilterCriteria,
   MarkupSortCriteria,
 } from './markupFilterSort';
-import { Markup, MarkupStatus, MarkupType } from '../types/markup';
+import { Markup, MarkupStatus, MarkupType, BbxCustomColumn } from '../types/markup';
 
 function createMockMarkup(overrides: Partial<Markup>): Markup {
   return {
@@ -22,6 +22,7 @@ function createMockMarkup(overrides: Partial<Markup>): Markup {
     text: overrides.text,
     layer: overrides.layer,
     groupId: overrides.groupId,
+    customFields: overrides.customFields,
   };
 }
 
@@ -264,6 +265,210 @@ describe('Markup Filter and Sort Engine (P2-C.1)', () => {
       }
 
       // 4. Aserción estricta de tiempo de presupuesto (< 10 ms; margen 15 ms para varianza de VM)
+      expect(durationMs).toBeLessThan(15);
+    });
+  });
+
+  describe('Filtrado y ordenación por columnas personalizadas (P2-C.3)', () => {
+    const customColumns: BbxCustomColumn[] = [
+      { id: 'longitud', nombre: 'Longitud', tipo: 'number' },
+      { id: 'categoria', nombre: 'Categoría', tipo: 'choice', opciones: ['A', 'B', 'C'] },
+      { id: 'nota', nombre: 'Nota', tipo: 'text' },
+      { id: 'costo', nombre: 'Costo', tipo: 'formula', expresion: '{longitud} * 10' },
+      { id: 'ratio_error', nombre: 'Ratio', tipo: 'formula', expresion: '100 / ({longitud} - 5)' },
+    ];
+
+    const markupsWithCustom: Markup[] = [
+      createMockMarkup({
+        id: 'm-custom-1',
+        text: 'Elemento 1',
+        customFields: { longitud: 9, categoria: 'B', nota: 'Revisión estructural' },
+      }),
+      createMockMarkup({
+        id: 'm-custom-2',
+        text: 'Elemento 2',
+        customFields: { longitud: 10, categoria: 'A', nota: 'Acabado fino' },
+      }),
+      createMockMarkup({
+        id: 'm-custom-3',
+        text: 'Elemento 3',
+        customFields: { longitud: 2, categoria: 'C' }, // sin nota
+      }),
+      createMockMarkup({
+        id: 'm-custom-4',
+        text: 'Elemento 4',
+        customFields: { longitud: 5, categoria: 'B' }, // longitud=5 provocará DIV0 en ratio_error
+      }),
+      createMockMarkup({
+        id: 'm-custom-5',
+        text: 'Elemento 5',
+        customFields: {}, // sin campos (vacío)
+      }),
+    ];
+
+    it('ordena numéricamente por columna personalizada (10 > 9 > 5 > 2)', () => {
+      const asc = sortMarkups(markupsWithCustom, {
+        field: 'custom:longitud',
+        direction: 'asc',
+        customColumns,
+      });
+      // En asc: 2, 5, 9, 10, y el vacío al final
+      expect(asc.map((m) => m.id)).toEqual([
+        'm-custom-3',
+        'm-custom-4',
+        'm-custom-1',
+        'm-custom-2',
+        'm-custom-5',
+      ]);
+
+      const desc = sortMarkups(markupsWithCustom, {
+        field: 'custom:longitud',
+        direction: 'desc',
+        customColumns,
+      });
+      // En desc: 10, 9, 5, 2, y el vacío sigue al final
+      expect(desc.map((m) => m.id)).toEqual([
+        'm-custom-2',
+        'm-custom-1',
+        'm-custom-4',
+        'm-custom-3',
+        'm-custom-5',
+      ]);
+    });
+
+    it('sitúa valores vacíos al final tanto en orden asc como desc', () => {
+      const asc = sortMarkups(markupsWithCustom, {
+        field: 'custom:nota',
+        direction: 'asc',
+        customColumns,
+      });
+      // m-custom-2 ("Acabado fino"), m-custom-1 ("Revisión estructural"), luego vacíos m-3, m-4, m-5
+      expect(asc.slice(0, 2).map((m) => m.id)).toEqual(['m-custom-2', 'm-custom-1']);
+      expect(asc.slice(2).map((m) => m.id)).toEqual(['m-custom-3', 'm-custom-4', 'm-custom-5']);
+
+      const desc = sortMarkups(markupsWithCustom, {
+        field: 'custom:nota',
+        direction: 'desc',
+        customColumns,
+      });
+      // m-custom-1 ("Revisión"), m-custom-2 ("Acabado"), luego vacíos al final
+      expect(desc.slice(0, 2).map((m) => m.id)).toEqual(['m-custom-1', 'm-custom-2']);
+      expect(desc.slice(2).map((m) => m.id)).toEqual(['m-custom-3', 'm-custom-4', 'm-custom-5']);
+    });
+
+    it('ordena por columna calculada (fórmula) y sitúa errores al final en asc y desc', () => {
+      // ratio_error: 100 / ({longitud} - 5)
+      // m-1 (longitud=9) => 100 / 4 = 25
+      // m-2 (longitud=10) => 100 / 5 = 20
+      // m-3 (longitud=2) => 100 / -3 = -33.333
+      // m-4 (longitud=5) => DIV0 (error)
+      // m-5 (sin longitud) => REF (error)
+      const asc = sortMarkups(markupsWithCustom, {
+        field: 'custom:ratio_error',
+        direction: 'asc',
+        customColumns,
+      });
+      // Ascendente: -33.33 (m-3), 20 (m-2), 25 (m-1), luego errores (m-4, m-5)
+      expect(asc.map((m) => m.id)).toEqual([
+        'm-custom-3',
+        'm-custom-2',
+        'm-custom-1',
+        'm-custom-4',
+        'm-custom-5',
+      ]);
+
+      const desc = sortMarkups(markupsWithCustom, {
+        field: 'custom:ratio_error',
+        direction: 'desc',
+        customColumns,
+      });
+      // Descendente: 25 (m-1), 20 (m-2), -33.33 (m-3), luego errores (m-4, m-5)
+      expect(desc.map((m) => m.id)).toEqual([
+        'm-custom-1',
+        'm-custom-2',
+        'm-custom-3',
+        'm-custom-4',
+        'm-custom-5',
+      ]);
+    });
+
+    it('filtra por columna choice (exacto) y columna text (substring)', () => {
+      const filteredChoice = filterMarkups(markupsWithCustom, {
+        customColumns,
+        customFilters: { categoria: 'B' },
+      });
+      expect(filteredChoice.map((m) => m.id)).toEqual(['m-custom-1', 'm-custom-4']);
+
+      const filteredText = filterMarkups(markupsWithCustom, {
+        customColumns,
+        customFilters: { nota: 'estructural' },
+      });
+      expect(filteredText.map((m) => m.id)).toEqual(['m-custom-1']);
+    });
+
+    it('busca en valores de campos y fórmulas con searchQuery global', () => {
+      const res = filterMarkups(markupsWithCustom, {
+        searchQuery: 'acabado',
+        customColumns,
+      });
+      expect(res.map((m) => m.id)).toEqual(['m-custom-2']);
+
+      const resFormula = filterMarkups(markupsWithCustom, {
+        searchQuery: '90', // costo de m-1 es 9 * 10 = 90
+        customColumns,
+      });
+      expect(resFormula.map((m) => m.id)).toEqual(['m-custom-1']);
+    });
+
+    it('respeta la inmutabilidad: el array original y los objetos no se alteran', () => {
+      const snapshot = JSON.stringify(markupsWithCustom);
+      const res = filterAndSortMarkups(
+        markupsWithCustom,
+        { customFilters: { categoria: 'B' } },
+        { field: 'custom:longitud', direction: 'asc', customColumns }
+      );
+      expect(JSON.stringify(markupsWithCustom)).toBe(snapshot);
+      expect(res).not.toBe(markupsWithCustom);
+    });
+
+    it('benchmark: filtra y ordena 500 marcas por columna calculada en menos de 15 ms', () => {
+      const dataset: Markup[] = [];
+      for (let i = 0; i < 500; i++) {
+        dataset.push(
+          createMockMarkup({
+            id: `bm-c-${String(i).padStart(4, '0')}`,
+            text: `Marca ${i}`,
+            author: i % 2 === 0 ? 'Autor A' : 'Autor B',
+            status: 'pending',
+            customFields: {
+              largo: 10 + (i % 50),
+              ancho: 5 + (i % 20),
+            },
+          })
+        );
+      }
+
+      const benchCols: BbxCustomColumn[] = [
+        { id: 'largo', nombre: 'Largo', tipo: 'number' },
+        { id: 'ancho', nombre: 'Ancho', tipo: 'number' },
+        { id: 'superficie', nombre: 'Superficie', tipo: 'formula', expresion: '{largo} * {ancho}' },
+      ];
+
+      const start = performance.now();
+      const res = filterAndSortMarkups(
+        dataset,
+        { author: 'Autor A', customColumns: benchCols },
+        { field: 'custom:superficie', direction: 'desc', customColumns: benchCols }
+      );
+      const durationMs = performance.now() - start;
+
+      expect(res.length).toBe(250);
+      for (let i = 0; i < res.length - 1; i++) {
+        const areaA = (res[i].customFields?.largo as number) * (res[i].customFields?.ancho as number);
+        const areaB = (res[i + 1].customFields?.largo as number) * (res[i + 1].customFields?.ancho as number);
+        expect(areaA).toBeGreaterThanOrEqual(areaB);
+      }
+
       expect(durationMs).toBeLessThan(15);
     });
   });

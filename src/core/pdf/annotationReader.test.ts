@@ -139,4 +139,85 @@ describe('PDF Annotation Reader (P3-B.4 / Interoperabilidad e Importación)', ()
     expect(imported.text).toBe('Cuadro foráneo de Bluebeam');
     expect(imported.style.strokeColor.toLowerCase()).toBe('#ff0000');
   });
+
+  it('importa correctamente anotaciones con /LE, /Locked, polyLine, underline y strikeOut', async () => {
+    const p3Markups: Markup[] = [
+      {
+        id: 'mk-line-arrows',
+        type: 'line',
+        pageIndex: 0,
+        points: [{ x: 0.1, y: 0.1 }, { x: 0.5, y: 0.5 }],
+        style: {
+          strokeColor: '#0284c7',
+          strokeWidth: 2,
+          opacity: 1,
+          lineEndingStart: 'circle',
+          lineEndingEnd: 'closedArrow',
+        },
+        locked: true,
+        author: 'Revisor P3',
+        createdAt: '2026-10-11T10:00:00Z',
+        updatedAt: '2026-10-11T10:00:00Z',
+        status: 'pending',
+      },
+      {
+        id: 'mk-poly-roundtrip',
+        type: 'polyLine',
+        pageIndex: 0,
+        points: [{ x: 0.2, y: 0.2 }, { x: 0.4, y: 0.5 }, { x: 0.7, y: 0.3 }],
+        style: { strokeColor: '#10b981', strokeWidth: 3, opacity: 1 },
+        author: 'Revisor P3',
+        createdAt: '2026-10-11T10:00:00Z',
+        updatedAt: '2026-10-11T10:00:00Z',
+        status: 'pending',
+      },
+      {
+        id: 'mk-und-roundtrip',
+        type: 'underline',
+        pageIndex: 0,
+        points: [{ x: 0.1, y: 0.1 }, { x: 0.3, y: 0.15 }],
+        style: { strokeColor: '#e02424', strokeWidth: 1.5, opacity: 1 },
+        author: 'Revisor P3',
+        createdAt: '2026-10-11T10:00:00Z',
+        updatedAt: '2026-10-11T10:00:00Z',
+        status: 'pending',
+      },
+      {
+        id: 'mk-strk-roundtrip',
+        type: 'strikeOut',
+        pageIndex: 0,
+        points: [{ x: 0.1, y: 0.2 }, { x: 0.3, y: 0.25 }],
+        style: { strokeColor: '#e02424', strokeWidth: 1.5, opacity: 1 },
+        author: 'Revisor P3',
+        createdAt: '2026-10-11T10:00:00Z',
+        updatedAt: '2026-10-11T10:00:00Z',
+        status: 'pending',
+      },
+    ];
+
+    const pdfUpdated = await saveIncrementalMarkups(originalBytes, p3Markups);
+    const result = await importPdfAnnotations(pdfUpdated);
+
+    expect(result.foreignUnsupportedCount).toBe(0);
+    expect(result.markups.length).toBe(4);
+
+    const line = result.markups.find((m) => m.id === 'mk-line-arrows')!;
+    expect(line).toBeDefined();
+    expect(line.style.lineEndingStart).toBe('circle');
+    expect(line.style.lineEndingEnd).toBe('closedArrow');
+    expect(line.locked).toBe(true);
+
+    const poly = result.markups.find((m) => m.id === 'mk-poly-roundtrip')!;
+    expect(poly).toBeDefined();
+    expect(poly.type).toBe('polyLine');
+    expect(poly.points.length).toBe(3);
+
+    const und = result.markups.find((m) => m.id === 'mk-und-roundtrip')!;
+    expect(und).toBeDefined();
+    expect(und.type).toBe('underline');
+
+    const strk = result.markups.find((m) => m.id === 'mk-strk-roundtrip')!;
+    expect(strk).toBeDefined();
+    expect(strk.type).toBe('strikeOut');
+  });
 });

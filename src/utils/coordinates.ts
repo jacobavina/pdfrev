@@ -510,7 +510,17 @@ export function hitTestMarkup(
     return false;
   }
 
-  // 3. Trazo a mano alzada (Freehand con simplificación RDP si N > 50)
+  // 3. Polilínea abierta (PolyLine)
+  if (markup.type === 'polyLine' && markup.points.length >= 2) {
+    for (let i = 1; i < markup.points.length; i++) {
+      if (distanceToSegment(point, markup.points[i - 1], markup.points[i]) <= tolerance) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // 4. Trazo a mano alzada (Freehand con simplificación RDP si N > 50)
   if (markup.type === 'freehand' && markup.points.length >= 2) {
     const pts =
       markup.points.length > 50
@@ -525,12 +535,14 @@ export function hitTestMarkup(
     return false;
   }
 
-  // 4. Rectángulo / Highlight / HighlightVector / HighlightText / Stamp
+  // 5. Rectángulo / Highlight / HighlightVector / HighlightText / Underline / StrikeOut / Stamp
   if (
     markup.type === 'rectangle' ||
     markup.type === 'highlight' ||
     markup.type === 'highlightVector' ||
     markup.type === 'highlightText' ||
+    markup.type === 'underline' ||
+    markup.type === 'strikeOut' ||
     markup.type === 'stamp'
   ) {
     if (
@@ -538,7 +550,9 @@ export function hitTestMarkup(
       markup.type === 'stamp' ||
       markup.type === 'highlight' ||
       markup.type === 'highlightVector' ||
-      markup.type === 'highlightText'
+      markup.type === 'highlightText' ||
+      markup.type === 'underline' ||
+      markup.type === 'strikeOut'
     ) {
       return (
         point.x >= bounds.x - tolerance &&

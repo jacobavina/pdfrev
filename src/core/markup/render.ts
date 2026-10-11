@@ -3,6 +3,7 @@ import {
   Markup,
   MarkupPoint,
   ViewportTransform,
+  LineEndingStyle,
   HIGHLIGHT_STYLE,
   STICKY_NOTE_SIZE_PT,
   STICKY_NOTE_COLORS,
@@ -500,6 +501,92 @@ export interface SvgRenderDescriptor {
   textNode?: string;
 }
 
+function createLineEndingDescriptor(
+  pt: { x: number; y: number },
+  angleRad: number,
+  ending: LineEndingStyle,
+  strokeColor: string,
+  fillColor: string | undefined,
+  strokeWidth: number
+): SvgRenderDescriptor | null {
+  if (!ending || ending === 'none') return null;
+
+  const len = Math.max(10, strokeWidth * 4);
+  const angleSpread = 0.45;
+
+  if (ending === 'openArrow' || ending === 'closedArrow') {
+    const a1 = {
+      x: pt.x + len * Math.cos(angleRad + Math.PI - angleSpread),
+      y: pt.y + len * Math.sin(angleRad + Math.PI - angleSpread),
+    };
+    const a2 = {
+      x: pt.x + len * Math.cos(angleRad + Math.PI + angleSpread),
+      y: pt.y + len * Math.sin(angleRad + Math.PI + angleSpread),
+    };
+
+    if (ending === 'openArrow') {
+      return {
+        tag: 'polyline',
+        attrs: {
+          points: `${a1.x.toFixed(2)},${a1.y.toFixed(2)} ${pt.x.toFixed(2)},${pt.y.toFixed(2)} ${a2.x.toFixed(2)},${a2.y.toFixed(2)}`,
+          stroke: strokeColor,
+          strokeWidth,
+          fill: 'none',
+          strokeLinejoin: 'round',
+        },
+      };
+    } else {
+      return {
+        tag: 'polygon',
+        attrs: {
+          points: `${a1.x.toFixed(2)},${a1.y.toFixed(2)} ${pt.x.toFixed(2)},${pt.y.toFixed(2)} ${a2.x.toFixed(2)},${a2.y.toFixed(2)}`,
+          stroke: strokeColor,
+          strokeWidth,
+          fill: fillColor || strokeColor,
+          strokeLinejoin: 'round',
+        },
+      };
+    }
+  }
+
+  if (ending === 'circle') {
+    const r = len / 3;
+    return {
+      tag: 'ellipse',
+      attrs: {
+        cx: pt.x,
+        cy: pt.y,
+        rx: r,
+        ry: r,
+        stroke: strokeColor,
+        strokeWidth,
+        fill: fillColor || strokeColor,
+      },
+    };
+  }
+
+  if (ending === 'diamond' || ending === 'square') {
+    const r = len / 2.5;
+    const rot = ending === 'diamond' ? Math.PI / 4 : 0;
+    const pts = [0, 1, 2, 3].map((i) => {
+      const a = angleRad + rot + (i * Math.PI) / 2;
+      return `${(pt.x + r * Math.cos(a)).toFixed(2)},${(pt.y + r * Math.sin(a)).toFixed(2)}`;
+    });
+    return {
+      tag: 'polygon',
+      attrs: {
+        points: pts.join(' '),
+        stroke: strokeColor,
+        strokeWidth,
+        fill: fillColor || strokeColor,
+        strokeLinejoin: 'round',
+      },
+    };
+  }
+
+  return null;
+}
+
 /**
  * Función pura que calcula los descriptores de renderizado SVG para cualquier Markup
  * en espacio de pantalla según el ViewportTransform.
@@ -580,7 +667,7 @@ export function getMarkupSvgDescriptor(
     }
 
     case 'line': {
-      return {
+      const mainLine: SvgRenderDescriptor = {
         tag: 'line',
         attrs: {
           ...baseAttrs,
@@ -588,6 +675,87 @@ export function getMarkupSvgDescriptor(
           y1: p1Screen.y,
           x2: p2Screen.x,
           y2: p2Screen.y,
+        },
+      };
+
+      if (!style.lineEndingStart && !style.lineEndingEnd) {
+        return mainLine;
+      }
+
+      const dx = p2Screen.x - p1Screen.x;
+      const dy = p2Screen.y - p1Screen.y;
+      const angle = Math.atan2(dy, dx);
+
+      const children: SvgRenderDescriptor[] = [mainLine];
+      if (style.lineEndingStart) {
+        const startMarker = createLineEndingDescriptor(
+          p1Screen,
+          angle + Math.PI,
+          style.lineEndingStart,
+          style.strokeColor,
+          style.fillColor,
+          style.strokeWidth || 2
+        );
+        if (startMarker) children.push(startMarker);
+      }
+      if (style.lineEndingEnd) {
+        const endMarker = createLineEndingDescriptor(
+          p2Screen,
+          angle,
+          style.lineEndingEnd,
+          style.strokeColor,
+          style.fillColor,
+          style.strokeWidth || 2
+        );
+        if (endMarker) children.push(endMarker);
+      }
+
+      return {
+        tag: 'g',
+        attrs: { opacity: baseAttrs.opacity ?? 1 },
+        children,
+      };
+    }
+
+    case 'polyLine': {
+      return {
+        tag: 'polyline',
+        attrs: {
+          ...baseAttrs,
+          fill: style.fillColor || 'none',
+          points: pointsToSvgPointsString(markup.points, transform),
+        },
+      };
+    }
+
+    case 'underline': {
+      const rect = getRectGeometry(p1Screen, p2Screen);
+      return {
+        tag: 'line',
+        attrs: {
+          ...baseAttrs,
+          x1: rect.x,
+          y1: rect.y + rect.height,
+          x2: rect.x + rect.width,
+          y2: rect.y + rect.height,
+          stroke: style.strokeColor || '#e02424',
+          strokeWidth: style.strokeWidth || 2,
+        },
+      };
+    }
+
+    case 'strikeOut': {
+      const rect = getRectGeometry(p1Screen, p2Screen);
+      return {
+        tag: 'line',
+        attrs: {
+          ...baseAttrs,
+          x1: rect.x,
+          y1: rect.y + rect.height / 2,
+          x2: rect.x + rect.width,
+          y2: rect.y + rect.height / 2,
+          stroke: style.strokeColor || '#e02424',
+          strokeWidth: style.strokeWidth || 2,
         },
       };
     }

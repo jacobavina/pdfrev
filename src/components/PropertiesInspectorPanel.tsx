@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { SlidersHorizontal, ChevronRight } from 'lucide-react';
+import { SlidersHorizontal, ChevronRight, Lock, LockOpen } from 'lucide-react';
 import { useMarkupStore } from '../store/useMarkupStore';
-import { Markup, MarkupStatus, VALID_MARKUP_STATUSES } from '../types/markup';
+import { Markup, MarkupStatus, VALID_MARKUP_STATUSES, LineEndingStyle } from '../types/markup';
 
 const STATUS_LABELS: Record<MarkupStatus, string> = {
   pending: 'Pendiente',
@@ -21,7 +21,8 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
   defaultCollapsed = false,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
-  const { markups, selectedMarkupIds, applyPropertiesToMarkups } = useMarkupStore();
+  const { markups, selectedMarkupIds, applyPropertiesToMarkups, toggleLockSelectedMarkups } =
+    useMarkupStore();
 
   const selectedMarkups = useMemo(() => {
     return markups.filter((m) => selectedMarkupIds.includes(m.id));
@@ -99,7 +100,29 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
   const status = getUnifiedValue((m) => m.status || 'pending');
   const author = getUnifiedValue((m) => m.author || '');
 
+  const isAllLocked =
+    selectedMarkups.length > 0 && selectedMarkups.every((m) => Boolean(m.locked));
+  const hasLineMarkup = selectedMarkups.some((m) => m.type === 'line');
+  const lineEndingStart = getUnifiedValue((m) => m.style.lineEndingStart || 'none');
+  const lineEndingEnd = getUnifiedValue((m) => m.style.lineEndingEnd || 'none');
+
   // Manejadores atómicos de actualización
+  const handleLineEndingStartChange = (val: string) => {
+    applyPropertiesToMarkups(
+      selectedMarkupIds,
+      { style: { lineEndingStart: val as LineEndingStyle } },
+      `Cambiar extremo inicial a ${val}`
+    );
+  };
+
+  const handleLineEndingEndChange = (val: string) => {
+    applyPropertiesToMarkups(
+      selectedMarkupIds,
+      { style: { lineEndingEnd: val as LineEndingStyle } },
+      `Cambiar extremo final a ${val}`
+    );
+  };
+
   const handleStrokeColorChange = (newColor: string) => {
     applyPropertiesToMarkups(
       selectedMarkupIds,
@@ -198,6 +221,20 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
           >
             {selectedMarkups.length === 1 ? '1 marca' : `${selectedMarkups.length} marcas`}
           </span>
+          <button
+            type="button"
+            data-testid="prop-lock-btn"
+            onClick={toggleLockSelectedMarkups}
+            title={isAllLocked ? 'Desbloquear marca(s)' : 'Bloquear marca(s)'}
+            className={`px-1.5 py-0.5 rounded transition-colors flex items-center gap-1 text-[11px] font-medium border ${
+              isAllLocked
+                ? 'bg-amber-950/70 text-amber-300 border-amber-600 hover:bg-amber-900'
+                : 'bg-cad-dark text-gray-400 border-cad-border hover:text-gray-200'
+            }`}
+          >
+            {isAllLocked ? <Lock size={12} className="text-amber-400" /> : <LockOpen size={12} />}
+            <span>{isAllLocked ? 'Bloqueada' : 'Bloquear'}</span>
+          </button>
         </div>
         <button
           onClick={() => setIsCollapsed(true)}
@@ -306,6 +343,47 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
             <option value="dashed">Discontinuo</option>
           </select>
         </div>
+
+        {/* Extremos de línea (flechas y formas) */}
+        {hasLineMarkup && (
+          <>
+            <div className="flex flex-col gap-1">
+              <label className="text-gray-400 font-medium">Extremo Inicial (/LE)</label>
+              <select
+                data-testid="prop-line-ending-start"
+                value={lineEndingStart === MIXED_VALUE ? '' : (lineEndingStart as string)}
+                onChange={(e) => handleLineEndingStartChange(e.target.value)}
+                className="px-2 py-1 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent"
+              >
+                {lineEndingStart === MIXED_VALUE && <option value="">{MIXED_VALUE}</option>}
+                <option value="none">Ninguno</option>
+                <option value="openArrow">Flecha abierta</option>
+                <option value="closedArrow">Flecha cerrada</option>
+                <option value="circle">Círculo</option>
+                <option value="square">Cuadrado</option>
+                <option value="diamond">Rombo</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-gray-400 font-medium">Extremo Final (/LE)</label>
+              <select
+                data-testid="prop-line-ending-end"
+                value={lineEndingEnd === MIXED_VALUE ? '' : (lineEndingEnd as string)}
+                onChange={(e) => handleLineEndingEndChange(e.target.value)}
+                className="px-2 py-1 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent"
+              >
+                {lineEndingEnd === MIXED_VALUE && <option value="">{MIXED_VALUE}</option>}
+                <option value="none">Ninguno</option>
+                <option value="openArrow">Flecha abierta</option>
+                <option value="closedArrow">Flecha cerrada</option>
+                <option value="circle">Círculo</option>
+                <option value="square">Cuadrado</option>
+                <option value="diamond">Rombo</option>
+              </select>
+            </div>
+          </>
+        )}
 
         {/* Tamaño de fuente */}
         <div className="flex flex-col gap-1">

@@ -791,4 +791,118 @@ describe('useMarkupStore Integration & History', () => {
       expect(markupHistory.getUndoCount()).toBe(initialUndoCount);
     });
   });
+
+  describe('Paquete 3: Portapapeles y Bloqueo de Marcas', () => {
+    it('copySelectedMarkups copia las marcas seleccionadas al portapapeles interno', () => {
+      const m1 = createMockMarkup('m1', 'Marca 1');
+      const m2 = createMockMarkup('m2', 'Marca 2');
+      useMarkupStore.setState({ markups: [m1, m2], selectedMarkupIds: ['m1'] });
+
+      useMarkupStore.getState().copySelectedMarkups();
+      const clipboard = useMarkupStore.getState().clipboardMarkups;
+      expect(clipboard).toHaveLength(1);
+      expect(clipboard[0].id).toBe('m1');
+    });
+
+    it('pasteMarkups clona marcas con nuevos IDs, offset y selecciona las nuevas', () => {
+      const m1 = createMockMarkup('m1', 'Marca 1');
+      useMarkupStore.setState({ markups: [m1], selectedMarkupIds: ['m1'] });
+
+      useMarkupStore.getState().copySelectedMarkups();
+      useMarkupStore.getState().pasteMarkups(0);
+
+      const state = useMarkupStore.getState();
+      expect(state.markups).toHaveLength(2);
+      const pasted = state.markups.find((m) => m.id !== 'm1')!;
+      expect(pasted).toBeDefined();
+      expect(pasted.id).not.toBe('m1');
+      expect(pasted.points[0].x).toBeCloseTo(0.12); // 0.1 + 0.02
+      expect(pasted.points[0].y).toBeCloseTo(0.12); // 0.1 + 0.02
+      expect(state.selectedMarkupIds).toEqual([pasted.id]);
+
+      // Undo elimina la marca pegada
+      useMarkupStore.getState().undo();
+      expect(useMarkupStore.getState().markups).toHaveLength(1);
+    });
+
+    it('pasteMarkups preserva relaciones de grupo con nuevo groupId único', () => {
+      const m1 = { ...createMockMarkup('m1'), groupId: 'grp-orig' };
+      const m2 = { ...createMockMarkup('m2'), groupId: 'grp-orig' };
+      useMarkupStore.setState({ markups: [m1, m2], selectedMarkupIds: ['m1', 'm2'] });
+
+      useMarkupStore.getState().copySelectedMarkups();
+      useMarkupStore.getState().pasteMarkups(1);
+
+      const state = useMarkupStore.getState();
+      expect(state.markups).toHaveLength(4);
+      const pasted = state.markups.filter((m) => m.pageIndex === 1);
+      expect(pasted).toHaveLength(2);
+      expect(pasted[0].groupId).toBeDefined();
+      expect(pasted[0].groupId).not.toBe('grp-orig');
+      expect(pasted[0].groupId).toBe(pasted[1].groupId);
+    });
+
+    it('duplicateSelectedMarkups clona inmediatamente sin requerir copy previo', () => {
+      const m1 = createMockMarkup('m1', 'Duplicar');
+      useMarkupStore.setState({ markups: [m1], selectedMarkupIds: ['m1'] });
+
+      useMarkupStore.getState().duplicateSelectedMarkups();
+      const state = useMarkupStore.getState();
+      expect(state.markups).toHaveLength(2);
+      const dup = state.markups.find((m) => m.id !== 'm1')!;
+      expect(dup.id).not.toBe('m1');
+      expect(dup.text).toBe('Duplicar');
+    });
+
+    it('toggleLockSelectedMarkups conmuta propiedad locked y genera comando undoable', () => {
+      const m1 = createMockMarkup('m1', 'Bloquear');
+      useMarkupStore.setState({ markups: [m1], selectedMarkupIds: ['m1'] });
+
+      useMarkupStore.getState().toggleLockSelectedMarkups();
+      expect(useMarkupStore.getState().markups[0].locked).toBe(true);
+
+      useMarkupStore.getState().undo();
+      expect(useMarkupStore.getState().markups[0].locked).toBeFalsy();
+
+      useMarkupStore.getState().redo();
+      expect(useMarkupStore.getState().markups[0].locked).toBe(true);
+    });
+
+    it('marcas bloqueadas quedan protegidas contra borrado, movimiento y actualización de propiedades', () => {
+      const mLocked: Markup = { ...createMockMarkup('m-lock', 'Protegida'), locked: true };
+      const mUnlocked: Markup = createMockMarkup('m-free', 'Libre');
+      useMarkupStore.setState({
+        markups: [mLocked, mUnlocked],
+        selectedMarkupIds: ['m-lock', 'm-free'],
+      });
+
+      // 1. Intentar borrar mLocked directamente
+      useMarkupStore.getState().deleteMarkup('m-lock');
+      expect(useMarkupStore.getState().markups.some((m) => m.id === 'm-lock')).toBe(true);
+
+      // 2. Intentar deleteSelectedMarkups: solo borra m-free
+      useMarkupStore.getState().deleteSelectedMarkups();
+      const current = useMarkupStore.getState().markups;
+      expect(current.some((m) => m.id === 'm-lock')).toBe(true);
+      expect(current.some((m) => m.id === 'm-free')).toBe(false);
+
+      // 3. Intentar commitMoveMarkups en m-lock
+      useMarkupStore.getState().commitMoveMarkups([
+        {
+          id: 'm-lock',
+          originalPoints: [{ x: 0.1, y: 0.1 }, { x: 0.3, y: 0.3 }],
+          newPoints: [{ x: 0.5, y: 0.5 }, { x: 0.7, y: 0.7 }],
+        },
+      ]);
+      const afterMove = useMarkupStore.getState().markups.find((m) => m.id === 'm-lock')!;
+      expect(afterMove.points[0].x).toBe(0.1);
+
+      // 4. Intentar applyPropertiesToMarkups en m-lock
+      useMarkupStore.getState().applyPropertiesToMarkups(['m-lock'], {
+        style: { strokeColor: '#00ff00', strokeWidth: 10 },
+      });
+      const afterProp = useMarkupStore.getState().markups.find((m) => m.id === 'm-lock')!;
+      expect(afterProp.style.strokeColor).toBe('#ff0000');
+    });
+  });
 });

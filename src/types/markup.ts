@@ -3,6 +3,7 @@ export const VALID_MARKUP_TYPES = [
   'rectangle',
   'circle',
   'polygon',
+  'polyLine',
   'cloud',
   'cloudPlus',
   'callout',
@@ -12,6 +13,8 @@ export const VALID_MARKUP_TYPES = [
   'highlight', // Legacy de Fase 1
   'highlightVector',
   'highlightText',
+  'underline',
+  'strikeOut',
   'stamp',
 ] as const;
 
@@ -77,6 +80,14 @@ export interface MarkupPoint {
   y: number; // 0..1 normalized coordinate
 }
 
+export type LineEndingStyle =
+  | 'none'
+  | 'openArrow'
+  | 'closedArrow'
+  | 'circle'
+  | 'square'
+  | 'diamond';
+
 export interface MarkupStyle {
   strokeColor: string;
   fillColor?: string;
@@ -85,6 +96,8 @@ export interface MarkupStyle {
   dashArray?: number[];
   fontFamily?: string;
   fontSize?: number;
+  lineEndingStart?: LineEndingStyle;
+  lineEndingEnd?: LineEndingStyle;
 }
 
 export interface MarkupTextFormat {
@@ -107,12 +120,13 @@ export interface Markup {
   layer?: string;
   customFields?: Record<string, string | number>;
 
-  // Extensiones Fase 2
+  // Extensiones Fase 2 y 3
   groupId?: string; // A.2 (Cloud+ y agrupaciones)
   leaders?: MarkupPoint[][]; // A.3 (Directrices múltiples para Callout)
   textFormat?: MarkupTextFormat; // A.4 (Formato de texto enriquecido/alineación)
   stampId?: string; // D.2 (Identificador de catálogo de sello)
   resolvedFields?: Record<string, string>; // D.2 (Campos dinámicos {{fecha}}, etc.)
+  locked?: boolean; // P3-H.5: Bloqueo de marca contra edición, arrastre y eliminación accidental
 }
 
 export interface BoundingBox {

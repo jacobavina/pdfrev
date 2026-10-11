@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from 'uuid';
 import { create } from 'zustand';
 import { Markup, MarkupPoint, MarkupStatus, MarkupStyle, MarkupTextFormat } from '../types/markup';
 import { Command, HistoryManager } from './history/command';
@@ -18,6 +19,7 @@ export interface MoveMarkupItem {
 interface MarkupState {
   markups: Markup[];
   selectedMarkupIds: string[];
+  clipboardMarkups: Markup[];
   isDirty: boolean;
   canUndo: boolean;
   canRedo: boolean;
@@ -47,6 +49,10 @@ interface MarkupState {
   setMarkups: (markups: Markup[]) => void;
   setMarkupsTransient: (markups: Markup[]) => void;
   commitMoveMarkups: (moves: MoveMarkupItem[]) => void;
+  copySelectedMarkups: () => void;
+  pasteMarkups: (targetPageIndex?: number, offset?: { x: number; y: number }) => void;
+  duplicateSelectedMarkups: () => void;
+  toggleLockSelectedMarkups: () => void;
   updateMarkupCustomField: (
     markupId: string,
     columnId: string,
@@ -73,6 +79,7 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
   return {
     markups: [],
     selectedMarkupIds: [],
+    clipboardMarkups: [],
     isDirty: false,
     canUndo: false,
     canRedo: false,
@@ -112,7 +119,7 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
 
     updateMarkup: (id: string, updates: Partial<Markup>) => {
       const current = get().markups.find((m) => m.id === id);
-      if (!current) return;
+      if (!current || current.locked) return;
 
       // Criterio 3: Si no hay cambios en los valores, evitar emitir comando de historial
       let hasChanges = false;
@@ -167,7 +174,7 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
     ) => {
       if (ids.length === 0) return;
       const currentMarkups = get().markups;
-      const targets = currentMarkups.filter((m) => ids.includes(m.id));
+      const targets = currentMarkups.filter((m) => ids.includes(m.id) && !m.locked);
       if (targets.length === 0) return;
 
       // Comprobar si hay cambios reales en alguna de las marcas para evitar comandos innecesarios
@@ -322,11 +329,11 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
 
     deleteMarkup: (id: string) => {
       const target = get().markups.find((m) => m.id === id);
-      if (!target) return;
+      if (!target || target.locked) return;
 
-      // Si target pertenece a un grupo, incluir a todos los miembros de ese grupo
+      // Si target pertenece a un grupo, incluir a todos los miembros de ese grupo (excepto bloqueados)
       const targetsToDelete = target.groupId
-        ? get().markups.filter((m) => m.groupId === target.groupId)
+        ? get().markups.filter((m) => m.groupId === target.groupId && !m.locked)
         : [target];
       const targetIds = targetsToDelete.map((m) => m.id);
       const desc = targetsToDelete.length > 1 ? 'Eliminar grupo' : `Eliminar ${target.type}`;
@@ -363,8 +370,11 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
         selectedMarkups.map((m) => m.groupId).filter((gid): gid is string => Boolean(gid))
       );
 
+      // Excluir marcas bloqueadas
       const targets = get().markups.filter(
-        (m) => selectedIds.includes(m.id) || (m.groupId && groupIds.has(m.groupId))
+        (m) =>
+          (selectedIds.includes(m.id) || (m.groupId && groupIds.has(m.groupId))) &&
+          !m.locked
       );
       if (targets.length === 0) return;
       const targetIds = targets.map((m) => m.id);
@@ -449,8 +459,15 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
 
     commitMoveMarkups: (moves: MoveMarkupItem[]) => {
       if (moves.length === 0) return;
+      const currentMarkups = get().markups;
+      // Filtrar movimientos de marcas bloqueadas
+      const allowedMoves = moves.filter((move) => {
+        const m = currentMarkups.find((item) => item.id === move.id);
+        return !m?.locked;
+      });
+      if (allowedMoves.length === 0) return;
 
-      const desc = moves.length === 1 ? 'Mover marca' : `Mover ${moves.length} marcas`;
+      const desc = allowedMoves.length === 1 ? 'Mover marca' : `Mover ${allowedMoves.length} marcas`;
       const now = new Date().toISOString();
 
       const command: Command = {
@@ -458,7 +475,7 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
         execute: () => {
           set((state) => ({
             markups: state.markups.map((m) => {
-              const move = moves.find((item) => item.id === m.id);
+              const move = allowedMoves.find((item) => item.id === m.id);
               if (move) {
                 return {
                   ...m,
@@ -475,7 +492,7 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
         undo: () => {
           set((state) => ({
             markups: state.markups.map((m) => {
-              const move = moves.find((item) => item.id === m.id);
+              const move = allowedMoves.find((item) => item.id === m.id);
               if (move) {
                 return {
                   ...m,
@@ -485,6 +502,178 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
                 };
               }
               return m;
+            }),
+            isDirty: true,
+          }));
+        },
+      };
+
+      markupHistory.execute(command);
+      syncHistoryFlags();
+    },
+
+    copySelectedMarkups: () => {
+      const { markups, selectedMarkupIds } = get();
+      if (selectedMarkupIds.length === 0) return;
+      const selected = markups.filter((m) => selectedMarkupIds.includes(m.id));
+      if (selected.length === 0) return;
+      const copied: Markup[] = selected.map((m) => ({
+        ...m,
+        points: m.points.map((p) => ({ ...p })),
+        leaders: m.leaders ? m.leaders.map((lead) => lead.map((p) => ({ ...p }))) : undefined,
+        style: { ...m.style },
+        textFormat: m.textFormat ? { ...m.textFormat } : undefined,
+        customFields: m.customFields ? { ...m.customFields } : undefined,
+      }));
+      set({ clipboardMarkups: copied });
+    },
+
+    pasteMarkups: (targetPageIndex?: number, offset?: { x: number; y: number }) => {
+      const { clipboardMarkups, addMarkups } = get();
+      if (clipboardMarkups.length === 0) return;
+
+      const dx = offset?.x ?? 0.02;
+      const dy = offset?.y ?? 0.02;
+      const now = new Date().toISOString();
+
+      const groupMap = new Map<string, string>();
+      for (const m of clipboardMarkups) {
+        if (m.groupId && !groupMap.has(m.groupId)) {
+          groupMap.set(m.groupId, uuidv4());
+        }
+      }
+
+      const pasted: Markup[] = clipboardMarkups.map((m) => {
+        const newId = uuidv4();
+        const newGroupId = m.groupId ? groupMap.get(m.groupId) : undefined;
+        const pIndex = targetPageIndex !== undefined ? targetPageIndex : m.pageIndex;
+
+        return {
+          ...m,
+          id: newId,
+          pageIndex: pIndex,
+          groupId: newGroupId,
+          points: m.points.map((p) => ({
+            x: Math.min(0.98, Math.max(0.01, p.x + dx)),
+            y: Math.min(0.98, Math.max(0.01, p.y + dy)),
+          })),
+          leaders: m.leaders
+            ? m.leaders.map((lead) =>
+                lead.map((p) => ({
+                  x: Math.min(0.98, Math.max(0.01, p.x + dx)),
+                  y: Math.min(0.98, Math.max(0.01, p.y + dy)),
+                }))
+              )
+            : undefined,
+          style: { ...m.style },
+          textFormat: m.textFormat ? { ...m.textFormat } : undefined,
+          customFields: m.customFields ? { ...m.customFields } : undefined,
+          createdAt: now,
+          updatedAt: now,
+          locked: undefined,
+        };
+      });
+
+      addMarkups(pasted, pasted.length === 1 ? `Pegar ${pasted[0].type}` : `Pegar ${pasted.length} marcas`);
+    },
+
+    duplicateSelectedMarkups: () => {
+      const { markups, selectedMarkupIds, addMarkups } = get();
+      if (selectedMarkupIds.length === 0) return;
+      const targets = markups.filter((m) => selectedMarkupIds.includes(m.id));
+      if (targets.length === 0) return;
+
+      const dx = 0.02;
+      const dy = 0.02;
+      const now = new Date().toISOString();
+
+      const groupMap = new Map<string, string>();
+      for (const m of targets) {
+        if (m.groupId && !groupMap.has(m.groupId)) {
+          groupMap.set(m.groupId, uuidv4());
+        }
+      }
+
+      const duplicated: Markup[] = targets.map((m) => {
+        const newId = uuidv4();
+        const newGroupId = m.groupId ? groupMap.get(m.groupId) : undefined;
+
+        return {
+          ...m,
+          id: newId,
+          groupId: newGroupId,
+          points: m.points.map((p) => ({
+            x: Math.min(0.98, Math.max(0.01, p.x + dx)),
+            y: Math.min(0.98, Math.max(0.01, p.y + dy)),
+          })),
+          leaders: m.leaders
+            ? m.leaders.map((lead) =>
+                lead.map((p) => ({
+                  x: Math.min(0.98, Math.max(0.01, p.x + dx)),
+                  y: Math.min(0.98, Math.max(0.01, p.y + dy)),
+                }))
+              )
+            : undefined,
+          style: { ...m.style },
+          textFormat: m.textFormat ? { ...m.textFormat } : undefined,
+          customFields: m.customFields ? { ...m.customFields } : undefined,
+          createdAt: now,
+          updatedAt: now,
+          locked: undefined,
+        };
+      });
+
+      addMarkups(
+        duplicated,
+        duplicated.length === 1 ? `Duplicar ${duplicated[0].type}` : `Duplicar ${duplicated.length} marcas`
+      );
+    },
+
+    toggleLockSelectedMarkups: () => {
+      const { markups, selectedMarkupIds } = get();
+      if (selectedMarkupIds.length === 0) return;
+      const targets = markups.filter((m) => selectedMarkupIds.includes(m.id));
+      if (targets.length === 0) return;
+
+      const allLocked = targets.every((m) => Boolean(m.locked));
+      const targetLocked = !allLocked;
+      const targetIds = targets.map((m) => m.id);
+
+      const prevLockMap = new Map<string, boolean | undefined>(
+        targets.map((m) => [m.id, m.locked])
+      );
+      const now = new Date().toISOString();
+
+      const command: Command = {
+        description: targetLocked
+          ? targets.length === 1
+            ? `Bloquear ${targets[0].type}`
+            : `Bloquear ${targets.length} marcas`
+          : targets.length === 1
+          ? `Desbloquear ${targets[0].type}`
+          : `Desbloquear ${targets.length} marcas`,
+        execute: () => {
+          set((state) => ({
+            markups: state.markups.map((m) => {
+              if (!targetIds.includes(m.id)) return m;
+              return {
+                ...m,
+                locked: targetLocked ? true : undefined,
+                updatedAt: now,
+              };
+            }),
+            isDirty: true,
+          }));
+        },
+        undo: () => {
+          set((state) => ({
+            markups: state.markups.map((m) => {
+              if (!targetIds.includes(m.id)) return m;
+              return {
+                ...m,
+                locked: prevLockMap.get(m.id),
+                updatedAt: now,
+              };
             }),
             isDirty: true,
           }));

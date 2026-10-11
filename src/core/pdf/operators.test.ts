@@ -196,5 +196,63 @@ describe('Pure PDF Operator Emitter (P3-B.1 / ISO 32000-1)', () => {
       expect(result.extGState?.CA).toBeCloseTo(0.7, 2);
       expect(result.extGState?.ca).toBeCloseTo(0.7, 2);
     });
+
+    it('emite camino m/l sin cierre h para polyLine (polilínea abierta)', () => {
+      const mk: Markup = {
+        ...baseMarkup,
+        id: 'mk-polyline',
+        type: 'polyLine',
+        pageIndex: 0,
+        points: [
+          { x: 0.1, y: 0.1 },
+          { x: 0.3, y: 0.4 },
+          { x: 0.6, y: 0.2 },
+        ],
+        style: { strokeColor: '#0284c7', strokeWidth: 2, opacity: 1 },
+      };
+
+      const result = emitMarkupOperators(mk, baseTransform);
+      expect(result.operators).toContain('m');
+      expect(result.operators).toContain('l');
+      expect(result.operators).not.toContain('h'); // Polilínea abierta: NO se cierra
+      expect(result.operators).toContain('S');
+    });
+
+    it('emite trazo de línea en la base para underline y en el centro para strikeOut', () => {
+      const mkUnderline: Markup = {
+        ...baseMarkup,
+        id: 'mk-und',
+        type: 'underline',
+        pageIndex: 0,
+        points: [
+          { x: 0.1, y: 0.1 },
+          { x: 0.4, y: 0.2 },
+        ],
+        style: { strokeColor: '#e02424', strokeWidth: 1.5, opacity: 1 },
+      };
+
+      const mkStrike: Markup = {
+        ...baseMarkup,
+        id: 'mk-strk',
+        type: 'strikeOut',
+        pageIndex: 0,
+        points: [
+          { x: 0.1, y: 0.1 },
+          { x: 0.4, y: 0.2 },
+        ],
+        style: { strokeColor: '#e02424', strokeWidth: 1.5, opacity: 1 },
+      };
+
+      const resUnd = emitMarkupOperators(mkUnderline, baseTransform);
+      const resStrk = emitMarkupOperators(mkStrike, baseTransform);
+
+      expect(resUnd.operators).toContain('m');
+      expect(resUnd.operators).toContain('l');
+      expect(resUnd.operators).toContain('S');
+
+      expect(resStrk.operators).toContain('m');
+      expect(resStrk.operators).toContain('l');
+      expect(resStrk.operators).toContain('S');
+    });
   });
 });

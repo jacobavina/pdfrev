@@ -36,6 +36,7 @@ Este documento registra la paridad funcional real implementada en REA, vinculand
 | **P2-C.6: Inspector de propiedades de marca (Bloque C, D-3)** | `shipped` | `src/components/PropertiesInspectorPanel.test.tsx` | `aplica cambios uniformemente a toda la selección con soporte para deshacer (undo)` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Persistencia incremental en PDF con anotaciones estándar ISO 32000-1 y /AP** | `shipped` | `src/core/pdf/incrementalWriter.test.ts` | `conserva el 100% de los bytes originales como prefijo inmutable (invariante dura)` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Capas lógicas OCG y Sellos dinámicos PDF (Reubicado a Fase 3 - D-2)** | `todo` | `-` | `Pendiente de implementación (Fase 3 Bloque G)` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **Herramientas Revu y portapapeles (polyLine, underline, strikeOut, /LE, bloqueo, portapapeles)** | `shipped` | `src/store/useMarkupStore.test.ts` | `marcas bloqueadas quedan protegidas contra borrado, movimiento y actualización de propiedades` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Automatización nativa con tauri-driver (Hito P2-X)** | `shipped` | `scripts/native-smoke.mjs` | `Hito P2-X (ADR-0008): Smoke Test de Ventana Nativa con tauri-driver` | Verificado por el usuario en ventana nativa, 2026-10-10 (`npm run test:native:build` sobre HEAD bf7be61: arranque, canvas, IPC Rust y dibujo W3C) |
 
 

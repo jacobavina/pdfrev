@@ -69,6 +69,10 @@ export const PdfViewer: React.FC = () => {
     deleteSelectedMarkups,
     setMarkupsTransient,
     commitMoveMarkups,
+    copySelectedMarkups,
+    pasteMarkups,
+    duplicateSelectedMarkups,
+    toggleLockSelectedMarkups,
     undo,
     redo,
     canUndo,
@@ -209,13 +213,14 @@ export const PdfViewer: React.FC = () => {
         return;
       }
 
-      // Enter finaliza el polígono si tiene >= 3 puntos
-      if (e.key === 'Enter' && activeTool === 'polygon') {
-        if (polygonPoints.length >= 3) {
+      // Enter finaliza el polígono o la polilínea
+      if (e.key === 'Enter' && (activeTool === 'polygon' || activeTool === 'polyLine')) {
+        const minPts = activeTool === 'polyLine' ? 2 : 3;
+        if (polygonPoints.length >= minPts) {
           e.preventDefault();
           const newMarkup: Markup = {
             id: uuidv4(),
-            type: 'polygon',
+            type: activeTool,
             pageIndex: currentPageIndex,
             points: [...polygonPoints],
             style: { ...currentStyle },
@@ -235,6 +240,40 @@ export const PdfViewer: React.FC = () => {
         if (selectedMarkupIds.length > 0) {
           e.preventDefault();
           deleteSelectedMarkups();
+        }
+        return;
+      }
+
+      // Portapapeles: Copiar (Ctrl+C / Cmd+C)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
+        if (selectedMarkupIds.length > 0) {
+          e.preventDefault();
+          copySelectedMarkups();
+        }
+        return;
+      }
+
+      // Portapapeles: Pegar (Ctrl+V / Cmd+V)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
+        e.preventDefault();
+        pasteMarkups(currentPageIndex);
+        return;
+      }
+
+      // Portapapeles: Duplicar (Ctrl+D / Cmd+D)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D')) {
+        if (selectedMarkupIds.length > 0) {
+          e.preventDefault();
+          duplicateSelectedMarkups();
+        }
+        return;
+      }
+
+      // Bloquear / Desbloquear marca (Ctrl+L / Cmd+L)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'l' || e.key === 'L')) {
+        if (selectedMarkupIds.length > 0) {
+          e.preventDefault();
+          toggleLockSelectedMarkups();
         }
         return;
       }
@@ -289,6 +328,10 @@ export const PdfViewer: React.FC = () => {
   }, [
     selectedMarkupIds,
     deleteSelectedMarkups,
+    copySelectedMarkups,
+    pasteMarkups,
+    duplicateSelectedMarkups,
+    toggleLockSelectedMarkups,
     undo,
     redo,
     canUndo,
@@ -424,35 +467,37 @@ export const PdfViewer: React.FC = () => {
       return;
     }
 
-    // 2. Modo Polígono (Multi-punto)
-    if (activeTool === 'polygon') {
+    // 2. Modo Polígono o Polilínea (Multi-punto)
+    if (activeTool === 'polygon' || activeTool === 'polyLine') {
       if (polygonPoints.length === 0) {
         setPolygonPoints([pt]);
       } else {
-        // Comprobar si hace clic cerca del primer punto para cerrar el polígono
-        const firstPt = polygonPoints[0];
-        const distToFirst = Math.hypot(pt.x - firstPt.x, pt.y - firstPt.y);
+        if (activeTool === 'polygon') {
+          // Comprobar si hace clic cerca del primer punto para cerrar el polígono
+          const firstPt = polygonPoints[0];
+          const distToFirst = Math.hypot(pt.x - firstPt.x, pt.y - firstPt.y);
 
-        if (distToFirst < 0.02 && polygonPoints.length >= 3) {
-          // Cerrar polígono
-          const newMarkup: Markup = {
-            id: uuidv4(),
-            type: 'polygon',
-            pageIndex: currentPageIndex,
-            points: [...polygonPoints],
-            style: { ...currentStyle },
-            author: author || 'Revisor',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            status: 'pending',
-            layer: activeLayer,
-          };
-          addMarkup(newMarkup);
-          setPolygonPoints([]);
-        } else {
-          // Agregar nuevo vértice
-          setPolygonPoints((prev) => [...prev, pt]);
+          if (distToFirst < 0.02 && polygonPoints.length >= 3) {
+            // Cerrar polígono
+            const newMarkup: Markup = {
+              id: uuidv4(),
+              type: 'polygon',
+              pageIndex: currentPageIndex,
+              points: [...polygonPoints],
+              style: { ...currentStyle },
+              author: author || 'Revisor',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              status: 'pending',
+              layer: activeLayer,
+            };
+            addMarkup(newMarkup);
+            setPolygonPoints([]);
+            return;
+          }
         }
+        // Agregar nuevo vértice
+        setPolygonPoints((prev) => [...prev, pt]);
       }
       return;
     }
@@ -798,13 +843,16 @@ export const PdfViewer: React.FC = () => {
         const minY = Math.min(drawingStart.y, currentDrawPoint.y);
         const maxX = Math.max(drawingStart.x, currentDrawPoint.x);
         const maxY = Math.max(drawingStart.y, currentDrawPoint.y);
-        const points =
-          activeTool === 'highlightVector'
-            ? [
-                { x: minX, y: minY },
-                { x: maxX, y: maxY },
-              ]
-            : [drawingStart, currentDrawPoint];
+        const isBoxTool =
+          activeTool === 'highlightVector' ||
+          activeTool === 'underline' ||
+          activeTool === 'strikeOut';
+        const points = isBoxTool
+          ? [
+              { x: minX, y: minY },
+              { x: maxX, y: maxY },
+            ]
+          : [drawingStart, currentDrawPoint];
 
         // HIGHLIGHT_STYLE como fuente única de verdad para el estilo de highlightVector
         const markupStyle =
@@ -850,14 +898,14 @@ export const PdfViewer: React.FC = () => {
     setCurrentDrawPoint(null);
   };
 
-  // Doble clic para finalizar polígono o para abrir editor de texto
+  // Doble clic para finalizar polígono o polilínea o para abrir editor de texto
   const handleDoubleClick = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (activeTool === 'polygon') {
-      // Criterio 3: polígono con menos de 3 puntos se descarta sin crear marca
-      if (polygonPoints.length >= 3) {
+    if (activeTool === 'polygon' || activeTool === 'polyLine') {
+      const minPts = activeTool === 'polyLine' ? 2 : 3;
+      if (polygonPoints.length >= minPts) {
         const newMarkup: Markup = {
           id: uuidv4(),
-          type: 'polygon',
+          type: activeTool,
           pageIndex: currentPageIndex,
           points: [...polygonPoints],
           style: { ...currentStyle },
@@ -953,19 +1001,30 @@ export const PdfViewer: React.FC = () => {
   };
 
   const handleTextLayerClick = () => {
-    if (activeTool === 'highlightText' && pageHasText[currentPageIndex] === false) {
+    if (
+      (activeTool === 'highlightText' ||
+        activeTool === 'underline' ||
+        activeTool === 'strikeOut') &&
+      pageHasText[currentPageIndex] === false
+    ) {
       showToast(
-        'Esta página no contiene capa de texto seleccionable. Utilice el resaltador vectorial (H).'
+        'Esta página no contiene capa de texto seleccionable. Puede trazar la marca manualmente.'
       );
     }
   };
 
   const handleTextSelectionMouseUp = () => {
-    if (activeTool !== 'highlightText') return;
+    if (
+      activeTool !== 'highlightText' &&
+      activeTool !== 'underline' &&
+      activeTool !== 'strikeOut'
+    ) {
+      return;
+    }
 
     if (pageHasText[currentPageIndex] === false) {
       showToast(
-        'Esta página no contiene capa de texto seleccionable. Utilice el resaltador vectorial (H).'
+        'Esta página no contiene capa de texto seleccionable. Puede trazar la marca manualmente.'
       );
       return;
     }
@@ -1012,19 +1071,28 @@ export const PdfViewer: React.FC = () => {
       const lineText =
         extractTextForLineRect(rect, range, textLayerRef.current) || range.toString().trim();
 
+      const markupStyle =
+        activeTool === 'highlightText'
+          ? {
+              strokeColor: 'transparent',
+              fillColor: HIGHLIGHT_STYLE.colorHex,
+              strokeWidth: 0,
+              opacity: HIGHLIGHT_STYLE.opacity,
+            }
+          : {
+              strokeColor: currentStyle.strokeColor || '#e02424',
+              strokeWidth: currentStyle.strokeWidth || 2,
+              opacity: currentStyle.opacity ?? 1,
+            };
+
       return {
         id: uuidv4(),
-        type: 'highlightText',
+        type: activeTool as MarkupType,
         pageIndex: currentPageIndex,
         groupId,
         points: [canonicalP1, canonicalP2],
         text: lineText,
-        style: {
-          strokeColor: 'transparent',
-          fillColor: HIGHLIGHT_STYLE.colorHex,
-          strokeWidth: 0,
-          opacity: HIGHLIGHT_STYLE.opacity,
-        },
+        style: markupStyle,
         author: author || 'Revisor Técnico',
         createdAt: now,
         updatedAt: now,
@@ -1033,11 +1101,16 @@ export const PdfViewer: React.FC = () => {
       };
     });
 
+    const actionDesc =
+      activeTool === 'underline'
+        ? `Subrayar texto (${newMarkups.length} líneas)`
+        : activeTool === 'strikeOut'
+        ? `Tachar texto (${newMarkups.length} líneas)`
+        : `Resaltar texto (${newMarkups.length} líneas)`;
+
     addMarkups(
       newMarkups,
-      newMarkups.length > 1
-        ? `Resaltar texto (${newMarkups.length} líneas)`
-        : 'Resaltar texto'
+      newMarkups.length > 1 ? actionDesc : actionDesc.replace(/ \(\d+ líneas\)/, '')
     );
     if (newMarkups.length > 0) {
       useToolChestStore.getState().recordRecent(newMarkups[0]);
@@ -1282,7 +1355,12 @@ export const PdfViewer: React.FC = () => {
               width: `${pageViewport.width}px`,
               height: `${pageViewport.height}px`,
               '--scale-factor': scale || 1.0,
-              pointerEvents: activeTool === 'highlightText' ? 'auto' : 'none',
+              pointerEvents:
+                activeTool === 'highlightText' ||
+                activeTool === 'underline' ||
+                activeTool === 'strikeOut'
+                  ? 'auto'
+                  : 'none',
             } as React.CSSProperties}
             onMouseUp={handleTextSelectionMouseUp}
             onClick={handleTextLayerClick}
@@ -1393,7 +1471,9 @@ export const PdfViewer: React.FC = () => {
             viewBox={`0 0 ${pageViewport.width} ${pageViewport.height}`}
             style={{ width: `${pageViewport.width}px`, height: `${pageViewport.height}px` }}
             className={`absolute inset-0 w-full h-full ${
-              activeTool === 'highlightText'
+              activeTool === 'highlightText' ||
+              activeTool === 'underline' ||
+              activeTool === 'strikeOut'
                 ? 'pointer-events-none'
                 : activeTool === 'select'
                 ? 'cursor-default'
@@ -1415,7 +1495,7 @@ export const PdfViewer: React.FC = () => {
                 <g
                   key={markup.id}
                   data-testid={`markup-g-${markup.id}`}
-                  className={`transition-opacity ${activeTool === 'select' ? 'cursor-move' : ''}`}
+                  className={`transition-opacity ${activeTool === 'select' && !markup.locked ? 'cursor-move' : ''}`}
                 >
                   {renderSvgDescriptor(descriptor, markup.id)}
 
@@ -1467,7 +1547,7 @@ export const PdfViewer: React.FC = () => {
                           width={Math.max(8, b.maxX - b.minX + 8)}
                           height={Math.max(8, b.maxY - b.minY + 8)}
                           fill="none"
-                          stroke="#0284c7"
+                          stroke={markup.locked ? '#f59e0b' : '#0284c7'}
                           strokeWidth={1.5}
                           strokeDasharray="4 2"
                           className="pointer-events-none"
@@ -1564,8 +1644,8 @@ export const PdfViewer: React.FC = () => {
             )}
 
             {/* Previsualización en vivo mientras se dibuja */}
-            {/* A. Polígono en construcción */}
-            {activeTool === 'polygon' && polygonPoints.length > 0 && (
+            {/* A. Polígono o Polilínea en construcción */}
+            {(activeTool === 'polygon' || activeTool === 'polyLine') && polygonPoints.length > 0 && (
               <g className="pointer-events-none">
                 <polyline
                   points={
@@ -1576,7 +1656,7 @@ export const PdfViewer: React.FC = () => {
                   }
                   stroke={currentStyle.strokeColor}
                   strokeWidth={currentStyle.strokeWidth}
-                  fill="rgba(0, 122, 204, 0.1)"
+                  fill={activeTool === 'polygon' ? 'rgba(0, 122, 204, 0.1)' : 'none'}
                   strokeDasharray="4 2"
                 />
                 {polygonPoints.map((pt, idx) => {
@@ -1587,7 +1667,7 @@ export const PdfViewer: React.FC = () => {
                       cx={scr.x}
                       cy={scr.y}
                       r={idx === 0 ? 5 : 3}
-                      fill={idx === 0 ? '#10b981' : currentStyle.strokeColor}
+                      fill={idx === 0 && activeTool === 'polygon' ? '#10b981' : currentStyle.strokeColor}
                     />
                   );
                 })}
@@ -1654,6 +1734,36 @@ export const PdfViewer: React.FC = () => {
                         y2={p2.y}
                         stroke={currentStyle.strokeColor}
                         strokeWidth={currentStyle.strokeWidth}
+                        strokeDasharray="4 2"
+                      />
+                    );
+                  }
+
+                  if (activeTool === 'underline') {
+                    const rect = getRectGeometry(p1, p2);
+                    return (
+                      <line
+                        x1={rect.x}
+                        y1={rect.y + rect.height}
+                        x2={rect.x + rect.width}
+                        y2={rect.y + rect.height}
+                        stroke={currentStyle.strokeColor || '#e02424'}
+                        strokeWidth={currentStyle.strokeWidth || 2}
+                        strokeDasharray="4 2"
+                      />
+                    );
+                  }
+
+                  if (activeTool === 'strikeOut') {
+                    const rect = getRectGeometry(p1, p2);
+                    return (
+                      <line
+                        x1={rect.x}
+                        y1={rect.y + rect.height / 2}
+                        x2={rect.x + rect.width}
+                        y2={rect.y + rect.height / 2}
+                        stroke={currentStyle.strokeColor || '#e02424'}
+                        strokeWidth={currentStyle.strokeWidth || 2}
                         strokeDasharray="4 2"
                       />
                     );

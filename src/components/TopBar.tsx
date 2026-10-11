@@ -114,10 +114,67 @@ export const TopBar: React.FC = () => {
     { type: 'rectangle', label: 'Rectángulo (R)', icon: <Square size={16} /> },
     { type: 'circle', label: 'Círculo / Elipse (O)', icon: <Circle size={16} /> },
     { type: 'line', label: 'Línea (L)', icon: <Minus size={16} /> },
+    {
+      type: 'polyLine',
+      label: 'Polilínea abierta',
+      icon: (
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="4 18 10 7 15 14 20 6" />
+        </svg>
+      ),
+    },
     { type: 'polygon', label: 'Polígono (P)', icon: <Hexagon size={16} /> },
     { type: 'freehand', label: 'Mano alzada (F)', icon: <Pencil size={16} /> },
     { type: 'highlightVector', label: 'Resaltador vectorial (H)', icon: <Highlighter size={16} /> },
     { type: 'highlightText', label: 'Resaltador de texto (Shift+H)', icon: <TextSelect size={16} /> },
+    {
+      type: 'underline',
+      label: 'Subrayado de texto',
+      icon: (
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M6 4v6a6 6 0 0 0 12 0V4" />
+          <line x1="4" y1="20" x2="20" y2="20" />
+        </svg>
+      ),
+    },
+    {
+      type: 'strikeOut',
+      label: 'Tachado de texto',
+      icon: (
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M16 4H9a3 3 0 0 0-2.83 4" />
+          <path d="M14 12a4 4 0 0 1 0 8H6" />
+          <line x1="4" y1="12" x2="20" y2="12" />
+        </svg>
+      ),
+    },
     { type: 'cloud', label: 'Nube de revisión (C)', icon: <Cloud size={16} /> },
     { type: 'cloudPlus', label: 'Cloud+ con leyenda (K)', icon: <MessageSquare size={16} /> },
     { type: 'callout', label: 'Nota técnica con directriz (Q)', icon: <MessageSquareText size={16} /> },
@@ -199,9 +256,14 @@ export const TopBar: React.FC = () => {
             <button
               key={btn.type}
               onClick={() => {
-                if (btn.type === 'highlightText' && pageHasText[currentPageIndex] === false) {
+                if (
+                  (btn.type === 'highlightText' ||
+                    btn.type === 'underline' ||
+                    btn.type === 'strikeOut') &&
+                  pageHasText[currentPageIndex] === false
+                ) {
                   showToast(
-                    'Esta página no contiene capa de texto seleccionable. Utilice el resaltador vectorial (H).'
+                    'Esta página no contiene capa de texto seleccionable. Puede trazar la marca manualmente.'
                   );
                 }
                 setActiveTool(btn.type);

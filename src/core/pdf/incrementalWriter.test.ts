@@ -163,5 +163,75 @@ describe('Incremental Writer (P3-B.1 / ISO 32000-1 §7.5.6)', () => {
       expect(text).toContain('/State (Rejected)');
       expect(text).toContain('/State (Completed)');
     });
+
+    it('emite /LE, /Locked, /QuadPoints y subtipos para polyLine, underline y strikeOut', async () => {
+      const p3Markups: Markup[] = [
+        {
+          id: 'mk-line-le',
+          type: 'line',
+          pageIndex: 0,
+          points: [{ x: 0.1, y: 0.1 }, { x: 0.5, y: 0.5 }],
+          style: {
+            strokeColor: '#0284c7',
+            strokeWidth: 2,
+            opacity: 1,
+            lineEndingStart: 'circle',
+            lineEndingEnd: 'closedArrow',
+          },
+          locked: true,
+          author: 'Tester',
+          createdAt: '2026-10-11T12:00:00Z',
+          updatedAt: '2026-10-11T12:00:00Z',
+          status: 'pending',
+        },
+        {
+          id: 'mk-polyline-annot',
+          type: 'polyLine',
+          pageIndex: 0,
+          points: [{ x: 0.1, y: 0.1 }, { x: 0.3, y: 0.4 }, { x: 0.6, y: 0.2 }],
+          style: { strokeColor: '#0284c7', strokeWidth: 2, opacity: 1 },
+          author: 'Tester',
+          createdAt: '2026-10-11T12:00:00Z',
+          updatedAt: '2026-10-11T12:00:00Z',
+          status: 'pending',
+        },
+        {
+          id: 'mk-underline-annot',
+          type: 'underline',
+          pageIndex: 0,
+          points: [{ x: 0.1, y: 0.1 }, { x: 0.4, y: 0.15 }],
+          style: { strokeColor: '#e02424', strokeWidth: 2, opacity: 1 },
+          author: 'Tester',
+          createdAt: '2026-10-11T12:00:00Z',
+          updatedAt: '2026-10-11T12:00:00Z',
+          status: 'pending',
+        },
+        {
+          id: 'mk-strike-annot',
+          type: 'strikeOut',
+          pageIndex: 0,
+          points: [{ x: 0.1, y: 0.2 }, { x: 0.4, y: 0.25 }],
+          style: { strokeColor: '#e02424', strokeWidth: 2, opacity: 1 },
+          author: 'Tester',
+          createdAt: '2026-10-11T12:00:00Z',
+          updatedAt: '2026-10-11T12:00:00Z',
+          status: 'pending',
+        },
+      ];
+
+      const updatedBytes = await saveIncrementalMarkups(originalBytes, p3Markups, {});
+      const text = new TextDecoder('utf-8').decode(updatedBytes);
+
+      // Verificación de /LE (Line Endings)
+      expect(text).toContain('/LE [/Circle /ClosedArrow]');
+      // Verificación de marca bloqueada (/F con bit 128 o /Locked)
+      expect(text).toMatch(/\/F\s+132|\/Locked\s+true/);
+      // Verificación de Subtypes
+      expect(text).toContain('/Subtype /PolyLine');
+      expect(text).toContain('/Subtype /Underline');
+      expect(text).toContain('/Subtype /StrikeOut');
+      // Verificación de QuadPoints para Underline y StrikeOut
+      expect(text).toContain('/QuadPoints [');
+    });
   });
 });

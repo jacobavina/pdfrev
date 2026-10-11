@@ -108,7 +108,7 @@ describe('ToolVectorThumbnail (Canal Único de Renderizado ADR-0007 / B.3)', () 
       // El descriptor del pipeline canónico debe generarse sin errores para los 14 tipos
       const descriptor = getMarkupSvgDescriptor(sample, dummyTransform);
       expect(descriptor).toBeDefined();
-      expect(['rect', 'ellipse', 'line', 'polygon', 'path', 'g']).toContain(descriptor.tag);
+      expect(['rect', 'ellipse', 'line', 'polygon', 'polyline', 'path', 'text', 'g']).toContain(descriptor.tag);
     }
   });
 });

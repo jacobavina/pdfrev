@@ -95,16 +95,17 @@
 
 | ID | Hito / Característica | Estado | Evidencia y Verificación | Notas |
 |---|---|---|---|---|
-| `P3-Interop` | Persistencia incremental ISO 32000-1 y render dual | **Cerrado** | ADR-0013. Invariante dura `output[..origLen] == origBytes`. Emisor puro de operadores (`operators.ts`, 12 tests). Escritor incremental (`incrementalWriter.ts`, 6 tests) con `/AP /N`, `/REA` y `/StateModel (Review)`. Comando Rust atómico `save_pdf` con backup (11 tests cargo). Lector/importador de anotaciones (`annotationReader.ts`, 3 tests). Render dual con `AnnotationMode.DISABLE`. Muestra física certificada en `plan/interop/muestra-rea.pdf`. | Verificación visual nativa PENDIENTE DE VALIDACIÓN por el usuario. |
+| `P3-Interop` | Persistencia incremental ISO 32000-1 y render dual | **Cerrado** | ADR-0013. Invariante dura `output[..origLen] == origBytes`. Emisor puro de operadores (`operators.ts`, 14 tests). Escritor incremental (`incrementalWriter.ts`, 7 tests) con `/AP /N`, `/REA` y `/StateModel (Review)`. Comando Rust atómico `save_pdf` con backup (11 tests cargo). Lector/importador de anotaciones (`annotationReader.ts`, 4 tests). Render dual con `AnnotationMode.DISABLE`. Muestra física certificada en `plan/interop/muestra-rea.pdf`. | Verificación visual nativa PENDIENTE DE VALIDACIÓN por el usuario. |
+| `P3-RevuTools` | Herramientas Revu faltantes, portapapeles y bloqueo | **Cerrado** | ADR-0014. Soporte completo de extremos `/LE` (`openArrow`, `closedArrow`, `circle`, `square`, `diamond`). Polilínea abierta (`polyLine`). Subrayado y tachado (`underline`, `strikeOut` con `/QuadPoints`). Portapapeles con remapeo de `groupId` y offset (`Ctrl+C`, `Ctrl+V`, `Ctrl+D`). Bloqueo de marcas (`locked`, flag `/F 132`) con inmunidad en store frente a borrado, movimiento y cambios de estilo. 408 tests vitest pasados (+14 tests nuevos). | Verificación visual nativa PENDIENTE DE VALIDACIÓN por el usuario. |
 
 ---
 
 ## 3. Registro de Puertas de Calidad Actual
 
-- **Pruebas Unitarias:** 394 / 394 pasadas en Vitest (`src/`) distribuidas en 29 suites (+23 tests nuevos).
-- **Auditoría Literal de Paridad:** Superada (`node scripts/parity-check.mjs`: 26 shipped verificadas literalmente, 1 todo con guion).
+- **Pruebas Unitarias:** 408 / 408 pasadas en Vitest (`src/`) distribuidas en 29 suites (+14 tests nuevos).
+- **Auditoría Literal de Paridad:** Superada (`node scripts/parity-check.mjs`: 27 shipped verificadas literalmente, 1 todo con guion).
 - **Pruebas Rust:** 11 / 11 pasadas en `cargo test` (`src-tauri/`).
-- **Compilación de Producción:** Exitosa (`tsc && vite build`), bundle principal medido en 667.30 kB <= 800 kB (puerta de calidad superada).
+- **Compilación de Producción:** Exitosa (`tsc && vite build`), bundle principal medido en 682.57 kB <= 800 kB (puerta de calidad superada).
 - **Pruebas E2E:** 15 / 15 en Playwright suite (`tests/e2e/pdf-viewer.spec.ts`) en 3 pasadas consecutivas verdes.
 - **Smoke Test Nativo (P2-X):** Implementado y superado localmente con `tauri-driver` (`npm run test:native` y `verify.mjs --with-native`). Adhesión WebDriver, render de canvas, IPC real de Rust y acciones W3C.
 - **Warnings en Consola:** 0 warnings reportados.

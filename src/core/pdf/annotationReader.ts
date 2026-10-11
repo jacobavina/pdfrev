@@ -8,7 +8,7 @@ import {
   PDFNumber,
   PDFRef,
 } from 'pdf-lib';
-import { Markup, MarkupPoint, MarkupStatus, MarkupType } from '../../types/markup';
+import { Markup, MarkupPoint, MarkupStatus, MarkupType, LineEndingStyle } from '../../types/markup';
 import { pdfToNormalizedCoordinates, PageTransformInfo } from './operators';
 
 export interface ImportAnnotationsResult {
@@ -236,8 +236,7 @@ export async function importPdfAnnotations(
           }
         }
       } else if (subtype === 'PolyLine') {
-        markupType = 'polygon';
-        customFields.isPolyLine = 'true';
+        markupType = 'polyLine';
         const vObj = annotDict.get(PDFName.of('Vertices'));
         if (vObj instanceof PDFArray && vObj.size() >= 4) {
           points.length = 0;
@@ -257,12 +256,61 @@ export async function importPdfAnnotations(
         markupType = 'stickyNote';
       } else if (subtype === 'Highlight') {
         if (!isRea) markupType = 'highlightVector';
+      } else if (subtype === 'Underline') {
+        markupType = 'underline';
+      } else if (subtype === 'StrikeOut') {
+        markupType = 'strikeOut';
       } else if (subtype === 'FreeText') {
         if (!isRea) markupType = 'text';
-      } else if (!isRea && !['Square', 'Circle', 'Line', 'Polygon', 'PolyLine', 'FreeText', 'Text', 'Ink', 'Highlight'].includes(subtype)) {
+      } else if (
+        !isRea &&
+        ![
+          'Square',
+          'Circle',
+          'Line',
+          'Polygon',
+          'PolyLine',
+          'FreeText',
+          'Text',
+          'Ink',
+          'Highlight',
+          'Underline',
+          'StrikeOut',
+        ].includes(subtype)
+      ) {
         // Subtipo no soportado por REA
         foreignUnsupportedCount++;
         continue;
+      }
+
+      // Comprobar bandera de bloqueo (/F bit 8 = 128)
+      let locked = false;
+      const fObj = annotDict.get(PDFName.of('F'));
+      if (fObj instanceof PDFNumber && (fObj.asNumber() & 128) !== 0) {
+        locked = true;
+      }
+
+      // Comprobar extremos de línea (/LE)
+      let lineEndingStart: LineEndingStyle | undefined;
+      let lineEndingEnd: LineEndingStyle | undefined;
+      const leObj = annotDict.get(PDFName.of('LE'));
+      if (leObj instanceof PDFArray && leObj.size() >= 2) {
+        const parseEnding = (entry: unknown): LineEndingStyle | undefined => {
+          if (entry instanceof PDFName) {
+            const raw = entry.asString().replace(/^\//, '').toLowerCase();
+            if (raw === 'circle') return 'circle';
+            if (raw === 'closedarrow') return 'closedArrow';
+            if (raw === 'openarrow') return 'openArrow';
+            if (raw === 'square') return 'square';
+            if (raw === 'diamond') return 'diamond';
+            if (raw === 'none') return 'none';
+          }
+          return undefined;
+        };
+        const s = parseEnding(leObj.get(0));
+        const e = parseEnding(leObj.get(1));
+        if (s && s !== 'none') lineEndingStart = s;
+        if (e && e !== 'none') lineEndingEnd = e;
       }
 
       const markup: Markup = {
@@ -275,6 +323,8 @@ export async function importPdfAnnotations(
           fillColor: fillColor || undefined,
           strokeWidth,
           opacity: 1,
+          lineEndingStart,
+          lineEndingEnd,
         },
         text: text || undefined,
         author,
@@ -282,6 +332,7 @@ export async function importPdfAnnotations(
         createdAt: dateStr,
         updatedAt: dateStr,
         customFields: Object.keys(customFields).length > 0 ? customFields : undefined,
+        locked: locked || undefined,
       };
 
       markups.push(markup);

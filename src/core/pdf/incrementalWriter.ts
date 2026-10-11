@@ -386,12 +386,15 @@ endstream`;
   /Contents ${escapePdfString(markup.text || '')}
   /M ${formatPdfDate(markup.updatedAt || markup.createdAt)}
   /CreationDate ${formatPdfDate(markup.createdAt)}
-  /F 4
+  /F ${markup.locked ? 132 : 4}
   /BS << /W ${strokeWidth.toFixed(2)} /S /S >>
   /AP << /N ${apObjNum} 0 R >>
   /REA ${reaDict}
 `;
 
+      if (markup.locked) {
+        annotDict += `  /Locked true\n`;
+      }
       if (colorEntry) annotDict += `  ${colorEntry}\n`;
       if (fillEntry) annotDict += `  ${fillEntry}\n`;
 
@@ -399,7 +402,23 @@ endstream`;
       if (annotTypeSubtype === 'Line' && markup.points.length >= 2) {
         const p1 = normalizedToPdfCoordinates(markup.points[0], transform);
         const p2 = normalizedToPdfCoordinates(markup.points[1], transform);
-        annotDict += `  /L [${p1.x.toFixed(2)} ${p1.y.toFixed(2)} ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}]\n  /LE [/None /None]\n`;
+        const leStart =
+          markup.style.lineEndingStart === 'openArrow'
+            ? '/OpenArrow'
+            : markup.style.lineEndingStart === 'closedArrow'
+            ? '/ClosedArrow'
+            : markup.style.lineEndingStart === 'circle'
+            ? '/Circle'
+            : '/None';
+        const leEnd =
+          markup.style.lineEndingEnd === 'openArrow'
+            ? '/OpenArrow'
+            : markup.style.lineEndingEnd === 'closedArrow'
+            ? '/ClosedArrow'
+            : markup.style.lineEndingEnd === 'circle'
+            ? '/Circle'
+            : '/None';
+        annotDict += `  /L [${p1.x.toFixed(2)} ${p1.y.toFixed(2)} ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}]\n  /LE [${leStart} ${leEnd}]\n`;
       } else if (
         (annotTypeSubtype === 'Polygon' || annotTypeSubtype === 'PolyLine') &&
         markup.points.length >= 2
@@ -419,14 +438,22 @@ endstream`;
         annotDict += `  /DA (/Helv ${fontPt} Tf 0 0 0 rg)\n`;
       } else if (annotTypeSubtype === 'Text') {
         annotDict += `  /Name /Note\n  /Open false\n`;
-      } else if (annotTypeSubtype === 'Highlight' && markup.points.length >= 2) {
+      } else if (
+        (annotTypeSubtype === 'Highlight' ||
+          annotTypeSubtype === 'Underline' ||
+          annotTypeSubtype === 'StrikeOut') &&
+        markup.points.length >= 2
+      ) {
         const p1 = normalizedToPdfCoordinates(markup.points[0], transform);
         const p2 = normalizedToPdfCoordinates(markup.points[1], transform);
         const qx1 = Math.min(p1.x, p2.x).toFixed(2);
         const qy1 = Math.min(p1.y, p2.y).toFixed(2);
         const qx2 = Math.max(p1.x, p2.x).toFixed(2);
         const qy2 = Math.max(p1.y, p2.y).toFixed(2);
-        annotDict += `  /QuadPoints [${qx1} ${qy2} ${qx2} ${qy2} ${qx1} ${qy1} ${qx2} ${qy1}]\n  /CA 0.5\n`;
+        annotDict += `  /QuadPoints [${qx1} ${qy2} ${qx2} ${qy2} ${qx1} ${qy1} ${qx2} ${qy1}]\n`;
+        if (annotTypeSubtype === 'Highlight') {
+          annotDict += `  /CA 0.5\n`;
+        }
       }
 
       annotDict += '>>';
@@ -497,6 +524,8 @@ function getPdfAnnotSubtype(markup: Markup): string {
     case 'polygon':
       if (markup.customFields?.isPolyLine) return 'PolyLine';
       return 'Polygon';
+    case 'polyLine':
+      return 'PolyLine';
     case 'cloud':
       return 'Polygon';
     case 'callout':
@@ -510,6 +539,10 @@ function getPdfAnnotSubtype(markup: Markup): string {
     case 'highlightText':
     case 'highlight':
       return 'Highlight';
+    case 'underline':
+      return 'Underline';
+    case 'strikeOut':
+      return 'StrikeOut';
     default:
       return 'Square';
   }

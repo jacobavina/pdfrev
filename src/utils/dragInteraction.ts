@@ -89,6 +89,12 @@ export function handleSelectMouseDown({
     );
   }
 
+  // Filtrar marcas bloqueadas para impedir su arrastre accidental
+  markupsToDrag = markupsToDrag.filter((m) => !m.locked);
+  if (markupsToDrag.length === 0) {
+    return null;
+  }
+
   return {
     startScreenX: screenX,
     startScreenY: screenY,

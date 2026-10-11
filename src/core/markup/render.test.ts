@@ -599,5 +599,124 @@ describe('Pure Markup Rendering (src/core/markup/render.ts - Criterio 1)', () =>
         expect(rectDesc.attrs.stroke).toBe('#16a34a');
       });
     });
+
+    describe('Paquete 3: Nuevas herramientas y extremos configurables', () => {
+      const transform = {
+        width: 800,
+        height: 600,
+        scale: 1.0,
+        offsetX: 0,
+        offsetY: 0,
+      };
+
+      it('genera descriptor de polyline para markup tipo polyLine', () => {
+        const polylineMarkup: Markup = {
+          id: 'poly-1',
+          type: 'polyLine',
+          pageIndex: 0,
+          points: [
+            { x: 0.1, y: 0.1 },
+            { x: 0.2, y: 0.3 },
+            { x: 0.4, y: 0.2 },
+          ],
+          style: { strokeColor: '#0284c7', strokeWidth: 3, opacity: 1 },
+          author: 'Tester',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: 'pending',
+        };
+
+        const desc = getMarkupSvgDescriptor(polylineMarkup, transform);
+        expect(desc.tag).toBe('polyline');
+        expect(desc.attrs.stroke).toBe('#0284c7');
+        expect(desc.attrs.fill).toBe('none');
+        expect(desc.attrs.points).toBe('80.00,60.00 160.00,180.00 320.00,120.00');
+      });
+
+      it('genera descriptor para underline en base del rectángulo', () => {
+        const underlineMarkup: Markup = {
+          id: 'und-1',
+          type: 'underline',
+          pageIndex: 0,
+          points: [
+            { x: 0.1, y: 0.1 },
+            { x: 0.3, y: 0.15 },
+          ],
+          style: { strokeColor: '#e02424', strokeWidth: 2, opacity: 1 },
+          author: 'Tester',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: 'pending',
+        };
+
+        const desc = getMarkupSvgDescriptor(underlineMarkup, transform);
+        expect(desc.tag).toBe('line');
+        expect(desc.attrs.x1).toBe(80);
+        expect(desc.attrs.y1).toBe(90); // y + height (60 + 30)
+        expect(desc.attrs.x2).toBe(240);
+        expect(desc.attrs.y2).toBe(90);
+        expect(desc.attrs.stroke).toBe('#e02424');
+      });
+
+      it('genera descriptor para strikeOut en el centro del rectángulo', () => {
+        const strikeMarkup: Markup = {
+          id: 'stk-1',
+          type: 'strikeOut',
+          pageIndex: 0,
+          points: [
+            { x: 0.1, y: 0.1 },
+            { x: 0.3, y: 0.15 },
+          ],
+          style: { strokeColor: '#e02424', strokeWidth: 2, opacity: 1 },
+          author: 'Tester',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: 'pending',
+        };
+
+        const desc = getMarkupSvgDescriptor(strikeMarkup, transform);
+        expect(desc.tag).toBe('line');
+        expect(desc.attrs.x1).toBe(80);
+        expect(desc.attrs.y1).toBe(75); // y + height/2 (60 + 15)
+        expect(desc.attrs.x2).toBe(240);
+        expect(desc.attrs.y2).toBe(75);
+        expect(desc.attrs.stroke).toBe('#e02424');
+      });
+
+      it('genera grupo con extremos de línea (openArrow, closedArrow, circle, square, diamond)', () => {
+        const lineWithArrows: Markup = {
+          id: 'line-arrows',
+          type: 'line',
+          pageIndex: 0,
+          points: [
+            { x: 0.1, y: 0.1 },
+            { x: 0.5, y: 0.1 },
+          ],
+          style: {
+            strokeColor: '#0284c7',
+            strokeWidth: 2,
+            opacity: 1,
+            lineEndingStart: 'circle',
+            lineEndingEnd: 'openArrow',
+          },
+          author: 'Tester',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: 'pending',
+        };
+
+        const desc = getMarkupSvgDescriptor(lineWithArrows, transform);
+        expect(desc.tag).toBe('g');
+        expect(desc.children).toBeDefined();
+        expect(desc.children!.length).toBe(3); // main line + start circle + end arrow
+
+        // Main line
+        expect(desc.children![0].tag).toBe('line');
+        // Start circle
+        expect(desc.children![1].tag).toBe('ellipse');
+        // End arrow
+        expect(desc.children![2].tag).toBe('polyline');
+      });
+    });
   });
 });

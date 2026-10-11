@@ -17,6 +17,8 @@ import {
   AlertTriangle,
   FileSpreadsheet,
   FileText,
+  Lock,
+  LockOpen,
 } from 'lucide-react';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useDocumentStore } from '../store/useDocumentStore';
@@ -82,6 +84,22 @@ function getMarkupIcon(type: MarkupType) {
       return <Square size={14} className="text-orange-400" />;
     case 'line':
       return <Minus size={14} className="text-blue-400" />;
+    case 'polyLine':
+      return (
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="text-cyan-400"
+        >
+          <polyline points="4 18 10 7 15 14 20 6" />
+        </svg>
+      );
     case 'cloud':
     case 'cloudPlus':
       return <Cloud size={14} className="text-emerald-400" />;
@@ -96,6 +114,41 @@ function getMarkupIcon(type: MarkupType) {
     case 'highlight':
     case 'highlightText':
       return <Highlighter size={14} className="text-yellow-400" />;
+    case 'underline':
+      return (
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="text-pink-400"
+        >
+          <path d="M6 4v6a6 6 0 0 0 12 0V4" />
+          <line x1="4" y1="20" x2="20" y2="20" />
+        </svg>
+      );
+    case 'strikeOut':
+      return (
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="text-rose-400"
+        >
+          <path d="M16 4H9a3 3 0 0 0-2.83 4" />
+          <path d="M14 12a4 4 0 0 1 0 8H6" />
+          <line x1="4" y1="12" x2="20" y2="12" />
+        </svg>
+      );
     default:
       return <HelpCircle size={14} className="text-gray-400" />;
   }
@@ -111,6 +164,7 @@ export const MarkupsList: React.FC = () => {
     updateMarkupStatus,
     updateMarkup,
     updateMarkupCustomField,
+    toggleLockSelectedMarkups,
   } = useMarkupStore();
 
   const {
@@ -657,6 +711,11 @@ export const MarkupsList: React.FC = () => {
                       <td className="py-1 px-2 flex items-center space-x-1.5 capitalize">
                         {getMarkupIcon(markup.type)}
                         <span>{markup.type}</span>
+                        {markup.locked && (
+                          <span title="Marca bloqueada" data-testid={`markup-locked-badge-${markup.id}`}>
+                            <Lock size={12} className="text-amber-400 shrink-0 ml-1" />
+                          </span>
+                        )}
                       </td>
 
                       {/* Texto / Comentario editable */}
@@ -1048,6 +1107,27 @@ export const MarkupsList: React.FC = () => {
           >
             <Briefcase size={13} className="text-blue-400" />
             <span>Añadir a Tool Chest</span>
+          </button>
+
+          <button
+            data-testid="context-menu-toggle-lock"
+            onClick={() => {
+              toggleLockSelectedMarkups();
+              setContextMenu(null);
+            }}
+            className="w-full text-left px-3 py-1.5 hover:bg-cad-hover flex items-center space-x-2 text-gray-200 hover:text-white transition-colors cursor-pointer"
+          >
+            {contextMenu.markup.locked ? (
+              <>
+                <LockOpen size={13} className="text-amber-400" />
+                <span>Desbloquear marca</span>
+              </>
+            ) : (
+              <>
+                <Lock size={13} className="text-gray-400" />
+                <span>Bloquear marca</span>
+              </>
+            )}
           </button>
 
           <div className="border-t border-cad-border my-1" />

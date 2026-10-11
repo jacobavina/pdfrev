@@ -272,6 +272,52 @@ export function emitMarkupOperators(
       break;
     }
 
+    case 'polyLine': {
+      if (markup.points.length >= 2) {
+        const pdfPts = markup.points.map((p) => normalizedToPdfCoordinates(p, transform));
+        for (const pt of pdfPts) updateBBox(pt.x, pt.y);
+
+        lines.push(`${pdfPts[0].x.toFixed(2)} ${pdfPts[0].y.toFixed(2)} m`);
+        for (let i = 1; i < pdfPts.length; i++) {
+          lines.push(`${pdfPts[i].x.toFixed(2)} ${pdfPts[i].y.toFixed(2)} l`);
+        }
+        lines.push('S');
+      }
+      break;
+    }
+
+    case 'underline': {
+      if (markup.points.length >= 2) {
+        const p1 = normalizedToPdfCoordinates(markup.points[0], transform);
+        const p2 = normalizedToPdfCoordinates(markup.points[1], transform);
+        const minX = Math.min(p1.x, p2.x);
+        const maxX = Math.max(p1.x, p2.x);
+        const minY = Math.min(p1.y, p2.y);
+        updateBBox(minX, minY);
+        updateBBox(maxX, minY);
+        lines.push(`${minX.toFixed(2)} ${minY.toFixed(2)} m`);
+        lines.push(`${maxX.toFixed(2)} ${minY.toFixed(2)} l`);
+        lines.push('S');
+      }
+      break;
+    }
+
+    case 'strikeOut': {
+      if (markup.points.length >= 2) {
+        const p1 = normalizedToPdfCoordinates(markup.points[0], transform);
+        const p2 = normalizedToPdfCoordinates(markup.points[1], transform);
+        const minX = Math.min(p1.x, p2.x);
+        const maxX = Math.max(p1.x, p2.x);
+        const midY = (p1.y + p2.y) / 2;
+        updateBBox(minX, midY);
+        updateBBox(maxX, midY);
+        lines.push(`${minX.toFixed(2)} ${midY.toFixed(2)} m`);
+        lines.push(`${maxX.toFixed(2)} ${midY.toFixed(2)} l`);
+        lines.push('S');
+      }
+      break;
+    }
+
     case 'polygon': {
       if (markup.points.length >= 2) {
         const pdfPts = markup.points.map((p) => normalizedToPdfCoordinates(p, transform));

@@ -222,6 +222,16 @@ try {
   console.log(`    Navegador:  ${caps.browserName} ${caps.browserVersion}`);
   console.log(`    Driver:     ${caps.msedge?.msedgedriverVersion || 'msedgedriver'}`);
 
+  // Configurar tamaño de ventana realista (1280x900) vía W3C WebDriver
+  const resizeRes = await fetch(`${DRIVER_URL}/session/${sessionId}/window/rect`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ width: 1280, height: 900 }),
+  });
+  if (resizeRes.ok) {
+    console.log('  ✓ Tamaño de ventana configurado a 1280x900 px.');
+  }
+
   // Helper para WebDriver HTTP
   async function executeSync(script, args = []) {
     const res = await fetch(`${DRIVER_URL}/session/${sessionId}/execute/sync`, {
@@ -295,18 +305,18 @@ try {
   console.log('\n[4/5] Ejecutando verificaciones del Smoke Test...');
 
   // (b) El canvas del PDF renderiza píxeles reales (captura PNG como artefacto)
-  console.log('\n  [Sub-verificación B] Renderizado de píxeles reales en Canvas...');
+  console.log('\n  [Sub-verificación B] Renderizado de píxeles reales en Canvas principal...');
   let canvasResult = null;
   for (let i = 0; i < 30; i++) {
     canvasResult = await executeSync(`
-      const canvas = document.querySelector('canvas');
-      if (!canvas) return { ok: false, reason: 'canvas no encontrado' };
+      const canvas = document.querySelector('#pdf-render-canvas') || document.querySelector('[data-testid="pdf-canvas"]');
+      if (!canvas) return { ok: false, reason: 'canvas principal no encontrado' };
       const ctx = canvas.getContext('2d');
       if (!ctx) return { ok: false, reason: 'sin contexto 2d' };
       const w = canvas.width;
       const h = canvas.height;
       if (w === 0 || h === 0) return { ok: false, reason: 'dimensiones 0' };
-      const data = ctx.getImageData(0, 0, Math.min(w, 200), Math.min(h, 200)).data;
+      const data = ctx.getImageData(0, 0, Math.min(w, 400), Math.min(h, 400)).data;
       let nonZero = 0;
       for (let p = 0; p < data.length; p += 4) {
         if (data[p + 3] > 0) nonZero++;
@@ -402,27 +412,42 @@ try {
   // (d) Interacciones reales W3C Actions API (dibujar rectángulo y seleccionarlo)
   console.log('\n  [Sub-verificación D] Acciones de ratón W3C (dibujar y seleccionar rectángulo)...');
 
-  // Seleccionar herramienta Rectángulo
-  const rectBtnId = await findElement('button[title*="Rectángulo"]');
-  if (!rectBtnId) {
-    throw new Error('No se encontró el botón de herramienta Rectángulo en la barra superior.');
-  }
-  await clickElement(rectBtnId);
-  console.log('    ✓ Herramienta Rectángulo activada mediante clic nativo.');
+  // Contar marcas en el store antes de la interacción
+  const countBefore = await executeSync(`
+    return window.useMarkupStore ? window.useMarkupStore.getState().markups.length : 0;
+  `);
+  console.log(`    Marcas antes de dibujar: ${countBefore}`);
 
-  // Obtener caja del visor
+  // Activar herramienta Rectángulo
+  const toolActivated = await executeSync(`
+    const btn = document.querySelector('button[title*="Rectángulo"]');
+    if (btn) btn.click();
+    return window.useToolStore ? window.useToolStore.getState().activeTool : null;
+  `);
+  if (toolActivated !== 'rectangle') {
+    throw new Error(`Fallo al activar herramienta Rectángulo: estado actual '${toolActivated}'`);
+  }
+  console.log('    ✓ Herramienta Rectángulo activada y verificada en useToolStore.');
+
+  // Obtener caja del lienzo principal de renderizado
   const canvasRect = await executeSync(`
-    const c = document.querySelector('canvas');
+    const c = document.querySelector('#pdf-render-canvas') || document.querySelector('[data-testid="pdf-canvas"]');
+    if (!c) return null;
     const r = c.getBoundingClientRect();
     return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
   `);
+  if (!canvasRect || canvasRect.width <= 0 || canvasRect.height <= 0) {
+    throw new Error(`Geometría inválida del lienzo principal: ${JSON.stringify(canvasRect)}`);
+  }
 
-  const drawX1 = canvasRect.x + 80;
-  const drawY1 = canvasRect.y + 80;
-  const drawX2 = canvasRect.x + 220;
-  const drawY2 = canvasRect.y + 180;
+  // Coordenadas proporcionales dentro del lienzo (del 25% al 65% ancho, 25% al 55% alto)
+  const drawX1 = Math.round(canvasRect.x + canvasRect.width * 0.25);
+  const drawY1 = Math.round(canvasRect.y + canvasRect.height * 0.25);
+  const drawX2 = Math.round(canvasRect.x + canvasRect.width * 0.65);
+  const drawY2 = Math.round(canvasRect.y + canvasRect.height * 0.55);
+  console.log(`    Arrastrando proporcionalmente de (${drawX1}, ${drawY1}) a (${drawX2}, ${drawY2})...`);
 
-  // Acción de arrastre para dibujar rectángulo
+  // Acción de arrastre W3C para dibujar rectángulo
   await fetch(`${DRIVER_URL}/session/${sessionId}/actions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -435,7 +460,7 @@ try {
           actions: [
             { type: 'pointerMove', duration: 100, x: drawX1, y: drawY1 },
             { type: 'pointerDown', button: 0 },
-            { type: 'pointerMove', duration: 200, x: drawX2, y: drawY2 },
+            { type: 'pointerMove', duration: 300, x: drawX2, y: drawY2 },
             { type: 'pointerUp', button: 0 },
           ],
         },
@@ -443,24 +468,45 @@ try {
     }),
   });
   await fetch(`${DRIVER_URL}/session/${sessionId}/actions`, { method: 'DELETE' });
-  await new Promise((r) => setTimeout(r, 400));
+  await new Promise((r) => setTimeout(r, 600));
 
-  // Verificar que el rectángulo se añadió
-  const markupsCount = await executeSync(`
-    const svgRects = document.querySelectorAll('svg rect[data-markup-id], svg rect');
-    return svgRects.length;
+  // ASERCIÓN ESTRICTA DE EFECTO: marcas en el store deben incrementarse exactamente en +1
+  const markupsAfter = await executeSync(`
+    const state = window.useMarkupStore ? window.useMarkupStore.getState() : null;
+    return {
+      count: state ? state.markups.length : null,
+      lastMarkup: state && state.markups.length > 0 ? state.markups[state.markups.length - 1] : null
+    };
   `);
-  console.log(`    ✓ Rectángulo trazado en el lienzo (elementos detectados: ${markupsCount}).`);
+
+  if (!markupsAfter || markupsAfter.count !== countBefore + 1) {
+    throw new Error(
+      `ASSERTION FAILED: Se esperaba exactamente ${countBefore + 1} marcas en el store, pero hay ${markupsAfter?.count}.`
+    );
+  }
+  const newMarkup = markupsAfter.lastMarkup;
+  if (newMarkup.type !== 'rectangle') {
+    throw new Error(`ASSERTION FAILED: El tipo de la marca creada no es 'rectangle': ${newMarkup.type}`);
+  }
+  if (newMarkup.author !== 'Revisor Técnico') {
+    throw new Error(`ASSERTION FAILED: El autor esperado era 'Revisor Técnico', se obtuvo: '${newMarkup.author}'`);
+  }
+  console.log(`    ✓ Aserción superada: Store incrementó de ${countBefore} a ${markupsAfter.count} marcas.`);
+  console.log(`    ✓ Marca creada: ID ${newMarkup.id}, Tipo '${newMarkup.type}', Autor '${newMarkup.author}'.`);
 
   // Activar herramienta Seleccionar
-  const selectBtnId = await findElement('button[title*="Seleccionar"]');
-  if (selectBtnId) {
-    await clickElement(selectBtnId);
+  const selectActivated = await executeSync(`
+    const btn = document.querySelector('button[title*="Seleccionar"]');
+    if (btn) btn.click();
+    return window.useToolStore ? window.useToolStore.getState().activeTool : null;
+  `);
+  if (selectActivated !== 'select') {
+    throw new Error(`Fallo al activar herramienta Seleccionar: estado actual '${selectActivated}'`);
   }
 
-  // Clic en el centro para seleccionar
-  const clickX = canvasRect.x + 130;
-  const clickY = canvasRect.y + 130;
+  // Clic en el borde superior del rectángulo recién dibujado para seleccionarlo
+  const borderClickX = Math.round((drawX1 + drawX2) / 2);
+  const borderClickY = drawY1;
   await fetch(`${DRIVER_URL}/session/${sessionId}/actions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -471,7 +517,7 @@ try {
           id: 'mouse1',
           parameters: { pointerType: 'mouse' },
           actions: [
-            { type: 'pointerMove', duration: 100, x: clickX, y: clickY },
+            { type: 'pointerMove', duration: 100, x: borderClickX, y: borderClickY },
             { type: 'pointerDown', button: 0 },
             { type: 'pointerUp', button: 0 },
           ],
@@ -480,6 +526,18 @@ try {
     }),
   });
   await fetch(`${DRIVER_URL}/session/${sessionId}/actions`, { method: 'DELETE' });
+  await new Promise((r) => setTimeout(r, 400));
+
+  // ASERCIÓN DE SELECCIÓN: comprobar que la marca recién creada está en selectedMarkupIds
+  const selectedIds = await executeSync(`
+    return window.useMarkupStore ? window.useMarkupStore.getState().selectedMarkupIds : [];
+  `);
+  if (!selectedIds.includes(newMarkup.id)) {
+    throw new Error(
+      `ASSERTION FAILED: La marca ${newMarkup.id} no fue seleccionada por el clic (seleccionadas: ${JSON.stringify(selectedIds)})`
+    );
+  }
+  console.log(`    ✓ Aserción de selección superada: Marca ${newMarkup.id} seleccionada correctamente.`);
 
   const actionsScreenshotPath = await takeScreenshot('native-rectangle-drawn.png');
   console.log(`    ✓ Artefacto de interacción guardado: ${actionsScreenshotPath}`);

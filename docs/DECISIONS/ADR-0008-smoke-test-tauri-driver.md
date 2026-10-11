@@ -91,7 +91,10 @@ Es imperativo documentar con total honestidad qué cubre `tauri-driver` y qué p
    - Creación y persistencia atómica de `temp_native_smoke.bbx.json` confirmada por `fs.existsSync`.
    - Ausencia de archivo temporal `.tmp` residual confirmada.
    - Lectura íntegra mediante `read_bbx` con matching de campos JSON.
-3. **Renderizado y acciones W3C:**
-   - 12,610 píxeles opacos detectados en el canvas del PDF.
-   - Herramienta rectángulo accionada y trazada con éxito mediante acciones W3C.
-   - Artefactos visuales generados en `tests/native-artifacts/pdf-canvas-smoke.png` y `tests/native-artifacts/native-rectangle-drawn.png`.
+3. **Renderizado y acciones W3C con aserciones estrictas:**
+   - Ventana configurada a dimensión realista de 1280x900 px vía `POST /session/:id/window/rect`.
+   - 12,610 píxeles opacos detectados en el canvas principal `#pdf-render-canvas` (800x600 px).
+   - Trazo de rectángulo calculado con coordenadas proporcionales dentro del lienzo (del 25% al 65% de ancho y 25% al 55% de alto).
+   - **Aserción estricta de store:** comprobación de que `useMarkupStore.getState().markups.length` incrementa exactamente de 1 a 2 marcas (+1) con autor por defecto `'Revisor Técnico'`.
+   - **Aserción estricta de selección:** clic sobre el borde del rectángulo trazado activa la selección y añade el ID de la marca a `selectedMarkupIds`.
+   - Artefactos visuales generados en `tests/native-artifacts/pdf-canvas-smoke.png` y `tests/native-artifacts/native-rectangle-drawn.png` (mostrando visualmente "LISTA DE MARCAS (2)" con las dos filas en el panel inferior).

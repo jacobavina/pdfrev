@@ -153,6 +153,10 @@ pegada**. Prohibido "listo", "verificado", "funciona" o "3 passed" sin la salida
 - **El conteo de tests no baja sin justificación:** Si un commit reduce el número de tests de
   cualquier suite, el informe explica qué tests se eliminaron y por qué. Borrar asserts no rompe
   ninguna suite, así que es la forma más silenciosa de perder cobertura.
+- **TODO SUB-CHEQUEO DEBE PODER FALLAR:** Si alguien rompe una funcionalidad o un componente a
+  propósito, la puerta TIENE que ponerse roja. Los sub-chequeos que solo imprimen por consola
+  (`console.log`) sin aserciones estrictas (`throw`) que verifiquen el efecto real (mutaciones de store,
+  archivos en disco, elementos en DOM) constituyen falsos verdes inaceptables y no cuentan como cobertura.
 
 ---
 

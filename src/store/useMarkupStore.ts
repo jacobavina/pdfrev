@@ -52,6 +52,11 @@ interface MarkupState {
   deselectAll: () => void;
   setMarkups: (markups: Markup[]) => void;
   setMarkupsTransient: (markups: Markup[]) => void;
+  /**
+   * Medidas recalculadas por un cambio de escala (ADR-0031): sustituye esas marcas y marca el documento como
+   * modificado. No entra en el historial, igual que la propia escala.
+   */
+  remeasureMarkups: (markups: Markup[]) => void;
   commitMoveMarkups: (moves: MoveMarkupItem[]) => void;
   /** Cambio de forma por puntos de control (ADR-0021): puntos y, si aplica, medida y texto en un solo paso. */
   reshapeMarkup: (id: string, before: ReshapePatch, after: ReshapePatch, description?: string) => void;
@@ -473,6 +478,15 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
       });
       markupHistory.clear();
       syncHistoryFlags();
+    },
+
+    remeasureMarkups: (updatedMarkups: Markup[]) => {
+      if (updatedMarkups.length === 0) return;
+      const map = new Map(updatedMarkups.map((m) => [m.id, m]));
+      set((state) => ({
+        markups: state.markups.map((m) => map.get(m.id) ?? m),
+        isDirty: true,
+      }));
     },
 
     setMarkupsTransient: (updatedMarkups: Markup[]) => {

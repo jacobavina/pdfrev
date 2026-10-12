@@ -82,9 +82,17 @@ const Section: React.FC<{ title: string; testId?: string; children: React.ReactN
 };
 
 /** Snap: íconos propios (punto final, punto medio, más cercano). */
-const SnapIcon: React.FC<{ kind: 'endpoint' | 'midpoint' | 'nearest' }> = ({ kind }) => (
+const SNAP_TITLES = {
+  endpoint: 'Snap to endpoints',
+  midpoint: 'Snap to midpoints',
+  intersection: 'Snap to intersections',
+  nearest: 'Snap to nearest point on a line',
+} as const;
+
+const SnapIcon: React.FC<{ kind: 'endpoint' | 'midpoint' | 'nearest' | 'intersection' }> = ({ kind }) => (
   <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden="true">
-    <path d="M4 20 20 4" />
+    {kind === 'intersection' ? <path d="M4 20 20 4M4 4l16 16" /> : <path d="M4 20 20 4" />}
+    {kind === 'intersection' && <circle cx="12" cy="12" r="3.5" stroke="#a78bfa" />}
     {kind === 'endpoint' && <rect x="16" y="1" width="6" height="6" stroke="#a78bfa" />}
     {kind === 'midpoint' && <path d="m12 8.5 3.5 6h-7z" stroke="#a78bfa" />}
     {kind === 'nearest' && <path d="M9.5 9.5h5v5h-5zM12 12l7 7" stroke="#a78bfa" />}
@@ -558,14 +566,14 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
 
         <Section title="Snap" testId="measure-snap-section">
           <div className="flex gap-1">
-            {(['endpoint', 'midpoint', 'nearest'] as const).map((k) => (
+            {(['endpoint', 'midpoint', 'intersection', 'nearest'] as const).map((k) => (
               <button
                 key={k}
                 type="button"
                 data-testid={`snap-${k}`}
                 aria-pressed={snap[k]}
                 onClick={() => setSnap({ [k]: !snap[k] })}
-                title={k === 'endpoint' ? 'Snap to endpoints' : k === 'midpoint' ? 'Snap to midpoints' : 'Snap to nearest point on markup'}
+                title={SNAP_TITLES[k]}
                 className={`p-1.5 rounded border ${
                   snap[k] ? 'border-cad-accent bg-cad-accent/20 text-cad-strong' : 'border-transparent text-gray-400 hover:bg-cad-hover'
                 }`}
@@ -574,6 +582,16 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
               </button>
             ))}
           </div>
+          <label className="flex items-center gap-1.5 text-gray-300 cursor-pointer">
+            <input
+              type="checkbox"
+              data-testid="snap-content"
+              checked={snap.content}
+              onChange={(e) => setSnap({ content: e.target.checked })}
+              className="accent-cad-accent"
+            />
+            Snap to drawing (lines of the PDF)
+          </label>
         </Section>
 
         <Section title="Settings">

@@ -73,22 +73,17 @@ describe('PdfViewer + barra de estado - Calibración e indicador de escala', () 
     expect(indicator).toHaveTextContent('Scale not set (paper scale, mm)');
   });
 
-  it('abre el modal de calibración del visor al pulsar el indicador de la barra de estado', async () => {
+  it('el indicador de escala abre el panel Measure, donde se calibra (ADR-0031)', async () => {
     await act(async () => {
-      render(
-        <>
-          <PdfViewer />
-          <StatusBar />
-        </>
-      );
+      render(<StatusBar />);
     });
-
+    const before = useUiStore.getState().measurementsOpenRequest;
     await act(async () => {
       fireEvent.click(screen.getByTestId('calibration-indicator'));
     });
-
-    // El modal se carga al abrirlo (carga diferida)
-    expect(await screen.findByTestId('calibration-modal')).toBeInTheDocument();
+    expect(useUiStore.getState().measurementsOpenRequest).toBe(before + 1);
+    // Ya no abre el diálogo antiguo sin puntos
+    expect(useCalibrationStore.getState().isCalibrationModalOpen).toBe(false);
   });
 
   it('actualiza reactivamente el texto del indicador cuando la página se calibra', async () => {

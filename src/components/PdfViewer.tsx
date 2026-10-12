@@ -40,7 +40,6 @@ import {
   HIGHLIGHT_STYLE,
 } from '../types/markup';
 import { InlineTextEditor } from './markup/InlineTextEditor';
-import { showToast } from '../services/toastService';
 import { extractTextForLineRect, mergeLineRects } from '../utils/textLayerUtils';
 import { useCalibrationStore } from '../store/useCalibrationStore';
 import { useSearchStore } from '../store/useSearchStore';
@@ -52,6 +51,10 @@ import { defaultDimensionLinePoint } from '../core/markup/dimension';
 import { controlPointsOf, applyControlPointDrag } from '../core/markup/controlPoints';
 import { revisionCloudPathNormalized } from '../core/markup/revisionCloud';
 import { snapPoint, SnapResult } from '../core/markup/snap';
+import { remeasureMarkup, SCALED_MEASURE_TYPES } from '../core/measurements/remeasure';
+import type { ContentSnapIndex } from '../core/markup/contentSnap';
+import type { loadContentSnapIndex } from '../services/contentSnapService';
+import { showToast } from '../services/toastService';
 import { stampById, stampSubtitle, defaultStampSizePt } from '../core/markup/stamps';
 import { fieldTypeDef, fieldTypeOf, nextFieldName } from '../core/markup/formFields';
 import { useAttachmentStore } from '../store/useAttachmentStore';
@@ -84,6 +87,12 @@ interface PdfLinkArea {
 const CalibrationModal = lazy(() => import('./CalibrationModal').then((m) => ({ default: m.CalibrationModal })));
 
 /** Herramientas que usan snap al dibujar o medir (ADR-0025). */
+/**
+ * Herramientas de dos puntos que admiten clic-clic además del arrastre (ADR-0031): clic en el punto 1, el trazo
+ * sigue al cursor (con snap) y clic en el punto 2, como en Revu.
+ */
+const TWO_CLICK_TOOLS = new Set<string>(['length', 'radius', 'diameter', 'dimension', 'line', 'arrow', 'calibrate']);
+
 const SNAP_TOOLS = new Set<string>([
   'line', 'arrow', 'dimension', 'length', 'polylineMeasure', 'area', 'count', 'calibrate',
   'perimeter', 'volume', 'angle', 'radius', 'diameter',
@@ -246,10 +255,16 @@ export const PdfViewer: React.FC = () => {
     width: 800,
     height: 600,
   });
+  const pageViewportRef = useRef(pageViewport);
+  pageViewportRef.current = pageViewport;
+  const scaleRef = useRef(scale);
+  scaleRef.current = scale;
 
   // Tamaño sin escalar (pt, con la rotación aplicada) de todas las páginas (ADR-0019): permite maquetar la vista
   // continua sin saltos antes de renderizar y calcular "Ajustar a página". Vacío si el documento no lo ofrece.
   const [pageSizes, setPageSizes] = useState<{ w: number; h: number }[]>([]);
+  const pageSizesRef = useRef(pageSizes);
+  pageSizesRef.current = pageSizes;
   useEffect(() => {
     let cancelled = false;
     setPageSizes([]);
@@ -635,35 +650,9 @@ export const PdfViewer: React.FC = () => {
   const reshapedMarkup = (original: Markup, points: MarkupPoint[]): Markup => {
     const dims = { width: pageViewport.width / (scale || 1.0), height: pageViewport.height / (scale || 1.0) };
     const calib = useCalibrationStore.getState().getPageCalibration(original.pageIndex);
-    const next: Markup = { ...original, points };
-    if (original.type === 'length') {
-      next.measurement = calculateLength(points, dims, calib);
-      next.text = next.measurement.formatted;
-    } else if (original.type === 'polylineMeasure') {
-      next.measurement = calculatePolylineLength(points, dims, calib);
-      next.text = next.measurement.formatted;
-    } else if (original.type === 'area' && points.length >= 3) {
-      next.measurement = calculateArea(points, dims, calib, false);
-      next.text = next.measurement.formatted;
-    } else if (original.type === 'perimeter') {
-      next.measurement = calculatePerimeter(points, dims, calib);
-      next.text = next.measurement.formatted;
-    } else if (original.type === 'volume') {
-      const depth = Number(original.customFields?.volumeDepth ?? 1);
-      next.measurement = calculateVolume(points, dims, calib, depth);
-      next.text = next.measurement.formatted;
-    } else if (original.type === 'angle') {
-      next.measurement = calculateAngle(points, dims, calib);
-      next.text = next.measurement.formatted;
-    } else if (original.type === 'radius' || original.type === 'diameter') {
-      next.measurement = calculateLength(points, dims, calib);
-      next.text = next.measurement.formatted;
-    } else if (original.type === 'dimension') {
-      const before = calculateLength(original.points.slice(0, 2), dims, calib).formatted;
-      if (!original.text || original.text === before) {
-        next.text = calculateLength(points.slice(0, 2), dims, calib).formatted;
-      }
-    }
+    // Al deformar, el texto de una medición pasa a ser su valor nuevo (como antes de ADR-0031)
+    const next = remeasureMarkup(original, points, dims, calib);
+    if (next.measurement && next.type !== 'dimension') next.text = next.measurement.formatted;
     return next;
   };
 
@@ -739,11 +728,15 @@ export const PdfViewer: React.FC = () => {
         }
         if (polygonPoints.length > 0 || freehandPoints.length > 0 || drawingStart) {
           e.preventDefault();
+          twoClickRef.current = false;
           setPolygonPoints([]);
           setFreehandPoints([]);
           setDrawingStart(null);
           setCurrentDrawPoint(null);
           setInlineEditing(null);
+        } else if (activeTool === 'calibrate') {
+          // Sin trazo en curso, Esc abandona la calibración (como en Revu)
+          useToolStore.getState().setActiveTool('select');
         }
         return;
       }
@@ -1013,8 +1006,65 @@ export const PdfViewer: React.FC = () => {
     return () => window.removeEventListener('mouseup', handleWindowMouseUp);
   }, [viewportTransform, commitMoveMarkups, setMarkupsTransient]);
 
+  // Cambiar la escala de una página recalcula sus mediciones (ADR-0031), como Revu: si no, una longitud medida antes
+  // de calibrar seguiría en mm de papel
+  useEffect(() => {
+    return useCalibrationStore.subscribe((state, prevState) => {
+      const before = prevState.calibrations;
+      const after = state.calibrations;
+      // Abrir un documento sustituye las escalas por las suyas (y las importadas): sus medidas ya vienen del PDF
+      if (before === after || state.importedCalibrations !== prevState.importedCalibrations) return;
+      const changedPages = new Set<number>();
+      for (const k of new Set([...Object.keys(before), ...Object.keys(after)])) {
+        if (JSON.stringify(before[Number(k)]) !== JSON.stringify(after[Number(k)])) changedPages.add(Number(k));
+      }
+      if (changedPages.size === 0) return;
+      const { markups: all } = useMarkupStore.getState();
+      const updated: Markup[] = [];
+      for (const m of all) {
+        if (!changedPages.has(m.pageIndex) || !SCALED_MEASURE_TYPES.has(m.type)) continue;
+        const size = pageSizesRef.current[m.pageIndex];
+        const dims = size
+          ? { width: size.w, height: size.h }
+          : { width: pageViewportRef.current.width / (scaleRef.current || 1), height: pageViewportRef.current.height / (scaleRef.current || 1) };
+        const prev = before[m.pageIndex] ?? state.getPageCalibration(-1);
+        updated.push(remeasureMarkup(m, m.points, dims, state.getPageCalibration(m.pageIndex), prev));
+      }
+      if (updated.length > 0) useMarkupStore.getState().remeasureMarkups(updated);
+    });
+  }, []);
+
   // Snap (ADR-0025): al dibujar o medir, el cursor se ajusta a extremos, puntos medios o aristas de las marcas
   const [snapIndicator, setSnapIndicator] = useState<SnapResult | null>(null);
+  // Trazos del plano de la página activa para "Snap to Content" (ADR-0031), cargados al usar una herramienta con snap
+  const contentIndexRef = useRef<{ key: string; index: ContentSnapIndex | null }>({ key: '', index: null });
+  const snapContent = useUiStore((s) => s.snap.content);
+  const wantsContent = SNAP_TOOLS.has(activeTool) && snapContent;
+  useEffect(() => {
+    const doc = pdfDoc as unknown as Parameters<typeof loadContentSnapIndex>[0] | null;
+    if (!wantsContent || !doc || typeof doc.getPage !== 'function') return;
+    const key = `${currentPageIndex}|${rotation}`;
+    if (contentIndexRef.current.key === key) return;
+    contentIndexRef.current = { key, index: null };
+    let cancelled = false;
+    // Carga bajo demanda: el lector de geometría solo se descarga al usar una herramienta con snap
+    import('../services/contentSnapService')
+      .then((m) => m.loadContentSnapIndex(doc, currentPageIndex, rotation))
+      .then((index) => {
+        if (!cancelled && contentIndexRef.current.key === key) contentIndexRef.current = { key, index };
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        contentIndexRef.current = { key: '', index: null };
+        console.warn('[Snap] No se pudo leer la geometría del plano:', err);
+        showToast('Snap to content is unavailable on this page; snapping to markups only.');
+      });
+    return () => {
+      cancelled = true;
+      if (contentIndexRef.current.key === key && !contentIndexRef.current.index) contentIndexRef.current = { key: '', index: null };
+    };
+  }, [wantsContent, pdfDoc, currentPageIndex, rotation]);
+
   const snapAt = useCallback(
     (pt: MarkupPoint): SnapResult | null => {
       if (!SNAP_TOOLS.has(useToolStore.getState().activeTool)) return null;
@@ -1023,7 +1073,14 @@ export const PdfViewer: React.FC = () => {
       const candidates = useMarkupStore
         .getState()
         .markups.filter((m) => m.pageIndex === page && !hidden.includes(m.layer ?? NO_LAYER));
-      return snapPoint(pt, candidates, { width: viewportTransform.width, height: viewportTransform.height }, snap);
+      return snapPoint(
+        pt,
+        candidates,
+        { width: viewportTransform.width, height: viewportTransform.height },
+        snap,
+        8,
+        contentIndexRef.current.index
+      );
     },
     [viewportTransform]
   );
@@ -1232,6 +1289,12 @@ export const PdfViewer: React.FC = () => {
         measurement,
       };
       addMarkup(newMarkup);
+      return;
+    }
+
+    // Clic-clic (ADR-0031): con el punto 1 fijado, este clic da el punto 2 (se cierra en mouseUp)
+    if (TWO_CLICK_TOOLS.has(activeTool) && twoClickRef.current && drawingStart) {
+      setCurrentDrawPoint(pt);
       return;
     }
 
@@ -1450,6 +1513,15 @@ export const PdfViewer: React.FC = () => {
     radioGroupRef.current = null;
   }, [activeTool]);
 
+  // Cambiar de herramienta abandona un trazo clic-clic a medias
+  const twoClickRef = useRef(false);
+  useEffect(() => {
+    if (!twoClickRef.current) return;
+    twoClickRef.current = false;
+    setDrawingStart(null);
+    setCurrentDrawPoint(null);
+  }, [activeTool]);
+
   /** Caja normalizada del sello: la del arrastre o, con un clic, el tamaño por defecto centrado en el punto. */
   const stampBoxFor = (a: MarkupPoint, b: MarkupPoint): MarkupPoint[] => {
     if (exceedsScreenThreshold(a, b, viewportTransform, 4)) {
@@ -1472,7 +1544,28 @@ export const PdfViewer: React.FC = () => {
     ];
   };
 
-  const handleMouseUp = (_e: React.MouseEvent<SVGSVGElement>) => {
+  const latestDrawPoint = currentDrawPoint;
+  const handleMouseUp = (e: React.MouseEvent<SVGSVGElement>) => {
+    // Herramientas de dos puntos: el punto final es el del propio evento (con snap), sin esperar al render
+    const upPoint = TWO_CLICK_TOOLS.has(activeTool) && drawingStart ? getEventPoint(e) : null;
+    const currentDrawPoint = upPoint ?? latestDrawPoint;
+    if (upPoint && drawingStart) {
+      const moved = exceedsScreenThreshold(drawingStart, upPoint, viewportTransform, 4);
+      if (!twoClickRef.current && !moved) {
+        // Primer clic sin arrastre: el trazo sigue al cursor hasta el segundo clic
+        twoClickRef.current = true;
+        setCurrentDrawPoint(upPoint);
+        return;
+      }
+      twoClickRef.current = false;
+      if (!moved) {
+        // Segundo clic en el mismo punto: nada que medir
+        setDrawingStart(null);
+        setCurrentDrawPoint(null);
+        return;
+      }
+      setCurrentDrawPoint(upPoint);
+    }
     if (vertexDragRef.current) {
       finishVertexDrag();
       return;
@@ -1509,8 +1602,8 @@ export const PdfViewer: React.FC = () => {
         const unscaledW = pageViewport.width / (scale || 1.0);
         const unscaledH = pageViewport.height / (scale || 1.0);
         const result = handleSelectMouseUp({
-          screenX: _e.clientX,
-          screenY: _e.clientY,
+          screenX: e.clientX,
+          screenY: e.clientY,
           dragState: dragStateRef.current,
           viewportTransform,
           thresholdPx: 4,
@@ -1528,7 +1621,7 @@ export const PdfViewer: React.FC = () => {
 
     // Modo Nota Adhesiva técnica (A.4: Abre editor contra ancla pendiente sin persistir marca aún)
     if (activeTool === 'stickyNote') {
-      const pt = getEventPoint(_e);
+      const pt = getEventPoint(e);
       setInlineEditing({
         markupId: '',
         initialText: '',
@@ -3083,6 +3176,12 @@ export const PdfViewer: React.FC = () => {
                   )}
                   {snapIndicator.kind === 'midpoint' && (
                     <polygon points={`${s.x},${s.y - 6} ${s.x + 6},${s.y + 5} ${s.x - 6},${s.y + 5}`} fill="none" stroke={c} strokeWidth={1.8} />
+                  )}
+                  {snapIndicator.kind === 'intersection' && (
+                    <>
+                      <circle cx={s.x} cy={s.y} r={6} fill="none" stroke={c} strokeWidth={1.8} />
+                      <path d={`M${s.x - 4} ${s.y - 4}L${s.x + 4} ${s.y + 4}M${s.x + 4} ${s.y - 4}L${s.x - 4} ${s.y + 4}`} stroke={c} strokeWidth={1.5} />
+                    </>
                   )}
                   {snapIndicator.kind === 'nearest' && (
                     <path d={`M${s.x - 5} ${s.y - 5}L${s.x + 5} ${s.y + 5}M${s.x + 5} ${s.y - 5}L${s.x - 5} ${s.y + 5}`} stroke={c} strokeWidth={1.8} />

@@ -19,8 +19,7 @@ export const StatusBar: React.FC = () => {
   const { numPages, currentPageIndex, scale, zoomIn, zoomOut, resetZoom, rotateClockwise, pdfBytes, filePath } =
     useDocumentStore();
   const { markups, selectedMarkupIds, isDirty } = useMarkupStore();
-  const { calibrations, getPageCalibration, setPendingCalibrationPoints, setCalibrationModalOpen } =
-    useCalibrationStore();
+  const { calibrations, getPageCalibration } = useCalibrationStore();
   const cursorPt = useUiStore((s) => s.cursorPt);
   const viewMode = useUiStore((s) => s.viewMode);
   const setViewMode = useUiStore((s) => s.setViewMode);
@@ -139,12 +138,10 @@ export const StatusBar: React.FC = () => {
         <button
           type="button"
           data-testid="calibration-indicator"
-          onClick={() => {
-            setPendingCalibrationPoints([]);
-            setCalibrationModalOpen(true);
-          }}
+          // La escala se edita en el panel Measure (ADR-0031); desde allí, Calibrate marca dos puntos
+          onClick={() => useUiStore.getState().requestMeasurementsPanel()}
           className="flex items-center gap-1.5 px-1.5 rounded hover:bg-cad-hover hover:text-cad-strong whitespace-nowrap"
-          title="Click to calibrate or adjust this page's scale"
+          title="Open the Measure panel to calibrate or adjust this page's scale"
         >
           <span className={`w-2 h-2 rounded-full ${isCalibrated ? 'bg-emerald-500' : 'bg-amber-500'}`} />
           <span className="font-mono">

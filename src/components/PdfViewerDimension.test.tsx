@@ -206,7 +206,7 @@ describe('Cota, puntos de control y zoom con doble clic (ADR-0020/0021)', () => 
       status: 'pending',
     };
     useMarkupStore.setState({ markups: [line], selectedMarkupIds: [] });
-    useUiStore.setState({ snap: { endpoint: true, midpoint: true, nearest: false }, showMeasureLabels: true });
+    useUiStore.setState({ snap: { endpoint: true, midpoint: true, nearest: false, intersection: false, content: false }, showMeasureLabels: true });
     useToolStore.setState({ measureLabel: 'Wall' });
     await renderViewer();
     act(() => useToolStore.setState({ activeTool: 'length' }));

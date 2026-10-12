@@ -53,7 +53,7 @@ describe('Perimeter, Volume, Angle, Radius y Diameter en el visor (ADR-0029)', (
       pdfDoc: {} as never,
     });
     useCalibrationStore.setState({ calibrations: {} });
-    useUiStore.setState({ hiddenLayers: [], snap: { endpoint: false, midpoint: false, nearest: false }, showMeasureLabels: true });
+    useUiStore.setState({ hiddenLayers: [], snap: { endpoint: false, midpoint: false, nearest: false, intersection: false, content: false }, showMeasureLabels: true });
     useToolStore.setState({
       activeTool: 'select',
       measureLabel: '',

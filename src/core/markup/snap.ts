@@ -1,4 +1,5 @@
 import { Markup, MarkupPoint } from '../../types/markup';
+import type { ContentSnapIndex } from './contentSnap';
 
 /**
  * Snap (ADR-0025), como la sección Snap de Foxit y Revu: al dibujar o medir, el cursor se ajusta a los extremos,
@@ -10,9 +11,16 @@ export interface SnapModes {
   endpoint: boolean;
   midpoint: boolean;
   nearest: boolean;
+  /** Cruce de dos líneas (ADR-0031). */
+  intersection?: boolean;
+  /** Ajustar también a los trazos del plano ("Snap to Content" de Revu, ADR-0031). */
+  content?: boolean;
 }
 
-export type SnapKind = 'endpoint' | 'midpoint' | 'nearest';
+export type SnapKind = 'endpoint' | 'midpoint' | 'nearest' | 'intersection';
+
+/** Máximo de segmentos cercanos que se cruzan entre sí para buscar intersecciones (coste cuadrático). */
+const MAX_INTERSECTION_SEGMENTS = 300;
 
 export interface SnapResult {
   point: MarkupPoint;
@@ -74,9 +82,10 @@ export function snapPoint(
   markups: Markup[],
   pagePx: { width: number; height: number },
   modes: SnapModes,
-  thresholdPx = 8
+  thresholdPx = 8,
+  content?: ContentSnapIndex | null
 ): SnapResult | null {
-  if (!modes.endpoint && !modes.midpoint && !modes.nearest) return null;
+  if (!modes.endpoint && !modes.midpoint && !modes.nearest && !modes.intersection) return null;
   const W = pagePx.width || 1;
   const H = pagePx.height || 1;
   const distPx = (a: MarkupPoint, b: MarkupPoint) => Math.hypot((a.x - b.x) * W, (a.y - b.y) * H);
@@ -86,8 +95,29 @@ export function snapPoint(
     if (d > thresholdPx) return;
     if (!best || rank < best.rank || (rank === best.rank && d < best.d)) best = { r: { point, kind }, d, rank };
   };
-  for (const m of markups) {
-    const g = snapGeometry(m);
+  // Geometría candidata: la de las marcas y, si está activo, la del plano cercana al cursor
+  const groups: { vertices: MarkupPoint[]; segments: Seg[] }[] = markups.map(snapGeometry);
+  if (content && modes.content !== false && content.size > 0) {
+    const near = content.near(pt, thresholdPx / W, thresholdPx / H);
+    groups.push({ vertices: near.flatMap(([a, b]) => [a, b]), segments: near });
+  }
+  if (modes.intersection) {
+    // Solo los segmentos que pasan cerca del cursor pueden cruzarse dentro de la tolerancia
+    const close: Seg[] = [];
+    for (const g of groups) {
+      for (const sg of g.segments) {
+        if (distToSegPx(pt, sg, W, H) <= thresholdPx) close.push(sg);
+        if (close.length >= MAX_INTERSECTION_SEGMENTS) break;
+      }
+    }
+    for (let i = 0; i < close.length; i++) {
+      for (let j = i + 1; j < close.length; j++) {
+        const x = intersect(close[i], close[j]);
+        if (x) consider(x, 'intersection', 0);
+      }
+    }
+  }
+  for (const g of groups) {
     if (modes.endpoint) for (const v of g.vertices) consider(v, 'endpoint', 0);
     if (modes.midpoint) {
       for (const [a, b] of g.segments) consider({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, 'midpoint', 1);
@@ -109,4 +139,28 @@ export function snapPoint(
     }
   }
   return best ? (best as { r: SnapResult }).r : null;
+}
+
+/** Distancia en píxeles de un punto a un segmento normalizado. */
+function distToSegPx(p: MarkupPoint, [a, b]: Seg, W: number, H: number): number {
+  const ax = a.x * W;
+  const ay = a.y * H;
+  const dx = b.x * W - ax;
+  const dy = b.y * H - ay;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 < 1e-12 ? 0 : Math.max(0, Math.min(1, ((p.x * W - ax) * dx + (p.y * H - ay) * dy) / len2));
+  return Math.hypot(p.x * W - (ax + t * dx), p.y * H - (ay + t * dy));
+}
+
+/** Cruce de dos segmentos (incluidos sus extremos), o null si son paralelos o no se tocan. */
+function intersect([a, b]: Seg, [c, d]: Seg): MarkupPoint | null {
+  const r = { x: b.x - a.x, y: b.y - a.y };
+  const s = { x: d.x - c.x, y: d.y - c.y };
+  const den = r.x * s.y - r.y * s.x;
+  if (Math.abs(den) < 1e-14) return null;
+  const t = ((c.x - a.x) * s.y - (c.y - a.y) * s.x) / den;
+  const u = ((c.x - a.x) * r.y - (c.y - a.y) * r.x) / den;
+  const eps = 1e-9;
+  if (t < -eps || t > 1 + eps || u < -eps || u > 1 + eps) return null;
+  return { x: a.x + t * r.x, y: a.y + t * r.y };
 }

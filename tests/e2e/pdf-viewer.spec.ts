@@ -2094,4 +2094,54 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.keyboard.press('Control+r');
     await expect(page.locator('[data-testid="ruler-top"]')).toHaveCount(0);
   });
+  test('Snap al dibujo, clic-clic y calibración por dos puntos (ADR-0031): cuadrícula del PDF, 140 pies y recálculo', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
+    const box = (await overlaySvg.boundingBox())!;
+    // Intersecciones de la cuadrícula del plano en (350, 150) y (550, 150) pt; el cursor cae 3 px al lado
+    const near = (xPt: number, yPt: number) => ({
+      x: box.x + (box.width * xPt) / 800 + 3,
+      y: box.y + (box.height * yPt) / 600 + 2,
+    });
+    const a = near(350, 150);
+    const b = near(550, 150);
+
+    // 1. Length con dos clics: el snap se engancha a las líneas del PDF
+    await page.locator('header').click();
+    await page.keyboard.press('Shift+Alt+L');
+    // La geometría del plano se lee al elegir la herramienta: el indicador aparece al mover el cursor tras la carga
+    const intersection = overlaySvg.locator('[data-testid="snap-indicator-intersection"]');
+    await expect(async () => {
+      await page.mouse.move(a.x + 1, a.y);
+      await page.mouse.move(a.x, a.y);
+      await expect(intersection).toHaveCount(1, { timeout: 500 });
+    }).toPass({ timeout: 15000 });
+    await page.mouse.click(a.x, a.y);
+    await page.mouse.move(b.x, b.y, { steps: 4 });
+    await expect(overlaySvg.locator('[data-testid="snap-indicator-intersection"]')).toHaveCount(1);
+    await page.mouse.click(b.x, b.y);
+    const length = overlaySvg.locator('g[data-testid^="markup-length-"]');
+    await expect(length).toHaveCount(1);
+    await expect(length.locator('text')).toHaveText('70.6 mm'); // 200 pt exactos
+
+    // 2. Calibrate en la cinta: aviso, los mismos dos puntos y 140' en pies-pulgadas
+    await page.locator('[data-testid="tool-calibrate"]').click();
+    await expect(page.locator('[data-testid="calibrate-hint"]')).toBeVisible();
+    await page.mouse.move(a.x, a.y);
+    await page.mouse.click(a.x, a.y);
+    await page.mouse.move(b.x, b.y, { steps: 4 });
+    await page.mouse.click(b.x, b.y);
+    await expect(page.locator('[data-testid="calibration-measured"]')).toContainText('200.00 pt');
+    await page.locator('[data-testid="calibration-unit-select"]').selectOption('ftin');
+    await page.locator('[data-testid="calibration-length-input"]').fill("140'");
+    await page.locator('[data-testid="calibration-confirm-btn"]').click();
+    await expect(page.locator('[data-testid="calibration-indicator"]')).toContainText(`1 in = 50'-4 13/16"`);
+    // La medición anterior se recalcula con la escala nueva
+    await expect(length.locator('text')).toHaveText(`140'-0"`);
+    await expect(page.locator('[data-testid="calibrate-hint"]')).toHaveCount(0);
+  });
 });

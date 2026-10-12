@@ -235,8 +235,10 @@ export function describeCalibration(calibration: PageCalibration): string {
     if (p) return p.label;
   }
   if (r) {
-    const real = r.realUnit === 'ftin' ? formatFeetInches(r.realValue) : `${r.realValue} ${r.realUnit}`;
-    return `${r.paperValue} ${r.paperUnit} = ${real}`;
+    // Hasta 4 decimales, sin ceros sobrantes (una escala por dos puntos no da números redondos)
+    const num = (n: number) => String(Number(n.toFixed(4)));
+    const real = r.realUnit === 'ftin' ? formatFeetInches(r.realValue) : `${num(r.realValue)} ${r.realUnit}`;
+    return `${num(r.paperValue)} ${r.paperUnit} = ${real}`;
   }
   return `1 ${calibration.unit} = ${(1 / calibration.scale).toFixed(1)} pt`;
 }

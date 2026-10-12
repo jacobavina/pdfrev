@@ -184,4 +184,5 @@ plan y `AGENTS.md`, **gana `AGENTS.md`**.
 | 2026-10-12 | Claude (Opus 5.5) | ADR-0028: Save, Save As (Ctrl+Shift+S) y File ▸ Export, también con el documento de demostración. |
 | 2026-10-12 | Claude (Opus 5.5) | ADR-0029: Perimeter, Volume, Angle, Radius, Diameter y reglas (View ▸ Rulers, Ctrl+R). |
 | 2026-10-12 | Claude (Opus 5.5) | ADR-0030: mediciones con /IT y /Measure estándar (vivas en Revu/Acrobat) e importación de las mediciones de Acrobat/Revu. |
+| 2026-10-12 | Claude (Opus 5.5) | ADR-0031: snap al dibujo del PDF e intersecciones, medir con clic-clic y calibración por dos puntos con recálculo. |
 

@@ -309,13 +309,14 @@ export const MenuBar: React.FC = () => {
             {
               icon: <CalibrateIcon size={15} />,
               label: 'Calibrate Page Scale…',
+              testId: 'menu-calibrate',
+              // Un solo flujo (ADR-0031): dos clics sobre una distancia conocida y después el diálogo
               onSelect: () => {
                 useCalibrationStore.getState().setPendingCalibrationPoints([]);
-                useCalibrationStore.getState().setCalibrationModalOpen(true);
+                setActiveTool('calibrate');
               },
               disabled: !hasDoc,
             },
-            { icon: <Ruler size={15} />, label: 'Calibrate by Two Points', onSelect: () => setActiveTool('calibrate'), disabled: !hasDoc },
             'separator',
             ...(TOOL_GROUPS.find((g) => g.id === 'measure')?.tools ?? [])
               .filter((t) => t.type !== 'calibrate')

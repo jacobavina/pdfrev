@@ -31,6 +31,7 @@ const ShortcutsDialog = lazy(() =>
 /** Hueco de la barra lateral plegada mientras carga el panel. */
 const SidePanelFallback: React.FC = () => <aside className="w-10 bg-cad-panel border-l border-cad-border" />;
 import { RULER_SIZE } from './core/measurements/rulers';
+import { CalibrateHint } from './components/viewer/CalibrateHint';
 const Rulers = lazy(() => import('./components/viewer/Rulers'));
 import fixtureMeta from '../fixtures/test-blueprint.meta.json';
 
@@ -168,6 +169,7 @@ export const App: React.FC = () => {
               </Suspense>
             )}
             <PdfViewer />
+            <CalibrateHint />
           </div>
         </div>
         <Suspense fallback={<SidePanelFallback />}>

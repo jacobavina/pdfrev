@@ -15,10 +15,14 @@ export interface SnapSettings {
   endpoint: boolean;
   midpoint: boolean;
   nearest: boolean;
+  /** Cruce de dos líneas (ADR-0031). */
+  intersection: boolean;
+  /** Ajustar también a los trazos del plano, no solo a las marcas ("Snap to Content", ADR-0031). */
+  content: boolean;
 }
 
 const SNAP_STORAGE_KEY = 'rea-snap';
-const DEFAULT_SNAP: SnapSettings = { endpoint: true, midpoint: true, nearest: false };
+const DEFAULT_SNAP: SnapSettings = { endpoint: true, midpoint: true, nearest: false, intersection: true, content: true };
 
 function readStoredSnap(): SnapSettings {
   try {
@@ -28,6 +32,8 @@ function readStoredSnap(): SnapSettings {
         endpoint: raw.endpoint !== false,
         midpoint: raw.midpoint !== false,
         nearest: raw.nearest === true,
+        intersection: raw.intersection !== false,
+        content: raw.content !== false,
       };
     }
   } catch {

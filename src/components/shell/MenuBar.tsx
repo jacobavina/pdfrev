@@ -40,8 +40,20 @@ export const MenuBar: React.FC = () => {
     useDocumentStore();
   const { canUndo, canRedo, undo, redo, isDirty, selectedMarkupIds } = useMarkupStore();
   const { activeTool, setActiveTool } = useToolStore();
-  const { theme, toggleTheme, setLeftTab, requestPropertiesPanel, requestMeasurementsPanel, requestExport, setShortcutsOpen } =
-    useUiStore();
+  const {
+    theme,
+    toggleTheme,
+    themeFollowsSystem,
+    useSystemTheme: followSystem,
+    setLeftTab,
+    requestPropertiesPanel,
+    requestMeasurementsPanel,
+    requestExport,
+    setShortcutsOpen,
+    viewMode,
+    setViewMode,
+    requestFit,
+  } = useUiStore();
   const { saveNow } = useAutoSave(0);
 
   // Cerrar con clic fuera o Escape
@@ -117,8 +129,13 @@ export const MenuBar: React.FC = () => {
       entries: [
         { label: 'Acercar', shortcut: '+', onSelect: zoomIn, disabled: !hasDoc },
         { label: 'Alejar', shortcut: '−', onSelect: zoomOut, disabled: !hasDoc },
-        { label: 'Tamaño real (100 %)', onSelect: resetZoom, disabled: !hasDoc },
+        { label: 'Ajustar a página', shortcut: 'Ctrl+0', onSelect: () => requestFit('page'), disabled: !hasDoc, testId: 'menu-fit-page' },
+        { label: 'Tamaño real (100 %)', shortcut: 'Ctrl+1', onSelect: resetZoom, disabled: !hasDoc },
+        { label: 'Ajustar al ancho', shortcut: 'Ctrl+2', onSelect: () => requestFit('width'), disabled: !hasDoc },
         { label: 'Rotar vista 90°', onSelect: rotateClockwise, disabled: !hasDoc },
+        'separator',
+        { label: 'Página única', checked: viewMode === 'single', onSelect: () => setViewMode('single') },
+        { label: 'Continua', checked: viewMode === 'continuous', onSelect: () => setViewMode('continuous'), testId: 'menu-view-continuous' },
         'separator',
         { label: 'Panel de páginas', onSelect: () => setLeftTab('pages') },
         { label: 'Panel de marcadores', onSelect: () => setLeftTab('bookmarks') },
@@ -130,6 +147,12 @@ export const MenuBar: React.FC = () => {
           label: theme === 'dark' ? 'Tema claro' : 'Tema oscuro',
           onSelect: toggleTheme,
           testId: 'menu-toggle-theme',
+        },
+        {
+          label: 'Usar el tema del sistema',
+          checked: themeFollowsSystem,
+          onSelect: followSystem,
+          testId: 'menu-system-theme',
         },
       ],
     },

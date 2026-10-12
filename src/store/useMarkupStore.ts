@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { create } from 'zustand';
 import { Markup, MarkupPoint, MarkupStatus, MarkupStyle, MarkupTextFormat } from '../types/markup';
 import { Command, HistoryManager } from './history/command';
+import { DEFAULT_CLOUD_STEP } from '../core/markup/revisionCloud';
 import { UpdateMarkupStatusCommand, MarkupStatusTarget } from './history/UpdateMarkupStatusCommand';
 import { UpdateMarkupCustomFieldCommand } from './history/UpdateMarkupCustomFieldCommand';
 
@@ -15,6 +16,8 @@ export interface MoveMarkupItem {
   originalLeaders?: MarkupPoint[][];
   newLeaders?: MarkupPoint[][];
 }
+
+export type ReshapePatch = Pick<Markup, 'points'> & Partial<Pick<Markup, 'measurement' | 'text'>>;
 
 interface MarkupState {
   markups: Markup[];
@@ -37,6 +40,7 @@ interface MarkupState {
       layer?: string;
       status?: MarkupStatus;
       author?: string;
+      customFields?: Record<string, string | number | undefined>;
     },
     description?: string
   ) => void;
@@ -49,6 +53,10 @@ interface MarkupState {
   setMarkups: (markups: Markup[]) => void;
   setMarkupsTransient: (markups: Markup[]) => void;
   commitMoveMarkups: (moves: MoveMarkupItem[]) => void;
+  /** Cambio de forma por puntos de control (ADR-0021): puntos y, si aplica, medida y texto en un solo paso. */
+  reshapeMarkup: (id: string, before: ReshapePatch, after: ReshapePatch, description?: string) => void;
+  /** Tipo de línea "Nube" (ADR-0021): rectángulo/polígono ↔ nube, en un solo paso deshacible. */
+  setCloudLineStyle: (ids: string[], cloud: boolean) => void;
   copySelectedMarkups: () => void;
   pasteMarkups: (targetPageIndex?: number, offset?: { x: number; y: number }) => void;
   duplicateSelectedMarkups: () => void;
@@ -169,6 +177,7 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
         layer?: string;
         status?: MarkupStatus;
         author?: string;
+        customFields?: Record<string, string | number | undefined>;
       },
       description?: string
     ) => {
@@ -192,6 +201,11 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
         if (updates.layer !== undefined && m.layer !== updates.layer) hasAnyChange = true;
         if (updates.status !== undefined && m.status !== updates.status) hasAnyChange = true;
         if (updates.author !== undefined && m.author !== updates.author) hasAnyChange = true;
+        if (updates.customFields) {
+          for (const [k, v] of Object.entries(updates.customFields)) {
+            if (m.customFields?.[k] !== v) hasAnyChange = true;
+          }
+        }
         if (updates.textFormat !== undefined) {
           if (!m.textFormat || JSON.stringify(m.textFormat) !== JSON.stringify(updates.textFormat)) {
             hasAnyChange = true;
@@ -224,9 +238,20 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
         execute: () => {
           set((state) => ({
             markups: state.markups.map((m) => {
-              if (!ids.includes(m.id)) return m;
+              // Solo las marcas no bloqueadas que se capturaron para deshacer
+              if (!previousMap.has(m.id)) return m;
+              let customFields = m.customFields;
+              if (updates.customFields) {
+                const merged: Record<string, string | number> = { ...(m.customFields ?? {}) };
+                for (const [k, v] of Object.entries(updates.customFields)) {
+                  if (v === undefined) delete merged[k];
+                  else merged[k] = v;
+                }
+                customFields = Object.keys(merged).length > 0 ? merged : undefined;
+              }
               return {
                 ...m,
+                ...(updates.customFields ? { customFields } : {}),
                 ...(updates.style ? { style: { ...m.style, ...updates.style } } : {}),
                 ...(updates.text !== undefined ? { text: updates.text } : {}),
                 ...(updates.status !== undefined ? { status: updates.status } : {}),
@@ -508,6 +533,55 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
         },
       };
 
+      markupHistory.execute(command);
+      syncHistoryFlags();
+    },
+
+    reshapeMarkup: (id, before, after, description = 'Editar puntos de control') => {
+      const target = get().markups.find((m) => m.id === id);
+      if (!target || target.locked) return;
+      const apply = (patch: ReshapePatch) =>
+        set((state) => ({
+          markups: state.markups.map((m) =>
+            m.id === id ? { ...m, ...patch, updatedAt: new Date().toISOString() } : m
+          ),
+          isDirty: true,
+        }));
+      const command: Command = { description, execute: () => apply(after), undo: () => apply(before) };
+      markupHistory.execute(command);
+      syncHistoryFlags();
+    },
+
+    setCloudLineStyle: (ids, cloud) => {
+      const targets = get().markups.filter(
+        (m) =>
+          ids.includes(m.id) &&
+          !m.locked &&
+          (cloud ? m.type === 'rectangle' || m.type === 'polygon' : m.type === 'cloud')
+      );
+      if (targets.length === 0) return;
+      const before = new Map(targets.map((m) => [m.id, m]));
+      const now = new Date().toISOString();
+      const after = new Map(
+        targets.map((m): [string, Markup] => [
+          m.id,
+          cloud
+            ? {
+                ...m,
+                type: 'cloud',
+                customFields: { ...(m.customFields ?? {}), arcStep: m.customFields?.arcStep ?? DEFAULT_CLOUD_STEP },
+                updatedAt: now,
+              }
+            : { ...m, type: m.points.length === 2 ? 'rectangle' : 'polygon', updatedAt: now },
+        ])
+      );
+      const apply = (map: Map<string, Markup>) =>
+        set((state) => ({ markups: state.markups.map((m) => map.get(m.id) ?? m), isDirty: true }));
+      const command: Command = {
+        description: cloud ? 'Tipo de línea: nube' : 'Quitar estilo de nube',
+        execute: () => apply(after),
+        undo: () => apply(before),
+      };
       markupHistory.execute(command);
       syncHistoryFlags();
     },

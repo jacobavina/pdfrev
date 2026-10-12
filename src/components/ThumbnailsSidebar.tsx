@@ -52,6 +52,7 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
 
   return (
     <div
+      data-testid={`thumbnail-${pageIndex}`}
       onClick={onClick}
       className={`group cursor-pointer flex flex-col items-center p-2 rounded transition-all ${
         isActive

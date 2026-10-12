@@ -1,3 +1,4 @@
+import { dimensionSegmentsNormalized } from '../core/markup/dimension';
 import {
   MarkupPoint,
   Markup,
@@ -205,6 +206,18 @@ export function getMarkupBounds(
     if (pt.x > maxX) maxX = pt.x;
     if (pt.y < minY) minY = pt.y;
     if (pt.y > maxY) maxY = pt.y;
+  }
+
+  // La línea de cota puede quedar fuera de los puntos acotados
+  if (markup.type === 'dimension') {
+    for (const [a, b] of dimensionSegmentsNormalized(markup.points, pageDimensions)) {
+      for (const pt of [a, b]) {
+        if (pt.x < minX) minX = pt.x;
+        if (pt.x > maxX) maxX = pt.x;
+        if (pt.y < minY) minY = pt.y;
+        if (pt.y > maxY) maxY = pt.y;
+      }
+    }
   }
 
   // Si tiene directrices (Callout), incluir sus puntos en el bounding box
@@ -611,6 +624,13 @@ export function hitTestMarkup(
     const inXRange = point.x >= bounds.x - tolerance && point.x <= bounds.x + bounds.width + tolerance;
 
     return ((nearLeft || nearRight) && inYRange) || ((nearTop || nearBottom) && inXRange);
+  }
+
+  // Cota: línea de cota y líneas de referencia (ADR-0020)
+  if (markup.type === 'dimension' && markup.points.length >= 2) {
+    return dimensionSegmentsNormalized(markup.points, pageDimensions).some(
+      ([a, b]) => distanceToSegment(point, a, b) <= tolerance
+    );
   }
 
   // 5. Línea y Medida de Longitud (distanceToSegment)

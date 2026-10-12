@@ -19,6 +19,7 @@ export const MARKUP_TYPE_LABELS: Record<MarkupType, string> = {
   underline: 'Subrayado',
   strikeOut: 'Tachado',
   stamp: 'Sello',
+  dimension: 'Cota',
   length: 'Longitud',
   polylineMeasure: 'Polilongitud',
   area: 'Área',

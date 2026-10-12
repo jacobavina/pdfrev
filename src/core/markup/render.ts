@@ -10,6 +10,8 @@ import {
 } from '../../types/markup';
 import { normalizedToScreen } from '../../utils/coordinates';
 import { lineEndingShape, lineEndingSize, endpointAngles } from './lineEndings';
+import { dimensionGeometry, dimensionTextBaseline, defaultDimensionLinePoint } from './dimension';
+import { revisionCloudPathNormalized, cloudParams } from './revisionCloud';
 import {
   getHelveticaTextWidth,
   getHelveticaCharWidth,
@@ -708,6 +710,54 @@ export function getMarkupSvgDescriptor(
       };
     }
 
+    // Cota con texto propio (ADR-0020): misma geometría que el /AP
+    case 'dimension': {
+      const s3 = markup.points[2]
+        ? normalizedToScreen(markup.points[2], transform)
+        : defaultDimensionLinePoint(p1Screen, p2Screen, 15 * (transform.scale || 1));
+      const geom = dimensionGeometry(p1Screen, p2Screen, s3);
+      const opacity = baseAttrs.opacity ?? 1;
+      if (!geom) {
+        return { tag: 'line', attrs: { ...baseAttrs, x1: p1Screen.x, y1: p1Screen.y, x2: p2Screen.x, y2: p2Screen.y } };
+      }
+      const children: SvgRenderDescriptor[] = geom.extensions.map(([a, b]) => ({
+        tag: 'line' as const,
+        attrs: { x1: a.x, y1: a.y, x2: b.x, y2: b.y, stroke: style.strokeColor, strokeWidth: style.strokeWidth, opacity },
+      }));
+      const dimLine: SvgRenderDescriptor = {
+        tag: 'line',
+        attrs: {
+          ...baseAttrs,
+          fill: 'none',
+          x1: geom.dimStart.x,
+          y1: geom.dimStart.y,
+          x2: geom.dimEnd.x,
+          y2: geom.dimEnd.y,
+        },
+      };
+      children.push(withLineEndings(dimLine, [geom.dimStart, geom.dimEnd], style, transform, opacity));
+      if (markup.text) {
+        const fontSize = (style.fontSize ?? 10) * (transform.scale || 1);
+        const base = dimensionTextBaseline(geom, fontSize, false);
+        const deg = (geom.textAngle * 180) / Math.PI;
+        children.push({
+          tag: 'text',
+          attrs: {
+            x: base.x,
+            y: base.y,
+            fontSize,
+            fill: style.strokeColor,
+            fontFamily: 'Helvetica, Arial, sans-serif',
+            textAnchor: 'middle',
+            opacity,
+            transform: `rotate(${deg.toFixed(2)} ${base.x.toFixed(2)} ${base.y.toFixed(2)})`,
+          },
+          textNode: markup.text,
+        });
+      }
+      return { tag: 'g', attrs: { 'data-testid': `markup-dimension-${markup.id}` }, children };
+    }
+
     // Herramientas de Medición y Takeoff (Paquete 4)
     case 'length': {
       const lineDescriptor: SvgRenderDescriptor = {
@@ -955,15 +1005,14 @@ export function getMarkupSvgDescriptor(
     // C2: Nube con pasos derivados en unidades de página independientes del zoom
     case 'cloud':
     case 'cloudPlus': {
-      const arcStep =
-        typeof markup.customFields?.arcStep === 'number'
-          ? markup.customFields.arcStep
-          : DEFAULT_ARC_STEP;
-
-      const pathD = generateCloudPath(
+      // Lóbulos en pt de página: en pantalla se escalan con el zoom real del visor (ADR-0021)
+      const { step, invert } = cloudParams(markup.customFields, DEFAULT_ARC_STEP);
+      const pxPerPt = transform.zoom ?? transform.scale ?? 1;
+      const pathD = revisionCloudPathNormalized(
         markup.points,
         { width: transform.width * transform.scale, height: transform.height * transform.scale },
-        arcStep * transform.scale
+        step * pxPerPt,
+        invert
       );
       return {
         tag: 'path',

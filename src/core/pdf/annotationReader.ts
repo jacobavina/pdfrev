@@ -265,7 +265,10 @@ export async function importPdfAnnotations(
       }
 
       if (subtype === 'Line') {
-        markupType = 'line';
+        // Las marcas de REA conservan su tipo (longitud, cota); una /Line ajena con /LL es una cota
+        const llObj = annotDict.get(PDFName.of('LL'));
+        const ll = llObj instanceof PDFNumber ? llObj.asNumber() : 0;
+        if (!isRea) markupType = Math.abs(ll) > 1e-6 ? 'dimension' : 'line';
         const lObj = annotDict.get(PDFName.of('L'));
         if (lObj instanceof PDFArray && lObj.size() >= 4) {
           const lx1 = lObj.get(0);
@@ -283,6 +286,23 @@ export async function importPdfAnnotations(
               pdfToNormalizedCoordinates({ x: lx1.asNumber(), y: ly1.asNumber() }, transform),
               pdfToNormalizedCoordinates({ x: lx2.asNumber(), y: ly2.asNumber() }, transform)
             );
+            if (markupType === 'dimension') {
+              // Punto de la línea de cota a partir de /LL (positivo = sentido horario recorriendo /L)
+              const ax = lx1.asNumber();
+              const ay = ly1.asNumber();
+              const bx = lx2.asNumber();
+              const by = ly2.asNumber();
+              const len = Math.hypot(bx - ax, by - ay) || 1;
+              const ux = (bx - ax) / len;
+              const uy = (by - ay) / len;
+              const offset = Math.abs(ll) > 1e-6 ? ll : -15;
+              points.push(
+                pdfToNormalizedCoordinates(
+                  { x: (ax + bx) / 2 + uy * offset, y: (ay + by) / 2 - ux * offset },
+                  transform
+                )
+              );
+            }
           }
         }
       } else if (subtype === 'Polygon') {
@@ -301,7 +321,7 @@ export async function importPdfAnnotations(
           }
         }
       } else if (subtype === 'PolyLine') {
-        markupType = 'polyLine';
+        if (!isRea) markupType = 'polyLine';
         const vObj = annotDict.get(PDFName.of('Vertices'));
         if (vObj instanceof PDFArray && vObj.size() >= 4) {
           points.length = 0;
@@ -316,15 +336,15 @@ export async function importPdfAnnotations(
           }
         }
       } else if (subtype === 'Circle') {
-        markupType = 'circle';
+        if (!isRea) markupType = 'circle';
       } else if (subtype === 'Text') {
         markupType = 'stickyNote';
       } else if (subtype === 'Highlight') {
         if (!isRea) markupType = 'highlightVector';
       } else if (subtype === 'Underline') {
-        markupType = 'underline';
+        if (!isRea) markupType = 'underline';
       } else if (subtype === 'StrikeOut') {
-        markupType = 'strikeOut';
+        if (!isRea) markupType = 'strikeOut';
       } else if (subtype === 'FreeText') {
         if (!isRea) markupType = 'text';
       } else if (
@@ -348,6 +368,71 @@ export async function importPdfAnnotations(
         continue;
       }
 
+      // Geometría exacta de REA, si la anotación no se movió fuera de REA (su /Rect sigue siendo el escrito)
+      let leaders: MarkupPoint[][] | undefined;
+      let groupId: string | undefined;
+      let layer: string | undefined;
+      if (isRea && reaObj instanceof PDFDict) {
+        const readPts = (arr: unknown): MarkupPoint[] | null => {
+          if (!(arr instanceof PDFArray) || arr.size() < 2 || arr.size() % 2 !== 0) return null;
+          const out: MarkupPoint[] = [];
+          for (let i = 0; i < arr.size(); i += 2) {
+            const x = arr.get(i);
+            const y = arr.get(i + 1);
+            if (!(x instanceof PDFNumber) || !(y instanceof PDFNumber)) return null;
+            out.push({ x: x.asNumber(), y: y.asNumber() });
+          }
+          return out;
+        };
+        const numbersOf = (arr: unknown): number[] | null => {
+          if (!(arr instanceof PDFArray)) return null;
+          const out: number[] = [];
+          for (let i = 0; i < arr.size(); i++) {
+            const v = arr.get(i);
+            if (!(v instanceof PDFNumber)) return null;
+            out.push(v.asNumber());
+          }
+          return out;
+        };
+        const savedRect = numbersOf(reaObj.get(PDFName.of('rect')));
+        const currentRect = numbersOf(annotDict.get(PDFName.of('Rect')));
+        const unchanged =
+          savedRect &&
+          currentRect &&
+          savedRect.length === 4 &&
+          currentRect.length === 4 &&
+          savedRect.every((v, i) => Math.abs(v - currentRect[i]) < 0.5);
+        const exactPts = readPts(reaObj.get(PDFName.of('pts')));
+        if (unchanged && exactPts) {
+          points.length = 0;
+          points.push(...exactPts);
+          const leadersObj = reaObj.get(PDFName.of('leaders'));
+          if (leadersObj instanceof PDFArray) {
+            const parsed: MarkupPoint[][] = [];
+            for (let i = 0; i < leadersObj.size(); i++) {
+              const l = readPts(leadersObj.get(i));
+              if (l) parsed.push(l);
+            }
+            if (parsed.length > 0) leaders = parsed;
+          }
+        } else if (markupType === 'count' && points.length === 2) {
+          // Conteo sin geometría exacta: su centro es el centro de la caja
+          points.splice(0, 2, { x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2 });
+        }
+        groupId = extractPdfStringValue(reaObj.get(PDFName.of('groupId'))) || undefined;
+        layer = extractPdfStringValue(reaObj.get(PDFName.of('layer'))) || undefined;
+      }
+
+      // Opacidad (/CA) y tamaño de fuente (/DA)
+      let opacity = 1;
+      const caObj = annotDict.get(PDFName.of('CA'));
+      if (caObj instanceof PDFNumber && caObj.asNumber() > 0 && caObj.asNumber() <= 1 && subtype !== 'Highlight') {
+        opacity = caObj.asNumber();
+      }
+      let fontSize: number | undefined;
+      const daMatch = /([\d.]+)\s+Tf/.exec(extractPdfStringValue(annotDict.get(PDFName.of('DA'))));
+      if (daMatch && Number(daMatch[1]) > 0) fontSize = Number(daMatch[1]);
+
       // Comprobar bandera de bloqueo (/F bit 8 = 128)
       let locked = false;
       const fObj = annotDict.get(PDFName.of('F'));
@@ -368,6 +453,8 @@ export async function importPdfAnnotations(
             if (raw === 'openarrow') return 'openArrow';
             if (raw === 'square') return 'square';
             if (raw === 'diamond') return 'diamond';
+            if (raw === 'butt') return 'butt';
+            if (raw === 'slash') return 'slash';
             if (raw === 'none') return 'none';
           }
           return undefined;
@@ -387,7 +474,8 @@ export async function importPdfAnnotations(
           strokeColor,
           fillColor: fillColor || undefined,
           strokeWidth,
-          opacity: 1,
+          opacity,
+          ...(fontSize !== undefined ? { fontSize } : {}),
           lineEndingStart,
           lineEndingEnd,
           dashArray,
@@ -400,6 +488,9 @@ export async function importPdfAnnotations(
         customFields: Object.keys(customFields).length > 0 ? customFields : undefined,
         locked: locked || undefined,
         measurement,
+        ...(leaders ? { leaders } : {}),
+        ...(groupId ? { groupId } : {}),
+        ...(layer ? { layer } : {}),
       };
 
       markups.push(markup);

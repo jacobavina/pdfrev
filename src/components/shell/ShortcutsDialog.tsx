@@ -10,6 +10,8 @@ const GENERAL: [string, string][] = [
   ['Ctrl+C / Ctrl+V / Ctrl+D', 'Copiar / Pegar / Duplicar marcas'],
   ['Supr', 'Eliminar la selección'],
   ['Ctrl+F', 'Buscar texto en el plano'],
+  ['Ctrl+rueda', 'Acercar / alejar en el punto del cursor'],
+  ['Ctrl+0 / Ctrl+1 / Ctrl+2', 'Ajustar a página / Tamaño real / Ajustar al ancho'],
   ['Enter / doble clic', 'Cerrar polígono, polilínea o área'],
   ['Esc', 'Cancelar el trazo o cerrar menús'],
   ['Clic derecho', 'Menú contextual de la marca'],

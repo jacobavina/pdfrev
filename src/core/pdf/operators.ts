@@ -6,8 +6,41 @@ import {
 } from '../../types/markup';
 import {
   DEFAULT_ARC_STEP,
+  calculateCalloutGeometry,
+  wrapCalloutText,
+  CALLOUT_MIN_BOX_WIDTH,
 } from '../markup/render';
 import { lineEndingShape, lineEndingSize, endpointAngles, shapeExtent, Pt } from '../markup/lineEndings';
+import { dimensionGeometry, dimensionTextBaseline, defaultDimensionLinePoint } from '../markup/dimension';
+import { getHelveticaTextWidth } from '../markup/helveticaMetrics';
+import { revisionCloudPathNormalized, cloudParams } from '../markup/revisionCloud';
+
+/** Nombre del recurso de fuente que usan los /AP con texto (Helvetica estándar, WinAnsiEncoding). */
+export const AP_FONT_NAME = 'Helv';
+
+const WIN_ANSI_EXTRA: Record<string, number> = {
+  '€': 0x80, '‚': 0x82, 'ƒ': 0x83, '„': 0x84, '…': 0x85, '†': 0x86, '‡': 0x87, 'ˆ': 0x88, '‰': 0x89,
+  'Š': 0x8a, '‹': 0x8b, 'Œ': 0x8c, 'Ž': 0x8e, '‘': 0x91, '’': 0x92, '“': 0x93, '”': 0x94, '•': 0x95,
+  '–': 0x96, '—': 0x97, '˜': 0x98, '™': 0x99, 'š': 0x9a, '›': 0x9b, 'œ': 0x9c, 'ž': 0x9e, 'Ÿ': 0x9f,
+  '′': 0x27, '″': 0x22,
+};
+
+/**
+ * Cadena literal PDF en WinAnsiEncoding para el operador Tj. Los caracteres sin equivalente se sustituyen por
+ * "?" (el texto íntegro sigue en /Contents, en UTF-16).
+ */
+export function toWinAnsiPdfLiteral(text: string): string {
+  let out = '(';
+  for (const ch of text) {
+    let code = ch.codePointAt(0) ?? 63;
+    if (WIN_ANSI_EXTRA[ch] !== undefined) code = WIN_ANSI_EXTRA[ch];
+    else if (code > 0xff || (code >= 0x80 && code < 0xa0)) code = 63;
+    if (code === 0x28 || code === 0x29 || code === 0x5c) out += '\\' + String.fromCharCode(code);
+    else if (code < 0x20 || code > 0x7e) out += '\\' + code.toString(8).padStart(3, '0');
+    else out += String.fromCharCode(code);
+  }
+  return out + ')';
+}
 
 export interface PageTransformInfo {
   rotation: 0 | 90 | 180 | 270;
@@ -166,6 +199,8 @@ export function emitMarkupOperators(
   const extGState: EmittedOperatorsResult['extGState'] = {};
   if (strokeOpacity < 1) extGState.CA = strokeOpacity;
   if (fillOpacity < 1) extGState.ca = fillOpacity;
+  // Sin el operador gs la opacidad declarada en los recursos no se aplica
+  if (extGState.CA !== undefined || extGState.ca !== undefined) lines.push('/GS_HL gs');
 
   // Grosor de línea
   lines.push(`${strokeWidth.toFixed(2)} w`);
@@ -202,6 +237,98 @@ export function emitMarkupOperators(
 
   const hasFill = fillParsed !== null;
   const opPaint = hasFill ? (strokeParsed ? 'B' : 'f') : 'S';
+  const f2 = (n: number) => n.toFixed(2);
+  const rgbOp = (c: { r: number; g: number; b: number }, op: 'rg' | 'RG') =>
+    `${c.r.toFixed(3)} ${c.g.toFixed(3)} ${c.b.toFixed(3)} ${op}`;
+
+  // Espacio "visual" (la página tal como se ve: origen arriba a la izquierda, y hacia abajo, en pt)
+  const isRot = transform.rotation === 90 || transform.rotation === 270;
+  const visW = isRot ? transform.heightPt : transform.widthPt;
+  const visH = isRot ? transform.widthPt : transform.heightPt;
+  const visToPdf = (p: Pt) => normalizedToPdfCoordinates({ x: p.x / visW, y: p.y / visH }, transform);
+  const toVis = (p: MarkupPoint): Pt => ({ x: p.x * visW, y: p.y * visH });
+
+  /** Trazado poligonal en coordenadas PDF (amplía la caja envolvente). */
+  const pathPdf = (pts: Pt[], close: boolean) => {
+    pts.forEach((p, i) => {
+      updateBBox(p.x, p.y);
+      lines.push(`${f2(p.x)} ${f2(p.y)} ${i === 0 ? 'm' : 'l'}`);
+    });
+    if (close) lines.push('h');
+  };
+
+  /** Trazado SVG de solo M/Q/Z en espacio visual → PDF (las cuadráticas pasan a cúbicas exactas). */
+  const svgQuadPathToPdf = (d: string) => {
+    const tokens = d.match(/[MQCZ]|-?\d*\.?\d+(?:e-?\d+)?/gi) ?? [];
+    let i = 0;
+    let current: Pt | null = null;
+    const num = () => Number(tokens[i++]);
+    while (i < tokens.length) {
+      const cmd = tokens[i++].toUpperCase();
+      if (cmd === 'M') {
+        current = visToPdf({ x: num(), y: num() });
+        updateBBox(current.x, current.y);
+        lines.push(`${f2(current.x)} ${f2(current.y)} m`);
+      } else if (cmd === 'Q' && current) {
+        const q = visToPdf({ x: num(), y: num() });
+        const end = visToPdf({ x: num(), y: num() });
+        const c1 = { x: current.x + ((q.x - current.x) * 2) / 3, y: current.y + ((q.y - current.y) * 2) / 3 };
+        const c2 = { x: end.x + ((q.x - end.x) * 2) / 3, y: end.y + ((q.y - end.y) * 2) / 3 };
+        updateBBox(q.x, q.y);
+        updateBBox(end.x, end.y);
+        lines.push(`${f2(c1.x)} ${f2(c1.y)} ${f2(c2.x)} ${f2(c2.y)} ${f2(end.x)} ${f2(end.y)} c`);
+        current = end;
+      } else if (cmd === 'C' && current) {
+        const c1 = visToPdf({ x: num(), y: num() });
+        const c2 = visToPdf({ x: num(), y: num() });
+        const end = visToPdf({ x: num(), y: num() });
+        updateBBox(c1.x, c1.y);
+        updateBBox(c2.x, c2.y);
+        updateBBox(end.x, end.y);
+        lines.push(`${f2(c1.x)} ${f2(c1.y)} ${f2(c2.x)} ${f2(c2.y)} ${f2(end.x)} ${f2(end.y)} c`);
+        current = end;
+      } else if (cmd === 'Z') {
+        lines.push('h');
+      }
+    }
+  };
+
+  let usesFont = false;
+  /** Una línea de texto Helvetica con origen y ángulo en coordenadas PDF (amplía la caja envolvente). */
+  const textPdf = (
+    text: string,
+    origin: Pt,
+    angle: number,
+    fontSize: number,
+    color: { r: number; g: number; b: number },
+    align: 'left' | 'center'
+  ) => {
+    if (!text.trim()) return;
+    const width = getHelveticaTextWidth(text, fontSize);
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const x0 = align === 'center' ? origin.x - (cos * width) / 2 : origin.x;
+    const y0 = align === 'center' ? origin.y - (sin * width) / 2 : origin.y;
+    lines.push('q', 'BT', `/${AP_FONT_NAME} ${f2(fontSize)} Tf`, rgbOp(color, 'rg'));
+    lines.push(`${cos.toFixed(4)} ${sin.toFixed(4)} ${(-sin).toFixed(4)} ${cos.toFixed(4)} ${f2(x0)} ${f2(y0)} Tm`);
+    lines.push(`${toWinAnsiPdfLiteral(text)} Tj`, 'ET', 'Q');
+    for (const [dx, dy] of [
+      [0, -0.25],
+      [width, -0.25],
+      [0, 1],
+      [width, 1],
+    ]) {
+      updateBBox(x0 + cos * dx - sin * dy * fontSize, y0 + sin * dx + cos * dy * fontSize);
+    }
+    usesFont = true;
+  };
+  /** Texto horizontal en el espacio visual (sigue la rotación de la página). */
+  const textVis = (text: string, originVis: Pt, fontSize: number, color: { r: number; g: number; b: number }) => {
+    const o = visToPdf(originVis);
+    const o2 = visToPdf({ x: originVis.x + 1, y: originVis.y });
+    textPdf(text, o, Math.atan2(o2.y - o.y, o2.x - o.x), fontSize, color, 'left');
+  };
+  const DARK_TEXT = { r: 0.12, g: 0.16, b: 0.22 };
 
   /**
    * Extremos de línea (ADR-0018) con la misma geometría que la pantalla. Se dibujan sólidos (sin el patrón
@@ -217,7 +344,7 @@ export function emitMarkupOperators(
     ];
     let prepared = false;
     for (const [tip, angle, ending] of items) {
-      const shape = lineEndingShape(tip, angle, ending, size);
+      const shape = lineEndingShape(tip, angle, ending, size, true);
       if (!shape) continue;
       if (!prepared) {
         lines.push('[] 0 d');
@@ -503,16 +630,103 @@ export function emitMarkupOperators(
           ? markup.customFields.arcStep
           : DEFAULT_ARC_STEP;
 
-      void arcStep; // Marcador reservado para cálculo avanzado de arcos
-
-      // Calcular bbox a partir de los puntos base
-      for (const pt of markup.points) {
-        const pdfPt = normalizedToPdfCoordinates(pt, transform);
-        updateBBox(pdfPt.x, pdfPt.y);
+      // Mismo festón que la pantalla y el aplanado, en el espacio visual de la página
+      const { invert } = cloudParams(markup.customFields, arcStep);
+      const cloudD = revisionCloudPathNormalized(markup.points, { width: visW, height: visH }, arcStep, invert);
+      if (cloudD) {
+        svgQuadPathToPdf(cloudD);
+        lines.push(opPaint);
       }
+      break;
+    }
 
-      // El trazado de nube usa operadores estándar
-      lines.push(opPaint);
+    case 'text': {
+      if (markup.points.length === 0) break;
+      const a = toVis(markup.points[0]);
+      const b = toVis(markup.points[1] ?? markup.points[0]);
+      const x = Math.min(a.x, b.x);
+      const y = Math.min(a.y, b.y);
+      const w = Math.max(80, Math.abs(b.x - a.x));
+      const h = Math.max(26, Math.abs(b.y - a.y));
+      lines.push('1 w', rgbOp(fillParsed ?? { r: 1, g: 0.984, b: 0.91 }, 'rg'));
+      pathPdf([visToPdf({ x, y }), visToPdf({ x: x + w, y }), visToPdf({ x: x + w, y: y + h }), visToPdf({ x, y: y + h })], true);
+      lines.push(strokeParsed ? 'B' : 'f');
+      const fontSize = markup.style.fontSize ?? 12;
+      wrapCalloutText(markup.text || '', w - 12, fontSize).forEach((line, i) => {
+        const baseline = y + 4 + fontSize + i * (fontSize + 2);
+        if (baseline <= y + h) textVis(line, { x: x + 6, y: baseline }, fontSize, DARK_TEXT);
+      });
+      break;
+    }
+
+    case 'callout': {
+      if (markup.points.length === 0) break;
+      const geom = calculateCalloutGeometry(
+        toVis(markup.points[0]),
+        toVis(markup.points[1] ?? markup.points[0]),
+        (markup.leaders || []).map((lead) => lead.map(toVis)),
+        1
+      );
+      for (const leader of geom.leaders) {
+        pathPdf([visToPdf(leader.arrowHead), visToPdf(leader.elbow), visToPdf(leader.boxAttachment)], false);
+        lines.push('S');
+        if (strokeParsed) lines.push(rgbOp(strokeParsed, 'rg'));
+        pathPdf(leader.arrowPoints.map(visToPdf), true);
+        lines.push('b');
+      }
+      const bx = geom.box;
+      lines.push(rgbOp(fillParsed ?? { r: 1, g: 1, b: 1 }, 'rg'));
+      pathPdf(
+        [
+          visToPdf({ x: bx.x, y: bx.y }),
+          visToPdf({ x: bx.x + bx.width, y: bx.y }),
+          visToPdf({ x: bx.x + bx.width, y: bx.y + bx.height }),
+          visToPdf({ x: bx.x, y: bx.y + bx.height }),
+        ],
+        true
+      );
+      lines.push(strokeParsed ? 'B' : 'f');
+      const fontSize = markup.style.fontSize ?? 10;
+      const maxTextWidth = Math.max(CALLOUT_MIN_BOX_WIDTH - 16, bx.width - 16);
+      wrapCalloutText(markup.text || '', maxTextWidth, fontSize).forEach((line, i) => {
+        textVis(line, { x: bx.x + 6, y: bx.y + 14 + i * (fontSize + 3) }, fontSize, DARK_TEXT);
+      });
+      break;
+    }
+
+    case 'dimension': {
+      if (markup.points.length < 2) break;
+      const p1 = normalizedToPdfCoordinates(markup.points[0], transform);
+      const p2 = normalizedToPdfCoordinates(markup.points[1], transform);
+      // Sin tercer punto (marca antigua o incompleta) la línea de cota va a 15 pt, por encima
+      const p3 = markup.points[2]
+        ? normalizedToPdfCoordinates(markup.points[2], transform)
+        : visToPdf(defaultDimensionLinePoint(toVis(markup.points[0]), toVis(markup.points[1]), 15));
+      const geom = dimensionGeometry(p1, p2, p3);
+      if (!geom) break;
+      // Líneas de referencia siempre continuas; la línea de cota lleva el tipo de línea elegido
+      if (markup.style.dashArray && markup.style.dashArray.length > 0) lines.push('[] 0 d');
+      for (const [a, b] of geom.extensions) {
+        pathPdf([a, b], false);
+        lines.push('S');
+      }
+      if (markup.style.dashArray && markup.style.dashArray.length > 0) {
+        lines.push(`[${markup.style.dashArray.map((d) => d.toFixed(1)).join(' ')}] 0 d`);
+      }
+      pathPdf([geom.dimStart, geom.dimEnd], false);
+      lines.push('S');
+      emitLineEndings([geom.dimStart, geom.dimEnd]);
+      const fontSize = markup.style.fontSize ?? 10;
+      if (markup.text) {
+        textPdf(
+          markup.text,
+          dimensionTextBaseline(geom, fontSize, true),
+          geom.textAngle,
+          fontSize,
+          strokeParsed ?? DARK_TEXT,
+          'center'
+        );
+      }
       break;
     }
 
@@ -549,5 +763,6 @@ export function emitMarkupOperators(
     operators: lines.join('\n'),
     bbox: [minX, minY, maxX, maxY],
     extGState,
+    ...(usesFont ? { fontName: AP_FONT_NAME } : {}),
   };
 }

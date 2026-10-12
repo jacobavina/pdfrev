@@ -23,6 +23,8 @@ export const LINE_ENDING_LABELS: Record<LineEndingStyle, string> = {
   circle: 'Círculo',
   square: 'Cuadrado',
   diamond: 'Rombo',
+  butt: 'Trazo perpendicular',
+  slash: 'Barra (arquitectónica)',
 };
 
 /** Patrón de trazo (pt) para un tipo de línea y grosor; `undefined` = continua. */

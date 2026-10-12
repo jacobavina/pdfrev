@@ -3,6 +3,14 @@ import { SlidersHorizontal, ChevronRight, Lock, LockOpen } from 'lucide-react';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useUiStore } from '../store/useUiStore';
 import { dashArrayFor, lineStyleOf, LINE_STYLE_LABELS, LineStyleId } from '../core/markup/lineStyles';
+import {
+  IconPicker,
+  LineStylePreview,
+  LineEndingPreview,
+  LINE_STYLE_OPTIONS,
+  LINE_ENDING_OPTIONS,
+} from './shell/IconPicker';
+import { CLOUD_SIZE_FACTOR, DEFAULT_CLOUD_STEP } from '../core/markup/revisionCloud';
 import { Markup, MarkupStatus, VALID_MARKUP_STATUSES, LineEndingStyle } from '../types/markup';
 
 const STATUS_LABELS: Record<MarkupStatus, string> = {
@@ -23,7 +31,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
   defaultCollapsed = false,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
-  const { markups, selectedMarkupIds, applyPropertiesToMarkups, toggleLockSelectedMarkups } =
+  const { markups, selectedMarkupIds, applyPropertiesToMarkups, toggleLockSelectedMarkups, setCloudLineStyle } =
     useMarkupStore();
 
   // Menú contextual del plano o menú Ver → Panel de propiedades: abrir el panel (ADR-0017)
@@ -109,7 +117,45 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
 
   const isAllLocked =
     selectedMarkups.length > 0 && selectedMarkups.every((m) => Boolean(m.locked));
-  const hasLineMarkup = selectedMarkups.some((m) => m.type === 'line' || m.type === 'polyLine');
+  // Nube (ADR-0021): "Nube" como tipo de línea para rectángulos y polígonos, tamaño de arco e invertir
+  const cloudConvertible =
+    selectedMarkups.length > 0 &&
+    selectedMarkups.every((m) => m.type === 'rectangle' || m.type === 'polygon' || m.type === 'cloud');
+  const allCloud =
+    selectedMarkups.length > 0 && selectedMarkups.every((m) => m.type === 'cloud' || m.type === 'cloudPlus');
+  const cloudSize = getUnifiedValue((m) =>
+    typeof m.customFields?.arcStep === 'number' ? m.customFields.arcStep / CLOUD_SIZE_FACTOR : DEFAULT_CLOUD_STEP / CLOUD_SIZE_FACTOR
+  );
+  const cloudInvert = getUnifiedValue((m) => (m.customFields?.cloudInvert === 1 ? 1 : 0));
+  const handleCloudSizeChange = (valStr: string) => {
+    const parsed = parseFloat(valStr);
+    if (isNaN(parsed) || parsed <= 0) return;
+    const size = Math.max(0.5, Math.min(parsed, 10));
+    applyPropertiesToMarkups(
+      selectedMarkupIds,
+      { customFields: { arcStep: Math.round(size * CLOUD_SIZE_FACTOR * 100) / 100 } },
+      `Cambiar tamaño de arco a ${size}`
+    );
+  };
+  const handleCloudInvertChange = (checked: boolean) => {
+    applyPropertiesToMarkups(
+      selectedMarkupIds,
+      { customFields: { cloudInvert: checked ? 1 : undefined } },
+      checked ? 'Invertir nube' : 'Nube sin invertir'
+    );
+  };
+  const handleLineStylePick = (id: LineStyleId | 'cloud') => {
+    if (id === 'cloud') {
+      setCloudLineStyle(selectedMarkupIds, true);
+      return;
+    }
+    if (selectedMarkups.some((m) => m.type === 'cloud')) setCloudLineStyle(selectedMarkupIds, false);
+    handleStrokeDashChange(id);
+  };
+
+  const hasLineMarkup = selectedMarkups.some(
+    (m) => m.type === 'line' || m.type === 'polyLine' || m.type === 'dimension'
+  );
   const lineEndingStart = getUnifiedValue((m) => m.style.lineEndingStart || 'none');
   const lineEndingEnd = getUnifiedValue((m) => m.style.lineEndingEnd || 'none');
 
@@ -310,7 +356,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
 
         {/* Grosor de trazo */}
         <div className="flex flex-col gap-1">
-          <label className="text-gray-400 font-medium">Grosor de Trazo (px)</label>
+          <label className="text-gray-400 font-medium">Grosor de línea (pt)</label>
           <input
             type="number"
             data-testid="prop-stroke-width"
@@ -346,58 +392,77 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
         {/* Estilo de trazo */}
         <div className="flex flex-col gap-1">
           <label className="text-gray-400 font-medium">Tipo de línea</label>
-          <select
-            data-testid="prop-stroke-style"
-            value={strokeDash === MIXED_VALUE ? '' : (strokeDash as string)}
-            onChange={(e) => handleStrokeDashChange(e.target.value)}
-            className="px-2 py-1 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent"
-          >
-            {strokeDash === MIXED_VALUE && <option value="">{MIXED_VALUE}</option>}
-            {(Object.keys(LINE_STYLE_LABELS) as LineStyleId[]).map((id) => (
-              <option key={id} value={id}>
-                {LINE_STYLE_LABELS[id]}
-              </option>
-            ))}
-          </select>
+          <IconPicker<LineStyleId | 'cloud'>
+            testId="prop-stroke-style"
+            title="Tipo de línea"
+            value={
+              cloudConvertible && selectedMarkups.every((m) => m.type === 'cloud')
+                ? 'cloud'
+                : strokeDash === MIXED_VALUE
+                ? null
+                : (strokeDash as LineStyleId)
+            }
+            options={cloudConvertible ? [...LINE_STYLE_OPTIONS, { value: 'cloud', label: 'Nube' }] : LINE_STYLE_OPTIONS}
+            renderIcon={(id) => <LineStylePreview id={id} width={120} />}
+            onChange={handleLineStylePick}
+          />
         </div>
+
+        {/* Estilo de nube: tamaño de arco e invertir (como en Revu) */}
+        {allCloud && (
+          <div className="flex items-end gap-3" data-testid="prop-cloud-style">
+            <div className="flex flex-col gap-1">
+              <label className="text-gray-400 font-medium">Tamaño de arco</label>
+              <input
+                type="number"
+                data-testid="prop-cloud-size"
+                min="0.5"
+                max="10"
+                step="0.25"
+                value={cloudSize === MIXED_VALUE ? '' : (cloudSize as number)}
+                placeholder={cloudSize === MIXED_VALUE ? MIXED_VALUE : '2'}
+                onChange={(e) => handleCloudSizeChange(e.target.value)}
+                className="w-20 px-2 py-1 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent"
+              />
+            </div>
+            <label className="flex items-center gap-1.5 text-gray-300 pb-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                data-testid="prop-cloud-invert"
+                checked={cloudInvert === 1}
+                onChange={(e) => handleCloudInvertChange(e.target.checked)}
+                className="accent-cad-accent"
+              />
+              Invertir
+            </label>
+          </div>
+        )}
 
         {/* Extremos de línea (flechas y formas) */}
         {hasLineMarkup && (
           <>
             <div className="flex flex-col gap-1">
-              <label className="text-gray-400 font-medium">Extremo Inicial (/LE)</label>
-              <select
-                data-testid="prop-line-ending-start"
-                value={lineEndingStart === MIXED_VALUE ? '' : (lineEndingStart as string)}
-                onChange={(e) => handleLineEndingStartChange(e.target.value)}
-                className="px-2 py-1 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent"
-              >
-                {lineEndingStart === MIXED_VALUE && <option value="">{MIXED_VALUE}</option>}
-                <option value="none">Ninguno</option>
-                <option value="openArrow">Flecha abierta</option>
-                <option value="closedArrow">Flecha cerrada</option>
-                <option value="circle">Círculo</option>
-                <option value="square">Cuadrado</option>
-                <option value="diamond">Rombo</option>
-              </select>
+              <label className="text-gray-400 font-medium">Extremo inicial</label>
+              <IconPicker
+                testId="prop-line-ending-start"
+                title="Extremo inicial"
+                value={lineEndingStart === MIXED_VALUE ? null : (lineEndingStart as LineEndingStyle)}
+                options={LINE_ENDING_OPTIONS}
+                renderIcon={(id) => <LineEndingPreview ending={id} side="start" width={120} />}
+                onChange={(id) => handleLineEndingStartChange(id)}
+              />
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-gray-400 font-medium">Extremo Final (/LE)</label>
-              <select
-                data-testid="prop-line-ending-end"
-                value={lineEndingEnd === MIXED_VALUE ? '' : (lineEndingEnd as string)}
-                onChange={(e) => handleLineEndingEndChange(e.target.value)}
-                className="px-2 py-1 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent"
-              >
-                {lineEndingEnd === MIXED_VALUE && <option value="">{MIXED_VALUE}</option>}
-                <option value="none">Ninguno</option>
-                <option value="openArrow">Flecha abierta</option>
-                <option value="closedArrow">Flecha cerrada</option>
-                <option value="circle">Círculo</option>
-                <option value="square">Cuadrado</option>
-                <option value="diamond">Rombo</option>
-              </select>
+              <label className="text-gray-400 font-medium">Extremo final</label>
+              <IconPicker
+                testId="prop-line-ending-end"
+                title="Extremo final"
+                value={lineEndingEnd === MIXED_VALUE ? null : (lineEndingEnd as LineEndingStyle)}
+                options={LINE_ENDING_OPTIONS}
+                renderIcon={(id) => <LineEndingPreview ending={id} side="end" width={120} />}
+                onChange={(id) => handleLineEndingEndChange(id)}
+              />
             </div>
           </>
         )}

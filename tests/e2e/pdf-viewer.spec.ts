@@ -338,7 +338,8 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.mouse.up();
 
     // 3. Comprobar que en el SVG overlay se crearon los elementos de la nube y del callout
-    const cloudPath = overlaySvg.locator('path[d*="Q"]').last();
+    // Festón estilo Revu (ADR-0021): arcos como cúbicas "C"
+    const cloudPath = overlaySvg.locator('path[d*="C"]').last();
     await expect(cloudPath).toBeVisible();
 
     const calloutText = overlaySvg.locator('text:has-text("Nota Cloud+")').last();
@@ -1798,9 +1799,15 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     ).toHaveCount(1);
 
     // 2. Cinta: discontinua + círculo al inicio + flecha abierta al final → se reflejan en la marca nueva
-    await page.locator('[data-testid="ribbon-line-style"]').selectOption('dashed');
-    await page.locator('[data-testid="ribbon-line-start"]').selectOption('circle');
-    await page.locator('[data-testid="ribbon-line-end"]').selectOption('openArrow');
+    // Selectores con dibujo (ADR-0020): se abre la lista y se elige la opción por su dibujo
+    const pick = async (picker: string, value: string) => {
+      await page.locator(`[data-testid="${picker}"]`).click();
+      await page.locator(`[data-testid="${picker}-option-${value}"]`).click();
+      await expect(page.locator(`[data-testid="${picker}"]`)).toHaveAttribute('data-value', value);
+    };
+    await pick('ribbon-line-style', 'dashed');
+    await pick('ribbon-line-start', 'circle');
+    await pick('ribbon-line-end', 'openArrow');
     await page.locator('[data-testid="tool-line"]').click();
     await drag(at(0.6, 0.6), at(0.85, 0.6));
     await expect(groups).toHaveCount(before + 2);
@@ -1813,7 +1820,80 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.keyboard.press('Control+z');
     await expect(groups).toHaveCount(before + 1);
   });
+
+  test('Vista continua, cota, puntos de control y zoom (ADR-0019/0020/0021): scroll entre páginas, ajustar, Shift+L, deformar nube, doble clic', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="markup-row-calibration-markup-1"]')).toBeVisible();
+    const container = page.locator('[data-testid="pdf-viewer-container"]');
+
+    // 1. Vista continua: las 3 páginas apiladas; al bajar, la página activa y el indicador cambian
+    await expect(page.locator('[data-page-slot]')).toHaveCount(3);
+    await container.evaluate((el) => (el.scrollTop = el.scrollHeight));
+    await expect(page.locator('[data-testid="page-indicator"]')).toHaveText('3 / 3');
+    await expect(page.locator('[data-testid="pdf-page-container"]')).toHaveAttribute('data-page-slot', '2');
+
+    // 2. Ajustar a página: la hoja entera cabe en el área visible; la navegación externa la lleva a la vista
+    await page.locator('[data-testid="fit-page-btn"]').click();
+    await expect
+      .poll(async () => {
+        const c = (await container.boundingBox())!;
+        const p = (await page.locator('[data-testid="pdf-page-container"]').boundingBox())!;
+        return p.y >= c.y && p.y + p.height <= c.y + c.height + 1;
+      })
+      .toBe(true);
+    await page.locator('[data-testid="view-single-btn"]').click();
+    await expect(page.locator('[data-page-slot]')).toHaveCount(1);
+    await page.locator('[data-testid="view-continuous-btn"]').click();
+    await page.locator('[data-testid="thumbnail-0"]').click({ position: { x: 20, y: 20 } });
+    await expect(page.locator('[data-testid="page-indicator"]')).toHaveText('1 / 3');
+
+    const box = (await overlaySvg.boundingBox())!;
+    const at = (nx: number, ny: number) => ({ x: box.x + box.width * nx, y: box.y + box.height * ny });
+    const drag = async (a: { x: number; y: number }, b: { x: number; y: number }) => {
+      await page.mouse.move(a.x, a.y);
+      await page.mouse.down();
+      await page.mouse.move(b.x, b.y, { steps: 6 });
+      await page.mouse.up();
+    };
+
+    // 3. Cota (Shift+L): se traza, queda lista para escribir y se ve con su texto
+    await page.locator('header').click();
+    await page.keyboard.press('Shift+L');
+    await expect(page.locator('[data-testid="tool-dimension"]')).toHaveAttribute('aria-pressed', 'true');
+    await drag(at(0.6, 0.3), at(0.9, 0.3));
+    await page.keyboard.press('Enter');
+    const dimension = overlaySvg.locator('g[data-testid^="markup-dimension-"]');
+    await expect(dimension).toHaveCount(1);
+    await expect(dimension.locator('text')).toHaveText(/mm$/);
+    await expect(page.locator('[data-testid="markups-list-panel"] tbody tr').filter({ hasText: 'Cota' })).toHaveCount(1);
+
+    // 4. Nube: se dibuja, se selecciona y un punto de control la deforma; Ctrl+Z la devuelve
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('c');
+    await drag(at(0.6, 0.5), at(0.8, 0.7));
+    await page.keyboard.press('v');
+    await page.mouse.click(at(0.6, 0.6).x, at(0.6, 0.6).y);
+    await expect(page.locator('[data-testid^="control-point-"]')).toHaveCount(4);
+    const handle = (await page.locator('[data-testid="control-point-2"]').boundingBox())!;
+    await drag({ x: handle.x + handle.width / 2, y: handle.y + handle.height / 2 }, at(0.92, 0.85));
+    await expect(page.locator('[data-testid^="control-point-"]')).toHaveCount(4);
+    const moved = (await page.locator('[data-testid="control-point-2"]').boundingBox())!;
+    expect(moved.x).toBeGreaterThan(handle.x + 50);
+    await page.keyboard.press('Control+z');
+    await expect
+      .poll(async () => (await page.locator('[data-testid="control-point-2"]').boundingBox())!.x)
+      .toBeLessThan(handle.x + 2);
+
+    // 5. Doble clic en el plano vacío: control de zoom; + acerca
+    await page.mouse.dblclick(at(0.05, 0.95).x, at(0.05, 0.95).y);
+    await expect(page.locator('[data-testid="zoom-widget"]')).toBeVisible();
+    const zoomBtn = page.locator('[data-testid="status-bar"] button').filter({ hasText: '%' });
+    const before = await zoomBtn.innerText();
+    await page.locator('[data-testid="zoom-widget-in"]').click();
+    await expect(zoomBtn).not.toHaveText(before);
+  });
 });
-
-
-

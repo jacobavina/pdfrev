@@ -16,6 +16,8 @@ export const VALID_MARKUP_TYPES = [
   'underline',
   'strikeOut',
   'stamp',
+  // Cota con texto propio (ADR-0020): p1, p2 acotados y p3 sobre la línea de cota
+  'dimension',
   // Herramientas de Medición y Takeoff (Paquete 4)
   'length',
   'polylineMeasure',
@@ -111,7 +113,9 @@ export type LineEndingStyle =
   | 'closedArrow'
   | 'circle'
   | 'square'
-  | 'diamond';
+  | 'diamond'
+  | 'butt'
+  | 'slash';
 
 export interface MarkupStyle {
   strokeColor: string;
@@ -169,6 +173,8 @@ export interface ViewportTransform {
   offsetX: number; // Pan offset X
   offsetY: number; // Pan offset Y
   rotation?: number; // 0, 90, 180, 270
+  /** Zoom del visor (px por pt) cuando width/height ya están en píxeles de pantalla y scale = 1. */
+  zoom?: number;
 }
 
 export const CANONICAL_CUSTOM_COLUMN_TYPES = [

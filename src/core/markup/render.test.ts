@@ -403,8 +403,9 @@ describe('Pure Markup Rendering (src/core/markup/render.ts - Criterio 1)', () =>
       const d1 = desc1.attrs.d as string;
       const d2 = desc2.attrs.d as string;
 
-      const lobes1 = d1.match(/Q /g)?.length;
-      const lobes2 = d2.match(/Q /g)?.length;
+      // Festón estilo Revu (ADR-0021): cada lóbulo son cúbicas "C"
+      const lobes1 = d1.match(/C /g)?.length;
+      const lobes2 = d2.match(/C /g)?.length;
 
       expect(lobes1).toBeDefined();
       expect(lobes2).toBeDefined();

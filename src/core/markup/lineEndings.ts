@@ -31,9 +31,27 @@ export function lineEndingShape(
   tip: Pt,
   angle: number,
   ending: LineEndingStyle | undefined,
-  size: number
+  size: number,
+  /** Sistema con y hacia arriba (PDF). Solo afecta a la barra, la única forma no simétrica. */
+  yUp = false
 ): LineEndingShape | null {
   if (!ending || ending === 'none' || !Number.isFinite(angle) || !(size > 0)) return null;
+
+  if (ending === 'butt' || ending === 'slash') {
+    // Trazo perpendicular a la línea, o barra a 30° de la perpendicular en sentido horario (ISO 32000 /Slash),
+    // que en pantalla (y hacia abajo) se refleja para verse igual que en el PDF
+    const a = ending === 'butt' ? angle + Math.PI / 2 : angle + (yUp ? 1 : -1) * (Math.PI / 3);
+    const half = ending === 'butt' ? size / 2 : size * 0.6;
+    const d = { x: Math.cos(a) * half, y: Math.sin(a) * half };
+    return {
+      kind: 'polyline',
+      points: [
+        { x: tip.x - d.x, y: tip.y - d.y },
+        { x: tip.x + d.x, y: tip.y + d.y },
+      ],
+      filled: false,
+    };
+  }
 
   if (ending === 'openArrow' || ending === 'closedArrow') {
     const back = angle + Math.PI;

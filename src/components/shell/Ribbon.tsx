@@ -8,19 +8,19 @@ import { showToast } from '../../services/toastService';
 import { useAutoSave } from '../../hooks/useAutoSave';
 import { TOOL_GROUPS, TEXT_LAYER_TOOLS, STROKE_COLORS, ToolDefinition } from './toolDefinitions';
 import { exportFlattenedPdf } from './appActions';
-import { LineEndingStyle } from '../../types/markup';
+import { dashArrayFor, lineStyleOf } from '../../core/markup/lineStyles';
 import {
-  dashArrayFor,
-  lineStyleOf,
-  LINE_STYLE_LABELS,
-  LINE_ENDING_LABELS,
-  LineStyleId,
-} from '../../core/markup/lineStyles';
+  IconPicker,
+  LineStylePreview,
+  LineEndingPreview,
+  StrokeWidthPreview,
+  LINE_STYLE_OPTIONS,
+  LINE_ENDING_OPTIONS,
+} from './IconPicker';
 import { translucentFill } from '../../core/markup/typeLabels';
 
 const STROKE_WIDTHS = [0.5, 1, 1.5, 2, 3, 5, 8];
 const OPACITIES = [1, 0.75, 0.5, 0.25];
-const ENDINGS: LineEndingStyle[] = ['none', 'openArrow', 'closedArrow', 'circle', 'square', 'diamond'];
 const selectClass =
   'bg-cad-panel border border-cad-border rounded px-1 py-0 text-[11px] text-gray-200 focus:outline-none focus:border-cad-accent';
 
@@ -223,62 +223,42 @@ export const Ribbon: React.FC = () => {
 
           {/* Fila 2: grosor, tipo de línea, extremos y opacidad */}
           <div className="flex items-center gap-1.5 text-[11px] text-gray-400 col-span-2">
-            <select
-              data-testid="ribbon-stroke-width"
+            <IconPicker
+              compact
+              testId="ribbon-stroke-width"
+              title="Grosor de línea (pt)"
               value={currentStyle.strokeWidth ?? 2}
-              onChange={(e) => changeWidth(Number(e.target.value))}
-              className={selectClass}
-              title="Grosor de línea"
-            >
-              {STROKE_WIDTHS.map((w) => (
-                <option key={w} value={w}>
-                  {w} pt
-                </option>
-              ))}
-            </select>
-            <select
-              data-testid="ribbon-line-style"
-              value={lineStyle}
-              onChange={(e) =>
-                setCurrentStyle({
-                  dashArray: dashArrayFor(e.target.value as LineStyleId, currentStyle.strokeWidth ?? 2),
-                })
-              }
-              className={selectClass}
+              options={STROKE_WIDTHS.map((w) => ({ value: w, label: `${w} pt` }))}
+              renderIcon={(w) => <StrokeWidthPreview width={w} />}
+              onChange={changeWidth}
+            />
+            <IconPicker
+              compact
+              testId="ribbon-line-style"
               title="Tipo de línea"
-            >
-              {(Object.keys(LINE_STYLE_LABELS) as LineStyleId[]).map((id) => (
-                <option key={id} value={id}>
-                  {LINE_STYLE_LABELS[id]}
-                </option>
-              ))}
-            </select>
-            <select
-              data-testid="ribbon-line-start"
-              value={currentStyle.lineEndingStart ?? 'none'}
-              onChange={(e) => setCurrentStyle({ lineEndingStart: e.target.value as LineEndingStyle })}
-              className={selectClass}
+              value={lineStyle}
+              options={LINE_STYLE_OPTIONS}
+              renderIcon={(id) => <LineStylePreview id={id} />}
+              onChange={(id) => setCurrentStyle({ dashArray: dashArrayFor(id, currentStyle.strokeWidth ?? 2) })}
+            />
+            <IconPicker
+              compact
+              testId="ribbon-line-start"
               title="Extremo inicial (líneas, flechas y polilíneas)"
-            >
-              {ENDINGS.map((id) => (
-                <option key={id} value={id}>
-                  Inicio: {LINE_ENDING_LABELS[id]}
-                </option>
-              ))}
-            </select>
-            <select
-              data-testid="ribbon-line-end"
+              value={currentStyle.lineEndingStart ?? 'none'}
+              options={LINE_ENDING_OPTIONS}
+              renderIcon={(id) => <LineEndingPreview ending={id} side="start" />}
+              onChange={(id) => setCurrentStyle({ lineEndingStart: id })}
+            />
+            <IconPicker
+              compact
+              testId="ribbon-line-end"
+              title="Extremo final (la herramienta Flecha usa flecha cerrada si es Ninguno)"
               value={currentStyle.lineEndingEnd ?? 'none'}
-              onChange={(e) => setCurrentStyle({ lineEndingEnd: e.target.value as LineEndingStyle })}
-              className={selectClass}
-              title="Extremo final (líneas, flechas y polilíneas). La herramienta Flecha usa flecha cerrada si es Ninguno"
-            >
-              {ENDINGS.map((id) => (
-                <option key={id} value={id}>
-                  Final: {LINE_ENDING_LABELS[id]}
-                </option>
-              ))}
-            </select>
+              options={LINE_ENDING_OPTIONS}
+              renderIcon={(id) => <LineEndingPreview ending={id} side="end" />}
+              onChange={(id) => setCurrentStyle({ lineEndingEnd: id })}
+            />
             <select
               data-testid="ribbon-opacity"
               value={currentStyle.opacity ?? 1}

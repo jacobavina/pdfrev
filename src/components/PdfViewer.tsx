@@ -3,7 +3,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useToolStore, ToolType } from '../store/useToolStore';
-import { renderPageToCanvas } from '../services/pdfService';
+import type { RenderResult } from '../services/pdfService';
+import { PageCanvas } from './viewer/PageCanvas';
 import {
   screenToNormalized,
   normalizedToScreen,
@@ -26,7 +27,6 @@ import {
   getRectGeometry,
   pointsToSvgPointsString,
   pointsToFreehandPathD,
-  generateCloudPath,
   getMarkupSvgDescriptor,
   renderSvgDescriptor,
   DEFAULT_ARC_STEP,
@@ -48,12 +48,24 @@ import { useSearchStore } from '../store/useSearchStore';
 import { useUiStore, NO_LAYER } from '../store/useUiStore';
 import { CanvasContextMenu } from './shell/CanvasContextMenu';
 import { translucentFill } from '../core/markup/typeLabels';
+import { defaultDimensionLinePoint } from '../core/markup/dimension';
+import { controlPointsOf, applyControlPointDrag } from '../core/markup/controlPoints';
+import { revisionCloudPathNormalized } from '../core/markup/revisionCloud';
+import { Plus, Minus, Crosshair } from 'lucide-react';
 import {
   calculateLength,
   calculatePolylineLength,
   calculateArea,
   calculateCount,
 } from '../core/measurements/calculate';
+
+/** Desfase inicial de la línea de cota respecto a los puntos acotados (pt de página). */
+const DIMENSION_DEFAULT_OFFSET_PT = 15;
+
+interface PdfPageLike {
+  rotate: number;
+  getViewport: (opts: { scale: number; rotation: number }) => { width: number; height: number };
+}
 
 /** Herramientas que se trazan vértice a vértice (clic), y se cierran con Enter, doble clic o el primer vértice. */
 export function isMultiPointTool(tool: string): boolean {
@@ -75,8 +87,12 @@ export const PdfViewer: React.FC = () => {
   const {
     pdfBytes,
     pdfDoc,
+    filePath,
+    numPages,
     currentPageIndex,
+    setCurrentPage,
     scale,
+    setScale,
     rotation,
     setPageDimensions,
     pageHasText,
@@ -84,6 +100,8 @@ export const PdfViewer: React.FC = () => {
     isLoading,
     error,
   } = useDocumentStore();
+  const viewMode = useUiStore((s) => s.viewMode);
+  const fitRequest = useUiStore((s) => s.fitRequest);
 
   const {
     markups,
@@ -132,10 +150,15 @@ export const PdfViewer: React.FC = () => {
     };
   }, []);
 
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const pageContainerRef = useRef<HTMLDivElement | null>(null);
   const textLayerRef = useRef<HTMLDivElement | null>(null);
+  // Nodo de la capa de texto como estado: en la vista continua cambia de hoja al activar otra página
+  const [textLayerNode, setTextLayerNode] = useState<HTMLDivElement | null>(null);
+  const setTextLayerRef = useCallback((node: HTMLDivElement | null) => {
+    textLayerRef.current = node;
+    setTextLayerNode(node);
+  }, []);
   const dragStateRef = useRef<DragState | null>(null);
   const markupsRef = useRef(markups);
   markupsRef.current = markups;
@@ -148,6 +171,11 @@ export const PdfViewer: React.FC = () => {
     startScreenY: number;
     hasMoved: boolean;
   } | null>(null);
+
+  // Arrastre de un punto de control (ADR-0021): marca original y vértice
+  const vertexDragRef = useRef<{ original: Markup; index: number; hasMoved: boolean; latest: Markup } | null>(null);
+  // Control de zoom del doble clic (ADR-0021): posición en pantalla
+  const [zoomWidget, setZoomWidget] = useState<{ x: number; y: number } | null>(null);
 
   const marqueeStateRef = useRef<{
     start: MarkupPoint;
@@ -166,13 +194,95 @@ export const PdfViewer: React.FC = () => {
     height: 600,
   });
 
+  // Tamaño sin escalar (pt, con la rotación aplicada) de todas las páginas (ADR-0019): permite maquetar la vista
+  // continua sin saltos antes de renderizar y calcular "Ajustar a página". Vacío si el documento no lo ofrece.
+  const [pageSizes, setPageSizes] = useState<{ w: number; h: number }[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    setPageSizes([]);
+    const doc = pdfDoc as unknown as { getPage?: (n: number) => Promise<PdfPageLike> } | null;
+    if (!doc || typeof doc.getPage !== 'function' || numPages <= 0) return;
+    Promise.all(
+      Array.from({ length: numPages }, (_, i) =>
+        doc.getPage!(i + 1).then((page) => {
+          const total = (((page.rotate + rotation) % 360) + 360) % 360;
+          const vp = page.getViewport({ scale: 1, rotation: total });
+          return { w: vp.width, h: vp.height };
+        })
+      )
+    )
+      .then((sizes) => {
+        if (!cancelled) setPageSizes(sizes);
+      })
+      .catch((err) => {
+        // Sin tamaños se mantiene la vista de una página: nunca se deja el visor en blanco
+        console.error('No se pudieron leer los tamaños de página; se usa la vista de una página:', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pdfDoc, numPages, rotation]);
+
+  const isContinuous = viewMode === 'continuous' && pageSizes.length === numPages && numPages > 0;
+
+  // Mientras la página activa se renderiza, su lienzo ya ocupa el tamaño definitivo (sin saltos de maquetación)
+  useLayoutEffect(() => {
+    const sz = pageSizes[currentPageIndex];
+    if (!sz) return;
+    const width = sz.w * scale;
+    const height = sz.h * scale;
+    setPageViewport((prev) =>
+      Math.abs(prev.width - width) < 0.01 && Math.abs(prev.height - height) < 0.01 ? prev : { width, height }
+    );
+  }, [pageSizes, currentPageIndex, scale]);
+
+  // Desplazamientos del visor hechos por código (zoom, ir a página): no deben cambiar la página activa
+  // Se recuerda la posición resultante: el evento scroll que llegue con esa misma posición se ignora, y cualquier
+  // desplazamiento posterior del usuario sí actualiza la página activa
+  const programmaticScrollRef = useRef<{ left: number; top: number } | null>(null);
+  const setScrollProgrammatically = (el: HTMLElement, left: number, top: number) => {
+    el.scrollLeft = Math.max(0, left);
+    el.scrollTop = Math.max(0, top);
+    programmaticScrollRef.current = { left: el.scrollLeft, top: el.scrollTop };
+  };
+  // Zoom con Ctrl+rueda: punto del contenido que debe quedar bajo el cursor tras el cambio de escala
+  const zoomAnchorRef = useRef<{ rx: number; ry: number; px: number; py: number } | null>(null);
+  // Tras "Ajustar a página/ancho" se lleva al inicio de la página activa en lugar de conservar el centro
+  const scrollToPageAfterLayoutRef = useRef(false);
+
+  const scrollToPageSlot = useCallback((pageIndex: number) => {
+    const el = containerRef.current;
+    const slot = el?.querySelector(`[data-page-slot="${pageIndex}"]`) as HTMLElement | null;
+    if (!el || !slot) return;
+    setScrollProgrammatically(el, slot.offsetLeft + slot.offsetWidth / 2 - el.clientWidth / 2, slot.offsetTop - 16);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Al cambiar el tamaño del contenido (zoom/rotación) se conserva el punto bajo el cursor (Ctrl+rueda) o el
+  // centro de la vista. En la vista continua el tamaño depende solo de la escala; en la de una página, del render.
+  const layoutKey = isContinuous
+    ? `c|${scale}|${rotation}|${pageSizes.length}`
+    : `s|${pageViewport.width}|${pageViewport.height}`;
   useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+    if (scrollToPageAfterLayoutRef.current && isContinuous) {
+      scrollToPageAfterLayoutRef.current = false;
+      scrollToPageSlot(useDocumentStore.getState().currentPageIndex);
+      return;
+    }
+    scrollToPageAfterLayoutRef.current = false;
+    const anchor = zoomAnchorRef.current;
+    zoomAnchorRef.current = null;
+    if (anchor) {
+      setScrollProgrammatically(el, anchor.rx * el.scrollWidth - anchor.px, anchor.ry * el.scrollHeight - anchor.py);
+      updateViewCenter();
+      return;
+    }
     const { rx, ry } = viewCenterRef.current;
-    el.scrollLeft = Math.max(0, rx * el.scrollWidth - el.clientWidth / 2);
-    el.scrollTop = Math.max(0, ry * el.scrollHeight - el.clientHeight / 2);
-  }, [pageViewport.width, pageViewport.height]);
+    setScrollProgrammatically(el, rx * el.scrollWidth - el.clientWidth / 2, ry * el.scrollHeight - el.clientHeight / 2);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layoutKey]);
 
   // Estado del dibujo para figuras de 2 puntos (rect, circle, line, cloud)
   const [drawingStart, setDrawingStart] = useState<MarkupPoint | null>(null);
@@ -193,36 +303,231 @@ export const PdfViewer: React.FC = () => {
     initialColor?: string;
   } | null>(null);
 
-  // Renderizar la página activa con PDF.js
+  // Resultado del render de cada página: la activa fija el tamaño del overlay interactivo
+  const handlePageRendered = useCallback(
+    (pageIndex: number, result: RenderResult, active: boolean) => {
+      if (active && pageIndex === useDocumentStore.getState().currentPageIndex) {
+        setPageViewport({ width: result.width, height: result.height });
+      }
+      setPageDimensions(pageIndex, result.width, result.height);
+      setPageHasText(pageIndex, result.hasText);
+    },
+    [setPageDimensions, setPageHasText]
+  );
+
+  // ── Página activa en la vista continua (ADR-0019) ──────────────────────────────────────────────
+  // La página bajo el cursor (o la del centro de la vista) es la interactiva. Nunca se cambia a mitad de un
+  // trazo, un arrastre o una edición de texto.
+  const internalNavRef = useRef(false);
+  const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
+  const isInteracting = () =>
+    Boolean(
+      drawingStart ||
+        polygonPoints.length > 0 ||
+        freehandPoints.length > 0 ||
+        inlineEditing ||
+        dragStateRef.current ||
+        marqueeStateRef.current ||
+        anchorDragRef.current ||
+        vertexDragRef.current
+    );
+  const activatePage = (pageIndex: number) => {
+    if (pageIndex === useDocumentStore.getState().currentPageIndex || isInteracting()) return;
+    internalNavRef.current = true;
+    setCurrentPage(pageIndex);
+  };
+
+  const pageIndexAtClientY = (clientY: number): number | null => {
+    const el = containerRef.current;
+    if (!el) return null;
+    let bestIndex: number | null = null;
+    let bestDist = Infinity;
+    el.querySelectorAll<HTMLElement>('[data-page-slot]').forEach((slot) => {
+      const r = slot.getBoundingClientRect();
+      const d = clientY < r.top ? r.top - clientY : clientY > r.bottom ? clientY - r.bottom : 0;
+      if (d < bestDist) {
+        bestDist = d;
+        bestIndex = Number(slot.dataset.pageSlot);
+      }
+    });
+    return bestIndex;
+  };
+
+  const handleContainerScroll = () => {
+    updateViewCenter();
+    const el = containerRef.current;
+    if (!isContinuous || !el) return;
+    const prog = programmaticScrollRef.current;
+    programmaticScrollRef.current = null;
+    if (prog && Math.abs(prog.top - el.scrollTop) < 1 && Math.abs(prog.left - el.scrollLeft) < 1) return;
+    const rect = el.getBoundingClientRect();
+    const probeY = lastPointerRef.current?.y ?? rect.top + el.clientHeight / 2;
+    const i = pageIndexAtClientY(probeY);
+    if (i !== null) activatePage(i);
+  };
+
+  // Navegación externa (miniaturas, barra de estado, búsqueda): llevar la página a la vista
+  useLayoutEffect(() => {
+    if (!isContinuous) return;
+    if (internalNavRef.current) {
+      internalNavRef.current = false;
+      return;
+    }
+    scrollToPageSlot(currentPageIndex);
+  }, [currentPageIndex, isContinuous, scrollToPageSlot]);
+
+  // Páginas cercanas a la vista (las demás no retienen su mapa de bits)
+  const [visiblePages, setVisiblePages] = useState<Set<number> | null>(null);
   useEffect(() => {
-    let isCancelled = false;
-
-    async function renderPage() {
-      if (!canvasRef.current || !pdfDoc) return;
-
-      try {
-        const result = await renderPageToCanvas(pdfDoc, currentPageIndex, canvasRef.current, {
-          scale,
-          rotation,
-          textLayerContainer: textLayerRef.current,
+    const el = containerRef.current;
+    if (!isContinuous || !el || typeof IntersectionObserver === 'undefined') {
+      setVisiblePages(null);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        setVisiblePages((prev) => {
+          const next = new Set(prev ?? []);
+          for (const entry of entries) {
+            const i = Number((entry.target as HTMLElement).dataset.pageSlot);
+            if (entry.isIntersecting) next.add(i);
+            else next.delete(i);
+          }
+          return next;
         });
+      },
+      { root: el, rootMargin: '600px 0px' }
+    );
+    el.querySelectorAll('[data-page-slot]').forEach((slot) => observer.observe(slot));
+    return () => observer.disconnect();
+  }, [isContinuous, numPages, pdfDoc]);
 
-        if (!isCancelled) {
-          setPageViewport({ width: result.width, height: result.height });
-          setPageDimensions(currentPageIndex, result.width, result.height);
-          setPageHasText(currentPageIndex, result.hasText);
-        }
-      } catch (err) {
-        console.error('Error renderizando página PDF:', err);
+  // ── Ajustar a página / al ancho (ADR-0019) ─────────────────────────────────────────────────────
+  const applyFit = useCallback(
+    (kind: 'page' | 'width') => {
+      const el = containerRef.current;
+      if (!el) return;
+      const { currentPageIndex: idx, scale: currentScale } = useDocumentStore.getState();
+      const sz = pageSizes[idx] ?? {
+        w: pageViewport.width / (currentScale || 1),
+        h: pageViewport.height / (currentScale || 1),
+      };
+      if (!(sz.w > 0) || !(sz.h > 0)) return;
+      const PADDING = 64; // p-8 a cada lado
+      const availW = el.clientWidth - PADDING - 4;
+      const availH = el.clientHeight - PADDING - 4;
+      if (availW <= 0 || availH <= 0) return;
+      const target = kind === 'width' ? availW / sz.w : Math.min(availW / sz.w, availH / sz.h);
+      scrollToPageAfterLayoutRef.current = true;
+      setScale(Math.floor(target * 100) / 100);
+    },
+    [pageSizes, pageViewport.width, pageViewport.height, setScale]
+  );
+
+  const lastFitSeqRef = useRef(0);
+  useEffect(() => {
+    if (!fitRequest || fitRequest.seq === lastFitSeqRef.current) return;
+    lastFitSeqRef.current = fitRequest.seq;
+    applyFit(fitRequest.kind);
+  }, [fitRequest, applyFit]);
+
+  // Al abrir un archivo, la primera página se ajusta al área visible
+  const fittedDocRef = useRef<unknown>(null);
+  useEffect(() => {
+    if (!pdfDoc || !filePath || pageSizes.length === 0 || fittedDocRef.current === pdfDoc) return;
+    fittedDocRef.current = pdfDoc;
+    applyFit('page');
+  }, [pdfDoc, filePath, pageSizes, applyFit]);
+
+  /** Cambia el zoom manteniendo fijo el contenido que está bajo un punto de la pantalla. */
+  const zoomAtClientPoint = useCallback((clientX: number, clientY: number, factor: number) => {
+    const el = containerRef.current;
+    if (!el || !useDocumentStore.getState().pdfBytes) return;
+    const rect = el.getBoundingClientRect();
+    const px = clientX - rect.left;
+    const py = clientY - rect.top;
+    zoomAnchorRef.current = {
+      rx: (el.scrollLeft + px) / (el.scrollWidth || 1),
+      ry: (el.scrollTop + py) / (el.scrollHeight || 1),
+      px,
+      py,
+    };
+    const current = useDocumentStore.getState().scale;
+    useDocumentStore.getState().setScale(Math.round(current * factor * 100) / 100);
+  }, []);
+
+  /** Desplaza la vista para que el punto de la pantalla quede en el centro. */
+  const centerViewAt = (clientX: number, clientY: number) => {
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setScrollProgrammatically(
+      el,
+      el.scrollLeft + clientX - (rect.left + el.clientWidth / 2),
+      el.scrollTop + clientY - (rect.top + el.clientHeight / 2)
+    );
+    updateViewCenter();
+  };
+
+  // Ctrl+rueda: zoom anclado al cursor (listener no pasivo para impedir el zoom del navegador)
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      zoomAtClientPoint(e.clientX, e.clientY, e.deltaY < 0 ? 1.15 : 1 / 1.15);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [zoomAtClientPoint]);
+
+  // ── Puntos de control (ADR-0021) ───────────────────────────────────────────────────────────────
+  /** Recalcula la medida (y el texto de una cota no personalizada) para la nueva forma. */
+  const reshapedMarkup = (original: Markup, points: MarkupPoint[]): Markup => {
+    const dims = { width: pageViewport.width / (scale || 1.0), height: pageViewport.height / (scale || 1.0) };
+    const calib = useCalibrationStore.getState().getPageCalibration(original.pageIndex);
+    const next: Markup = { ...original, points };
+    if (original.type === 'length') {
+      next.measurement = calculateLength(points, dims, calib);
+      next.text = next.measurement.formatted;
+    } else if (original.type === 'polylineMeasure') {
+      next.measurement = calculatePolylineLength(points, dims, calib);
+      next.text = next.measurement.formatted;
+    } else if (original.type === 'area' && points.length >= 3) {
+      next.measurement = calculateArea(points, dims, calib, false);
+      next.text = next.measurement.formatted;
+    } else if (original.type === 'dimension') {
+      const before = calculateLength(original.points.slice(0, 2), dims, calib).formatted;
+      if (!original.text || original.text === before) {
+        next.text = calculateLength(points.slice(0, 2), dims, calib).formatted;
       }
     }
+    return next;
+  };
 
-    renderPage();
+  const handleControlPointMouseDown = (e: React.MouseEvent, markup: Markup, index: number) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    if (markup.locked) return;
+    vertexDragRef.current = { original: markup, index, hasMoved: false, latest: markup };
+  };
 
-    return () => {
-      isCancelled = true;
-    };
-  }, [pdfDoc, currentPageIndex, scale, rotation, setPageDimensions, setPageHasText]);
+  const finishVertexDrag = () => {
+    const drag = vertexDragRef.current;
+    if (!drag) return;
+    vertexDragRef.current = null;
+    if (!drag.hasMoved) return;
+    const { original, latest } = drag;
+    useMarkupStore.getState().reshapeMarkup(
+      original.id,
+      { points: original.points, measurement: original.measurement, text: original.text },
+      { points: latest.points, measurement: latest.measurement, text: latest.text }
+    );
+  };
+  const finishVertexDragRef = useRef(finishVertexDrag);
+  finishVertexDragRef.current = finishVertexDrag;
 
   // Manejar atajos de teclado: Escape (Criterio 3), Enter (cerrar polígono), Delete (borrar)
   useEffect(() => {
@@ -250,6 +555,16 @@ export const PdfViewer: React.FC = () => {
           dragStateRef.current = null;
           setMarkupsTransient(initial);
           return;
+        }
+        if (vertexDragRef.current) {
+          e.preventDefault();
+          const { original } = vertexDragRef.current;
+          vertexDragRef.current = null;
+          setMarkupsTransient([original]);
+          return;
+        }
+        if (zoomWidget) {
+          setZoomWidget(null);
         }
         if (anchorDragRef.current) {
           e.preventDefault();
@@ -286,6 +601,14 @@ export const PdfViewer: React.FC = () => {
           e.preventDefault();
           deleteSelectedMarkups();
         }
+        return;
+      }
+
+      // Ajustes de zoom (ADR-0019): Ctrl+0 ajustar a página, Ctrl+1 tamaño real, Ctrl+2 ajustar al ancho
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === '0' || e.key === '1' || e.key === '2')) {
+        e.preventDefault();
+        if (e.key === '1') useDocumentStore.getState().resetZoom();
+        else useUiStore.getState().requestFit(e.key === '0' ? 'page' : 'width');
         return;
       }
 
@@ -347,6 +670,29 @@ export const PdfViewer: React.FC = () => {
 
       if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'n' || e.key === 'N')) {
         useToolStore.getState().setActiveTool('stickyNote');
+        return;
+      }
+
+      // Mediciones con Shift+Alt (como en Revu): L longitud, Q polilongitud, A área, C conteo
+      if (e.shiftKey && e.altKey && !e.ctrlKey && !e.metaKey) {
+        const measureByCode: Record<string, ToolType> = {
+          KeyL: 'length',
+          KeyQ: 'polylineMeasure',
+          KeyA: 'area',
+          KeyC: 'count',
+        };
+        const tool = measureByCode[e.code];
+        if (tool) {
+          e.preventDefault();
+          useToolStore.getState().setActiveTool(tool);
+          return;
+        }
+      }
+
+      // Cota (Shift+L, como en Revu)
+      if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'l' || e.key === 'L')) {
+        e.preventDefault();
+        useToolStore.getState().setActiveTool('dimension');
         return;
       }
 
@@ -417,6 +763,7 @@ export const PdfViewer: React.FC = () => {
     addMarkup,
     setSelectedMarkupIds,
     setMarkupsTransient,
+    zoomWidget,
   ]);
 
   // Transformación para convertir coordenadas
@@ -427,13 +774,18 @@ export const PdfViewer: React.FC = () => {
       scale: 1.0,
       offsetX: 0,
       offsetY: 0,
+      zoom: scale || 1.0,
     }),
-    [pageViewport.width, pageViewport.height]
+    [pageViewport.width, pageViewport.height, scale]
   );
 
   // Listener global de mouseup para asegurar finalización de arrastre limpia incluso fuera del svg
   useEffect(() => {
     const handleWindowMouseUp = (e: MouseEvent) => {
+      if (vertexDragRef.current) {
+        finishVertexDragRef.current();
+        return;
+      }
       if (marqueeStateRef.current) {
         marqueeStateRef.current = null;
         setMarqueeState(null);
@@ -681,6 +1033,15 @@ export const PdfViewer: React.FC = () => {
       y: pt.y * (pageViewport.height / (scale || 1.0)),
     });
 
+    // Arrastre de un punto de control: forma nueva en vivo (la medida se recalcula al vuelo)
+    if (vertexDragRef.current) {
+      const drag = vertexDragRef.current;
+      drag.hasMoved = true;
+      drag.latest = reshapedMarkup(drag.original, applyControlPointDrag(drag.original, drag.index, pt));
+      setMarkupsTransient([drag.latest]);
+      return;
+    }
+
     // Arrastre independiente de ancla de directriz (Callout)
     if (anchorDragRef.current) {
       const { markupId, leaderIndex } = anchorDragRef.current;
@@ -768,6 +1129,10 @@ export const PdfViewer: React.FC = () => {
   };
 
   const handleMouseUp = (_e: React.MouseEvent<SVGSVGElement>) => {
+    if (vertexDragRef.current) {
+      finishVertexDrag();
+      return;
+    }
     // Finalización de arrastre de ancla de directriz
     if (anchorDragRef.current) {
       const { markupId, initialLeaders, hasMoved } = anchorDragRef.current;
@@ -1032,6 +1397,19 @@ export const PdfViewer: React.FC = () => {
                 strokeWidth: 0,
                 opacity: HIGHLIGHT_STYLE.opacity,
               }
+            : activeTool === 'dimension'
+            ? {
+                // Cota: flechas cerradas en ambos extremos salvo que la cinta indique otros
+                ...currentStyle,
+                lineEndingStart:
+                  currentStyle.lineEndingStart && currentStyle.lineEndingStart !== 'none'
+                    ? currentStyle.lineEndingStart
+                    : ('closedArrow' as const),
+                lineEndingEnd:
+                  currentStyle.lineEndingEnd && currentStyle.lineEndingEnd !== 'none'
+                    ? currentStyle.lineEndingEnd
+                    : ('closedArrow' as const),
+              }
             : activeTool === 'arrow'
             ? {
                 // Flecha = línea con punta final (cerrada por defecto si la cinta no indica otra)
@@ -1056,11 +1434,21 @@ export const PdfViewer: React.FC = () => {
           markupText = measurement.formatted;
         }
 
+        // Cota (ADR-0020): texto inicial = longitud con la escala de la página (editable al momento)
+        let markupPoints = points;
+        if (activeTool === 'dimension') {
+          markupText = calculateLength([drawingStart, currentDrawPoint], pageDimsPt, calib).formatted;
+          const a = { x: drawingStart.x * unscaledW, y: drawingStart.y * unscaledH };
+          const b = { x: currentDrawPoint.x * unscaledW, y: currentDrawPoint.y * unscaledH };
+          const c = defaultDimensionLinePoint(a, b, DIMENSION_DEFAULT_OFFSET_PT);
+          markupPoints = [drawingStart, currentDrawPoint, { x: c.x / unscaledW, y: c.y / unscaledH }];
+        }
+
         const newMarkup: Markup = {
           id: newId,
           type: (activeTool === 'arrow' ? 'line' : activeTool) as MarkupType,
           pageIndex: currentPageIndex,
-          points,
+          points: markupPoints,
           style: markupStyle,
           text: markupText,
           author: author || 'Revisor',
@@ -1074,6 +1462,16 @@ export const PdfViewer: React.FC = () => {
 
         addMarkup(newMarkup);
         useToolChestStore.getState().recordRecent(newMarkup);
+
+        // La cota queda lista para escribir su texto (como en Revu)
+        if (activeTool === 'dimension') {
+          setSelectedMarkupIds([newId]);
+          setInlineEditing({
+            markupId: newId,
+            initialText: markupText ?? '',
+            position: markupPoints[2],
+          });
+        }
 
         // Si es una marca de texto, abrir inmediatamente el editor inline
         if (activeTool === 'text') {
@@ -1120,6 +1518,12 @@ export const PdfViewer: React.FC = () => {
         initialColor: hit.style?.fillColor,
       });
       return;
+    }
+
+    // Doble clic en el plano (sin marca debajo): control de zoom en ese punto, como en Revu
+    if (activeTool === 'select' || activeTool === 'pan') {
+      const anyHit = pageMarkups.some((m) => hitTestMarkup(pt, m, 0.015, { width: unscaledW, height: unscaledH }));
+      if (!anyHit) setZoomWidget({ x: e.clientX, y: e.clientY });
     }
   };
 
@@ -1478,56 +1882,12 @@ export const PdfViewer: React.FC = () => {
     }
   };
 
-  return (
-    <div
-      ref={containerRef}
-      data-testid="pdf-viewer-container"
-      // Centrado con m-auto en los hijos (no justify-center): con zoom alto la hoja sigue siendo
-      // alcanzable por completo con el scroll, también por la izquierda y por arriba
-      className="flex-1 bg-cad-canvas overflow-auto relative flex p-8 select-none"
-      onScroll={updateViewCenter}
-    >
-      {isLoading && (
-        <div className="absolute inset-0 bg-cad-canvas/80 flex items-center justify-center z-30">
-          <div className="text-gray-300 font-medium animate-pulse">Cargando documento PDF...</div>
-        </div>
-      )}
-
-      {error && (
-        <div className="m-auto p-4 bg-rose-100 dark:bg-rose-950 border border-rose-300 dark:border-rose-700 text-rose-800 dark:text-rose-200 rounded max-w-md text-center">
-          {error}
-        </div>
-      )}
-
-      {!pdfBytes && !isLoading && !error && (
-        <div className="m-auto text-center text-white/90">
-          <p className="text-base font-semibold mb-1">Ningún documento abierto</p>
-          <p className="text-xs">Use Archivo → Abrir PDF (Ctrl+O) o el botón Abrir de la cinta</p>
-        </div>
-      )}
-
-      {pdfBytes && (
-        <div
-          ref={pageContainerRef}
-          data-testid="pdf-page-container"
-          data-rendered-page={currentPageIndex}
-          data-has-text={String(pageHasText[currentPageIndex] ?? 'loading')}
-          className="relative m-auto shrink-0 shadow-[0_2px_14px_rgba(0,0,0,0.35)] bg-white select-text"
-          style={{ width: `${pageViewport.width}px`, height: `${pageViewport.height}px` }}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-        >
-          {/* Canvas de PDF.js */}
-          <canvas
-            ref={canvasRef}
-            id="pdf-render-canvas"
-            data-testid="pdf-canvas"
-            className="block"
-          />
-
+  // Capas interactivas de la página activa: texto seleccionable, editor inline y overlay SVG de marcas
+  const activeOverlay = (
+    <>
           {/* TextLayer de PDF.js 4.x */}
           <div
-            ref={textLayerRef}
+            ref={setTextLayerRef}
             data-testid="pdf-text-layer"
             className="textLayer"
             style={{
@@ -1823,6 +2183,37 @@ export const PdfViewer: React.FC = () => {
               );
             })}
 
+            {/* Puntos de control (ADR-0021): capa propia, solo con una marca seleccionada y no bloqueada */}
+            {activeTool === 'select' &&
+              selectedMarkupIds.length === 1 &&
+              (() => {
+                const markup = pageMarkups.find((m) => m.id === selectedMarkupIds[0]);
+                if (!markup || markup.locked) return null;
+                const cps = controlPointsOf(markup);
+                if (!cps) return null;
+                return (
+                  <g data-testid="control-points-layer">
+                    {cps.map((cp, idx) => {
+                      const scr = normalizedToScreen(cp, viewportTransform);
+                      return (
+                        <circle
+                          key={`cp-${markup.id}-${idx}`}
+                          data-testid={`control-point-${idx}`}
+                          cx={scr.x}
+                          cy={scr.y}
+                          r={4.5}
+                          fill="#facc15"
+                          stroke="#1e3a8a"
+                          strokeWidth={1.2}
+                          className="cursor-crosshair"
+                          onMouseDown={(e) => handleControlPointMouseDown(e, markup, idx)}
+                        />
+                      );
+                    })}
+                  </g>
+                );
+              })()}
+
             {/* Vista previa de nota adhesiva en ancla pendiente de confirmación (A.4) */}
             {inlineEditing && inlineEditing.isPendingCreation && inlineEditing.isStickyNote && (
               <g data-testid="pending-sticky-note-preview" className="pointer-events-none opacity-85">
@@ -1967,6 +2358,42 @@ export const PdfViewer: React.FC = () => {
                     );
                   }
 
+                  if (activeTool === 'dimension') {
+                    const pw = pageViewport.width / (scale || 1.0);
+                    const ph = pageViewport.height / (scale || 1.0);
+                    const a = { x: drawingStart.x * pw, y: drawingStart.y * ph };
+                    const b = { x: currentDrawPoint.x * pw, y: currentDrawPoint.y * ph };
+                    const c = defaultDimensionLinePoint(a, b, DIMENSION_DEFAULT_OFFSET_PT);
+                    const calib = useCalibrationStore.getState().getPageCalibration(currentPageIndex);
+                    const previewMarkup: Markup = {
+                      id: 'preview-dimension',
+                      type: 'dimension',
+                      pageIndex: currentPageIndex,
+                      points: [drawingStart, currentDrawPoint, { x: c.x / pw, y: c.y / ph }],
+                      style: {
+                        ...currentStyle,
+                        lineEndingStart:
+                          currentStyle.lineEndingStart && currentStyle.lineEndingStart !== 'none'
+                            ? currentStyle.lineEndingStart
+                            : 'closedArrow',
+                        lineEndingEnd:
+                          currentStyle.lineEndingEnd && currentStyle.lineEndingEnd !== 'none'
+                            ? currentStyle.lineEndingEnd
+                            : 'closedArrow',
+                      },
+                      text: calculateLength([drawingStart, currentDrawPoint], { width: pw, height: ph }, calib).formatted,
+                      author: '',
+                      createdAt: '',
+                      updatedAt: '',
+                      status: 'pending',
+                    };
+                    return (
+                      <g opacity={0.85}>
+                        {renderSvgDescriptor(getMarkupSvgDescriptor(previewMarkup, viewportTransform), 'preview-dimension')}
+                      </g>
+                    );
+                  }
+
                   if (activeTool === 'length' || activeTool === 'calibrate') {
                     return (
                       <g>
@@ -2047,14 +2474,10 @@ export const PdfViewer: React.FC = () => {
                   if (activeTool === 'cloud' || activeTool === 'cloudPlus') {
                     return (
                       <path
-                        d={generateCloudPath(
-                          drawingStart,
-                          currentDrawPoint,
-                          {
-                            width: viewportTransform.width * viewportTransform.scale,
-                            height: viewportTransform.height * viewportTransform.scale,
-                          },
-                          DEFAULT_ARC_STEP * viewportTransform.scale
+                        d={revisionCloudPathNormalized(
+                          [drawingStart, currentDrawPoint],
+                          { width: viewportTransform.width, height: viewportTransform.height },
+                          DEFAULT_ARC_STEP * (scale || 1.0)
                         )}
                         stroke={currentStyle.strokeColor}
                         strokeWidth={currentStyle.strokeWidth}
@@ -2146,6 +2569,107 @@ export const PdfViewer: React.FC = () => {
               );
             })()}
           </svg>
+    </>
+  );
+
+  // Marcas de las demás páginas (vista continua): solo lectura; al pasar el cursor la página se activa
+  const renderPassiveOverlay = (pageIndex: number, width: number, height: number) => {
+    const ms = markups.filter((m) => m.pageIndex === pageIndex && isMarkupVisible(m));
+    if (ms.length === 0) return null;
+    const t = { width, height, scale: 1.0, offsetX: 0, offsetY: 0, zoom: scale || 1.0 };
+    return (
+      <svg
+        data-testid={`passive-overlay-${pageIndex}`}
+        width={width}
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+        className="absolute inset-0 pointer-events-none"
+      >
+        {ms.map((m) => (
+          <g key={m.id}>{renderSvgDescriptor(getMarkupSvgDescriptor(m, t), `passive-${m.id}`)}</g>
+        ))}
+      </svg>
+    );
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      data-testid="pdf-viewer-container"
+      // Centrado con m-auto en los hijos (no justify-center): con zoom alto la hoja sigue siendo
+      // alcanzable por completo con el scroll, también por la izquierda y por arriba
+      className="flex-1 bg-cad-canvas overflow-auto relative flex p-8 select-none"
+      onScroll={handleContainerScroll}
+      onMouseMove={(e) => {
+        lastPointerRef.current = { x: e.clientX, y: e.clientY };
+      }}
+      onMouseLeave={() => {
+        lastPointerRef.current = null;
+      }}
+    >
+      {isLoading && (
+        <div className="absolute inset-0 bg-cad-canvas/80 flex items-center justify-center z-30">
+          <div className="text-gray-300 font-medium animate-pulse">Cargando documento PDF...</div>
+        </div>
+      )}
+
+      {error && (
+        <div className="m-auto p-4 bg-rose-100 dark:bg-rose-950 border border-rose-300 dark:border-rose-700 text-rose-800 dark:text-rose-200 rounded max-w-md text-center">
+          {error}
+        </div>
+      )}
+
+      {!pdfBytes && !isLoading && !error && (
+        <div className="m-auto text-center text-white/90">
+          <p className="text-base font-semibold mb-1">Ningún documento abierto</p>
+          <p className="text-xs">Use Archivo → Abrir PDF (Ctrl+O) o el botón Abrir de la cinta</p>
+        </div>
+      )}
+
+      {pdfBytes && (
+        <div
+          data-testid="pdf-pages-stack"
+          className={`m-auto shrink-0 ${isContinuous ? 'flex flex-col items-center gap-4' : ''}`}
+        >
+          {(isContinuous ? pageSizes.map((_, i) => i) : [currentPageIndex]).map((i) => {
+            const isActive = i === currentPageIndex;
+            const slotW = isContinuous ? pageSizes[i].w * scale : pageViewport.width;
+            const slotH = isContinuous ? pageSizes[i].h * scale : pageViewport.height;
+            const shouldRender = isActive || !visiblePages || visiblePages.has(i);
+            return (
+              <div
+                // Clave por modo elegido (no por si ya llegaron los tamaños): la hoja activa no se vuelve a montar
+                // al pasar de la carga a la vista continua
+                key={viewMode === 'continuous' ? `slot-${i}` : 'slot-single'}
+                ref={isActive ? pageContainerRef : undefined}
+                data-page-slot={i}
+                data-testid={isActive ? 'pdf-page-container' : `pdf-page-slot-${i}`}
+                data-rendered-page={isActive ? currentPageIndex : undefined}
+                data-has-text={isActive ? String(pageHasText[currentPageIndex] ?? 'loading') : undefined}
+                className={`relative shrink-0 shadow-[0_2px_14px_rgba(0,0,0,0.35)] bg-white ${isActive ? 'select-text' : ''}`}
+                style={{ width: `${slotW}px`, height: `${slotH}px` }}
+                onDragOver={isActive ? handleDragOver : undefined}
+                onDrop={isActive ? handleDrop : undefined}
+                onDragEnter={isActive ? undefined : () => activatePage(i)}
+                onMouseMove={isActive ? undefined : () => activatePage(i)}
+                onMouseDown={isActive ? undefined : () => activatePage(i)}
+              >
+                {pdfDoc && (
+                  <PageCanvas
+                    pdfDoc={pdfDoc}
+                    pageIndex={i}
+                    scale={scale}
+                    rotation={rotation}
+                    active={isActive}
+                    shouldRender={shouldRender}
+                    textLayerNode={isActive ? textLayerNode : null}
+                    onRendered={handlePageRendered}
+                  />
+                )}
+                {isActive ? activeOverlay : renderPassiveOverlay(i, slotW, slotH)}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -2160,9 +2684,70 @@ export const PdfViewer: React.FC = () => {
         />
       )}
 
+      {zoomWidget && (
+        <ZoomWidget
+          x={zoomWidget.x}
+          y={zoomWidget.y}
+          onZoom={(factor) => zoomAtClientPoint(zoomWidget.x, zoomWidget.y, factor)}
+          onCenter={() => {
+            centerViewAt(zoomWidget.x, zoomWidget.y);
+            setZoomWidget(null);
+          }}
+          onClose={() => setZoomWidget(null)}
+        />
+      )}
+
       {contextMenu && (
         <CanvasContextMenu x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} />
       )}
+    </div>
+  );
+};
+
+/**
+ * Control de zoom que aparece con doble clic en el plano (ADR-0021): + acerca y − aleja manteniendo fijo el
+ * punto donde se hizo doble clic; el centro centra la vista en ese punto. Se cierra con Esc o al hacer clic fuera.
+ */
+const ZoomWidget: React.FC<{
+  x: number;
+  y: number;
+  onZoom: (factor: number) => void;
+  onCenter: () => void;
+  onClose: () => void;
+}> = ({ x, y, onZoom, onCenter, onClose }) => {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    window.addEventListener('mousedown', onDown);
+    return () => window.removeEventListener('mousedown', onDown);
+  }, [onClose]);
+  const btn =
+    'w-6 h-6 rounded-full bg-blue-900 text-white flex items-center justify-center hover:bg-blue-700 shadow';
+  return (
+    <div
+      ref={ref}
+      data-testid="zoom-widget"
+      style={{ position: 'fixed', left: x - 22, top: y - 50, zIndex: 40 }}
+      className="w-11 h-[100px] rounded-lg border-2 border-dotted border-blue-900 bg-sky-100/90 flex flex-col items-center justify-between py-1.5 select-none"
+      onDoubleClick={(e) => e.stopPropagation()}
+    >
+      <button type="button" data-testid="zoom-widget-in" className={btn} title="Acercar aquí" onClick={() => onZoom(1.25)}>
+        <Plus size={14} />
+      </button>
+      <button
+        type="button"
+        data-testid="zoom-widget-center"
+        className="text-blue-900 hover:text-blue-600"
+        title="Centrar la vista aquí"
+        onClick={onCenter}
+      >
+        <Crosshair size={18} />
+      </button>
+      <button type="button" data-testid="zoom-widget-out" className={btn} title="Alejar aquí" onClick={() => onZoom(1 / 1.25)}>
+        <Minus size={14} />
+      </button>
     </div>
   );
 };

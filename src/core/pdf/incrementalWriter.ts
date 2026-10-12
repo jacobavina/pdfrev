@@ -9,6 +9,7 @@ import {
   PDFObject,
 } from 'pdf-lib';
 import { LineEndingStyle, Markup, MarkupStatus } from '../../types/markup';
+import { DIMENSION_EXTENSION_GAP, DIMENSION_EXTENSION_OVERSHOOT } from '../markup/dimension';
 import {
   emitMarkupOperators,
   normalizedToPdfCoordinates,
@@ -399,6 +400,10 @@ export async function saveIncrementalMarkups(
       if (emitted.extGState?.bm || emitted.extGState?.ca || emitted.extGState?.CA) {
         resourcesDict += `    /ExtGState << /GS_HL << /Type /ExtGState /BM ${emitted.extGState.bm || '/Normal'} /ca ${emitted.extGState.ca ?? 1} /CA ${emitted.extGState.CA ?? 1} >> >>\n`;
       }
+      // Texto del /AP (cotas, cuadros de texto, llamadas): Helvetica estándar, sin incrustar
+      if (emitted.fontName) {
+        resourcesDict += `    /Font << /${emitted.fontName} << /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >> >>\n`;
+      }
       resourcesDict += '  >>';
 
       const bboxStr = `[${emitted.bbox[0].toFixed(2)} ${emitted.bbox[1].toFixed(2)} ${emitted.bbox[2].toFixed(2)} ${emitted.bbox[3].toFixed(2)}]`;
@@ -460,6 +465,13 @@ endstream`;
       if (markup.layer) {
         reaDict += ` /layer ${escapePdfString(markup.layer)}`;
       }
+      // Geometría exacta de REA (ida y vuelta sin pérdidas). /rect fija la caja con la que se escribió: si otra
+      // aplicación mueve la anotación, el lector lo detecta y usa la geometría estándar del PDF.
+      const numList = (pts: { x: number; y: number }[]) => pts.map((p) => `${p.x.toFixed(6)} ${p.y.toFixed(6)}`).join(' ');
+      reaDict += ` /pts [${numList(markup.points)}] /rect ${rectStr}`;
+      if (markup.leaders && markup.leaders.length > 0) {
+        reaDict += ` /leaders [${markup.leaders.map((l) => `[${numList(l)}]`).join(' ')}]`;
+      }
       if (reaCustomFields.length > 0) {
         reaDict += ` /fields << ${reaCustomFields.join(' ')} >>`;
       }
@@ -495,6 +507,10 @@ endstream`;
       if (markup.locked) {
         annotDict += `  /Locked true\n`;
       }
+      const markupOpacity = markup.style.opacity ?? 1;
+      if (markupOpacity < 1 && annotTypeSubtype !== 'Highlight') {
+        annotDict += `  /CA ${markupOpacity.toFixed(3)}\n`;
+      }
       if (colorEntry) annotDict += `  ${colorEntry}\n`;
       if (fillEntry) annotDict += `  ${fillEntry}\n`;
 
@@ -504,6 +520,21 @@ endstream`;
         const p1 = normalizedToPdfCoordinates(markup.points[0], transform);
         const p2 = normalizedToPdfCoordinates(markup.points[1], transform);
         annotDict += `  /L [${p1.x.toFixed(2)} ${p1.y.toFixed(2)} ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}]\n  ${leEntry}\n`;
+        if (markup.type === 'dimension') {
+          annotDict += `  ${dimensionLineEntries(markup, transform)}\n`;
+        }
+      } else if (
+        (markup.type === 'cloud' || markup.type === 'cloudPlus') &&
+        markup.points.length === 2
+      ) {
+        // Nube rectangular: cuatro vértices reales y borde nuboso (/BE), para que Revu/Acrobat la editen
+        const a = normalizedToPdfCoordinates(markup.points[0], transform);
+        const b = normalizedToPdfCoordinates(markup.points[1], transform);
+        const x0 = Math.min(a.x, b.x).toFixed(2);
+        const y0 = Math.min(a.y, b.y).toFixed(2);
+        const x1 = Math.max(a.x, b.x).toFixed(2);
+        const y1 = Math.max(a.y, b.y).toFixed(2);
+        annotDict += `  /Vertices [${x0} ${y1} ${x1} ${y1} ${x1} ${y0} ${x0} ${y0}]\n  /BE << /S /C /I 1 >>\n`;
       } else if (
         (annotTypeSubtype === 'Polygon' || annotTypeSubtype === 'PolyLine') &&
         markup.points.length >= 2
@@ -518,11 +549,12 @@ endstream`;
         if (annotTypeSubtype === 'PolyLine') {
           annotDict += `  ${leEntry}\n`;
         }
-        if (markup.type === 'cloud') {
+        if (markup.type === 'cloud' || markup.type === 'cloudPlus') {
           annotDict += `  /BE << /S /C /I 1 >>\n`;
         }
       } else if (annotTypeSubtype === 'FreeText') {
-        const fontPt = markup.style.fontSize ?? 12;
+        // Mismos tamaños por defecto que la pantalla y el /AP (llamada 10 pt, texto 12 pt)
+        const fontPt = markup.style.fontSize ?? (markup.type === 'callout' ? 10 : 12);
         annotDict += `  /DA (/Helv ${fontPt} Tf 0 0 0 rg)\n`;
       } else if (annotTypeSubtype === 'Text') {
         annotDict += `  /Name /Note\n  /Open false\n`;
@@ -609,9 +641,33 @@ export function toPdfLineEnding(ending: LineEndingStyle | undefined): string {
       return '/Square';
     case 'diamond':
       return '/Diamond';
+    case 'butt':
+      return '/Butt';
+    case 'slash':
+      return '/Slash';
     default:
       return '/None';
   }
+}
+
+/**
+ * Entradas de cota de una anotación /Line (ISO 32000-1 §12.5.6.7): /LL es el desfase con signo de la línea de
+ * cota (positivo = sentido horario recorriendo /L), /LLE lo que sobresalen las líneas de referencia y /LLO su
+ * separación del punto acotado; el texto va en /Contents con /Cap.
+ */
+export function dimensionLineEntries(markup: Markup, transform: PageTransformInfo): string {
+  const p1 = normalizedToPdfCoordinates(markup.points[0], transform);
+  const p2 = normalizedToPdfCoordinates(markup.points[1], transform);
+  const len = Math.hypot(p2.x - p1.x, p2.y - p1.y) || 1;
+  const ux = (p2.x - p1.x) / len;
+  const uy = (p2.y - p1.y) / len;
+  let ll = 15;
+  if (markup.points[2]) {
+    const p3 = normalizedToPdfCoordinates(markup.points[2], transform);
+    // Normal horaria en coordenadas PDF (y hacia arriba): (uy, -ux)
+    ll = (p3.x - p1.x) * uy + (p3.y - p1.y) * -ux;
+  }
+  return `/LL ${ll.toFixed(2)} /LLE ${DIMENSION_EXTENSION_OVERSHOOT} /LLO ${DIMENSION_EXTENSION_GAP} /Cap true /CP /Top /IT /LineDimension`;
 }
 
 /** Diccionario /BS: continuo (/S) o discontinuo (/D con su patrón en pt). */
@@ -633,6 +689,7 @@ function getPdfAnnotSubtype(markup: Markup): string {
       return 'Circle';
     case 'line':
     case 'length':
+    case 'dimension':
       return 'Line';
     case 'polygon':
       if (markup.customFields?.isPolyLine) return 'PolyLine';
@@ -643,6 +700,7 @@ function getPdfAnnotSubtype(markup: Markup): string {
     case 'polylineMeasure':
       return 'PolyLine';
     case 'cloud':
+    case 'cloudPlus':
       return 'Polygon';
     case 'callout':
     case 'text':

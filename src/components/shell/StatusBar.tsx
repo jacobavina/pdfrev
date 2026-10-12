@@ -6,6 +6,7 @@ import { useCalibrationStore } from '../../store/useCalibrationStore';
 import { useSearchStore } from '../../store/useSearchStore';
 import { useUiStore } from '../../store/useUiStore';
 import { goToPage } from './appActions';
+import { SinglePageIcon, ContinuousIcon, FitPageIcon, FitWidthIcon } from './customIcons';
 
 const Divider = () => <div className="h-4 w-px bg-cad-border mx-1.5 shrink-0" />;
 
@@ -20,6 +21,17 @@ export const StatusBar: React.FC = () => {
   const { calibrations, getPageCalibration, setPendingCalibrationPoints, setCalibrationModalOpen } =
     useCalibrationStore();
   const cursorPt = useUiStore((s) => s.cursorPt);
+  const viewMode = useUiStore((s) => s.viewMode);
+  const setViewMode = useUiStore((s) => s.setViewMode);
+  const requestFit = useUiStore((s) => s.requestFit);
+  const pageDims = useDocumentStore((s) => s.pageDimensions[s.currentPageIndex]);
+  // Tamaño de la hoja activa (la dimensión guardada está en píxeles a la escala del último render)
+  const sheetCm =
+    pageDims && scale > 0
+      ? { w: ((pageDims.width / scale) / 72) * 2.54, h: ((pageDims.height / scale) / 72) * 2.54 }
+      : null;
+  const modeBtn = (active: boolean) =>
+    `p-0.5 rounded hover:bg-cad-hover hover:text-cad-strong ${active ? 'bg-cad-hover text-cad-strong' : ''}`;
 
   const isCalibrated = calibrations[currentPageIndex] !== undefined;
   const calib = getPageCalibration(currentPageIndex);
@@ -77,6 +89,50 @@ export const StatusBar: React.FC = () => {
 
       <Divider />
 
+      {/* Modo de visualización y ajuste (ADR-0019) */}
+      <button
+        type="button"
+        data-testid="view-single-btn"
+        aria-pressed={viewMode === 'single'}
+        onClick={() => setViewMode('single')}
+        className={modeBtn(viewMode === 'single')}
+        title="Página única"
+      >
+        <SinglePageIcon />
+      </button>
+      <button
+        type="button"
+        data-testid="view-continuous-btn"
+        aria-pressed={viewMode === 'continuous'}
+        onClick={() => setViewMode('continuous')}
+        className={modeBtn(viewMode === 'continuous')}
+        title="Continua (todas las páginas)"
+      >
+        <ContinuousIcon />
+      </button>
+      <button
+        type="button"
+        data-testid="fit-page-btn"
+        onClick={() => requestFit('page')}
+        disabled={!pdfBytes}
+        className={modeBtn(false) + ' ml-1 disabled:opacity-30'}
+        title="Ajustar a página (Ctrl+0)"
+      >
+        <FitPageIcon />
+      </button>
+      <button
+        type="button"
+        data-testid="fit-width-btn"
+        onClick={() => requestFit('width')}
+        disabled={!pdfBytes}
+        className={modeBtn(false) + ' disabled:opacity-30'}
+        title="Ajustar al ancho (Ctrl+2)"
+      >
+        <FitWidthIcon />
+      </button>
+
+      <Divider />
+
       {/* Escala de la página (clic para calibrar) */}
       {pdfBytes && (
         <button
@@ -107,6 +163,19 @@ export const StatusBar: React.FC = () => {
       </span>
 
       <div className="flex-1" />
+
+      {sheetCm && (
+        <>
+          <span
+            data-testid="sheet-size"
+            className="font-mono whitespace-nowrap"
+            title={`${(sheetCm.w / 2.54).toFixed(2)} × ${(sheetCm.h / 2.54).toFixed(2)} in`}
+          >
+            {sheetCm.w.toFixed(2)} × {sheetCm.h.toFixed(2)} cm
+          </span>
+          <Divider />
+        </>
+      )}
 
       <span className="whitespace-nowrap">
         {markups.length} marcas

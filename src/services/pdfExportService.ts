@@ -1,3 +1,4 @@
+import { revisionCloudPathNormalized, cloudParams } from '../core/markup/revisionCloud';
 import {
   PDFDocument,
   PDFPage,
@@ -27,7 +28,6 @@ import {
   STICKY_NOTE_COLORS,
 } from '../types/markup';
 import {
-  generateCloudPath,
   DEFAULT_ARC_STEP,
   calculateCalloutGeometry,
   wrapCalloutText,
@@ -57,7 +57,7 @@ function drawLineEndingsFlat(
     [pdfPts[pdfPts.length - 1], angles.end, markup.style.lineEndingEnd],
   ];
   for (const [tip, angle, ending] of items) {
-    const shape = lineEndingShape(tip, angle, ending, size);
+    const shape = lineEndingShape(tip, angle, ending, size, true);
     if (!shape) continue;
     if (shape.kind === 'circle') {
       page.drawEllipse({
@@ -117,6 +117,14 @@ function drawViaAppearanceOperators(
           ca: gs.ca ?? 1,
           CA: gs.CA ?? 1,
         },
+      })
+    );
+  }
+  if (emitted.fontName) {
+    resources.set(
+      PDFName.of('Font'),
+      pdfDoc.context.obj({
+        [emitted.fontName]: { Type: 'Font', Subtype: 'Type1', BaseFont: 'Helvetica', Encoding: 'WinAnsiEncoding' },
       })
     );
   }
@@ -607,13 +615,14 @@ export async function exportMarkupsToPdf(
               ? markup.customFields.arcStep
               : DEFAULT_ARC_STEP;
 
-          const cloudD = generateCloudPath(
+          const cloudD = revisionCloudPathNormalized(
             markup.points,
             {
               width: transform.widthPt,
               height: transform.heightPt,
             },
-            arcStep
+            arcStep,
+            cloudParams(markup.customFields, arcStep).invert
           );
 
           page.drawSvgPath(cloudD, {
@@ -635,13 +644,14 @@ export async function exportMarkupsToPdf(
               ? markup.customFields.arcStep
               : DEFAULT_ARC_STEP;
 
-          const cloudD = generateCloudPath(
+          const cloudD = revisionCloudPathNormalized(
             markup.points,
             {
               width: transform.widthPt,
               height: transform.heightPt,
             },
-            arcStep
+            arcStep,
+            cloudParams(markup.customFields, arcStep).invert
           );
 
           page.drawSvgPath(cloudD, {
@@ -941,7 +951,8 @@ export async function exportMarkupsToPdf(
         case 'length':
         case 'polylineMeasure':
         case 'area':
-        case 'count': {
+        case 'count':
+        case 'dimension': {
           drawViaAppearanceOperators(pdfDoc, page, markup, transform);
           if (markup.measurement) {
             drawMeasurementLabel(page, markup, transform, helveticaFont);

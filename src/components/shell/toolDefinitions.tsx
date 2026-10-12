@@ -3,13 +3,10 @@ import {
   MousePointer,
   Hand,
   Square,
-  Minus,
-  Cloud,
   Type,
   Circle,
   Hexagon,
   Pencil,
-  MessageSquare,
   MessageSquareText,
   StickyNote,
   Highlighter,
@@ -17,8 +14,8 @@ import {
   Ruler,
   Hash,
   Scale,
-  ArrowUpRight,
 } from 'lucide-react';
+import { CloudIcon, CloudPlusIcon, DimensionIcon, LineToolIcon, ArrowToolIcon } from './customIcons';
 import { ToolType } from '../../store/useToolStore';
 
 /**
@@ -104,8 +101,9 @@ export const TOOL_GROUPS: ToolGroup[] = [
     tools: [
       { type: 'freehand', label: 'Mano alzada (F)', short: 'Lápiz', icon: <Pencil size={18} />, shortcut: 'F' },
       { type: 'highlightVector', label: 'Resaltador vectorial (H)', short: 'Marcador', icon: <Highlighter size={18} />, shortcut: 'H' },
-      { type: 'line', label: 'Línea (L)', short: 'Línea', icon: <Minus size={18} />, shortcut: 'L' },
-      { type: 'arrow', label: 'Flecha (A)', short: 'Flecha', icon: <ArrowUpRight size={18} />, shortcut: 'A' },
+      { type: 'line', label: 'Línea (L)', short: 'Línea', icon: <LineToolIcon />, shortcut: 'L' },
+      { type: 'arrow', label: 'Flecha (A)', short: 'Flecha', icon: <ArrowToolIcon />, shortcut: 'A' },
+      { type: 'dimension', label: 'Cota con texto propio (Shift+L)', short: 'Cota', icon: <DimensionIcon />, shortcut: 'Shift+L' },
       {
         type: 'polyLine',
         label: 'Polilínea abierta',
@@ -115,8 +113,8 @@ export const TOOL_GROUPS: ToolGroup[] = [
       { type: 'rectangle', label: 'Rectángulo (R)', short: 'Rectángulo', icon: <Square size={18} />, shortcut: 'R' },
       { type: 'circle', label: 'Círculo / Elipse (O)', short: 'Elipse', icon: <Circle size={18} />, shortcut: 'O' },
       { type: 'polygon', label: 'Polígono (P)', short: 'Polígono', icon: <Hexagon size={18} />, shortcut: 'P' },
-      { type: 'cloud', label: 'Nube de revisión (C)', short: 'Nube', icon: <Cloud size={18} />, shortcut: 'C' },
-      { type: 'cloudPlus', label: 'Cloud+ con leyenda (K)', short: 'Nube+', icon: <MessageSquare size={18} />, shortcut: 'K' },
+      { type: 'cloud', label: 'Nube de revisión (C)', short: 'Nube', icon: <CloudIcon />, shortcut: 'C' },
+      { type: 'cloudPlus', label: 'Cloud+ con leyenda (K)', short: 'Nube+', icon: <CloudPlusIcon />, shortcut: 'K' },
     ],
   },
   {
@@ -124,10 +122,10 @@ export const TOOL_GROUPS: ToolGroup[] = [
     label: 'Medición',
     tools: [
       { type: 'calibrate', label: 'Calibrar escala por página', short: 'Calibrar', icon: <Scale size={18} />, testId: 'tool-calibrate' },
-      { type: 'length', label: 'Medición de longitud', short: 'Longitud', icon: <Ruler size={18} />, testId: 'tool-measure-length' },
+      { type: 'length', label: 'Medición de longitud (Shift+Alt+L)', short: 'Longitud', icon: <Ruler size={18} />, testId: 'tool-measure-length', shortcut: 'Shift+Alt+L' },
       {
         type: 'polylineMeasure',
-        label: 'Medición de polilínea',
+        label: 'Polilongitud (Shift+Alt+Q)',
         short: 'Polilongitud',
         icon: svgIcon(
           <>
@@ -136,10 +134,11 @@ export const TOOL_GROUPS: ToolGroup[] = [
           </>
         ),
         testId: 'tool-measure-polyline',
+        shortcut: 'Shift+Alt+Q',
       },
       {
         type: 'area',
-        label: 'Medición de área (polígono: clic por vértice, Enter o doble clic para cerrar)',
+        label: 'Área (Shift+Alt+A): clic por vértice, Enter o doble clic para cerrar',
         short: 'Área',
         icon: svgIcon(
           <>
@@ -148,8 +147,9 @@ export const TOOL_GROUPS: ToolGroup[] = [
           </>
         ),
         testId: 'tool-measure-area',
+        shortcut: 'Shift+Alt+A',
       },
-      { type: 'count', label: 'Conteo de elementos', short: 'Conteo', icon: <Hash size={18} />, testId: 'tool-measure-count' },
+      { type: 'count', label: 'Conteo (Shift+Alt+C)', short: 'Conteo', icon: <Hash size={18} />, testId: 'tool-measure-count', shortcut: 'Shift+Alt+C' },
     ],
   },
 ];

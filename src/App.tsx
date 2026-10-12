@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect } from 'react';
+import React, { Suspense, lazy, useEffect, useRef } from 'react';
 import { FileText } from 'lucide-react';
 import { PdfViewer } from './components/PdfViewer';
 import { MarkupsList } from './components/MarkupsList';
@@ -30,6 +30,8 @@ const ShortcutsDialog = lazy(() =>
 );
 /** Hueco de la barra lateral plegada mientras carga el panel. */
 const SidePanelFallback: React.FC = () => <aside className="w-10 bg-cad-panel border-l border-cad-border" />;
+import { RULER_SIZE } from './core/measurements/rulers';
+const Rulers = lazy(() => import('./components/viewer/Rulers'));
 import fixtureMeta from '../fixtures/test-blueprint.meta.json';
 
 /** Pestaña del documento abierto sobre el área de trabajo. */
@@ -53,6 +55,8 @@ const DocumentTab: React.FC = () => {
 
 export const App: React.FC = () => {
   const { pdfBytes, setLoading } = useDocumentStore();
+  const showRulers = useUiStore((s) => s.showRulers);
+  const viewerHostRef = useRef<HTMLDivElement>(null);
   const { addMarkup } = useMarkupStore();
   const { saveNow } = useAutoSave();
 
@@ -71,6 +75,11 @@ export const App: React.FC = () => {
       } else if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
         e.preventDefault();
         useSearchStore.getState().setIsOpen(true);
+      } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === 'r' || e.key === 'R')) {
+        // Reglas (como Revu); también evita que Ctrl+R recargue la ventana
+        e.preventDefault();
+        const ui = useUiStore.getState();
+        ui.setShowRulers(!ui.showRulers);
       } else if (e.key === 'F1') {
         e.preventDefault();
         useUiStore.getState().setShortcutsOpen(true);
@@ -147,7 +156,19 @@ export const App: React.FC = () => {
         <LeftDock />
         <div className="flex-1 min-w-0 flex flex-col">
           <DocumentTab />
-          <PdfViewer />
+          <div
+            ref={viewerHostRef}
+            data-testid="viewer-host"
+            className="flex-1 min-h-0 flex relative"
+            style={showRulers ? { paddingLeft: RULER_SIZE, paddingTop: RULER_SIZE } : undefined}
+          >
+            {showRulers && (
+              <Suspense fallback={null}>
+                <Rulers hostRef={viewerHostRef} />
+              </Suspense>
+            )}
+            <PdfViewer />
+          </div>
         </div>
         <Suspense fallback={<SidePanelFallback />}>
           <PropertiesInspectorPanel defaultCollapsed={true} />

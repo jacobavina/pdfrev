@@ -23,6 +23,11 @@ import {
   AreaMeasureIcon,
   CountMeasureIcon,
   CalibrateIcon,
+  PerimeterMeasureIcon,
+  AngleMeasureIcon,
+  RadiusMeasureIcon,
+  DiameterMeasureIcon,
+  VolumeMeasureIcon,
 } from './customIcons';
 import { ToolType } from '../../store/useToolStore';
 
@@ -121,6 +126,25 @@ export const TOOL_GROUPS: ToolGroup[] = [
         testId: 'tool-measure-area',
         shortcut: 'Shift+Alt+A',
       },
+      {
+        type: 'perimeter',
+        label: 'Perimeter (Shift+Alt+P): click each vertex, Enter or double-click to close',
+        short: 'Perimeter',
+        icon: <PerimeterMeasureIcon />,
+        testId: 'tool-measure-perimeter',
+        shortcut: 'Shift+Alt+P',
+      },
+      {
+        type: 'volume',
+        label: 'Volume (Shift+Alt+V): area times depth',
+        short: 'Volume',
+        icon: <VolumeMeasureIcon />,
+        testId: 'tool-measure-volume',
+        shortcut: 'Shift+Alt+V',
+      },
+      { type: 'angle', label: 'Angle (Shift+Alt+G): three clicks', short: 'Angle', icon: <AngleMeasureIcon />, testId: 'tool-measure-angle', shortcut: 'Shift+Alt+G' },
+      { type: 'radius', label: 'Radius (Shift+Alt+R): center, then edge', short: 'Radius', icon: <RadiusMeasureIcon />, testId: 'tool-measure-radius', shortcut: 'Shift+Alt+R' },
+      { type: 'diameter', label: 'Diameter (Shift+Alt+D): edge to edge', short: 'Diameter', icon: <DiameterMeasureIcon />, testId: 'tool-measure-diameter', shortcut: 'Shift+Alt+D' },
       { type: 'count', label: 'Count (Shift+Alt+C)', short: 'Count', icon: <CountMeasureIcon />, testId: 'tool-measure-count', shortcut: 'Shift+Alt+C' },
     ],
   },

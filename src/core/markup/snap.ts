@@ -30,10 +30,16 @@ export function snapGeometry(markup: Markup): { vertices: MarkupPoint[]; segment
     case 'line':
     case 'length':
     case 'dimension':
+    case 'radius':
+    case 'diameter':
       return p.length >= 2 ? { vertices: [p[0], p[1]], segments: [[p[0], p[1]]] } : { vertices: [], segments: [] };
     case 'polyLine':
     case 'polylineMeasure':
+    case 'angle':
       return { vertices: p, segments: openPoly(p) };
+    case 'perimeter':
+    case 'volume':
+      return p.length >= 3 ? { vertices: p, segments: closedPoly(p) } : { vertices: p, segments: openPoly(p) };
     case 'polygon':
     case 'area':
     case 'cloud':

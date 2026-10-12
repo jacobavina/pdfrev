@@ -883,7 +883,14 @@ function getPdfAnnotSubtype(markup: Markup): string {
       return 'Square';
     case 'circle':
     case 'count':
+    case 'radius':
+    case 'diameter':
       return 'Circle';
+    case 'perimeter':
+    case 'volume':
+      return 'Polygon';
+    case 'angle':
+      return 'PolyLine';
     case 'line':
     case 'length':
     case 'dimension':

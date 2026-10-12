@@ -62,6 +62,9 @@ import {
   calculatePolylineLength,
   calculateArea,
   calculateCount,
+  calculatePerimeter,
+  calculateVolume,
+  calculateAngle,
 } from '../core/measurements/calculate';
 
 // Diálogo de hipervínculo (ADR-0027), cargado al usarlo
@@ -83,6 +86,7 @@ const CalibrationModal = lazy(() => import('./CalibrationModal').then((m) => ({ 
 /** Herramientas que usan snap al dibujar o medir (ADR-0025). */
 const SNAP_TOOLS = new Set<string>([
   'line', 'arrow', 'dimension', 'length', 'polylineMeasure', 'area', 'count', 'calibrate',
+  'perimeter', 'volume', 'angle', 'radius', 'diameter',
   'polygon', 'polyLine', 'rectangle', 'circle', 'cloud', 'cloudPlus', 'callout',
 ]);
 
@@ -96,12 +100,24 @@ interface PdfPageLike {
 
 /** Herramientas que se trazan vértice a vértice (clic), y se cierran con Enter, doble clic o el primer vértice. */
 export function isMultiPointTool(tool: string): boolean {
-  return tool === 'polygon' || tool === 'polyLine' || tool === 'polylineMeasure' || tool === 'area';
+  return (
+    tool === 'polygon' ||
+    tool === 'polyLine' ||
+    tool === 'polylineMeasure' ||
+    tool === 'area' ||
+    tool === 'perimeter' ||
+    tool === 'volume' ||
+    tool === 'angle'
+  );
 }
 
 export function minPointsFor(tool: string): number {
   return tool === 'polyLine' || tool === 'polylineMeasure' ? 2 : 3;
 }
+
+/** Contornos cerrados: se cierran también con un clic en el primer vértice. */
+const isClosedMultiPointTool = (tool: string) =>
+  tool === 'polygon' || tool === 'area' || tool === 'perimeter' || tool === 'volume';
 
 /** Quita vértices consecutivos prácticamente iguales (los dos mousedown que preceden a un doble clic). */
 export function dedupeConsecutivePoints(points: MarkupPoint[], epsilon = 1e-4): MarkupPoint[] {
@@ -629,6 +645,19 @@ export const PdfViewer: React.FC = () => {
     } else if (original.type === 'area' && points.length >= 3) {
       next.measurement = calculateArea(points, dims, calib, false);
       next.text = next.measurement.formatted;
+    } else if (original.type === 'perimeter') {
+      next.measurement = calculatePerimeter(points, dims, calib);
+      next.text = next.measurement.formatted;
+    } else if (original.type === 'volume') {
+      const depth = Number(original.customFields?.volumeDepth ?? 1);
+      next.measurement = calculateVolume(points, dims, calib, depth);
+      next.text = next.measurement.formatted;
+    } else if (original.type === 'angle') {
+      next.measurement = calculateAngle(points, dims, calib);
+      next.text = next.measurement.formatted;
+    } else if (original.type === 'radius' || original.type === 'diameter') {
+      next.measurement = calculateLength(points, dims, calib);
+      next.text = next.measurement.formatted;
     } else if (original.type === 'dimension') {
       const before = calculateLength(original.points.slice(0, 2), dims, calib).formatted;
       if (!original.text || original.text === before) {
@@ -825,6 +854,11 @@ export const PdfViewer: React.FC = () => {
           KeyQ: 'polylineMeasure',
           KeyA: 'area',
           KeyC: 'count',
+          KeyP: 'perimeter',
+          KeyV: 'volume',
+          KeyG: 'angle',
+          KeyR: 'radius',
+          KeyD: 'diameter',
         };
         const tool = measureByCode[e.code];
         if (tool) {
@@ -1019,10 +1053,19 @@ export const PdfViewer: React.FC = () => {
     };
     const calib = useCalibrationStore.getState().getPageCalibration(currentPageIndex);
     let measurement: Markup['measurement'];
+    const extraFields: Record<string, string | number> = {};
     if (activeTool === 'polylineMeasure') {
       measurement = calculatePolylineLength(points, pageDimsPt, calib);
     } else if (activeTool === 'area') {
       measurement = calculateArea(points, pageDimsPt, calib, false);
+    } else if (activeTool === 'perimeter') {
+      measurement = calculatePerimeter(points, pageDimsPt, calib);
+    } else if (activeTool === 'volume') {
+      const depth = useToolStore.getState().volumeDepth;
+      measurement = calculateVolume(points, pageDimsPt, calib, depth);
+      extraFields.volumeDepth = depth;
+    } else if (activeTool === 'angle') {
+      measurement = calculateAngle(points, pageDimsPt, calib);
     }
 
     const style = { ...currentStyle };
@@ -1045,8 +1088,13 @@ export const PdfViewer: React.FC = () => {
       status: 'pending',
       layer: activeLayer,
       measurement,
-      ...(measurement && useToolStore.getState().measureLabel.trim()
-        ? { customFields: { measureLabel: useToolStore.getState().measureLabel.trim() } }
+      ...(measurement && (useToolStore.getState().measureLabel.trim() || Object.keys(extraFields).length)
+        ? {
+            customFields: {
+              ...extraFields,
+              ...(useToolStore.getState().measureLabel.trim() ? { measureLabel: useToolStore.getState().measureLabel.trim() } : {}),
+            },
+          }
         : {}),
     };
     addMarkup(newMarkup);
@@ -1132,7 +1180,12 @@ export const PdfViewer: React.FC = () => {
       if (polygonPoints.length === 0) {
         setPolygonPoints([pt]);
       } else {
-        if (activeTool === 'polygon' || activeTool === 'area') {
+        // Ángulo (ADR-0029): el tercer clic lo completa
+        if (activeTool === 'angle' && polygonPoints.length === 2) {
+          finalizeMultiPoint([...polygonPoints, pt]);
+          return;
+        }
+        if (isClosedMultiPointTool(activeTool)) {
           // Clic cerca del primer vértice: cerrar la figura
           const firstPt = polygonPoints[0];
           const distToFirst = Math.hypot(pt.x - firstPt.x, pt.y - firstPt.y);
@@ -1758,7 +1811,7 @@ export const PdfViewer: React.FC = () => {
         let measurement: Markup['measurement'];
         let markupText: string | undefined = activeTool === 'text' ? 'Note' : undefined;
 
-        if (activeTool === 'length') {
+        if (activeTool === 'length' || activeTool === 'radius' || activeTool === 'diameter') {
           measurement = calculateLength([drawingStart, currentDrawPoint], pageDimsPt, calib);
           markupText = measurement.formatted;
         }
@@ -1786,7 +1839,8 @@ export const PdfViewer: React.FC = () => {
           status: 'pending',
           layer: activeLayer,
           customFields:
-            activeTool === 'length' && useToolStore.getState().measureLabel.trim()
+            (activeTool === 'length' || activeTool === 'radius' || activeTool === 'diameter') &&
+            useToolStore.getState().measureLabel.trim()
               ? { ...(customFields ?? {}), measureLabel: useToolStore.getState().measureLabel.trim() }
               : customFields,
           measurement,
@@ -2669,7 +2723,7 @@ export const PdfViewer: React.FC = () => {
                       cy={scr.y}
                       r={idx === 0 ? 5 : 3}
                       fill={
-                        idx === 0 && (activeTool === 'polygon' || activeTool === 'area')
+                        idx === 0 && isClosedMultiPointTool(activeTool)
                           ? '#10b981'
                           : currentStyle.strokeColor
                       }
@@ -2827,6 +2881,23 @@ export const PdfViewer: React.FC = () => {
                       <g opacity={0.85}>
                         {renderSvgDescriptor(getMarkupSvgDescriptor(previewMarkup, viewportTransform), 'preview-dimension')}
                       </g>
+                    );
+                  }
+
+                  if (activeTool === 'radius' || activeTool === 'diameter') {
+                    const previewMarkup: Markup = {
+                      id: `preview-${activeTool}`,
+                      type: activeTool,
+                      pageIndex: currentPageIndex,
+                      points: [drawingStart, currentDrawPoint],
+                      style: currentStyle,
+                      author: '',
+                      createdAt: '',
+                      updatedAt: '',
+                      status: 'pending',
+                    };
+                    return (
+                      <g opacity={0.85}>{renderSvgDescriptor(getMarkupSvgDescriptor(previewMarkup, viewportTransform), `preview-${activeTool}`)}</g>
                     );
                   }
 

@@ -834,6 +834,79 @@ export function emitMarkupOperators(
       break;
     }
 
+    // Mediciones adicionales (ADR-0029): misma geometría que en pantalla
+    case 'perimeter':
+    case 'volume': {
+      if (markup.points.length < 2) break;
+      const pdfPts = markup.points.map((p) => normalizedToPdfCoordinates(p, transform));
+      if (markup.type === 'volume' && !hasFill) {
+        // Relleno violeta translúcido por defecto, como en pantalla
+        if (extGState.ca === undefined) {
+          if (extGState.CA === undefined) lines.push('/GS_HL gs');
+          extGState.ca = 0.15;
+        }
+        lines.push('0.486 0.227 0.929 rg');
+        pathPdf(pdfPts, true);
+        lines.push('B');
+      } else {
+        pathPdf(pdfPts, true);
+        lines.push(markup.type === 'volume' ? opPaint : 'S');
+      }
+      break;
+    }
+
+    case 'angle': {
+      if (markup.points.length < 2) break;
+      const vis = markup.points.slice(0, 3).map(toVis);
+      pathPdf(vis.map(visToPdf), false);
+      lines.push('S');
+      if (vis.length === 3) {
+        const [a, v, b] = vis;
+        const r = Math.max(12, Math.min(28, Math.hypot(a.x - v.x, a.y - v.y) / 3, Math.hypot(b.x - v.x, b.y - v.y) / 3));
+        const t1 = Math.atan2(a.y - v.y, a.x - v.x);
+        let d = Math.atan2(b.y - v.y, b.x - v.x) - t1;
+        while (d > Math.PI) d -= 2 * Math.PI;
+        while (d < -Math.PI) d += 2 * Math.PI;
+        const arc: Pt[] = [];
+        for (let i = 0; i <= 16; i++) {
+          const t = t1 + (d * i) / 16;
+          arc.push(visToPdf({ x: v.x + r * Math.cos(t), y: v.y + r * Math.sin(t) }));
+        }
+        lines.push('q', '1 w', '[] 0 d');
+        pathPdf(arc, false);
+        lines.push('S', 'Q');
+      }
+      break;
+    }
+
+    case 'radius':
+    case 'diameter': {
+      if (markup.points.length < 2) break;
+      const a = normalizedToPdfCoordinates(markup.points[0], transform);
+      const b = normalizedToPdfCoordinates(markup.points[1], transform);
+      const c = markup.type === 'radius' ? a : { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      const r = Math.hypot(b.x - a.x, b.y - a.y) / (markup.type === 'radius' ? 1 : 2);
+      const k = 0.5522847498;
+      const circle = (cx: number, cy: number, rr: number) => {
+        updateBBox(cx - rr, cy - rr);
+        updateBBox(cx + rr, cy + rr);
+        lines.push(`${f2(cx + rr)} ${f2(cy)} m`);
+        lines.push(`${f2(cx + rr)} ${f2(cy + rr * k)} ${f2(cx + rr * k)} ${f2(cy + rr)} ${f2(cx)} ${f2(cy + rr)} c`);
+        lines.push(`${f2(cx - rr * k)} ${f2(cy + rr)} ${f2(cx - rr)} ${f2(cy + rr * k)} ${f2(cx - rr)} ${f2(cy)} c`);
+        lines.push(`${f2(cx - rr)} ${f2(cy - rr * k)} ${f2(cx - rr * k)} ${f2(cy - rr)} ${f2(cx)} ${f2(cy - rr)} c`);
+        lines.push(`${f2(cx + rr * k)} ${f2(cy - rr)} ${f2(cx + rr)} ${f2(cy - rr * k)} ${f2(cx + rr)} ${f2(cy)} c`);
+      };
+      circle(c.x, c.y, r);
+      lines.push('S');
+      pathPdf([a, b], false);
+      lines.push('S');
+      // Punto del centro
+      lines.push('q', strokeParsed ? rgbOp(strokeParsed, 'rg') : '0 0 0 rg');
+      circle(c.x, c.y, 1.5);
+      lines.push('f', 'Q');
+      break;
+    }
+
     case 'dimension': {
       if (markup.points.length < 2) break;
       const p1 = normalizedToPdfCoordinates(markup.points[0], transform);

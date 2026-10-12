@@ -165,6 +165,15 @@ export function exceedsScreenThreshold(
 /**
  * Obtiene la caja delimitadora (Bounding Box normalizada 0..1) de una anotación.
  */
+/** Centro (normalizado) y radio (en pt) del círculo de una medición de radio o diámetro (ADR-0029). */
+function circleOf(markup: Markup): { cx: number; cy: number; rPt: (W: number, H: number) => number } {
+  const [a, b] = markup.points;
+  const radius = markup.type === 'radius';
+  const cx = radius ? a.x : (a.x + b.x) / 2;
+  const cy = radius ? a.y : (a.y + b.y) / 2;
+  return { cx, cy, rPt: (W, H) => Math.hypot((b.x - a.x) * W, (b.y - a.y) * H) / (radius ? 1 : 2) };
+}
+
 export function getMarkupBounds(
   markup: Markup,
   pageDimensions?: { width: number; height: number }
@@ -189,6 +198,14 @@ export function getMarkupBounds(
       width: size.width,
       height: size.height,
     };
+  }
+
+  if ((markup.type === 'radius' || markup.type === 'diameter') && markup.points.length >= 2) {
+    const W = pageDimensions?.width || 1;
+    const H = pageDimensions?.height || 1;
+    const c = circleOf(markup);
+    const r = c.rPt(W, H);
+    return { x: c.cx - r / W, y: c.cy - r / H, width: (2 * r) / W, height: (2 * r) / H };
   }
 
   if (markup.type === 'count' && markup.points.length >= 1) {
@@ -520,8 +537,11 @@ export function hitTestMarkup(
   }
 
   // 2. Polígono (Ray-Casting para interior y distancia a aristas para perímetro)
-  if (markup.type === 'polygon' && markup.points.length >= 3) {
-    if (isPointInPolygon(point, markup.points)) {
+  if (
+    (markup.type === 'polygon' || markup.type === 'perimeter' || markup.type === 'volume') &&
+    markup.points.length >= 3
+  ) {
+    if (markup.type !== 'perimeter' && isPointInPolygon(point, markup.points)) {
       return true;
     }
     // Perímetro / aristas
@@ -534,7 +554,18 @@ export function hitTestMarkup(
   }
 
   // 3. Polilínea abierta (PolyLine y PolylineMeasure)
-  if ((markup.type === 'polyLine' || markup.type === 'polylineMeasure') && markup.points.length >= 2) {
+  // Radio y diámetro (ADR-0029): el círculo y su línea
+  if ((markup.type === 'radius' || markup.type === 'diameter') && markup.points.length >= 2) {
+    const W = pageDimensions?.width || 1;
+    const H = pageDimensions?.height || 1;
+    const c = circleOf(markup);
+    const dPt = Math.hypot((point.x - c.cx) * W, (point.y - c.cy) * H);
+    const tolPt = tolerance * Math.max(W, H);
+    if (Math.abs(dPt - c.rPt(W, H)) <= tolPt) return true;
+    return distanceToSegment(point, markup.points[0], markup.points[1]) <= tolerance;
+  }
+
+  if ((markup.type === 'polyLine' || markup.type === 'polylineMeasure' || markup.type === 'angle') && markup.points.length >= 2) {
     for (let i = 1; i < markup.points.length; i++) {
       if (distanceToSegment(point, markup.points[i - 1], markup.points[i]) <= tolerance) {
         return true;

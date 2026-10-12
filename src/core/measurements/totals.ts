@@ -6,7 +6,8 @@ import { Markup } from '../../types/markup';
  * Se suma con los valores sin redondear y solo se redondea al mostrar.
  */
 
-export type MeasureCategory = 'length' | 'area' | 'count';
+/** 'other' (ángulo, radio, diámetro) se lista pero no se suma: no tiene sentido totalizarlo. */
+export type MeasureCategory = 'length' | 'area' | 'count' | 'volume' | 'other';
 
 export interface MeasureTotal {
   category: MeasureCategory;
@@ -20,9 +21,11 @@ export interface MeasureTotal {
 
 export function measureCategoryOf(m: Markup): MeasureCategory | null {
   if (!m.measurement) return null;
-  if (m.type === 'length' || m.type === 'polylineMeasure') return 'length';
+  if (m.type === 'length' || m.type === 'polylineMeasure' || m.type === 'perimeter') return 'length';
   if (m.type === 'area') return 'area';
   if (m.type === 'count') return 'count';
+  if (m.type === 'volume') return 'volume';
+  if (m.type === 'angle' || m.type === 'radius' || m.type === 'diameter') return 'other';
   return null;
 }
 
@@ -31,7 +34,7 @@ export function computeMeasureTotals(markups: readonly Markup[], pageIndex?: num
   for (const m of markups) {
     if (pageIndex !== undefined && m.pageIndex !== pageIndex) continue;
     const category = measureCategoryOf(m);
-    if (!category || !m.measurement) continue;
+    if (!category || category === 'other' || !m.measurement) continue;
     const value = Number.isFinite(m.measurement.value) ? m.measurement.value : 0;
     const unit = category === 'count' ? 'u' : m.measurement.unit;
     const key = `${category}|${unit}`;
@@ -48,6 +51,6 @@ export function computeMeasureTotals(markups: readonly Markup[], pageIndex?: num
     }
     byKey.set(key, entry);
   }
-  const order: Record<MeasureCategory, number> = { length: 0, area: 1, count: 2 };
+  const order: Record<MeasureCategory, number> = { length: 0, area: 1, volume: 2, count: 3, other: 4 };
   return [...byKey.values()].sort((a, b) => order[a.category] - order[b.category] || a.unit.localeCompare(b.unit));
 }

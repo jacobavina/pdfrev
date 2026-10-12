@@ -10,7 +10,10 @@ const BOX_TYPES = new Set(['rectangle', 'circle', 'highlightVector']);
 /** Tipos cuya caja de 2 puntos se convierte en polígono al editar un vértice (la nube cambia de forma). */
 const POLYGONIZABLE_TYPES = new Set(['cloud', 'cloudPlus', 'area']);
 /** Tipos cuyos puntos son directamente sus vértices. */
-const VERTEX_TYPES = new Set(['line', 'length', 'dimension', 'polygon', 'polyLine', 'polylineMeasure', 'cloud', 'cloudPlus', 'area']);
+const VERTEX_TYPES = new Set([
+  'line', 'length', 'dimension', 'polygon', 'polyLine', 'polylineMeasure', 'cloud', 'cloudPlus', 'area',
+  'perimeter', 'volume', 'angle', 'radius', 'diameter',
+]);
 
 const corners = (a: MarkupPoint, b: MarkupPoint): MarkupPoint[] => {
   const x0 = Math.min(a.x, b.x);

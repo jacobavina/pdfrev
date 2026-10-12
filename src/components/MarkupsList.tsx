@@ -38,6 +38,11 @@ import {
   PolylengthIcon,
   AreaMeasureIcon,
   CountMeasureIcon,
+  PerimeterMeasureIcon,
+  VolumeMeasureIcon,
+  AngleMeasureIcon,
+  RadiusMeasureIcon,
+  DiameterMeasureIcon,
 } from './shell/customIcons';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useDocumentStore } from '../store/useDocumentStore';
@@ -158,6 +163,16 @@ function getMarkupIcon(type: MarkupType) {
       return I(<AreaMeasureIcon size={14} />, 'text-violet-400');
     case 'count':
       return I(<CountMeasureIcon size={14} />, 'text-violet-400');
+    case 'perimeter':
+      return I(<PerimeterMeasureIcon size={14} />, 'text-violet-400');
+    case 'volume':
+      return I(<VolumeMeasureIcon size={14} />, 'text-violet-400');
+    case 'angle':
+      return I(<AngleMeasureIcon size={14} />, 'text-violet-400');
+    case 'radius':
+      return I(<RadiusMeasureIcon size={14} />, 'text-violet-400');
+    case 'diameter':
+      return I(<DiameterMeasureIcon size={14} />, 'text-violet-400');
     default:
       return <HelpCircle size={14} className="text-gray-400" />;
   }
@@ -303,12 +318,13 @@ export const MarkupsList: React.FC = () => {
   const measurementTotals = React.useMemo(() => {
     const lengthsByUnit: Record<string, number> = {};
     const areasByUnit: Record<string, number> = {};
+    const volumesByUnit: Record<string, number> = {};
     let totalCount = 0;
 
     for (const m of displayedMarkups) {
       if (m.type === 'count') {
         totalCount += (m.measurement?.value ?? 1);
-      } else if (m.type === 'length' || m.type === 'polylineMeasure') {
+      } else if (m.type === 'length' || m.type === 'polylineMeasure' || m.type === 'perimeter') {
         if (m.measurement) {
           const unit = m.measurement.unit;
           lengthsByUnit[unit] = (lengthsByUnit[unit] || 0) + m.measurement.value;
@@ -317,6 +333,11 @@ export const MarkupsList: React.FC = () => {
         if (m.measurement) {
           const unit = m.measurement.unit;
           areasByUnit[unit] = (areasByUnit[unit] || 0) + m.measurement.value;
+        }
+      } else if (m.type === 'volume') {
+        if (m.measurement) {
+          const unit = m.measurement.unit;
+          volumesByUnit[unit] = (volumesByUnit[unit] || 0) + m.measurement.value;
         }
       }
     }
@@ -329,11 +350,16 @@ export const MarkupsList: React.FC = () => {
       .map(([u, val]) => `${val.toFixed(2)} ${u}²`)
       .join(', ');
 
+    const volumeSummary = Object.entries(volumesByUnit)
+      .map(([u, val]) => `${val.toFixed(2)} ${u}³`)
+      .join(', ');
+
     return {
       lengthSummary,
       areaSummary,
+      volumeSummary,
       totalCount,
-      hasAny: Boolean(lengthSummary || areaSummary || totalCount > 0),
+      hasAny: Boolean(lengthSummary || areaSummary || volumeSummary || totalCount > 0),
     };
   }, [displayedMarkups]);
 
@@ -885,7 +911,13 @@ export const MarkupsList: React.FC = () => {
 
                       {/* Unidad */}
                       <td className="py-1 px-2 text-center text-gray-400 font-mono text-[11px]">
-                        {markup.measurement?.unit ? (markup.type === 'area' ? `${markup.measurement.unit}²` : markup.measurement.unit) : '—'}
+                        {markup.measurement?.unit ? (markup.type === 'area'
+                            ? `${markup.measurement.unit}²`
+                            : markup.type === 'volume'
+                              ? `${markup.measurement.unit}³`
+                              : markup.type === 'angle'
+                                ? '°'
+                                : markup.measurement.unit) : '—'}
                       </td>
 
                       {/* Celdas de Columnas Personalizadas (P2-C.3) */}
@@ -1043,6 +1075,11 @@ export const MarkupsList: React.FC = () => {
                       {measurementTotals.areaSummary && (
                         <span className="mr-3">
                           Area: <strong className="text-cad-strong font-mono">{measurementTotals.areaSummary}</strong>
+                        </span>
+                      )}
+                      {measurementTotals.volumeSummary && (
+                        <span className="mr-3">
+                          Volume: <strong className="text-cad-strong font-mono">{measurementTotals.volumeSummary}</strong>
                         </span>
                       )}
                       {measurementTotals.totalCount > 0 && (

@@ -6,6 +6,7 @@ import { useCalibrationStore } from '../../store/useCalibrationStore';
 import { useToolStore } from '../../store/useToolStore';
 import { useUiStore } from '../../store/useUiStore';
 import { computeMeasureTotals, measureCategoryOf, MeasureTotal } from '../../core/measurements/totals';
+import { markupTypeLabel } from '../../core/markup/typeLabels';
 import { PageCalibration } from '../../types/markup';
 import {
   BUILT_IN_SCALE_PRESETS,
@@ -24,8 +25,9 @@ import {
   precisionOptions,
 } from '../../core/measurements/scale';
 import { formatWithCalibration } from '../../core/measurements/scale';
+import { rescaleVolumeDepth } from '../../core/measurements/calculate';
 
-const CATEGORY_LABEL = { length: 'Length', area: 'Area', count: 'Count' } as const;
+const CATEGORY_LABEL = { length: 'Length', area: 'Area', count: 'Count', volume: 'Volume', other: 'Other' } as const;
 const USER_PRESETS_KEY = 'rea-scale-presets';
 
 function readUserPresets(): ScalePreset[] {
@@ -40,6 +42,7 @@ function readUserPresets(): ScalePreset[] {
 function formatTotal(t: MeasureTotal, precision: number): string {
   if (t.category === 'count') return `${t.total} ea`;
   if (t.category === 'area') return `${t.total.toFixed(precision)} ${t.unit}²`;
+  if (t.category === 'volume') return `${t.total.toFixed(precision)} ${t.unit}³`;
   return `${t.total.toFixed(precision)} ${t.unit}`;
 }
 
@@ -98,7 +101,10 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
   const { markups, selectedMarkupIds, setSelectedMarkupIds } = useMarkupStore();
   const { currentPageIndex, setCurrentPage, pdfBytes, numPages } = useDocumentStore();
   const { calibrations, getPageCalibration, setPageCalibration, applyCalibrationToPages } = useCalibrationStore();
-  const { setActiveTool, measureLabel, setMeasureLabel } = useToolStore();
+  const { setActiveTool, measureLabel, setMeasureLabel, volumeDepth, setVolumeDepth } = useToolStore();
+  const showRulers = useUiStore((s) => s.showRulers);
+  const setShowRulers = useUiStore((s) => s.setShowRulers);
+  const updateMarkup = useMarkupStore((s) => s.updateMarkup);
   const snap = useUiStore((s) => s.snap);
   const setSnap = useUiStore((s) => s.setSnap);
   const showMeasureLabels = useUiStore((s) => s.showMeasureLabels);
@@ -111,6 +117,26 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
   }, [openRequest]);
 
   const calib = getPageCalibration(currentPageIndex);
+
+  // Volumen seleccionado: el campo Depth edita su profundidad; si no, la de las mediciones nuevas
+  const selectedVolume =
+    selectedMarkupIds.length === 1 ? markups.find((m) => m.id === selectedMarkupIds[0] && m.type === 'volume') : undefined;
+  const onDepthChange = (depth: number) => {
+    if (!(depth > 0) || !Number.isFinite(depth)) return;
+    if (!selectedVolume) {
+      setVolumeDepth(depth);
+      return;
+    }
+    const oldDepth = Number(selectedVolume.customFields?.volumeDepth ?? 1);
+    const precision = getPageCalibration(selectedVolume.pageIndex).precision ?? 2;
+    const measurement = selectedVolume.measurement
+      ? rescaleVolumeDepth(selectedVolume.measurement, oldDepth, depth, precision)
+      : null;
+    updateMarkup(selectedVolume.id, {
+      customFields: { ...selectedVolume.customFields, volumeDepth: depth },
+      ...(measurement ? { measurement, text: measurement.formatted } : {}),
+    });
+  };
   const isCalibrated = calibrations[currentPageIndex] !== undefined;
   const display = displayUnitOf(calib);
   const ratio = ratioOf(calib);
@@ -511,6 +537,25 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
           </label>
         </Section>
 
+        <Section title="Volume Properties">
+          <label className="flex items-center gap-2">
+            <span className="text-gray-400 w-16">Depth:</span>
+            <input
+              data-testid="measure-volume-depth"
+              type="number"
+              min={0}
+              step="any"
+              value={selectedVolume ? Number(selectedVolume.customFields?.volumeDepth ?? 1) : volumeDepth}
+              onChange={(e) => onDepthChange(Number(e.target.value))}
+              className={`${inputCls} flex-1`}
+            />
+            <span className="text-gray-400">{calib.unit}</span>
+          </label>
+          <p className="text-gray-500 leading-snug">
+            {selectedVolume ? 'Depth of the selected volume.' : 'Depth for new Volume measurements.'}
+          </p>
+        </Section>
+
         <Section title="Snap" testId="measure-snap-section">
           <div className="flex gap-1">
             {(['endpoint', 'midpoint', 'nearest'] as const).map((k) => (
@@ -541,6 +586,16 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
               className="accent-cad-accent"
             />
             Show Result Information
+          </label>
+          <label className="flex items-center gap-1.5 text-gray-300 cursor-pointer">
+            <input
+              type="checkbox"
+              data-testid="measure-show-rulers"
+              checked={showRulers}
+              onChange={(e) => setShowRulers(e.target.checked)}
+              className="accent-cad-accent"
+            />
+            Rulers (Ctrl+R)
           </label>
         </Section>
 
@@ -617,7 +672,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
                       }`}
                     >
                       <span className="truncate">
-                        {CATEGORY_LABEL[measureCategoryOf(m)!]} · p. {m.pageIndex + 1}
+                        {markupTypeLabel(m.type)} · p. {m.pageIndex + 1}
                       </span>
                       <span className="font-mono">{m.measurement?.formatted}</span>
                     </button>

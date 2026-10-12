@@ -134,6 +134,43 @@ export const CountMeasureIcon: React.FC<{ size?: number }> = ({ size }) => (
   </MeasureFrame>
 );
 
+export const PerimeterMeasureIcon: React.FC<{ size?: number }> = ({ size }) => (
+  <MeasureFrame size={size}>
+    <path d="M7 20V8h7l6 6v6z" strokeDasharray="2.2 1.6" />
+    <rect x="5.8" y="6.8" width="2.4" height="2.4" fill="currentColor" stroke="none" />
+    <rect x="18.8" y="18.8" width="2.4" height="2.4" fill="currentColor" stroke="none" />
+  </MeasureFrame>
+);
+
+export const AngleMeasureIcon: React.FC<{ size?: number }> = ({ size }) => (
+  <MeasureFrame size={size}>
+    <path d="M19 19H7l9-11" />
+    <path d="M12.5 19a5.5 5.5 0 0 0-2-4.3" />
+  </MeasureFrame>
+);
+
+export const RadiusMeasureIcon: React.FC<{ size?: number }> = ({ size }) => (
+  <MeasureFrame size={size}>
+    <circle cx="13.5" cy="14" r="6.5" />
+    <path d="M13.5 14 18.1 9.4" />
+    <circle cx="13.5" cy="14" r="1" fill="currentColor" stroke="none" />
+  </MeasureFrame>
+);
+
+export const DiameterMeasureIcon: React.FC<{ size?: number }> = ({ size }) => (
+  <MeasureFrame size={size}>
+    <circle cx="13.5" cy="14" r="6.5" />
+    <path d="M8.9 18.6 18.1 9.4" />
+  </MeasureFrame>
+);
+
+export const VolumeMeasureIcon: React.FC<{ size?: number }> = ({ size }) => (
+  <MeasureFrame size={size}>
+    <path d="M7 11.5 11 8h9v8l-4 3.5H7z" />
+    <path d="M7 11.5h9V19.5M16 11.5 20 8" />
+  </MeasureFrame>
+);
+
 export const CalibrateIcon: React.FC<{ size?: number }> = ({ size }) => (
   <MeasureFrame size={size}>
     <path d="m6 18 12-12 2.5 2.5-12 12z" />
@@ -227,6 +264,14 @@ export const EllipseToolIcon: React.FC<{ size?: number }> = ({ size }) => (
 export const PolygonToolIcon: React.FC<{ size?: number }> = ({ size }) => (
   <Icon size={size} strokeWidth={1.6}>
     <path d="M5 20V4l13 5-3 5 4 6z" />
+  </Icon>
+);
+
+/** Reglas: escuadra con marcas arriba y a la izquierda. */
+export const RulersIcon: React.FC<{ size?: number }> = ({ size = 15 }) => (
+  <Icon size={size} strokeWidth={1.6}>
+    <path d="M3 3h18v5H8v13H3z" />
+    <path d="M11 3v2.5M14 3v2.5M17 3v2.5M3 11h2.5M3 14h2.5M3 17h2.5" />
   </Icon>
 );
 

@@ -27,6 +27,11 @@ export const MARKUP_TYPE_LABELS: Record<MarkupType, string> = {
   polylineMeasure: 'Polylength',
   area: 'Area',
   count: 'Count',
+  perimeter: 'Perimeter',
+  angle: 'Angle',
+  radius: 'Radius',
+  diameter: 'Diameter',
+  volume: 'Volume',
 };
 
 export function markupTypeLabel(type: string): string {

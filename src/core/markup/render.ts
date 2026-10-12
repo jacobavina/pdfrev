@@ -564,6 +564,20 @@ function withLineEndings(
   return { tag: 'g', attrs: { opacity }, children };
 }
 
+/** Etiqueta de valor de una medición (fondo blanco y texto en negrita), centrada en (x, y). */
+function measureLabelDescriptors(label: string, x: number, y: number, stroke: string): SvgRenderDescriptor[] {
+  const w = Math.max(44, label.length * 7.5 + 12);
+  const h = 18;
+  return [
+    { tag: 'rect', attrs: { x: x - w / 2, y: y - h / 2, width: w, height: h, rx: 3, ry: 3, fill: '#ffffff', stroke, strokeWidth: 1, opacity: 0.9 } },
+    {
+      tag: 'text',
+      attrs: { x, y: y + 4, fill: '#111827', fontSize: 11, fontFamily: 'sans-serif', fontWeight: 'bold', textAnchor: 'middle' },
+      textNode: label,
+    },
+  ];
+}
+
 /** Texto de la etiqueta de una medición: valor, precedido de su etiqueta si tiene (Distance Properties › Label). */
 export function measureLabelText(markup: Markup, formatted: string): string {
   const label = typeof markup.customFields?.measureLabel === 'string' ? markup.customFields.measureLabel.trim() : '';
@@ -903,6 +917,82 @@ export function getMarkupSvgDescriptor(
         });
       }
       return { tag: 'g', attrs: { 'data-testid': `markup-dimension-${markup.id}` }, children };
+    }
+
+    // Mediciones adicionales (ADR-0029): perímetro, volumen, ángulo, radio y diámetro
+    case 'perimeter':
+    case 'volume': {
+      const pts = markup.points.map((p) => normalizedToScreen(p, transform));
+      const shape: SvgRenderDescriptor = {
+        tag: 'polygon',
+        attrs: {
+          ...baseAttrs,
+          fill:
+            markup.type === 'volume'
+              ? style.fillColor && style.fillColor !== 'transparent' && style.fillColor !== 'none'
+                ? style.fillColor
+                : 'rgba(124, 58, 237, 0.15)'
+              : 'none',
+          points: pointsToSvgPointsString(markup.points, transform),
+          strokeLinejoin: 'round',
+        },
+      };
+      const cx = pts.reduce((a, p) => a + p.x, 0) / Math.max(1, pts.length);
+      const cy = pts.reduce((a, p) => a + p.y, 0) / Math.max(1, pts.length);
+      const label = measureLabelText(markup, markup.measurement?.formatted || markup.text || '');
+      return {
+        tag: 'g',
+        attrs: { 'data-testid': `markup-${markup.type}-${markup.id}` },
+        children: transform.hideMeasureLabels || !label ? [shape] : [shape, ...measureLabelDescriptors(label, cx, cy, style.strokeColor)],
+      };
+    }
+
+    case 'angle': {
+      const pts = markup.points.map((p) => normalizedToScreen(p, transform));
+      const children: SvgRenderDescriptor[] = [
+        { tag: 'polyline', attrs: { ...baseAttrs, fill: 'none', points: pointsToSvgPointsString(markup.points.slice(0, 3), transform) } },
+      ];
+      if (pts.length >= 3) {
+        const [a, v, b] = pts;
+        const r = Math.max(12, Math.min(28, Math.hypot(a.x - v.x, a.y - v.y) / 3, Math.hypot(b.x - v.x, b.y - v.y) / 3));
+        const t1 = Math.atan2(a.y - v.y, a.x - v.x);
+        const t2 = Math.atan2(b.y - v.y, b.x - v.x);
+        let d = t2 - t1;
+        while (d > Math.PI) d -= 2 * Math.PI;
+        while (d < -Math.PI) d += 2 * Math.PI;
+        const s1 = { x: v.x + r * Math.cos(t1), y: v.y + r * Math.sin(t1) };
+        const s2 = { x: v.x + r * Math.cos(t1 + d), y: v.y + r * Math.sin(t1 + d) };
+        children.push({
+          tag: 'path',
+          attrs: { d: `M ${s1.x} ${s1.y} A ${r} ${r} 0 0 ${d > 0 ? 1 : 0} ${s2.x} ${s2.y}`, fill: 'none', stroke: style.strokeColor, strokeWidth: 1 },
+        });
+        const label = measureLabelText(markup, markup.measurement?.formatted || markup.text || '');
+        if (!transform.hideMeasureLabels && label) {
+          const mid = t1 + d / 2;
+          children.push(...measureLabelDescriptors(label, v.x + (r + 22) * Math.cos(mid), v.y + (r + 14) * Math.sin(mid), style.strokeColor));
+        }
+      }
+      return { tag: 'g', attrs: { 'data-testid': `markup-angle-${markup.id}` }, children };
+    }
+
+    case 'radius':
+    case 'diameter': {
+      const a = p1Screen;
+      const b = p2Screen;
+      const c = markup.type === 'radius' ? a : { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      const r = markup.type === 'radius' ? Math.hypot(b.x - a.x, b.y - a.y) : Math.hypot(b.x - a.x, b.y - a.y) / 2;
+      const children: SvgRenderDescriptor[] = [
+        { tag: 'ellipse', attrs: { ...baseAttrs, fill: 'none', cx: c.x, cy: c.y, rx: r, ry: r } },
+        { tag: 'line', attrs: { stroke: style.strokeColor, strokeWidth: style.strokeWidth, x1: a.x, y1: a.y, x2: b.x, y2: b.y } },
+        { tag: 'ellipse', attrs: { cx: c.x, cy: c.y, rx: 2, ry: 2, fill: style.strokeColor } },
+      ];
+      const label = measureLabelText(markup, markup.measurement?.formatted || markup.text || '');
+      if (!transform.hideMeasureLabels && label) {
+        const lx = markup.type === 'radius' ? (a.x + b.x) / 2 : c.x;
+        const ly = markup.type === 'radius' ? (a.y + b.y) / 2 - 12 : c.y - 12;
+        children.push(...measureLabelDescriptors(`${markup.type === 'radius' ? 'R ' : 'Ø '}${label}`, lx, ly, style.strokeColor));
+      }
+      return { tag: 'g', attrs: { 'data-testid': `markup-${markup.type}-${markup.id}` }, children };
     }
 
     // Herramientas de Medición y Takeoff (Paquete 4)

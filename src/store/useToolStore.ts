@@ -16,6 +16,8 @@ interface ToolState {
   activeStampId: string;
   /** Tipo de campo que crea la herramienta Form (ADR-0027). */
   activeFieldType: FieldType;
+  /** Profundidad por defecto de la herramienta Volume, en la unidad de la escala (ADR-0029). */
+  volumeDepth: number;
 
   // Actions
   setActiveTool: (tool: ToolType) => void;
@@ -25,6 +27,7 @@ interface ToolState {
   setMeasureLabel: (label: string) => void;
   setActiveStampId: (id: string) => void;
   setActiveFieldType: (type: FieldType) => void;
+  setVolumeDepth: (depth: number) => void;
 }
 
 export const useToolStore = create<ToolState>((set) => ({
@@ -40,6 +43,7 @@ export const useToolStore = create<ToolState>((set) => ({
   measureLabel: '',
   activeStampId: 'approved',
   activeFieldType: 'text',
+  volumeDepth: 1,
 
   setActiveTool: (activeTool) => set({ activeTool }),
   setCurrentStyle: (styleUpdate) =>
@@ -51,4 +55,5 @@ export const useToolStore = create<ToolState>((set) => ({
   setMeasureLabel: (measureLabel) => set({ measureLabel }),
   setActiveStampId: (activeStampId) => set({ activeStampId }),
   setActiveFieldType: (activeFieldType) => set({ activeFieldType }),
+  setVolumeDepth: (volumeDepth) => set({ volumeDepth: Number.isFinite(volumeDepth) && volumeDepth > 0 ? volumeDepth : 1 }),
 }));

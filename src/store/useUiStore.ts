@@ -38,6 +38,15 @@ function readStoredSnap(): SnapSettings {
 
 const THEME_STORAGE_KEY = 'rea-theme';
 const VIEW_MODE_STORAGE_KEY = 'rea-view-mode';
+const RULERS_STORAGE_KEY = 'rea-rulers';
+
+export function readStoredRulers(): boolean {
+  try {
+    return localStorage.getItem(RULERS_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 export function readStoredViewMode(): ViewMode {
   try {
@@ -119,6 +128,8 @@ interface UiState {
   snap: SnapSettings;
   /** Mostrar el valor de las mediciones sobre el plano ("Show Result Information"). */
   showMeasureLabels: boolean;
+  /** Reglas superior e izquierda en las unidades de la escala (View ▸ Rulers, Ctrl+R; ADR-0029). */
+  showRulers: boolean;
 
   setTheme: (theme: Theme) => void;
   /** Olvida la elección del usuario y vuelve a seguir el tema del sistema. */
@@ -137,6 +148,7 @@ interface UiState {
   requestFit: (kind: FitKind) => void;
   setSnap: (update: Partial<SnapSettings>) => void;
   setShowMeasureLabels: (show: boolean) => void;
+  setShowRulers: (show: boolean) => void;
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
@@ -154,6 +166,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   fitRequest: null,
   snap: readStoredSnap(),
   showMeasureLabels: true,
+  showRulers: readStoredRulers(),
 
   setTheme: (theme) => {
     applyTheme(theme);
@@ -209,4 +222,12 @@ export const useUiStore = create<UiState>((set, get) => ({
       return { snap };
     }),
   setShowMeasureLabels: (showMeasureLabels) => set({ showMeasureLabels }),
+  setShowRulers: (showRulers) => {
+    try {
+      localStorage.setItem(RULERS_STORAGE_KEY, showRulers ? '1' : '0');
+    } catch {
+      // Preferencia no persistible: se aplica solo en esta sesión
+    }
+    set({ showRulers });
+  },
 }));

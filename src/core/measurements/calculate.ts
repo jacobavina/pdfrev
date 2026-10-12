@@ -180,3 +180,87 @@ export function calculateCount(
     countIndex: safeIdx,
   };
 }
+
+/**
+ * Perímetro de un contorno cerrado (ADR-0029, herramienta Perimeter): suma de lados incluido el de cierre.
+ */
+export function calculatePerimeter(
+  points: MarkupPoint[],
+  pageDimsPt: PageDimensionsPt,
+  calibration: PageCalibration = DEFAULT_PAGE_CALIBRATION
+): MarkupMeasurement {
+  const { sx, sy } = axisScales(calibration);
+  let value = 0;
+  const n = points?.length ?? 0;
+  if (n >= 2) {
+    for (let i = 0; i < n; i++) {
+      const a = points[i];
+      const b = points[(i + 1) % n];
+      if (n === 2 && i === 1) break;
+      value += Math.hypot((b.x - a.x) * pageDimsPt.width * sx, (b.y - a.y) * pageDimsPt.height * sy);
+    }
+  }
+  return { value, unit: calibration.unit, formatted: formatWithCalibration(value, calibration) };
+}
+
+/**
+ * Volumen (ADR-0029, herramienta Volume): área del contorno × profundidad, en unidades cúbicas de la escala.
+ */
+export function calculateVolume(
+  points: MarkupPoint[],
+  pageDimsPt: PageDimensionsPt,
+  calibration: PageCalibration = DEFAULT_PAGE_CALIBRATION,
+  depth = 1
+): MarkupMeasurement {
+  const area = calculateArea(points, pageDimsPt, calibration, false);
+  const d = Number.isFinite(depth) && depth > 0 ? depth : 0;
+  const value = area.value * d;
+  const precision = calibration.precision ?? 2;
+  return {
+    value,
+    unit: calibration.unit,
+    formatted: `${value.toFixed(precision)} ${calibration.unit}³`,
+    perimeter: area.perimeter,
+  };
+}
+
+/**
+ * Volumen con otra profundidad sin recalcular el área (el volumen es lineal en la profundidad).
+ * Devuelve null si la profundidad anterior no permite deducir el área.
+ */
+export function rescaleVolumeDepth(
+  measurement: MarkupMeasurement,
+  oldDepth: number,
+  newDepth: number,
+  precision = 2
+): MarkupMeasurement | null {
+  if (!(oldDepth > 0) || !(newDepth > 0) || !Number.isFinite(newDepth)) return null;
+  const value = (measurement.value / oldDepth) * newDepth;
+  return { ...measurement, value, formatted: `${value.toFixed(precision)} ${measurement.unit}³` };
+}
+
+/**
+ * Ángulo en el vértice central de tres puntos (ADR-0029, herramienta Angle), en grados sobre la geometría real
+ * (respeta la escala Y separada).
+ */
+export function calculateAngle(
+  points: MarkupPoint[],
+  pageDimsPt: PageDimensionsPt,
+  calibration: PageCalibration = DEFAULT_PAGE_CALIBRATION
+): MarkupMeasurement {
+  const { sx, sy } = axisScales(calibration);
+  if (!points || points.length < 3) return { value: 0, unit: calibration.unit, formatted: '0.0°' };
+  const [a, v, b] = points;
+  const ax = (a.x - v.x) * pageDimsPt.width * sx;
+  const ay = (a.y - v.y) * pageDimsPt.height * sy;
+  const bx = (b.x - v.x) * pageDimsPt.width * sx;
+  const by = (b.y - v.y) * pageDimsPt.height * sy;
+  const la = Math.hypot(ax, ay);
+  const lb = Math.hypot(bx, by);
+  let deg = 0;
+  if (la > 0 && lb > 0) {
+    const cos = Math.max(-1, Math.min(1, (ax * bx + ay * by) / (la * lb)));
+    deg = (Math.acos(cos) * 180) / Math.PI;
+  }
+  return { value: deg, unit: calibration.unit, formatted: `${deg.toFixed(1)}°` };
+}

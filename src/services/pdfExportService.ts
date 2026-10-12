@@ -148,8 +148,10 @@ function drawMeasurementLabel(
   transform: PageTransformInfo,
   font: PDFFont
 ): void {
-  const label = markup.measurement?.formatted;
-  if (!label || markup.points.length === 0) return;
+  const value = markup.measurement?.formatted;
+  if (!value || markup.points.length === 0) return;
+  // Radio y diámetro llevan su prefijo, como en pantalla (ADR-0029)
+  const label = markup.type === 'radius' ? `R ${value}` : markup.type === 'diameter' ? `Ø ${value}` : value;
   const pts = markup.points.map((p) => normalizedToPdfCoordinates(p, transform));
   const cx = pts.reduce((a, p) => a + p.x, 0) / pts.length;
   const cy = pts.reduce((a, p) => a + p.y, 0) / pts.length;
@@ -913,6 +915,11 @@ export async function exportMarkupsToPdf(
         case 'polylineMeasure':
         case 'area':
         case 'count':
+        case 'perimeter':
+        case 'volume':
+        case 'angle':
+        case 'radius':
+        case 'diameter':
         case 'dimension': {
           drawViaAppearanceOperators(pdfDoc, page, markup, transform);
           if (markup.measurement) {

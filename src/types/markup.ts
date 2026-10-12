@@ -27,6 +27,12 @@ export const VALID_MARKUP_TYPES = [
   'polylineMeasure',
   'area',
   'count',
+  // Mediciones adicionales (ADR-0029)
+  'perimeter',
+  'angle',
+  'radius',
+  'diameter',
+  'volume',
 ] as const;
 
 export type MarkupType = (typeof VALID_MARKUP_TYPES)[number];

@@ -2022,4 +2022,76 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(row.locator('input[type="text"]').first()).toHaveValue('RFI-012.txt');
     await expect(overlaySvg.locator('g[data-testid^="markup-attachment-"]')).toHaveCount(1);
   });
+  test('Mediciones Angle, Radius y Volume con reglas (ADR-0029): atajos Shift+Alt, profundidad y Ctrl+R', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
+
+    // 1. Ctrl+R muestra las reglas (sin recargar la página) y numera en milímetros de papel
+    await page.locator('header').click();
+    await page.keyboard.press('Control+r');
+    await expect(page.locator('[data-testid="ruler-top"]')).toBeVisible();
+    await expect(page.locator('[data-testid="ruler-left"]')).toBeVisible();
+    await expect(page.locator('[data-testid="ruler-corner"]')).toHaveText('mm');
+    await expect(page.locator('[data-testid="ruler-top"] text').first()).toBeVisible();
+    await expect(overlaySvg).toBeVisible();
+
+    const box = (await overlaySvg.boundingBox())!;
+    const at = (nx: number, ny: number) => ({ x: box.x + box.width * nx, y: box.y + box.height * ny });
+
+    // 2. Ángulo recto con tres clics (Shift+Alt+G)
+    await page.keyboard.press('Shift+Alt+G');
+    await expect(page.locator('[data-testid="tool-measure-angle"]')).toHaveAttribute('aria-pressed', 'true');
+    for (const [nx, ny] of [
+      [0.9, 0.62],
+      [0.7, 0.62],
+      [0.7, 0.42],
+    ]) {
+      const p = at(nx, ny);
+      await page.mouse.click(p.x, p.y);
+    }
+    const angle = overlaySvg.locator('g[data-testid^="markup-angle-"]');
+    await expect(angle).toHaveCount(1);
+    await expect(angle).toContainText('90.0°');
+
+    // 3. Radio: del centro al borde, etiqueta con prefijo R
+    await page.keyboard.press('Shift+Alt+R');
+    const c = at(0.55, 0.8);
+    const e = at(0.6, 0.8);
+    await page.mouse.move(c.x, c.y);
+    await page.mouse.down();
+    await page.mouse.move(e.x, e.y, { steps: 5 });
+    await page.mouse.up();
+    await expect(overlaySvg.locator('g[data-testid^="markup-radius-"]')).toContainText(/^R \d+\.\d mm$/);
+
+    // 4. Volumen con profundidad 2 fijada en el panel Measure; se cierra con Enter
+    await page.locator('[data-testid="expand-measurements-btn"]').click();
+    await page.locator('[data-testid="measure-volume-depth"]').fill('2');
+    const box2 = (await overlaySvg.boundingBox())!;
+    const at2 = (nx: number, ny: number) => ({ x: box2.x + box2.width * nx, y: box2.y + box2.height * ny });
+    await page.locator('header').click();
+    await page.keyboard.press('Shift+Alt+V');
+    await expect(page.locator('[data-testid="tool-measure-volume"]')).toHaveAttribute('aria-pressed', 'true');
+    for (const [nx, ny] of [
+      [0.45, 0.12],
+      [0.6, 0.12],
+      [0.6, 0.22],
+    ]) {
+      const p = at2(nx, ny);
+      await page.mouse.click(p.x, p.y);
+    }
+    await page.keyboard.press('Enter');
+    const volume = overlaySvg.locator('g[data-testid^="markup-volume-"]');
+    await expect(volume).toHaveCount(1);
+    await expect(volume).toContainText(/mm³$/);
+    await expect(page.locator('[data-testid="measurements-total-volume"]')).toContainText('mm³');
+
+    // 5. Ctrl+R otra vez oculta las reglas
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Control+r');
+    await expect(page.locator('[data-testid="ruler-top"]')).toHaveCount(0);
+  });
 });

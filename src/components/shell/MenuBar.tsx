@@ -53,6 +53,7 @@ import {
   ContinuousIcon,
   CalibrateIcon,
   LengthMeasureIcon,
+  RulersIcon,
 } from './customIcons';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useMarkupStore } from '../../store/useMarkupStore';
@@ -116,6 +117,8 @@ export const MenuBar: React.FC = () => {
     viewMode,
     setViewMode,
     requestFit,
+    showRulers,
+    setShowRulers,
   } = useUiStore();
   const { saveNow } = useAutoSave(0);
 
@@ -229,6 +232,7 @@ export const MenuBar: React.FC = () => {
         'separator',
         { icon: <SinglePageIcon size={15} />, label: 'Single Page', shortcut: 'Ctrl+4', checked: viewMode === 'single', onSelect: () => setViewMode('single') },
         { icon: <ContinuousIcon size={15} />, label: 'Continuous Pages', shortcut: 'Ctrl+5', checked: viewMode === 'continuous', onSelect: () => setViewMode('continuous'), testId: 'menu-view-continuous' },
+        { icon: <RulersIcon size={15} />, label: 'Rulers', shortcut: 'Ctrl+R', checked: showRulers, onSelect: () => setShowRulers(!showRulers), testId: 'menu-view-rulers' },
         'separator',
         { icon: <PanelLeft size={15} />, label: 'Thumbnails Panel', onSelect: () => setLeftTab('pages') },
         { icon: <Bookmark size={15} />, label: 'Bookmarks Panel', onSelect: () => setLeftTab('bookmarks') },

@@ -34,6 +34,7 @@ import {
   Search,
   Keyboard,
   Contrast,
+  SaveAll,
   PenLine,
   Stamp as StampIcon,
   FormInput,
@@ -63,6 +64,7 @@ import { openPdfDialog } from '../../services/fileDialogService';
 import { useAutoSave } from '../../hooks/useAutoSave';
 import { TOOL_GROUPS } from './toolDefinitions';
 import { exportFlattenedPdf, goToPage, runPageOperation, selectAllOnCurrentPage } from './appActions';
+import { saveDocumentAs } from '../../services/documentSaveService';
 
 type MenuEntry =
   | {
@@ -165,16 +167,31 @@ export const MenuBar: React.FC = () => {
         { icon: <FolderOpen size={15} />, label: 'Open PDF…', shortcut: 'Ctrl+O', onSelect: () => openPdfDialog(), testId: 'menu-open' },
         {
           icon: <Save size={15} />,
-          label: 'Save to PDF',
+          label: filePath ? 'Save' : 'Save…',
           shortcut: 'Ctrl+S',
           onSelect: () => saveNow(),
-          disabled: !filePath || !isDirty,
+          disabled: !hasDoc,
           testId: 'menu-save',
         },
+        {
+          icon: <SaveAll size={15} />,
+          label: 'Save As…',
+          shortcut: 'Ctrl+Shift+S',
+          onSelect: () => void saveDocumentAs(),
+          disabled: !hasDoc,
+          testId: 'menu-save-as',
+        },
         'separator',
-        { icon: <FileDown size={15} />, label: 'Export PDF with Flattened Markups…', onSelect: () => exportFlattenedPdf(), disabled: !hasDoc },
-        { icon: <FileSpreadsheet size={15} />, label: 'Export Markups List (CSV)…', onSelect: () => requestExport('csv'), disabled: !hasDoc },
-        { icon: <ClipboardList size={15} />, label: 'Markup Summary Report (PDF)…', onSelect: () => requestExport('report'), disabled: !hasDoc },
+        {
+          icon: <FileDown size={15} />,
+          label: 'Export',
+          testId: 'menu-export',
+          submenu: [
+            { icon: <FileDown size={15} />, label: 'PDF with Flattened Markups…', onSelect: () => exportFlattenedPdf(), disabled: !hasDoc, testId: 'menu-export-flattened' },
+            { icon: <FileSpreadsheet size={15} />, label: 'Markups List (CSV)…', onSelect: () => requestExport('csv'), disabled: !hasDoc, testId: 'menu-export-csv' },
+            { icon: <ClipboardList size={15} />, label: 'Markup Summary Report (PDF)…', onSelect: () => requestExport('report'), disabled: !hasDoc, testId: 'menu-export-report' },
+          ],
+        },
       ],
     },
     {

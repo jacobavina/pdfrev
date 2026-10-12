@@ -104,10 +104,24 @@ describe('Espacio de trabajo (ADR-0017)', () => {
       expect(document.documentElement.dataset.theme).toBe('light');
     });
 
-    it('Guardar está deshabilitado en modo demostración (sin ruta de archivo)', () => {
+    it('File ofrece Save, Save As… y Export ▸, activos también en el documento de demostración (ADR-0028)', () => {
+      useDocumentStore.setState({ pdfBytes: new Uint8Array([1]), filePath: null });
+      render(<MenuBar />);
+      fireEvent.click(screen.getByTestId('menu-archivo'));
+      expect(screen.getByTestId('menu-save')).toBeEnabled();
+      expect(screen.getByTestId('menu-save-as')).toBeEnabled();
+      expect(screen.getByTestId('menu-save-as')).toHaveTextContent('Ctrl+Shift+S');
+      fireEvent.click(screen.getByTestId('menu-export'));
+      expect(screen.getByTestId('menu-export-popup')).toHaveTextContent('PDF with Flattened Markups');
+      expect(screen.getByTestId('menu-export-popup')).toHaveTextContent('Markups List (CSV)');
+    });
+
+    it('sin documento abierto, Save y Save As están deshabilitados', () => {
+      useDocumentStore.setState({ pdfBytes: null, filePath: null });
       render(<MenuBar />);
       fireEvent.click(screen.getByTestId('menu-archivo'));
       expect(screen.getByTestId('menu-save')).toBeDisabled();
+      expect(screen.getByTestId('menu-save-as')).toBeDisabled();
     });
   });
 

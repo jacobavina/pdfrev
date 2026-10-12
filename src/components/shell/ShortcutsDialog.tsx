@@ -5,7 +5,8 @@ import { ALL_TOOLS } from './toolDefinitions';
 
 const GENERAL: [string, string][] = [
   ['Ctrl+O', 'Open PDF'],
-  ['Ctrl+S', 'Save markups to the PDF'],
+  ['Ctrl+S', 'Save (Save As if the document has no file yet)'],
+  ['Ctrl+Shift+S', 'Save As…'],
   ['Ctrl+Z / Ctrl+Y', 'Undo / Redo'],
   ['Ctrl+C / Ctrl+V / Ctrl+D', 'Copy / Paste / Duplicate markups'],
   ['Del', 'Delete the selection'],

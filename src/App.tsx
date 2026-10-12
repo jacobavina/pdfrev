@@ -56,10 +56,13 @@ export const App: React.FC = () => {
   const { addMarkup } = useMarkupStore();
   const { saveNow } = useAutoSave();
 
-  // Atajos globales: Ctrl+S (guardar), Ctrl+O (abrir), Ctrl+F (buscar), F1 (atajos)
+  // Atajos globales: Ctrl+S (guardar), Ctrl+Shift+S (guardar como), Ctrl+O (abrir), Ctrl+F (buscar), F1 (atajos)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        void import('./services/documentSaveService').then((m) => m.saveDocumentAs());
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
         e.preventDefault();
         saveNow();
       } else if ((e.ctrlKey || e.metaKey) && (e.key === 'o' || e.key === 'O')) {

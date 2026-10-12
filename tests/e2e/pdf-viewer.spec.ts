@@ -1660,10 +1660,12 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     // Deshacer con Ctrl+Z
     await page.keyboard.press('Control+z');
 
-    // 4. Probar atajo global de guardado Ctrl+S
+    // 4. Ctrl+S en el documento de demostración guarda como (en el navegador, descarga el PDF con las marcas)
+    const saveDownload = page.waitForEvent('download');
     await page.keyboard.press('Control+s');
+    expect((await saveDownload).suggestedFilename()).toBe('test-blueprint.pdf');
     const saveBtn = page.locator('[data-testid="save-button"]');
-    await expect(saveBtn).toBeVisible();
+    await expect(saveBtn).toBeEnabled();
 
     // 5. Exportar CSV y verificar captura del archivo de descarga
     const exportCsvBtn = page.locator('[data-testid="export-csv-button"]');

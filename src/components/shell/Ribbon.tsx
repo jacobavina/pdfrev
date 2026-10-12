@@ -1,5 +1,6 @@
 import React from 'react';
-import { FolderOpen, Save, Download, Undo2, Redo2, Stamp as StampIcon, Link2, Paperclip } from 'lucide-react';
+import { FolderOpen, Save, SaveAll, Download, Undo2, Redo2, Stamp as StampIcon, Link2, Paperclip } from 'lucide-react';
+import { saveDocumentAs } from '../../services/documentSaveService';
 import { STAMPS, stampById } from '../../core/markup/stamps';
 import { FIELD_TYPES, fieldTypeDef } from '../../core/markup/formFields';
 import { fieldTypeIcon } from './fieldIcons';
@@ -115,14 +116,22 @@ export const Ribbon: React.FC = () => {
           label="Save"
           title={
             !filePath
-              ? 'Demo mode (no autosave). Open a PDF to save.'
+              ? 'Save the document as a PDF with its markups (Ctrl+S / Ctrl+Shift+S)'
               : isDirty
               ? 'Save markups to the PDF (Ctrl+S). Autosave every 30 s only writes the .bbx.json recovery copy'
-              : 'No pending changes'
+              : 'Save (no pending changes) · Save As: Ctrl+Shift+S'
           }
           onClick={() => saveNow()}
-          disabled={!isDirty || !filePath}
-          highlight={isDirty && Boolean(filePath)}
+          disabled={!pdfBytes}
+          highlight={isDirty}
+        />
+        <LargeButton
+          testId="save-as-button"
+          icon={<SaveAll size={20} />}
+          label="Save As"
+          title="Save a copy of the document with its markups as a new PDF (Ctrl+Shift+S)"
+          onClick={() => void saveDocumentAs()}
+          disabled={!pdfBytes}
         />
         <LargeButton
           icon={<Download size={20} className="text-emerald-600 dark:text-emerald-400" />}

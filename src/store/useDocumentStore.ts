@@ -54,6 +54,8 @@ interface DocumentState {
   setPageDimensions: (pageIndex: number, width: number, height: number) => void;
   setPageHasText: (pageIndex: number, hasText: boolean) => void;
   setPdfBytes: (bytes: Uint8Array) => void;
+  /** Tras "Guardar como": el documento pasa a ser el archivo guardado (ADR-0028). */
+  setFileLocation: (filePath: string, fileName: string) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   closeDocument: () => void;
@@ -201,6 +203,7 @@ export const useDocumentStore = create<DocumentState>((set) => ({
     })),
 
   setPdfBytes: (pdfBytes) => set({ pdfBytes }),
+  setFileLocation: (filePath, fileName) => set({ filePath, fileName }),
 
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error, isLoading: false }),

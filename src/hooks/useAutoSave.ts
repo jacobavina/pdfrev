@@ -26,6 +26,11 @@ export function useAutoSave(intervalMs = 30000) {
   const saveNow = useCallback(
     async (options: SaveOptions = {}) => {
       const includePdf = options.includePdf ?? true;
+      // Sin archivo (documento de demostración o nuevo): Guardar es Guardar como (ADR-0028)
+      if (!filePath && includePdf) {
+        const { saveDocumentAs } = await import('../services/documentSaveService');
+        return saveDocumentAs();
+      }
       if (!filePath || isSavingRef.current) return false;
 
       isSavingRef.current = true;

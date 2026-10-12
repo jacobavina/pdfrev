@@ -181,4 +181,5 @@ plan y `AGENTS.md`, **gana `AGENTS.md`**.
 | 2026-10-11 | Claude (Opus 5.5) | ADR-0023: íconos estilo Revu, menús con íconos, atajos de vista de Revu, zoom con rueda en el control del doble clic. |
 | 2026-10-11 | Claude (Opus 5.5) | ADR-0024/0025/0026: capas del PDF, panel Measure estilo Foxit con escala guardada en el PDF y snap, sellos y menú Tools. Pendiente siguiente lote: Hyperlink, File Attachment, Form, Signature. |
 | 2026-10-12 | Claude (Opus 5.5) | ADR-0027: hipervínculos, adjuntos embebidos, campos AcroForm y campo de firma; comando nativo open_url. Pendiente: firma con certificado, reglas, mediciones Perimeter/Angle/Radius/Diameter/Volume. |
+| 2026-10-12 | Claude (Opus 5.5) | ADR-0028: Save, Save As (Ctrl+Shift+S) y File ▸ Export, también con el documento de demostración. |
 

@@ -85,7 +85,7 @@ export async function renderPageToCanvas(
 
   const offscreenCtx = offscreenCanvas.getContext('2d', { alpha: false });
   if (!offscreenCtx) {
-    throw new Error('No se pudo obtener el contexto 2D del canvas offscreen');
+    throw new Error('Could not get the 2D context of the offscreen canvas');
   }
 
   const activeTask = (canvas as unknown as { _currentRenderTask?: pdfjsLib.RenderTask })._currentRenderTask;
@@ -201,7 +201,7 @@ export async function renderThumbnail(
 
   const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) {
-    throw new Error('No se pudo obtener contexto 2D para miniatura');
+    throw new Error('Could not get a 2D context for the thumbnail');
   }
 
   const activeTask = (canvas as unknown as { _currentRenderTask?: pdfjsLib.RenderTask })._currentRenderTask;

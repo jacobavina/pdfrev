@@ -49,7 +49,7 @@ export const StatusBar: React.FC = () => {
         onClick={() => goToPage(-1)}
         disabled={currentPageIndex <= 0}
         className="p-0.5 rounded hover:bg-cad-hover hover:text-cad-strong disabled:opacity-30"
-        title="Página anterior"
+        title="Previous page"
       >
         <ChevronLeft size={15} />
       </button>
@@ -61,7 +61,7 @@ export const StatusBar: React.FC = () => {
         onClick={() => goToPage(1)}
         disabled={currentPageIndex >= numPages - 1}
         className="p-0.5 rounded hover:bg-cad-hover hover:text-cad-strong disabled:opacity-30"
-        title="Página siguiente"
+        title="Next page"
       >
         <ChevronRight size={15} />
       </button>
@@ -69,21 +69,21 @@ export const StatusBar: React.FC = () => {
       <Divider />
 
       {/* Zoom y rotación */}
-      <button type="button" onClick={zoomOut} className="p-0.5 rounded hover:bg-cad-hover" title="Alejar (-)">
+      <button type="button" onClick={zoomOut} className="p-0.5 rounded hover:bg-cad-hover" title="Zoom out (-)">
         <ZoomOut size={14} />
       </button>
       <button
         type="button"
         onClick={resetZoom}
         className="font-mono px-1.5 rounded hover:bg-cad-hover min-w-[3.25rem]"
-        title="Restablecer zoom a 100%"
+        title="Reset zoom to 100%"
       >
         {Math.round(scale * 100)}%
       </button>
-      <button type="button" onClick={zoomIn} className="p-0.5 rounded hover:bg-cad-hover" title="Acercar (+)">
+      <button type="button" onClick={zoomIn} className="p-0.5 rounded hover:bg-cad-hover" title="Zoom in (+)">
         <ZoomIn size={14} />
       </button>
-      <button type="button" onClick={rotateClockwise} className="p-0.5 rounded hover:bg-cad-hover ml-0.5" title="Rotar 90°">
+      <button type="button" onClick={rotateClockwise} className="p-0.5 rounded hover:bg-cad-hover ml-0.5" title="Rotate 90°">
         <RotateCw size={13} />
       </button>
 
@@ -96,7 +96,7 @@ export const StatusBar: React.FC = () => {
         aria-pressed={viewMode === 'single'}
         onClick={() => setViewMode('single')}
         className={modeBtn(viewMode === 'single')}
-        title="Página única"
+        title="Single page"
       >
         <SinglePageIcon />
       </button>
@@ -106,7 +106,7 @@ export const StatusBar: React.FC = () => {
         aria-pressed={viewMode === 'continuous'}
         onClick={() => setViewMode('continuous')}
         className={modeBtn(viewMode === 'continuous')}
-        title="Continua (todas las páginas)"
+        title="Continuous (all pages)"
       >
         <ContinuousIcon />
       </button>
@@ -116,7 +116,7 @@ export const StatusBar: React.FC = () => {
         onClick={() => requestFit('page')}
         disabled={!pdfBytes}
         className={modeBtn(false) + ' ml-1 disabled:opacity-30'}
-        title="Ajustar a página (Ctrl+0)"
+        title="Fit page (Ctrl+0)"
       >
         <FitPageIcon />
       </button>
@@ -126,7 +126,7 @@ export const StatusBar: React.FC = () => {
         onClick={() => requestFit('width')}
         disabled={!pdfBytes}
         className={modeBtn(false) + ' disabled:opacity-30'}
-        title="Ajustar al ancho (Ctrl+2)"
+        title="Fit width (Ctrl+2)"
       >
         <FitWidthIcon />
       </button>
@@ -143,13 +143,13 @@ export const StatusBar: React.FC = () => {
             setCalibrationModalOpen(true);
           }}
           className="flex items-center gap-1.5 px-1.5 rounded hover:bg-cad-hover hover:text-cad-strong whitespace-nowrap"
-          title="Haga clic para calibrar o ajustar la escala de esta página"
+          title="Click to calibrate or adjust this page's scale"
         >
           <span className={`w-2 h-2 rounded-full ${isCalibrated ? 'bg-emerald-500' : 'bg-amber-500'}`} />
           <span className="font-mono">
             {isCalibrated
-              ? `Escala: 1 ${calib.unit} = ${(1 / calib.scale).toFixed(1)} pt`
-              : `Sin calibrar (escala de papel, ${calib.unit})`}
+              ? `Scale: 1 ${calib.unit} = ${(1 / calib.scale).toFixed(1)} pt`
+              : `Scale not set (paper scale, ${calib.unit})`}
           </span>
         </button>
       )}
@@ -178,8 +178,8 @@ export const StatusBar: React.FC = () => {
       )}
 
       <span className="whitespace-nowrap">
-        {markups.length} marcas
-        {selectedMarkupIds.length > 0 && ` · ${selectedMarkupIds.length} seleccionada${selectedMarkupIds.length > 1 ? 's' : ''}`}
+        {markups.length} {markups.length === 1 ? 'markup' : 'markups'}
+        {selectedMarkupIds.length > 0 && ` · ${selectedMarkupIds.length} selected`}
       </span>
 
       <Divider />
@@ -188,7 +188,7 @@ export const StatusBar: React.FC = () => {
         data-testid="save-state"
         className={`whitespace-nowrap ${!filePath ? 'text-gray-500' : isDirty ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}
       >
-        {!filePath ? 'Demostración' : isDirty ? '● Cambios sin guardar' : 'Guardado'}
+        {!filePath ? 'Demo' : isDirty ? '● Unsaved changes' : 'Saved'}
       </span>
 
       <Divider />
@@ -198,7 +198,7 @@ export const StatusBar: React.FC = () => {
         data-testid="search-toggle-btn"
         onClick={() => useSearchStore.getState().setIsOpen(true)}
         className="p-0.5 rounded hover:bg-cad-hover hover:text-cad-strong"
-        title="Buscar texto en plano (Ctrl+F)"
+        title="Find text in drawing (Ctrl+F)"
       >
         <Search size={13} />
       </button>

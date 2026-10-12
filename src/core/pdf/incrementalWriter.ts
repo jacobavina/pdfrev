@@ -139,7 +139,7 @@ export class IncrementalWriter {
       const fullStr = new TextDecoder('latin1').decode(this.originalBytes);
       const globalStartXrefIdx = fullStr.lastIndexOf('startxref');
       if (globalStartXrefIdx === -1) {
-        throw new Error('Estructura de PDF inválida: no se encontró startxref');
+        throw new Error('Invalid PDF structure: startxref not found');
       }
       this.extractTrailerFromOffset(fullStr, globalStartXrefIdx);
       return;
@@ -154,7 +154,7 @@ export class IncrementalWriter {
     const afterStartXref = raw.slice(startXrefIdx + 9).trim();
     const prevOffsetMatch = afterStartXref.match(/^(\d+)/);
     if (!prevOffsetMatch) {
-      throw new Error('No se pudo leer el offset numérico de startxref');
+      throw new Error('Could not read the numeric startxref offset');
     }
     this.prevStartXref = parseInt(prevOffsetMatch[1], 10);
 
@@ -281,7 +281,7 @@ export class IncrementalWriter {
     const prefixMatches = this.validateOriginalPrefix(finalBuffer);
     if (!prefixMatches) {
       throw new Error(
-        '[IncrementalWriter] Violación de invariante ISO 32000-1: los bytes originales no se conservaron intactos'
+        '[IncrementalWriter] ISO 32000-1 invariant violated: the original bytes were not preserved'
       );
     }
 

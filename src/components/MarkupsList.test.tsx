@@ -64,7 +64,7 @@ describe('MarkupsList Context Menu (Añadir a Tool Chest B.4)', () => {
 
     const addBtn = screen.getByTestId('context-menu-add-to-toolchest');
     expect(addBtn).toBeInTheDocument();
-    expect(addBtn.textContent).toContain('Añadir a Tool Chest');
+    expect(addBtn.textContent).toContain('Add to Tool Chest');
 
     // Al hacer clic, añade la herramienta a la paleta activa
     fireEvent.click(addBtn);
@@ -136,7 +136,7 @@ describe('MarkupsList Context Menu (Añadir a Tool Chest B.4)', () => {
 
       // 1. El primer botón del panel debe ser el de colapsar/expandir
       const firstButton = panel.querySelectorAll('button')[0];
-      expect(firstButton.textContent).toContain('Lista de Marcas');
+      expect(firstButton.textContent).toContain('Markups List');
 
       // Al colapsar, mide 32px
       fireEvent.click(firstButton);
@@ -207,7 +207,7 @@ describe('MarkupsList Context Menu (Añadir a Tool Chest B.4)', () => {
 
     it('ordena por columna al hacer clic en la cabecera th', () => {
       render(<MarkupsList />);
-      const authorTh = screen.getByTitle('Ordenar por autor');
+      const authorTh = screen.getByTitle('Sort by author');
 
       // Clic inicial -> asc (Beatriz Arq antes de Carlos Ing)
       fireEvent.click(authorTh);
@@ -318,7 +318,7 @@ describe('MarkupsList Context Menu (Añadir a Tool Chest B.4)', () => {
       expect(csvBtn).toBeInTheDocument();
       expect(pdfBtn).toBeInTheDocument();
       expect(csvBtn).toHaveTextContent('CSV');
-      expect(pdfBtn).toHaveTextContent('Reporte PDF');
+      expect(pdfBtn).toHaveTextContent('PDF Report');
     });
   });
 });

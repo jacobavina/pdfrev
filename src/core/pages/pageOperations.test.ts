@@ -44,7 +44,7 @@ describe('Page Operations & Markup Remapping (Paquete 5)', () => {
 
     it('lanza error si el índice de página está fuera de límites', async () => {
       await expect(rotatePdfPage(samplePdfBytes, 99, 90)).rejects.toThrow(
-        'Índice de página fuera de rango'
+        'Page index out of range'
       );
     });
   });
@@ -63,7 +63,7 @@ describe('Page Operations & Markup Remapping (Paquete 5)', () => {
       const singleBytes = await singleDoc.save();
 
       await expect(deletePdfPage(singleBytes, 0)).rejects.toThrow(
-        'No es posible eliminar la única página del documento'
+        'The only page of the document cannot be deleted'
       );
     });
   });

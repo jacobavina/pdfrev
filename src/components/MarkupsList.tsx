@@ -55,31 +55,31 @@ const STATUS_CONFIG: Record<
 > = {
   // Claro por defecto con variante oscura (ADR-0017): colores legibles en ambos temas
   pending: {
-    label: 'Pendiente',
+    label: 'Pending',
     bg: 'bg-amber-100 dark:bg-amber-950/60',
     text: 'text-amber-800 dark:text-amber-300',
     border: 'border-amber-300 dark:border-amber-700',
   },
   accepted: {
-    label: 'Aceptado',
+    label: 'Accepted',
     bg: 'bg-emerald-100 dark:bg-emerald-950/60',
     text: 'text-emerald-800 dark:text-emerald-300',
     border: 'border-emerald-300 dark:border-emerald-700',
   },
   rejected: {
-    label: 'Rechazado',
+    label: 'Rejected',
     bg: 'bg-rose-100 dark:bg-rose-950/60',
     text: 'text-rose-800 dark:text-rose-300',
     border: 'border-rose-300 dark:border-rose-700',
   },
   completed: {
-    label: 'Completado',
+    label: 'Completed',
     bg: 'bg-blue-100 dark:bg-blue-950/60',
     text: 'text-blue-800 dark:text-blue-300',
     border: 'border-blue-300 dark:border-blue-700',
   },
   cancelled: {
-    label: 'Cancelado',
+    label: 'Cancelled',
     bg: 'bg-zinc-100 dark:bg-zinc-800/60',
     text: 'text-zinc-600 dark:text-zinc-400',
     border: 'border-zinc-300 dark:border-zinc-600',
@@ -343,13 +343,13 @@ export const MarkupsList: React.FC = () => {
     }
     const trimmed = newColExpr.trim();
     if (!trimmed) {
-      return { ok: false, message: 'La expresión no puede estar vacía' };
+      return { ok: false, message: 'The expression cannot be empty' };
     }
     const res = parseExpression(trimmed);
     if (!res.ok) {
       return { ok: false, message: res.message };
     }
-    return { ok: true, message: 'Expresión sintácticamente correcta' };
+    return { ok: true, message: 'Expression is syntactically valid' };
   }, [newColType, newColExpr]);
 
   const handleCreateColumn = (e: React.FormEvent) => {
@@ -414,7 +414,7 @@ export const MarkupsList: React.FC = () => {
   const formatDate = (isoString: string) => {
     try {
       const d = new Date(isoString);
-      return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      return `${d.toLocaleDateString('en-US')} ${d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
     } catch {
       return isoString;
     }
@@ -432,13 +432,13 @@ export const MarkupsList: React.FC = () => {
   const handleExportCsv = async () => {
     try {
       const { buildCsvContent, saveExportFileWithDialog } = await import('../services/exportService');
-      const defaultBase = fileName ? fileName.replace(/\.[^/.]+$/, '') : 'marcas';
-      const defaultName = `${defaultBase}-marcas.csv`;
+      const defaultBase = fileName ? fileName.replace(/\.[^/.]+$/, '') : 'markups';
+      const defaultName = `${defaultBase}-markups.csv`;
       const bytes = buildCsvContent(displayedMarkups, customColumns, evaluationMatrix);
       await saveExportFileWithDialog(defaultName, 'csv', bytes);
     } catch (err) {
       console.error('Error al exportar CSV:', err);
-      showToast(`Error al exportar CSV: ${err instanceof Error ? err.message : String(err)}`);
+      showToast(`Error exporting CSV: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -446,12 +446,12 @@ export const MarkupsList: React.FC = () => {
     try {
       const { buildPdfReportContent, saveExportFileWithDialog } = await import('../services/exportService');
       const defaultBase = fileName ? fileName.replace(/\.[^/.]+$/, '') : 'reporte';
-      const defaultName = `${defaultBase}-reporte-marcas.pdf`;
-      const bytes = await buildPdfReportContent(fileName || 'Documento PDF', displayedMarkups);
+      const defaultName = `${defaultBase}-markup-summary.pdf`;
+      const bytes = await buildPdfReportContent(fileName || 'PDF document', displayedMarkups);
       await saveExportFileWithDialog(defaultName, 'pdf', bytes);
     } catch (err) {
       console.error('Error al generar Reporte PDF:', err);
-      showToast(`Error al generar el reporte PDF: ${err instanceof Error ? err.message : String(err)}`);
+      showToast(`Error generating the PDF report: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -511,7 +511,7 @@ export const MarkupsList: React.FC = () => {
         <div
           data-testid="markups-list-resizer"
           onMouseDown={startListResize}
-          title="Arrastrar para cambiar la altura de la lista"
+          title="Drag to resize the list"
           className="absolute -top-1 left-0 right-0 h-2 cursor-row-resize z-20 hover:bg-cad-accent/30"
         />
       )}
@@ -524,7 +524,7 @@ export const MarkupsList: React.FC = () => {
           >
             {isExpanded ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
             <span className="font-semibold tracking-wide uppercase">
-              Lista de Marcas ({displayedMarkups.length})
+              Markups List ({displayedMarkups.length})
             </span>
           </button>
 
@@ -536,7 +536,7 @@ export const MarkupsList: React.FC = () => {
                 onChange={(e) => setFilterPageOnly(e.target.checked)}
                 className="rounded bg-cad-subtle border-cad-border text-blue-500 focus:ring-0"
               />
-              <span>Solo pág. actual</span>
+              <span>Current page only</span>
             </label>
           )}
         </div>
@@ -547,7 +547,7 @@ export const MarkupsList: React.FC = () => {
               data-testid="export-csv-button"
               onClick={handleExportCsv}
               className="flex items-center space-x-1 px-2 py-0.5 bg-cad-ribbon hover:bg-cad-hover text-gray-200 rounded border border-cad-border text-xs transition-colors"
-              title="Exportar marcas visibles a CSV (RFC 4180)"
+              title="Export visible markups to CSV (RFC 4180)"
             >
               <FileSpreadsheet size={12} className="text-emerald-600 dark:text-emerald-400" />
               <span>CSV</span>
@@ -557,10 +557,10 @@ export const MarkupsList: React.FC = () => {
               data-testid="export-pdf-report-button"
               onClick={handleExportPdfReport}
               className="flex items-center space-x-1 px-2 py-0.5 bg-cad-ribbon hover:bg-cad-hover text-gray-200 rounded border border-cad-border text-xs transition-colors"
-              title="Generar Reporte Resumen en PDF"
+              title="Generate PDF summary report"
             >
               <FileText size={12} className="text-purple-600 dark:text-purple-400" />
-              <span>Reporte PDF</span>
+              <span>PDF Report</span>
             </button>
 
             <button
@@ -573,20 +573,20 @@ export const MarkupsList: React.FC = () => {
                 setIsAddColumnModalOpen(true);
               }}
               className="flex items-center space-x-1 px-2 py-0.5 bg-cad-ribbon hover:bg-cad-hover text-gray-200 rounded border border-cad-border text-xs transition-colors"
-              title="Añadir columna personalizada"
+              title="Add custom column"
             >
               <Plus size={12} className="text-cad-accent" />
-              <span>Columna</span>
+              <span>Column</span>
             </button>
 
             {selectedMarkupIds.length > 0 && (
               <button
                 onClick={deleteSelectedMarkups}
                 className="flex items-center space-x-1 px-2 py-0.5 bg-cad-ribbon hover:bg-rose-500/10 text-rose-700 dark:text-rose-300 rounded border border-rose-300 dark:border-rose-700 text-xs transition-colors"
-                title="Eliminar marcas seleccionadas (Supr)"
+                title="Delete selected markups (Del)"
               >
                 <Trash2 size={12} />
-                <span>Eliminar ({selectedMarkupIds.length})</span>
+                <span>Delete ({selectedMarkupIds.length})</span>
               </button>
             )}
           </div>
@@ -605,7 +605,7 @@ export const MarkupsList: React.FC = () => {
             data-testid="markups-search-input"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar marcas..."
+            placeholder="Search markups..."
             className="px-2 py-0.5 bg-cad-dark border border-cad-border rounded text-gray-200 placeholder-gray-500 text-xs focus:outline-none focus:border-cad-accent w-36"
           />
 
@@ -616,7 +616,7 @@ export const MarkupsList: React.FC = () => {
             onChange={(e) => setFilterType(e.target.value as MarkupType | 'all')}
             className="px-2 py-0.5 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent"
           >
-            <option value="all">Todos los tipos</option>
+            <option value="all">All types</option>
             {(Object.keys(MARKUP_TYPE_LABELS) as MarkupType[])
               .filter((t) => t !== 'highlight')
               .map((t) => (
@@ -633,7 +633,7 @@ export const MarkupsList: React.FC = () => {
             onChange={(e) => setFilterAuthor(e.target.value)}
             className="px-2 py-0.5 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent max-w-[130px] truncate"
           >
-            <option value="all">Todos los autores</option>
+            <option value="all">All authors</option>
             {uniqueAuthors.map((auth) => (
               <option key={auth} value={auth}>
                 {auth}
@@ -648,12 +648,12 @@ export const MarkupsList: React.FC = () => {
             onChange={(e) => setFilterStatus(e.target.value as MarkupStatus | 'all')}
             className="px-2 py-0.5 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent"
           >
-            <option value="all">Todos los estados</option>
-            <option value="pending">Pendiente</option>
-            <option value="accepted">Aceptado</option>
-            <option value="rejected">Rechazado</option>
-            <option value="completed">Completado</option>
-            <option value="cancelled">Cancelado</option>
+            <option value="all">All statuses</option>
+            <option value="pending">Pending</option>
+            <option value="accepted">Accepted</option>
+            <option value="rejected">Rejected</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
           </select>
 
           {/* Botón reset de filtros */}
@@ -662,15 +662,15 @@ export const MarkupsList: React.FC = () => {
               onClick={resetFilters}
               data-testid="markups-reset-filters-btn"
               className="px-2 py-0.5 bg-cad-hover/70 hover:bg-cad-hover text-gray-300 hover:text-cad-strong rounded text-xs transition-colors"
-              title="Restablecer todos los filtros"
+              title="Reset all filters"
             >
-              Restablecer
+              Reset
             </button>
           )}
 
           {/* Indicador de orden actual */}
           <span className="text-gray-500 ml-auto text-[11px] font-mono">
-            Orden: <span className="text-gray-300 capitalize">{sortField ?? 'natural'}</span> {sortField ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+            Sort: <span className="text-gray-300 capitalize">{sortField ?? 'natural'}</span> {sortField ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
           </span>
         </div>
       )}
@@ -680,7 +680,7 @@ export const MarkupsList: React.FC = () => {
         <div className="flex-1 overflow-auto bg-cad-panel">
           {displayedMarkups.length === 0 ? (
             <div className="h-full flex items-center justify-center text-xs text-gray-500 italic" data-testid="markups-empty-message">
-              No hay anotaciones que coincidan con los filtros aplicados.
+              No markups match the applied filters.
             </div>
           ) : (
             <table className="w-full text-left border-collapse text-xs">
@@ -690,54 +690,54 @@ export const MarkupsList: React.FC = () => {
                   <th
                     onClick={() => handleSort('type')}
                     className="py-1 px-2 font-medium w-28 cursor-pointer hover:text-cad-strong select-none"
-                    title="Ordenar por tipo"
+                    title="Sort by type"
                   >
-                    Tipo {renderSortIndicator('type')}
+                    Type {renderSortIndicator('type')}
                   </th>
                   <th
                     onClick={() => handleSort('text')}
                     className="py-1 px-2 font-medium min-w-[160px] cursor-pointer hover:text-cad-strong select-none"
-                    title="Ordenar por texto / comentario"
+                    title="Sort by subject / comment"
                   >
-                    Texto / Comentario {renderSortIndicator('text')}
+                    Comment {renderSortIndicator('text')}
                   </th>
                   <th
                     onClick={() => handleSort('author')}
                     className="py-1 px-2 font-medium w-32 cursor-pointer hover:text-cad-strong select-none"
-                    title="Ordenar por autor"
+                    title="Sort by author"
                   >
-                    Autor {renderSortIndicator('author')}
+                    Author {renderSortIndicator('author')}
                   </th>
                   <th
                     onClick={() => handleSort('createdAt')}
                     className="py-1 px-2 font-medium w-32 cursor-pointer hover:text-cad-strong select-none"
-                    title="Ordenar por fecha"
+                    title="Sort by date"
                   >
-                    Fecha {renderSortIndicator('createdAt')}
+                    Date {renderSortIndicator('createdAt')}
                   </th>
                   <th
                     onClick={() => handleSort('pageIndex')}
                     className="py-1 px-2 font-medium w-20 text-center cursor-pointer hover:text-cad-strong select-none"
-                    title="Ordenar por página"
+                    title="Sort by page"
                   >
-                    Página {renderSortIndicator('pageIndex')}
+                    Page {renderSortIndicator('pageIndex')}
                   </th>
                   <th
                     onClick={() => handleSort('status')}
                     className="py-1 px-2 font-medium w-28 text-center cursor-pointer hover:text-cad-strong select-none"
-                    title="Ordenar por estado"
+                    title="Sort by status"
                   >
-                    Estado {renderSortIndicator('status')}
+                    Status {renderSortIndicator('status')}
                   </th>
                   <th
                     onClick={() => handleSort('measurement')}
                     className="py-1 px-2 font-medium w-24 text-right cursor-pointer hover:text-cad-strong select-none"
-                    title="Ordenar por medida"
+                    title="Sort by measurement"
                   >
-                    Medida {renderSortIndicator('measurement')}
+                    Measurement {renderSortIndicator('measurement')}
                   </th>
                   <th className="py-1 px-2 font-medium w-16 text-center select-none">
-                    Unidad
+                    Unit
                   </th>
 
                   {/* Cabeceras dinámicas de Columnas Personalizadas (P2-C.3) */}
@@ -747,7 +747,7 @@ export const MarkupsList: React.FC = () => {
                       data-testid={`custom-column-header-${col.id}`}
                       onClick={() => handleSort(`custom:${col.id}`)}
                       className="py-1 px-2 font-medium min-w-[110px] cursor-pointer hover:text-cad-strong select-none group"
-                      title={`Ordenar por ${col.nombre} (${col.tipo})`}
+                      title={`Sort by ${col.nombre} (${col.tipo})`}
                     >
                       <div className="flex items-center justify-between space-x-1">
                         <span className="truncate">
@@ -760,7 +760,7 @@ export const MarkupsList: React.FC = () => {
                             setColumnToDelete(col);
                           }}
                           className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-rose-400 text-gray-500 transition-opacity"
-                          title={`Eliminar columna ${col.nombre}`}
+                          title={`Delete column ${col.nombre}`}
                         >
                           <Trash2 size={11} />
                         </button>
@@ -768,7 +768,7 @@ export const MarkupsList: React.FC = () => {
                     </th>
                   ))}
 
-                  <th className="py-1 px-2 font-medium w-12 text-center">Acción</th>
+                  <th className="py-1 px-2 font-medium w-12 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-cad-border/50 text-gray-200">
@@ -820,7 +820,7 @@ export const MarkupsList: React.FC = () => {
                         {getMarkupIcon(markup.type)}
                         <span>{markupTypeLabel(markup.type)}</span>
                         {markup.locked && (
-                          <span title="Marca bloqueada" data-testid={`markup-locked-badge-${markup.id}`}>
+                          <span title="Locked markup" data-testid={`markup-locked-badge-${markup.id}`}>
                             <Lock size={12} className="text-amber-400 shrink-0 ml-1" />
                           </span>
                         )}
@@ -831,7 +831,7 @@ export const MarkupsList: React.FC = () => {
                         <input
                           type="text"
                           value={markup.text || ''}
-                          placeholder="Sin comentario..."
+                          placeholder="No comment..."
                           onChange={(e) => updateMarkup(markup.id, { text: e.target.value })}
                           className="w-full bg-transparent hover:bg-cad-dark/50 focus:bg-cad-dark px-1.5 py-0.5 rounded border border-transparent focus:border-cad-border text-xs text-gray-200 outline-none truncate"
                         />
@@ -860,19 +860,19 @@ export const MarkupsList: React.FC = () => {
                           className={`text-[11px] font-medium py-0.5 px-2 rounded border outline-none cursor-pointer ${statusInfo.bg} ${statusInfo.text} ${statusInfo.border}`}
                         >
                           <option value="pending" className="bg-cad-dark text-amber-300">
-                            Pendiente
+                            Pending
                           </option>
                           <option value="accepted" className="bg-cad-dark text-emerald-300">
-                            Aceptado
+                            Accepted
                           </option>
                           <option value="rejected" className="bg-cad-dark text-rose-300">
-                            Rechazado
+                            Rejected
                           </option>
                           <option value="completed" className="bg-cad-dark text-blue-300">
-                            Completado
+                            Completed
                           </option>
                           <option value="cancelled" className="bg-cad-dark text-zinc-400">
-                            Cancelado
+                            Cancelled
                           </option>
                         </select>
                       </td>
@@ -1012,7 +1012,7 @@ export const MarkupsList: React.FC = () => {
                             }
                           }}
                           className="p-1 text-gray-400 hover:text-blue-400 rounded transition-colors mr-1"
-                          title="Añadir a Tool Chest"
+                          title="Add to Tool Chest"
                           data-testid={`add-to-toolchest-btn-${markup.id}`}
                         >
                           <Briefcase size={13} />
@@ -1020,7 +1020,7 @@ export const MarkupsList: React.FC = () => {
                         <button
                           onClick={() => deleteMarkup(markup.id)}
                           className="p-1 text-gray-400 hover:text-rose-400 rounded transition-colors"
-                          title="Eliminar marca"
+                          title="Delete markup"
                         >
                           <Trash2 size={13} />
                         </button>
@@ -1033,20 +1033,20 @@ export const MarkupsList: React.FC = () => {
                 <tfoot className="bg-cad-subtle border-t border-cad-border text-gray-300 font-medium">
                   <tr data-testid="markups-totals-summary">
                     <td colSpan={9} className="py-1.5 px-3 text-xs">
-                      <span className="font-semibold text-cad-accent mr-2">Totales de Medición:</span>
+                      <span className="font-semibold text-cad-accent mr-2">Measurement totals:</span>
                       {measurementTotals.lengthSummary && (
                         <span className="mr-3">
-                          Longitud: <strong className="text-cad-strong font-mono">{measurementTotals.lengthSummary}</strong>
+                          Length: <strong className="text-cad-strong font-mono">{measurementTotals.lengthSummary}</strong>
                         </span>
                       )}
                       {measurementTotals.areaSummary && (
                         <span className="mr-3">
-                          Área: <strong className="text-cad-strong font-mono">{measurementTotals.areaSummary}</strong>
+                          Area: <strong className="text-cad-strong font-mono">{measurementTotals.areaSummary}</strong>
                         </span>
                       )}
                       {measurementTotals.totalCount > 0 && (
                         <span>
-                          Conteo: <strong className="text-cad-strong font-mono">{measurementTotals.totalCount}</strong>
+                          Count: <strong className="text-cad-strong font-mono">{measurementTotals.totalCount}</strong>
                         </span>
                       )}
                     </td>
@@ -1071,19 +1071,19 @@ export const MarkupsList: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-sm font-semibold text-cad-strong mb-3">
-              Crear Nueva Columna Personalizada
+              Create Custom Column
             </h3>
             <form onSubmit={handleCreateColumn} className="space-y-3">
               <div>
                 <label className="block text-gray-400 mb-1 font-medium">
-                  Nombre de la columna
+                  Column name
                 </label>
                 <input
                   type="text"
                   data-testid="column-name-input"
                   value={newColName}
                   onChange={(e) => setNewColName(e.target.value)}
-                  placeholder="ej. Longitud, Costo estimado, Categoría..."
+                  placeholder="e.g. Length, Estimated cost, Category..."
                   required
                   className="w-full px-2.5 py-1.5 bg-cad-dark border border-cad-border rounded text-gray-200 focus:outline-none focus:border-cad-accent"
                 />
@@ -1091,7 +1091,7 @@ export const MarkupsList: React.FC = () => {
 
               <div>
                 <label className="block text-gray-400 mb-1 font-medium">
-                  Tipo de columna
+                  Column type
                 </label>
                 <select
                   data-testid="column-type-select"
@@ -1103,10 +1103,10 @@ export const MarkupsList: React.FC = () => {
                 >
                   {CANONICAL_CUSTOM_COLUMN_TYPES.map((t) => (
                     <option key={t} value={t}>
-                      {t === 'text' && 'Texto (text)'}
-                      {t === 'number' && 'Número (number)'}
-                      {t === 'choice' && 'Opción / Desplegable (choice)'}
-                      {t === 'formula' && 'Calculada / Fórmula (formula)'}
+                      {t === 'text' && 'Text (text)'}
+                      {t === 'number' && 'Number (number)'}
+                      {t === 'choice' && 'Choice / Dropdown (choice)'}
+                      {t === 'formula' && 'Calculated / Formula (formula)'}
                     </option>
                   ))}
                 </select>
@@ -1131,7 +1131,7 @@ export const MarkupsList: React.FC = () => {
               {newColType === 'formula' && (
                 <div>
                   <label className="block text-gray-400 mb-1 font-medium">
-                    Expresión matemática
+                    Math expression
                   </label>
                   <input
                     type="text"
@@ -1152,7 +1152,7 @@ export const MarkupsList: React.FC = () => {
                   )}
                   {formulaValidation.ok && newColExpr.trim().length > 0 && (
                     <p className="text-emerald-400 text-[11px] mt-1">
-                      ✓ Expresión válida
+                      ✓ Valid expression
                     </p>
                   )}
                 </div>
@@ -1165,7 +1165,7 @@ export const MarkupsList: React.FC = () => {
                   onClick={() => setIsAddColumnModalOpen(false)}
                   className="px-3 py-1 bg-cad-hover text-gray-300 hover:text-cad-strong rounded transition-colors"
                 >
-                  Cancelar
+                  Cancel
                 </button>
                 <button
                   type="submit"
@@ -1176,7 +1176,7 @@ export const MarkupsList: React.FC = () => {
                   }
                   className="px-3 py-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded transition-colors"
                 >
-                  Guardar Columna
+                  Save Column
                 </button>
               </div>
             </form>
@@ -1197,13 +1197,12 @@ export const MarkupsList: React.FC = () => {
           >
             <h3 className="text-sm font-semibold text-rose-300 mb-2 flex items-center space-x-1.5">
               <AlertTriangle size={16} className="text-rose-400" />
-              <span>Eliminar Columna Personalizada</span>
+              <span>Delete Custom Column</span>
             </h3>
             <p className="text-gray-300 mb-4 leading-relaxed">
-              ¿Estás seguro de que deseas eliminar la columna{' '}
+              Are you sure you want to delete the column{' '}
               <strong className="text-cad-strong">"{columnToDelete.nombre}"</strong>?
-              Se eliminarán también todos los valores asociados en las marcas del
-              documento.
+              All values stored in this column for the document's markups will also be deleted.
             </p>
             <div className="flex justify-end space-x-2">
               <button
@@ -1211,7 +1210,7 @@ export const MarkupsList: React.FC = () => {
                 onClick={() => setColumnToDelete(null)}
                 className="px-3 py-1 bg-cad-hover text-gray-300 hover:text-cad-strong rounded transition-colors"
               >
-                Cancelar
+                Cancel
               </button>
               <button
                 data-testid="confirm-delete-column-btn"
@@ -1221,7 +1220,7 @@ export const MarkupsList: React.FC = () => {
                 }}
                 className="px-3 py-1 bg-rose-700 hover:bg-rose-600 text-white font-medium rounded transition-colors"
               >
-                Eliminar
+                Delete
               </button>
             </div>
           </div>
@@ -1249,7 +1248,7 @@ export const MarkupsList: React.FC = () => {
             className="w-full text-left px-3 py-1.5 hover:bg-cad-hover flex items-center space-x-2 text-gray-200 hover:text-cad-strong transition-colors cursor-pointer"
           >
             <Briefcase size={13} className="text-blue-400" />
-            <span>Añadir a Tool Chest</span>
+            <span>Add to Tool Chest</span>
           </button>
 
           <button
@@ -1263,12 +1262,12 @@ export const MarkupsList: React.FC = () => {
             {contextMenu.markup.locked ? (
               <>
                 <LockOpen size={13} className="text-amber-400" />
-                <span>Desbloquear marca</span>
+                <span>Unlock markup</span>
               </>
             ) : (
               <>
                 <Lock size={13} className="text-gray-400" />
-                <span>Bloquear marca</span>
+                <span>Lock markup</span>
               </>
             )}
           </button>
@@ -1277,16 +1276,16 @@ export const MarkupsList: React.FC = () => {
 
           {/* Sección de Estados Técnicos (P2-C.2) */}
           <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
-            Estado
+            Status
           </div>
 
           {(
             [
-              { status: 'pending', label: 'Pendiente', color: 'bg-amber-400' },
-              { status: 'accepted', label: 'Aceptado', color: 'bg-emerald-400' },
-              { status: 'rejected', label: 'Rechazado', color: 'bg-rose-400' },
-              { status: 'completed', label: 'Completado', color: 'bg-blue-400' },
-              { status: 'cancelled', label: 'Cancelado', color: 'bg-zinc-400' },
+              { status: 'pending', label: 'Pending', color: 'bg-amber-400' },
+              { status: 'accepted', label: 'Accepted', color: 'bg-emerald-400' },
+              { status: 'rejected', label: 'Rejected', color: 'bg-rose-400' },
+              { status: 'completed', label: 'Completed', color: 'bg-blue-400' },
+              { status: 'cancelled', label: 'Cancelled', color: 'bg-zinc-400' },
             ] as const
           ).map((item) => {
             const isCurrent = contextMenu.markup.status === item.status;

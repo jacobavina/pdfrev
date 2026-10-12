@@ -103,14 +103,14 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
 
     // 6. Verificar que la Lista de Marcas (MarkupsList) muestra las columnas funcionales
     const markupsPanel = page.locator('[data-testid="markups-list-panel"]');
-    await expect(markupsPanel).toContainText('Lista de Marcas');
+    await expect(markupsPanel).toContainText('Markups List');
 
     // 7. Verificar sincronización bidireccional: la fila de la marca de calibración
     const calibrationRow = page.locator('[data-testid="markup-row-calibration-markup-1"]');
     await expect(calibrationRow).toBeVisible();
     // Desde ADR-0017 la lista muestra el tipo en español
-    await expect(calibrationRow).toContainText('Rectángulo');
-    await expect(calibrationRow).toContainText('Ing. Estructural');
+    await expect(calibrationRow).toContainText('Rectangle');
+    await expect(calibrationRow).toContainText('Structural Eng.');
 
     // 8. Edición de estado en vivo desde la tabla
     const statusSelect = calibrationRow.locator('select');
@@ -123,7 +123,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(calibrationRow).toHaveClass(/bg-cad-accent/);
 
     // 10. Deshacer el cambio con el botón Undo
-    const undoButton = page.locator('button[title*="Deshacer"]');
+    const undoButton = page.locator('button[title*="Undo"]');
     await expect(undoButton).toBeEnabled();
     await undoButton.click();
     await expect(statusSelect).toHaveValue('pending');
@@ -138,7 +138,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
 
     // 1. Dibuja Círculo / Elipse
-    const circleBtn = page.locator('button[title*="Círculo / Elipse"]');
+    const circleBtn = page.locator('button[title*="Ellipse (O)"]');
     await circleBtn.click();
 
     const svgBox = await overlaySvg.boundingBox();
@@ -157,10 +157,10 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
 
     // Comprobar que aparece en la lista de marcas
     const markupsPanel = page.locator('[data-testid="markups-list-panel"]');
-    await expect(markupsPanel.locator('tbody')).toContainText('Elipse');
+    await expect(markupsPanel.locator('tbody')).toContainText('Ellipse');
 
     // 2. Dibuja Polígono con tecla Enter para cerrar (Criterio 3)
-    const polygonBtn = page.locator('button[title*="Polígono"]');
+    const polygonBtn = page.locator('button[title*="Polygon (P)"]');
     await polygonBtn.click();
 
     if (svgBox) {
@@ -173,7 +173,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     // Comprobar que existe un elemento <polygon> en el SVG overlay
     const polygonElem = overlaySvg.locator('polygon');
     await expect(polygonElem).toBeVisible();
-    await expect(markupsPanel.locator('tbody')).toContainText('Polígono');
+    await expect(markupsPanel.locator('tbody')).toContainText('Polygon');
 
     // 3. Validar tecla Escape para cancelar trazo en curso (Criterio 3)
     // Con polígono activo, hacer 2 clics y pulsar Escape -> debe descartarse
@@ -187,7 +187,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     expect(countAfter).toBe(countBefore);
 
     // 4. Sub-entregable 0.3: Verificar que el botón "Exportar PDF" está habilitado
-    const exportBtn = page.locator('button[title*="Exportar PDF"]');
+    const exportBtn = page.locator('button[title*="Export a vector PDF"]');
     await expect(exportBtn).toBeVisible();
     await expect(exportBtn).toBeEnabled();
   });
@@ -201,7 +201,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
 
     // Dibujar un rectángulo para asegurar que hay marcas en la exportación
-    const rectBtn = page.locator('button[title*="Rectángulo"]');
+    const rectBtn = page.locator('button[title*="Rectangle (R)"]');
     await rectBtn.click();
 
     const svgBox = await overlaySvg.boundingBox();
@@ -213,7 +213,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
       await page.mouse.up();
     }
 
-    const exportBtn = page.locator('button[title*="Exportar PDF"]');
+    const exportBtn = page.locator('button[title*="Export a vector PDF"]');
     await expect(exportBtn).toBeVisible();
     await expect(exportBtn).toBeEnabled();
 
@@ -222,7 +222,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await exportBtn.click();
     const download = await downloadPromise;
 
-    expect(download.suggestedFilename()).toContain('_con_marcas.pdf');
+    expect(download.suggestedFilename()).toContain('_markups.pdf');
   });
 
   test('Sub-entregable A.0: Selección, arrastre con umbral 4px, traslación 50px y reversión atómica con Ctrl+Z', async ({
@@ -234,7 +234,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
 
     // 1. Dibujar un rectángulo técnico de prueba
-    const rectBtn = page.locator('button[title*="Rectángulo"]');
+    const rectBtn = page.locator('button[title*="Rectangle (R)"]');
     await rectBtn.click();
 
     const svgBox = await overlaySvg.boundingBox();
@@ -265,7 +265,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const origX = parseFloat(initialXStr!);
 
     // 2. Cambiar a herramienta Seleccionar (V)
-    const selectBtn = page.locator('button[title*="Seleccionar"]');
+    const selectBtn = page.locator('button[title*="Select (V)"]');
     await selectBtn.click();
 
     // Punto sobre el borde del rectángulo para interactuar (hit-test de figura hueca)
@@ -342,7 +342,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const cloudPath = overlaySvg.locator('path[d*="C"]').last();
     await expect(cloudPath).toBeVisible();
 
-    const calloutText = overlaySvg.locator('text:has-text("Nota Cloud+")').last();
+    const calloutText = overlaySvg.locator('text:has-text("Cloud+ note")').last();
     await expect(calloutText).toBeVisible();
 
     // Guardar captura para verificación visual de la curvatura y flecha del abombamiento
@@ -352,11 +352,11 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
 
     // Comprobar que en la lista de marcas aparecen cloudPlus y callout
     const markupsPanel = page.locator('[data-testid="markups-list-panel"]');
-    await expect(markupsPanel.locator('tbody')).toContainText('Nube+');
-    await expect(markupsPanel.locator('tbody')).toContainText('Llamada');
+    await expect(markupsPanel.locator('tbody')).toContainText('Cloud+');
+    await expect(markupsPanel.locator('tbody')).toContainText('Callout');
 
     // 4. Cambiar a herramienta Seleccionar (V)
-    const selectBtn = page.locator('button[title*="Seleccionar"]');
+    const selectBtn = page.locator('button[title*="Select (V)"]');
     await selectBtn.click();
 
     // Guardar posición inicial del texto del callout
@@ -389,13 +389,13 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
 
     // 8. Borrado conjunto: pulsar Delete con el grupo seleccionado elimina nube y callout juntos
     await page.keyboard.press('Delete');
-    await expect(overlaySvg.locator('text:has-text("Nota Cloud+")')).toHaveCount(0);
+    await expect(overlaySvg.locator('text:has-text("Cloud+ note")')).toHaveCount(0);
 
     // 9. Deshacer el borrado con Ctrl+Z: un solo paso restaura el grupo completo
     await page.keyboard.press('Control+z');
-    await expect(overlaySvg.locator('text:has-text("Nota Cloud+")').last()).toBeVisible();
-    await expect(markupsPanel.locator('tbody')).toContainText('Nube+');
-    await expect(markupsPanel.locator('tbody')).toContainText('Llamada');
+    await expect(overlaySvg.locator('text:has-text("Cloud+ note")').last()).toBeVisible();
+    await expect(markupsPanel.locator('tbody')).toContainText('Cloud+');
+    await expect(markupsPanel.locator('tbody')).toContainText('Callout');
   });
 
   test('Sub-entregable A.2: Multiselección con Marquee por intersección, verificación de lista intacta, arrastre conjunto y undo atómico', async ({
@@ -414,7 +414,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     if (!svgBox) return;
 
     // 1. Dibujar 2 rectángulos separados
-    const rectBtn = page.locator('button[title*="Rectángulo"]');
+    const rectBtn = page.locator('button[title*="Rectangle (R)"]');
     await rectBtn.click();
 
     // Rectángulo 1: de (100, 100) a (180, 180)
@@ -440,7 +440,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const rect2 = rectGroups.nth(totalGroups - 1).locator('rect:not([data-testid="selection-bbox"])');
 
     // Cambiar a herramienta Seleccionar (V)
-    const selectBtn = page.locator('button[title*="Seleccionar"]');
+    const selectBtn = page.locator('button[title*="Select (V)"]');
     await selectBtn.click();
 
     // 2. Marquee por intersección desde zona vacía (50, 80) hasta (280, 150)
@@ -530,7 +530,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     if (!svgBox) return;
 
     // 1. Seleccionar herramienta Callout (Nota técnica con directriz)
-    const calloutBtn = page.locator('button[title*="directriz"]');
+    const calloutBtn = page.locator('button[title*="Callout (Q)"]');
     await calloutBtn.click();
 
     // 2. Crear Callout arrastrando en el lienzo:
@@ -563,10 +563,10 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(textElem).toContainText('Tubería de impulsión');
     const expandedBoxWidth = parseFloat((await calloutBox.getAttribute('width'))!);
     expect(expandedBoxWidth).toBeGreaterThan(initialBoxWidth);
-    await expect(markupsPanel.locator('tbody')).toContainText('Llamada');
+    await expect(markupsPanel.locator('tbody')).toContainText('Callout');
 
     // 5. Cambiar a herramienta Seleccionar (V)
-    const selectBtn = page.locator('button[title*="Seleccionar"]');
+    const selectBtn = page.locator('button[title*="Select (V)"]');
     await selectBtn.click();
 
     // El tirador de ancla del callout seleccionado debe estar visible
@@ -654,9 +654,9 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
 
-    const calloutBtn = page.locator('button[title*="directriz"]');
-    const zoomInBtn = page.locator('button[title*="Acercar"]');
-    const resetZoomBtn = page.locator('button[title*="Restablecer zoom"]');
+    const calloutBtn = page.locator('button[title*="Callout (Q)"]');
+    const zoomInBtn = page.locator('button[title="Zoom in (+)"]');
+    const resetZoomBtn = page.locator('button[title*="Reset zoom"]');
     await expect(resetZoomBtn).toHaveText('100%');
 
     const sampleText = 'VIGA ESTRUCTURAL B-12';
@@ -753,8 +753,8 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
 
-    const stickyBtn = page.locator('button[title*="Nota adhesiva"]');
-    const selectBtn = page.locator('button[title*="Seleccionar"]');
+    const stickyBtn = page.locator('button[title*="Note (N)"]');
+    const selectBtn = page.locator('button[title*="Select (V)"]');
     await expect(stickyBtn).toBeVisible();
 
     const popup = page.locator('[data-testid="sticky-note-popup"]');
@@ -882,14 +882,14 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     if (await textInput.count() > 0) {
       await textInput.focus();
       await page.keyboard.press('h');
-      const hlBtn = page.locator('button[title="Resaltador vectorial (H)"]');
+      const hlBtn = page.locator('button[title="Highlight (H)"]');
       await expect(hlBtn).not.toHaveClass(/bg-cad-accent/);
       await page.locator('header').click(); // Quitar foco
     }
 
     // 2. Atajo H activa la herramienta highlightVector
     await page.keyboard.press('h');
-    const hlBtn = page.locator('button[title="Resaltador vectorial (H)"]');
+    const hlBtn = page.locator('button[title="Highlight (H)"]');
     await expect(hlBtn).toHaveClass(/bg-cad-accent/);
 
     const svgBox = (await svgOverlay.boundingBox())!;
@@ -938,7 +938,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     // 6. Verificar presencia en MarkupsList con icono y tipo
     const tableRow = markupsPanel.locator('tbody tr').last();
     await expect(tableRow).toBeVisible();
-    await expect(tableRow.locator('td').nth(1)).toContainText('Marcador');
+    await expect(tableRow.locator('td').nth(1)).toContainText('Highlight');
 
     // 7. Deshacer y Rehacer atómicos (Ctrl+Z y Ctrl+Y)
     await page.keyboard.press('Control+z');
@@ -948,7 +948,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(initialGroups).toHaveCount(initialCount + 1);
 
     // 8. Selección y traslación con la herramienta V
-    const selectBtn = page.locator('button[title="Seleccionar (V)"]');
+    const selectBtn = page.locator('button[title="Select (V)"]');
     await selectBtn.click();
 
     // Clic en el centro del highlight para seleccionarlo
@@ -987,8 +987,8 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const titleSpan = textLayer.locator('span').filter({ hasText: 'PLANO DE PRUEBA' }).first();
     await expect(titleSpan).toBeVisible({ timeout: 15000 });
 
-    const textBtn = page.locator('button[title*="Resaltador de texto"]');
-    const vectorBtn = page.locator('button[title*="Resaltador vectorial"]');
+    const textBtn = page.locator('button[title*="Text Highlight"]');
+    const vectorBtn = page.locator('button[title*="Highlight (H)"]');
     await expect(textBtn).toBeVisible();
     await expect(vectorBtn).toBeVisible();
 
@@ -1041,7 +1041,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(markupsPanel).toHaveCSS('height', '200px');
     const newRow = markupsPanel.locator('tbody tr').last();
     await expect(newRow).toBeVisible();
-    await expect(newRow.locator('td').nth(1)).toContainText('Texto resaltado');
+    await expect(newRow.locator('td').nth(1)).toContainText('Text Highlight');
     const textInRow = await newRow.locator('input[type="text"]').inputValue();
     expect(textInRow).toContain('PLANO DE PRUEBA');
 
@@ -1057,11 +1057,11 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     expect(Math.abs(hlBox.height - spanBox.height)).toBeLessThanOrEqual(8);
 
     // 4. Escala 200% y --scale-factor (Condición 2)
-    const zoomInBtn = page.locator('button[title="Acercar (+)"]');
-    const resetZoomBtn = page.locator('button[title="Restablecer zoom a 100%"]');
+    const zoomInBtn = page.locator('button[title="Zoom in (+)"]');
+    const resetZoomBtn = page.locator('button[title="Reset zoom to 100%"]');
 
     // Colapsar panel lateral de páginas para dar amplitud horizontal completa al lienzo
-    const collapseThumbnailsBtn = page.locator('button[title="Colapsar panel"]');
+    const collapseThumbnailsBtn = page.locator('button[title="Collapse panel"]');
     await collapseThumbnailsBtn.click();
 
     // Aumentar zoom hasta 200% (4 pasos de 0.25)
@@ -1140,7 +1140,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     expect(createdMultiCount).toBeGreaterThanOrEqual(2);
 
     // Arrastre conjunto en modo selección de las marcas del grupo
-    const selectBtn = page.locator('button[title="Seleccionar (V)"]');
+    const selectBtn = page.locator('button[title="Select (V)"]');
     await selectBtn.click();
 
     const selBboxes = overlaySvg.locator('rect[data-testid="selection-bbox"]');
@@ -1169,7 +1169,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(initialGroups).toHaveCount(countAfterMulti);
 
     // 6. Página 3 (sin capa de texto) y aviso accesible (Condición 3 y 9)
-    const nextPageBtn = page.locator('button[title="Página siguiente"]');
+    const nextPageBtn = page.locator('button[title="Next page"]');
     await nextPageBtn.click(); // Página 2
     await nextPageBtn.click(); // Página 3
 
@@ -1188,7 +1188,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const toast = page.locator('[role="alert"]');
     await expect(toast).toBeVisible();
     await expect(toast).toHaveText(
-      'Esta página no contiene capa de texto seleccionable. Utilice el resaltador vectorial (H).'
+      'This page has no selectable text layer. Use the Highlight tool (H).'
     );
 
     // Clic en el lienzo con highlightText activo en página sin texto vuelve a disparar el aviso
@@ -1357,7 +1357,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const calibBox = (await calibRect.boundingBox())!;
 
     // Clic en herramienta de selección
-    const selectBtn = page.locator('button[title*="Seleccionar"]');
+    const selectBtn = page.locator('button[title*="Select (V)"]');
     await selectBtn.click();
 
     // Seleccionar primera marca y con Shift la segunda
@@ -1509,7 +1509,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     if (!svgBox) return;
 
     // 1. Dibujar dos rectángulos
-    const rectBtn = page.locator('button[title*="Rectángulo"]');
+    const rectBtn = page.locator('button[title*="Rectangle (R)"]');
     await rectBtn.click();
 
     // Rectángulo 1: (100, 100) a (180, 180)
@@ -1631,7 +1631,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     // 1. La marca inicial de calibración inicia seleccionada: verificar badge del inspector
     const badge = inspectorPanel.locator('[data-testid="selection-count-badge"]');
     await expect(badge).toBeVisible();
-    await expect(badge).toHaveText(/1 marca/);
+    await expect(badge).toHaveText(/1 markup/);
 
     // 2. Deseleccionar la marca desmarcando su checkbox en MarkupsList -> muestra mensaje vacío
     const rows = markupsPanel.locator('tbody tr');
@@ -1645,7 +1645,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     // 3. Volver a seleccionar haciendo clic en el checkbox -> reaparece el inspector con sus propiedades
     await rowCheckbox.click();
     await expect(badge).toBeVisible();
-    await expect(badge).toHaveText(/1 marca/);
+    await expect(badge).toHaveText(/1 markup/);
 
     const strokeWidthInput = inspectorPanel.locator('[data-testid="prop-stroke-width"]');
     await expect(strokeWidthInput).toBeVisible();
@@ -1695,7 +1695,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     expect(overflow!.sw).toBeLessThanOrEqual(overflow!.cw);
 
     // Los controles de la derecha (zoom) quedan dentro de la ventana
-    const zoomIn = page.locator('button[title="Acercar (+)"]');
+    const zoomIn = page.locator('button[title="Zoom in (+)"]');
     await expect(zoomIn).toBeVisible();
     const box = (await zoomIn.boundingBox())!;
     expect(box.x).toBeGreaterThanOrEqual(0);
@@ -1715,7 +1715,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
 
     // 1. Menú Medición → Área (la herramienta queda activa en la cinta)
     await page.locator('[data-testid="menu-medicion"]').click();
-    await page.getByRole('menuitem', { name: /^Área/ }).click();
+    await page.getByRole('menuitem', { name: /^Area/ }).click();
     await expect(page.locator('[data-testid="tool-measure-area"]')).toHaveAttribute('aria-pressed', 'true');
 
     // 2. Polígono de 4 vértices sobre zona libre de la página y cierre con Enter
@@ -1732,11 +1732,11 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
 
     // 3. La medición aparece en la lista (tipo en español) y en el panel de mediciones con perímetro
     const markupsPanel = page.locator('[data-testid="markups-list-panel"]');
-    await expect(markupsPanel.locator('tbody tr').filter({ hasText: 'Área' })).toHaveCount(1);
+    await expect(markupsPanel.locator('tbody tr').filter({ hasText: 'Area' })).toHaveCount(1);
     await page.locator('[data-testid="expand-measurements-btn"]').click();
     const areaTotal = page.locator('[data-testid="measurements-total-area"]');
     await expect(areaTotal).toContainText('mm²');
-    await expect(page.locator('[data-testid="measurements-totals"]')).toContainText('Perímetro');
+    await expect(page.locator('[data-testid="measurements-totals"]')).toContainText('Perimeter');
 
     // 4. Clic derecho sobre el borde izquierdo del rectángulo de control → menú contextual → Aceptado
     await page.locator('[data-testid="tool-select"]').click();
@@ -1744,7 +1744,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.mouse.click(edge.x, edge.y, { button: 'right' });
     const ctxMenu = page.locator('[data-testid="canvas-context-menu"]');
     await expect(ctxMenu).toBeVisible();
-    await expect(ctxMenu).toContainText('Rectángulo');
+    await expect(ctxMenu).toContainText('Rectangle');
     await page.locator('[data-testid="canvas-menu-status-accepted"]').click();
     await expect(ctxMenu).toHaveCount(0);
     await expect(
@@ -1753,10 +1753,10 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
 
     // 5. Panel Capas: ocultar la capa "Calibración" retira la marca del plano
     await page.locator('[data-testid="left-tab-layers"]').click();
-    await expect(page.locator('[data-testid="layers-panel"]')).toContainText('Calibración');
-    await page.locator('[data-testid="layer-toggle-Calibración"]').click();
+    await expect(page.locator('[data-testid="layers-panel"]')).toContainText('Calibration');
+    await page.locator('[data-testid="layer-toggle-Calibration"]').click();
     await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(0);
-    await page.locator('[data-testid="layer-toggle-Calibración"]').click();
+    await page.locator('[data-testid="layer-toggle-Calibration"]').click();
     await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
 
     // 6. Barra de estado: coordenadas del cursor sobre la página y tema oscuro
@@ -1795,7 +1795,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(arrowGroup.locator('line')).toHaveCount(1);
     await expect(arrowGroup.locator('polygon')).toHaveCount(1);
     await expect(
-      page.locator('[data-testid="markups-list-panel"] tbody tr').filter({ hasText: 'Línea' })
+      page.locator('[data-testid="markups-list-panel"] tbody tr').filter({ hasText: 'Line' })
     ).toHaveCount(1);
 
     // 2. Cinta: discontinua + círculo al inicio + flecha abierta al final → se reflejan en la marca nueva
@@ -1869,7 +1869,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const dimension = overlaySvg.locator('g[data-testid^="markup-dimension-"]');
     await expect(dimension).toHaveCount(1);
     await expect(dimension.locator('text')).toHaveText(/mm$/);
-    await expect(page.locator('[data-testid="markups-list-panel"] tbody tr').filter({ hasText: 'Cota' })).toHaveCount(1);
+    await expect(page.locator('[data-testid="markups-list-panel"] tbody tr').filter({ hasText: 'Dimension' })).toHaveCount(1);
 
     // 4. Nube: se dibuja, se selecciona y un punto de control la deforma; Ctrl+Z la devuelve
     await page.keyboard.press('Escape');

@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "REA · Revisión y medición de planos",
+        "title": "REA · Drawing Review & Takeoff",
         "width": 1440,
         "height": 900,
         "minWidth": 1024,

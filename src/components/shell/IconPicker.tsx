@@ -75,14 +75,14 @@ export function IconPicker<T extends string | number>({
         data-value={value === null ? '' : String(value)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label={`${title}: ${current?.label ?? 'varios'}`}
-        title={`${title}: ${current?.label ?? 'varios'}`}
+        aria-label={`${title}: ${current?.label ?? 'mixed'}`}
+        title={`${title}: ${current?.label ?? 'mixed'}`}
         onClick={() => setOpen((o) => !o)}
         className={`flex items-center gap-0.5 rounded border border-cad-border bg-cad-panel text-gray-200 hover:border-cad-accent focus:outline-none focus:border-cad-accent ${
           compact ? 'h-[20px] px-1' : 'h-7 px-1.5 w-full justify-between'
         }`}
       >
-        <span className="flex items-center">{value === null ? <span className="text-[11px] text-gray-400 px-1">— varios —</span> : renderIcon(value)}</span>
+        <span className="flex items-center">{value === null ? <span className="text-[11px] text-gray-400 px-1">— mixed —</span> : renderIcon(value)}</span>
         <ChevronDown size={11} className="text-gray-500 shrink-0" />
       </button>
       {open &&

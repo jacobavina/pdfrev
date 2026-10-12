@@ -23,7 +23,7 @@ export async function rotatePdfPage(
   const totalPages = pdfDoc.getPageCount();
 
   if (pageIndex < 0 || pageIndex >= totalPages) {
-    throw new Error(`Índice de página fuera de rango: ${pageIndex} (total: ${totalPages})`);
+    throw new Error(`Page index out of range: ${pageIndex} (total: ${totalPages})`);
   }
 
   const page = pdfDoc.getPage(pageIndex);
@@ -46,11 +46,11 @@ export async function deletePdfPage(
   const totalPages = pdfDoc.getPageCount();
 
   if (totalPages <= 1) {
-    throw new Error('No es posible eliminar la única página del documento.');
+    throw new Error('The only page of the document cannot be deleted.');
   }
 
   if (pageIndex < 0 || pageIndex >= totalPages) {
-    throw new Error(`Índice de página fuera de rango: ${pageIndex} (total: ${totalPages})`);
+    throw new Error(`Page index out of range: ${pageIndex} (total: ${totalPages})`);
   }
 
   pdfDoc.removePage(pageIndex);
@@ -101,7 +101,7 @@ export async function extractPdfPage(
   const totalPages = srcDoc.getPageCount();
 
   if (pageIndex < 0 || pageIndex >= totalPages) {
-    throw new Error(`Índice de página fuera de rango: ${pageIndex} (total: ${totalPages})`);
+    throw new Error(`Page index out of range: ${pageIndex} (total: ${totalPages})`);
   }
 
   const destDoc = await PDFDocument.create();

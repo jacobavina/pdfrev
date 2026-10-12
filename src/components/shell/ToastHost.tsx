@@ -27,8 +27,8 @@ export const ToastHost: React.FC = () => {
       <button
         onClick={() => setToastMessage(null)}
         className="p-1 hover:text-white text-red-200 rounded ml-2"
-        title="Cerrar aviso"
-        aria-label="Cerrar aviso"
+        title="Dismiss"
+        aria-label="Dismiss"
       >
         <X size={14} />
       </button>

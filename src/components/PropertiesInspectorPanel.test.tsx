@@ -17,7 +17,7 @@ describe('PropertiesInspectorPanel (P2-C.6 / ADR-0012)', () => {
     const panel = screen.getByTestId('properties-inspector-panel');
     expect(panel).toBeInTheDocument();
     const emptyMsg = screen.getByTestId('properties-empty-message');
-    expect(emptyMsg).toHaveTextContent(/selecciona una o más marcas/i);
+    expect(emptyMsg).toHaveTextContent(/select one or more markups/i);
   });
 
   it('muestra las propiedades exactas de una única marca seleccionada', () => {
@@ -46,7 +46,7 @@ describe('PropertiesInspectorPanel (P2-C.6 / ADR-0012)', () => {
 
     render(<PropertiesInspectorPanel />);
 
-    expect(screen.getByTestId('selection-count-badge')).toHaveTextContent('1 marca');
+    expect(screen.getByTestId('selection-count-badge')).toHaveTextContent('1 markup');
     expect(screen.getByTestId('prop-stroke-color')).toHaveValue('#ff0000');
     expect(screen.getByTestId('prop-stroke-width')).toHaveValue(3);
     expect(screen.getByTestId('prop-status')).toHaveValue('pending');
@@ -88,7 +88,7 @@ describe('PropertiesInspectorPanel (P2-C.6 / ADR-0012)', () => {
 
     render(<PropertiesInspectorPanel />);
 
-    expect(screen.getByTestId('selection-count-badge')).toHaveTextContent('2 marcas');
+    expect(screen.getByTestId('selection-count-badge')).toHaveTextContent('2 markups');
 
     // Grosor difiere: input numérico debe tener placeholder '—'
     const strokeWidthInput = screen.getByTestId('prop-stroke-width');

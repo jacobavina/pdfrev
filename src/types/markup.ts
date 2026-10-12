@@ -238,7 +238,7 @@ export interface BbxMigrationResult {
  */
 export function migrateBbxDocument(raw: unknown): BbxMigrationResult {
   if (!raw || typeof raw !== 'object') {
-    throw new Error('Formato .bbx.json inválido: se esperaba un objeto JSON');
+    throw new Error('Invalid .bbx.json format: a JSON object was expected');
   }
 
   const obj = raw as Record<string, unknown>;
@@ -248,7 +248,7 @@ export function migrateBbxDocument(raw: unknown): BbxMigrationResult {
   const version = typeof obj.version === 'string' ? obj.version : '1.0.0';
   if (version !== '1.0.0' && version !== '1.1.0') {
     throw new Error(
-      `Archivo creado por una versión más reciente o incompatible de la aplicación (v${version})`
+      `File created by a newer or incompatible version of the application (v${version})`
     );
   }
 
@@ -262,14 +262,14 @@ export function migrateBbxDocument(raw: unknown): BbxMigrationResult {
   let customColumns: BbxCustomColumn[] | undefined;
   if ('customColumns' in obj && obj.customColumns !== undefined) {
     if (!Array.isArray(obj.customColumns)) {
-      warnings.push('El campo "customColumns" no es un arreglo válido; se descarta');
+      warnings.push('The "customColumns" field is not a valid array; discarded');
     } else {
       const validCols: BbxCustomColumn[] = [];
       let limitExceeded = false;
       for (let i = 0; i < obj.customColumns.length; i++) {
         const col = obj.customColumns[i];
         if (!col || typeof col !== 'object' || Array.isArray(col)) {
-          warnings.push(`Columna personalizada en índice ${i} descartada: no es un objeto válido`);
+          warnings.push(`Custom column at index ${i} discarded: not a valid object`);
           continue;
         }
         const colObj = col as Record<string, unknown>;
@@ -278,18 +278,18 @@ export function migrateBbxDocument(raw: unknown): BbxMigrationResult {
         const tipoRaw = typeof colObj.tipo === 'string' ? colObj.tipo.trim() : '';
 
         if (!id || id.length > 100 || id === '__proto__' || id === 'constructor' || id === 'prototype') {
-          warnings.push(`Columna personalizada en índice ${i} descartada: "id" inválido o no seguro`);
+          warnings.push(`Custom column at index ${i} discarded: invalid or unsafe "id"`);
           continue;
         }
 
         if (!nombre || nombre.length > 100) {
-          warnings.push(`Columna personalizada "${id}" descartada: "nombre" inválido o excede longitud`);
+          warnings.push(`Custom column "${id}" discarded: invalid "nombre" or too long`);
           continue;
         }
 
         const normalizedTipo = CUSTOM_COLUMN_TYPE_ALIASES[tipoRaw.toLowerCase()];
         if (!normalizedTipo) {
-          warnings.push(`Columna personalizada "${id}" descartada: tipo desconocido "${tipoRaw}"`);
+          warnings.push(`Custom column "${id}" discarded: unknown type "${tipoRaw}"`);
           continue;
         }
 
@@ -319,7 +319,7 @@ export function migrateBbxDocument(raw: unknown): BbxMigrationResult {
 
       if (limitExceeded) {
         warnings.push(
-          `Se excedió el límite máximo de columnas personalizadas (${MAX_CUSTOM_COLUMNS}); se conservan las primeras ${MAX_CUSTOM_COLUMNS}`
+          `Custom column limit exceeded (${MAX_CUSTOM_COLUMNS}); keeping the first ${MAX_CUSTOM_COLUMNS}`
         );
       }
 
@@ -333,7 +333,7 @@ export function migrateBbxDocument(raw: unknown): BbxMigrationResult {
 
   const rawMarkups = Array.isArray(obj.markups) ? obj.markups : [];
   if ('markups' in obj && !Array.isArray(obj.markups)) {
-    warnings.push('El campo "markups" no es un arreglo válido; se inicializa como vacío');
+    warnings.push('The "markups" field is not a valid array; initialized as empty');
   }
 
   const markups: Markup[] = rawMarkups.map((m: unknown, idx: number) => {
@@ -348,7 +348,7 @@ export function migrateBbxDocument(raw: unknown): BbxMigrationResult {
     } else {
       type = 'rectangle';
       warnings.push(
-        `Tipo de marca desconocido "${itemType || String(item.type)}" degradado a "rectangle" en marca "${markupId}"`
+        `Unknown markup type "${itemType || String(item.type)}" downgraded to "rectangle" in markup "${markupId}"`
       );
     }
 
@@ -360,7 +360,7 @@ export function migrateBbxDocument(raw: unknown): BbxMigrationResult {
     } else {
       status = 'pending';
       warnings.push(
-        `Estado de marca desconocido "${itemStatus || String(item.status)}" degradado a "pending" en marca "${markupId}"`
+        `Unknown markup status "${itemStatus || String(item.status)}" downgraded to "pending" in markup "${markupId}"`
       );
     }
 
@@ -390,7 +390,7 @@ export function migrateBbxDocument(raw: unknown): BbxMigrationResult {
     if ('customFields' in item && item.customFields !== undefined && item.customFields !== null) {
       if (typeof item.customFields !== 'object' || Array.isArray(item.customFields)) {
         warnings.push(
-          `customFields en marca "${markupId}" no es un objeto válido; descartado`
+          `customFields in markup "${markupId}" is not a valid object; discarded`
         );
       } else {
         const rawEntries = Object.entries(item.customFields as Record<string, unknown>);
@@ -400,13 +400,13 @@ export function migrateBbxDocument(raw: unknown): BbxMigrationResult {
         for (const [k, v] of rawEntries) {
           if (k === '__proto__' || k === 'constructor' || k === 'prototype') {
             warnings.push(
-              `Clave prohibida "${k}" en customFields descartada en marca "${markupId}"`
+              `Forbidden key "${k}" in customFields discarded in markup "${markupId}"`
             );
             continue;
           }
           if (k.length === 0 || k.length > 100) {
             warnings.push(
-              `Clave de customFields excede longitud permitida (1-100 caracteres) en marca "${markupId}"`
+              `customFields key exceeds the allowed length (1-100 characters) in markup "${markupId}"`
             );
             continue;
           }
@@ -417,7 +417,7 @@ export function migrateBbxDocument(raw: unknown): BbxMigrationResult {
               validVal = v;
             } else {
               warnings.push(
-                `Valor numérico no finito para campo "${k}" descartado en marca "${markupId}"`
+                `Non-finite numeric value for field "${k}" discarded in markup "${markupId}"`
               );
             }
           } else if (typeof v === 'string') {
@@ -425,12 +425,12 @@ export function migrateBbxDocument(raw: unknown): BbxMigrationResult {
               validVal = v;
             } else {
               warnings.push(
-                `Valor de cadena para campo "${k}" excede longitud permitida en marca "${markupId}"`
+                `String value for field "${k}" exceeds the allowed length in markup "${markupId}"`
               );
             }
           } else {
             warnings.push(
-              `Tipo de dato no permitido (${typeof v}) para campo "${k}" descartado en marca "${markupId}"`
+              `Data type not allowed (${typeof v}) for field "${k}" discarded in markup "${markupId}"`
             );
           }
 
@@ -446,7 +446,7 @@ export function migrateBbxDocument(raw: unknown): BbxMigrationResult {
 
         if (fieldsLimitExceeded) {
           warnings.push(
-            `Se excedió el límite de campos personalizados por marca (${MAX_CUSTOM_FIELDS_PER_MARKUP}) en marca "${markupId}"; se conservan los primeros ${MAX_CUSTOM_FIELDS_PER_MARKUP}`
+            `Custom fields limit per markup exceeded (${MAX_CUSTOM_FIELDS_PER_MARKUP}) in markup "${markupId}"; keeping the first ${MAX_CUSTOM_FIELDS_PER_MARKUP}`
           );
         }
 

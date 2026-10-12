@@ -87,7 +87,7 @@ describe('P2-C.3: evaluador de columnas calculadas, dependencias y ciclos', () =
     expect(res.ok).toBe(false);
     if (!res.ok) {
       expect(res.error).toBe('REF');
-      expect(res.message).toContain('Valor faltante');
+      expect(res.message).toContain('Missing value');
     }
   });
 
@@ -102,7 +102,7 @@ describe('P2-C.3: evaluador de columnas calculadas, dependencias y ciclos', () =
     expect(res.ok).toBe(false);
     if (!res.ok) {
       expect(res.error).toBe('REF');
-      expect(res.message).toContain('no existe');
+      expect(res.message).toContain('does not exist');
     }
   });
 
@@ -117,7 +117,7 @@ describe('P2-C.3: evaluador de columnas calculadas, dependencias y ciclos', () =
     expect(res.ok).toBe(false);
     if (!res.ok) {
       expect(res.error).toBe('REF');
-      expect(res.message).toContain('no es de tipo numérico o fórmula');
+      expect(res.message).toContain('not numeric or formula');
     }
   });
 
@@ -132,7 +132,7 @@ describe('P2-C.3: evaluador de columnas calculadas, dependencias y ciclos', () =
     expect(res.ok).toBe(false);
     if (!res.ok) {
       expect(res.error).toBe('CYCLE');
-      expect(res.message).toContain('Dependencia circular');
+      expect(res.message).toContain('Circular dependency');
     }
   });
 
@@ -188,7 +188,7 @@ describe('P2-C.3: evaluador de columnas calculadas, dependencias y ciclos', () =
     expect(res.ok).toBe(false);
     if (!res.ok) {
       expect(res.error).toBe('DIV0');
-      expect(res.message).toBe('División por cero');
+      expect(res.message).toBe('Division by zero');
     }
   });
 

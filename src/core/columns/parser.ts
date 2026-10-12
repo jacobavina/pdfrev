@@ -77,7 +77,7 @@ function tokenize(input: string): { ok: true; tokens: Token[] } | { ok: false; c
         return {
           ok: false,
           code: 'UNCLOSED_COL_REF',
-          message: "Referencia a columna sin cerrar: falta '}'",
+          message: "Unclosed column reference: missing '}'",
           position: pos,
         };
       }
@@ -86,7 +86,7 @@ function tokenize(input: string): { ok: true; tokens: Token[] } | { ok: false; c
         return {
           ok: false,
           code: 'EMPTY_COL_REF',
-          message: 'Referencia a columna vacía entre llaves',
+          message: 'Empty column reference between braces',
           position: pos,
         };
       }
@@ -95,7 +95,7 @@ function tokenize(input: string): { ok: true; tokens: Token[] } | { ok: false; c
         return {
           ok: false,
           code: 'INVALID_COL_REF',
-          message: `Identificador de columna inválido: '${rawId}'`,
+          message: `Invalid column identifier: '${rawId}'`,
           position: pos,
         };
       }
@@ -116,7 +116,7 @@ function tokenize(input: string): { ok: true; tokens: Token[] } | { ok: false; c
           return {
             ok: false,
             code: 'INVALID_NUMBER',
-            message: 'Número decimal incompleto después del punto',
+            message: 'Incomplete decimal number after the point',
             position: pos,
           };
         }
@@ -130,7 +130,7 @@ function tokenize(input: string): { ok: true; tokens: Token[] } | { ok: false; c
         return {
           ok: false,
           code: 'INVALID_NUMBER_SUFFIX',
-          message: `Notación o sufijo no permitido en número en posición ${pos}`,
+          message: `Notation or suffix not allowed in number at position ${pos}`,
           position: pos,
         };
       }
@@ -161,7 +161,7 @@ function tokenize(input: string): { ok: true; tokens: Token[] } | { ok: false; c
         return {
           ok: false,
           code: 'UNKNOWN_IDENTIFIER',
-          message: `Identificador no permitido o desconocido: '${ident}'`,
+          message: `Unknown or not allowed identifier: '${ident}'`,
           position: start,
         };
       }
@@ -172,7 +172,7 @@ function tokenize(input: string): { ok: true; tokens: Token[] } | { ok: false; c
     return {
       ok: false,
       code: 'UNEXPECTED_CHAR',
-      message: `Carácter no permitido: '${ch}'`,
+      message: `Character not allowed: '${ch}'`,
       position: pos,
     };
   }
@@ -181,7 +181,7 @@ function tokenize(input: string): { ok: true; tokens: Token[] } | { ok: false; c
     return {
       ok: false,
       code: 'TOO_MANY_TOKENS',
-      message: `La expresión excede el límite de tokens permitidos (${MAX_TOKENS})`,
+      message: `The expression exceeds the token limit (${MAX_TOKENS})`,
       position: 0,
     };
   }
@@ -198,7 +198,7 @@ export function parseExpression(expression: string): ParseResult {
     return {
       ok: false,
       code: 'INVALID_INPUT',
-      message: 'La expresión debe ser una cadena de texto',
+      message: 'The expression must be a string',
       position: 0,
     };
   }
@@ -208,7 +208,7 @@ export function parseExpression(expression: string): ParseResult {
     return {
       ok: false,
       code: 'EMPTY',
-      message: 'La expresión no puede estar vacía',
+      message: 'The expression cannot be empty',
       position: 0,
     };
   }
@@ -217,7 +217,7 @@ export function parseExpression(expression: string): ParseResult {
     return {
       ok: false,
       code: 'TOO_LONG',
-      message: `La expresión excede el límite de ${MAX_EXPRESSION_LENGTH} caracteres`,
+      message: `The expression exceeds the limit of ${MAX_EXPRESSION_LENGTH} characters`,
       position: MAX_EXPRESSION_LENGTH,
     };
   }
@@ -262,7 +262,7 @@ export function parseExpression(expression: string): ParseResult {
       return {
         ok: false,
         code: 'DEPTH',
-        message: `La expresión excede el límite de anidación (máximo ${MAX_AST_DEPTH})`,
+        message: `The expression exceeds the nesting limit (maximum ${MAX_AST_DEPTH})`,
         position: current().position,
       };
     }
@@ -292,7 +292,7 @@ export function parseExpression(expression: string): ParseResult {
         return {
           ok: false,
           code: 'INVALID_NUMBER',
-          message: `Número no finito: '${tok.value}'`,
+          message: `Non-finite number: '${tok.value}'`,
           position: tok.position,
         };
       }
@@ -337,7 +337,7 @@ export function parseExpression(expression: string): ParseResult {
         return {
           ok: false,
           code: 'TOO_MANY_CALLS',
-          message: `La expresión excede el límite de llamadas a función (${MAX_FUNCTION_CALLS})`,
+          message: `The expression exceeds the function call limit (${MAX_FUNCTION_CALLS})`,
           position: funcTok.position,
         };
       }
@@ -346,7 +346,7 @@ export function parseExpression(expression: string): ParseResult {
         return {
           ok: false,
           code: 'EXPECTED_LPAREN',
-          message: `Se esperaba '(' después del nombre de la función '${funcTok.value}'`,
+          message: `Expected '(' after the function name '${funcTok.value}'`,
           position: current().position,
         };
       }
@@ -368,7 +368,7 @@ export function parseExpression(expression: string): ParseResult {
         return {
           ok: false,
           code: 'EXPECTED_RPAREN',
-          message: `Se esperaba ')' para cerrar la llamada a '${funcTok.value}'`,
+          message: `Expected ')' to close the call to '${funcTok.value}'`,
           position: current().position,
         };
       }
@@ -380,7 +380,7 @@ export function parseExpression(expression: string): ParseResult {
         return {
           ok: false,
           code: 'INVALID_ARITY',
-          message: `La función 'abs' requiere exactamente 1 argumento (${args.length} proporcionados)`,
+          message: `Function 'abs' requires exactly 1 argument (${args.length} given)`,
           position: funcTok.position,
         };
       }
@@ -388,7 +388,7 @@ export function parseExpression(expression: string): ParseResult {
         return {
           ok: false,
           code: 'INVALID_ARITY',
-          message: `La función 'round' requiere 1 o 2 argumentos (${args.length} proporcionados)`,
+          message: `Function 'round' requires 1 or 2 arguments (${args.length} given)`,
           position: funcTok.position,
         };
       }
@@ -396,7 +396,7 @@ export function parseExpression(expression: string): ParseResult {
         return {
           ok: false,
           code: 'INVALID_ARITY',
-          message: `La función '${funcName}' requiere al menos 1 argumento`,
+          message: `Function '${funcName}' requires at least 1 argument`,
           position: funcTok.position,
         };
       }
@@ -421,7 +421,7 @@ export function parseExpression(expression: string): ParseResult {
         return {
           ok: false,
           code: 'UNCLOSED_PAREN',
-          message: "Paréntesis de apertura sin cerrar: falta ')'",
+          message: "Unclosed opening parenthesis: missing ')'",
           position: parenPos,
         };
       }
@@ -442,7 +442,7 @@ export function parseExpression(expression: string): ParseResult {
       return {
         ok: false,
         code: 'DEPTH',
-        message: `La expresión excede el límite de anidación (máximo ${MAX_AST_DEPTH})`,
+        message: `The expression exceeds the nesting limit (maximum ${MAX_AST_DEPTH})`,
         position: current().position,
       };
     }
@@ -471,7 +471,7 @@ export function parseExpression(expression: string): ParseResult {
       return {
         ok: false,
         code: 'DEPTH',
-        message: `La expresión excede el límite de anidación (máximo ${MAX_AST_DEPTH})`,
+        message: `The expression exceeds the nesting limit (maximum ${MAX_AST_DEPTH})`,
         position: current().position,
       };
     }
@@ -504,7 +504,7 @@ export function parseExpression(expression: string): ParseResult {
     return {
       ok: false,
       code: 'TRAILING_TOKENS',
-      message: `Contenido inesperado tras finalizar la expresión: '${current().value || current().type}'`,
+      message: `Unexpected content after the end of the expression: '${current().value || current().type}'`,
       position: current().position,
     };
   }

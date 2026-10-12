@@ -70,7 +70,7 @@ describe('PdfViewer + barra de estado - Calibración e indicador de escala', () 
     });
 
     const indicator = screen.getByTestId('calibration-indicator');
-    expect(indicator).toHaveTextContent('Sin calibrar (escala de papel, mm)');
+    expect(indicator).toHaveTextContent('Scale not set (paper scale, mm)');
   });
 
   it('abre el modal de calibración del visor al pulsar el indicador de la barra de estado', async () => {
@@ -96,7 +96,7 @@ describe('PdfViewer + barra de estado - Calibración e indicador de escala', () 
     });
 
     const indicator = screen.getByTestId('calibration-indicator');
-    expect(indicator).toHaveTextContent('Sin calibrar');
+    expect(indicator).toHaveTextContent('Scale not set');
 
     // Calibrar página 0: 1 metro = 50 puntos (scale = 1/50 = 0.02)
     act(() => {
@@ -107,7 +107,7 @@ describe('PdfViewer + barra de estado - Calibración e indicador de escala', () 
       });
     });
 
-    expect(indicator).toHaveTextContent('Escala: 1 m = 50.0 pt');
+    expect(indicator).toHaveTextContent('Scale: 1 m = 50.0 pt');
   });
 });
 
@@ -206,7 +206,7 @@ describe('PdfViewer - Área por polígono, capas ocultas y menú contextual (ADR
       fireEvent.contextMenu(svg, { clientX: 80, clientY: 180 });
     });
     expect(useMarkupStore.getState().selectedMarkupIds).toEqual(['m-ctx']);
-    expect(screen.getByTestId('canvas-context-menu')).toHaveTextContent('Rectángulo');
+    expect(screen.getByTestId('canvas-context-menu')).toHaveTextContent('Rectangle');
 
     act(() => {
       fireEvent.click(screen.getByTestId('canvas-menu-status-accepted'));

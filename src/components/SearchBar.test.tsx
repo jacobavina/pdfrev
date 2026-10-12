@@ -44,7 +44,7 @@ describe('SearchBar Component (Paquete 5)', () => {
 
     expect(screen.getByTestId('search-bar')).toBeInTheDocument();
     expect(screen.getByTestId('search-input')).toBeInTheDocument();
-    expect(screen.getByTestId('search-count')).toHaveTextContent('1 de 2');
+    expect(screen.getByTestId('search-count')).toHaveTextContent('1 of 2');
     expect(screen.getByTestId('search-prev-btn')).toBeInTheDocument();
     expect(screen.getByTestId('search-next-btn')).toBeInTheDocument();
     expect(screen.getByTestId('search-case-sensitive-toggle')).toBeInTheDocument();
@@ -60,7 +60,7 @@ describe('SearchBar Component (Paquete 5)', () => {
 
     expect(useSearchStore.getState().activeMatchIndex).toBe(1);
     expect(useDocumentStore.getState().currentPageIndex).toBe(1);
-    expect(screen.getByTestId('search-count')).toHaveTextContent('2 de 2');
+    expect(screen.getByTestId('search-count')).toHaveTextContent('2 of 2');
   });
 
   it('retrocede con el botón anterior', () => {

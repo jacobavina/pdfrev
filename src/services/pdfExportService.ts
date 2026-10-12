@@ -418,7 +418,7 @@ export async function exportMarkupsToPdf(
       msg.toLowerCase().includes('protected')
     ) {
       throw new Error(
-        'El documento PDF está protegido por contraseña o cifrado y no puede modificarse.'
+        'The PDF document is password-protected or encrypted and cannot be modified.'
       );
     }
     throw err;
@@ -764,7 +764,7 @@ export async function exportMarkupsToPdf(
             opacity: 0.95,
           });
 
-          const rawText = markup.text || 'Texto';
+          const rawText = markup.text || 'Text';
           const sanitized = sanitizeTextToWinAnsi(rawText);
           totalReplacedCharacters += sanitized.replacedCount;
 

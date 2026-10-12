@@ -80,7 +80,7 @@ export const Ribbon: React.FC = () => {
 
   const selectTool = (tool: ToolDefinition) => {
     if (TEXT_LAYER_TOOLS.includes(tool.type) && pageHasText[currentPageIndex] === false) {
-      showToast('Esta página no contiene capa de texto seleccionable. Puede trazar la marca manualmente.');
+      showToast('This page has no selectable text layer. You can draw the markup manually.');
     }
     setActiveTool(tool.type);
   };
@@ -90,23 +90,23 @@ export const Ribbon: React.FC = () => {
       data-testid="ribbon"
       className="h-[66px] min-w-0 bg-cad-ribbon border-b border-cad-border flex items-stretch overflow-x-auto overflow-y-hidden select-none z-20"
     >
-      <RibbonGroup label="Archivo">
+      <RibbonGroup label="File">
         <LargeButton
           icon={<FolderOpen size={20} className="text-cad-accent" />}
-          label="Abrir"
-          title="Abrir archivo PDF desde el disco"
+          label="Open"
+          title="Open a PDF file from disk"
           onClick={openPdfDialog}
         />
         <LargeButton
           testId="save-button"
           icon={<Save size={20} />}
-          label="Guardar"
+          label="Save"
           title={
             !filePath
-              ? 'Modo demostración (sin autoguardado). Abra un PDF para guardar.'
+              ? 'Demo mode (no autosave). Open a PDF to save.'
               : isDirty
-              ? 'Guardar las marcas en el PDF (Ctrl+S). El autoguardado cada 30 s solo escribe la copia de recuperación .bbx.json'
-              : 'Sin cambios pendientes'
+              ? 'Save markups to the PDF (Ctrl+S). Autosave every 30 s only writes the .bbx.json recovery copy'
+              : 'No pending changes'
           }
           onClick={() => saveNow()}
           disabled={!isDirty || !filePath}
@@ -114,32 +114,32 @@ export const Ribbon: React.FC = () => {
         />
         <LargeButton
           icon={<Download size={20} className="text-emerald-600 dark:text-emerald-400" />}
-          label="Exportar"
-          title="Exportar PDF vectorial con anotaciones incrustadas (H1)"
+          label="Export"
+          title="Export a vector PDF with flattened markups"
           onClick={exportFlattenedPdf}
           disabled={!pdfBytes}
         />
       </RibbonGroup>
 
-      <RibbonGroup label="Historial">
+      <RibbonGroup label="History">
         <div className="flex flex-col gap-0.5">
           <button
             type="button"
             onClick={undo}
             disabled={!canUndo}
-            title="Deshacer (Ctrl+Z)"
+            title="Undo (Ctrl+Z)"
             className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] text-gray-200 hover:bg-cad-hover disabled:opacity-35"
           >
-            <Undo2 size={15} /> Deshacer
+            <Undo2 size={15} /> Undo
           </button>
           <button
             type="button"
             onClick={redo}
             disabled={!canRedo}
-            title="Rehacer (Ctrl+Y)"
+            title="Redo (Ctrl+Y)"
             className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] text-gray-200 hover:bg-cad-hover disabled:opacity-35"
           >
-            <Redo2 size={15} /> Rehacer
+            <Redo2 size={15} /> Redo
           </button>
         </div>
       </RibbonGroup>
@@ -171,11 +171,11 @@ export const Ribbon: React.FC = () => {
         </RibbonGroup>
       ))}
 
-      <RibbonGroup label="Estilo (marcas nuevas)" testId="ribbon-group-style">
+      <RibbonGroup label="Style (new markups)" testId="ribbon-group-style">
         <div className="grid grid-cols-[auto_auto] gap-x-3 gap-y-1 items-center">
           {/* Fila 1: color de trazo y relleno */}
-          <div className="flex items-center gap-1" title="Color de trazo">
-            <span className="text-[10px] text-gray-500 w-9">Trazo</span>
+          <div className="flex items-center gap-1" title="Line color">
+            <span className="text-[10px] text-gray-500 w-9">Line</span>
             {STROKE_COLORS.map((c) => (
               <button
                 key={c}
@@ -191,13 +191,13 @@ export const Ribbon: React.FC = () => {
               />
             ))}
           </div>
-          <div className="flex items-center gap-1" title="Relleno de las formas cerradas">
-            <span className="text-[10px] text-gray-500 w-9">Relleno</span>
+          <div className="flex items-center gap-1" title="Fill for closed shapes">
+            <span className="text-[10px] text-gray-500 w-9">Fill</span>
             <button
               type="button"
               data-testid="ribbon-fill-none"
               onClick={() => setCurrentStyle({ fillColor: 'transparent' })}
-              title="Sin relleno"
+              title="No fill"
               className={`w-4 h-4 rounded-full border border-gray-500 bg-cad-ribbon relative overflow-hidden ${
                 !hasFill ? 'ring-2 ring-cad-accent ring-offset-1 ring-offset-cad-ribbon' : ''
               }`}
@@ -215,7 +215,7 @@ export const Ribbon: React.FC = () => {
                   className={`w-4 h-4 rounded-full border ${
                     currentStyle.fillColor === fill ? 'ring-2 ring-cad-accent ring-offset-1 ring-offset-cad-ribbon' : ''
                   }`}
-                  title={`Relleno translúcido: ${c}`}
+                  title={`Translucent fill: ${c}`}
                 />
               );
             })}
@@ -226,7 +226,7 @@ export const Ribbon: React.FC = () => {
             <IconPicker
               compact
               testId="ribbon-stroke-width"
-              title="Grosor de línea (pt)"
+              title="Line width (pt)"
               value={currentStyle.strokeWidth ?? 2}
               options={STROKE_WIDTHS.map((w) => ({ value: w, label: `${w} pt` }))}
               renderIcon={(w) => <StrokeWidthPreview width={w} />}
@@ -235,7 +235,7 @@ export const Ribbon: React.FC = () => {
             <IconPicker
               compact
               testId="ribbon-line-style"
-              title="Tipo de línea"
+              title="Line style"
               value={lineStyle}
               options={LINE_STYLE_OPTIONS}
               renderIcon={(id) => <LineStylePreview id={id} />}
@@ -244,7 +244,7 @@ export const Ribbon: React.FC = () => {
             <IconPicker
               compact
               testId="ribbon-line-start"
-              title="Extremo inicial (líneas, flechas y polilíneas)"
+              title="Start (lines, arrows and polylines)"
               value={currentStyle.lineEndingStart ?? 'none'}
               options={LINE_ENDING_OPTIONS}
               renderIcon={(id) => <LineEndingPreview ending={id} side="start" />}
@@ -253,7 +253,7 @@ export const Ribbon: React.FC = () => {
             <IconPicker
               compact
               testId="ribbon-line-end"
-              title="Extremo final (la herramienta Flecha usa flecha cerrada si es Ninguno)"
+              title="End (the Arrow tool uses a closed arrow when None)"
               value={currentStyle.lineEndingEnd ?? 'none'}
               options={LINE_ENDING_OPTIONS}
               renderIcon={(id) => <LineEndingPreview ending={id} side="end" />}
@@ -264,7 +264,7 @@ export const Ribbon: React.FC = () => {
               value={currentStyle.opacity ?? 1}
               onChange={(e) => setCurrentStyle({ opacity: Number(e.target.value) })}
               className={selectClass}
-              title="Opacidad"
+              title="Opacity"
             >
               {OPACITIES.map((o) => (
                 <option key={o} value={o}>

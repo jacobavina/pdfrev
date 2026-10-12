@@ -121,7 +121,7 @@ export const SearchBar: React.FC = () => {
     if (isSearching) return 'Buscando...';
     if (!query.trim()) return '';
     if (matches.length === 0) return '0 coincidencias';
-    return `${activeMatchIndex + 1} de ${matches.length}`;
+    return `${activeMatchIndex + 1} of ${matches.length}`;
   })();
 
   return (
@@ -137,7 +137,7 @@ export const SearchBar: React.FC = () => {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Buscar texto en plano..."
+        placeholder="Find text in drawing..."
         className="w-48 rounded border border-gray-600 bg-cad-dark px-2 py-1 text-xs text-cad-strong focus:border-blue-500 focus:outline-none"
       />
 
@@ -174,7 +174,7 @@ export const SearchBar: React.FC = () => {
           toggleCaseSensitive();
           executeSearch();
         }}
-        title="Distinguir mayúsculas y minúsculas"
+        title="Match case"
         className={`rounded p-1 transition-colors ${
           caseSensitive ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-cad-dark hover:text-white'
         }`}
@@ -203,7 +203,7 @@ export const SearchBar: React.FC = () => {
         type="button"
         data-testid="search-close-btn"
         onClick={() => setIsOpen(false)}
-        title="Cerrar búsqueda (Esc)"
+        title="Close search (Esc)"
         className="rounded p-1 text-gray-400 hover:bg-cad-dark hover:text-cad-strong"
       >
         <X size={14} />

@@ -97,7 +97,7 @@ describe('Export Service (P2-C.4)', () => {
       const lines = text.split('\r\n');
       expect(lines.length).toBe(4); // Cabecera + 2 filas + línea final vacía
       expect(lines[0]).toContain(
-        'Página,Tipo,Texto,Autor,Fecha,Estado,Color,Medida,Unidad,Presupuesto (€),Total Estimado'
+        'Page,Type,Comment,Author,Date,Status,Color,Measurement,Unit,Presupuesto (€),Total Estimado'
       );
     });
 

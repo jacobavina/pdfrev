@@ -99,12 +99,12 @@ export const App: React.FC = () => {
                 strokeWidth: 2,
                 opacity: 1,
               },
-              text: 'Revisión de dimensiones: Rectángulo de control verificado',
-              author: 'Ing. Estructural',
+              text: 'Dimension check: control rectangle verified',
+              author: 'Structural Eng.',
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
               status: 'pending',
-              layer: 'Calibración',
+              layer: 'Calibration',
             });
           }
         }

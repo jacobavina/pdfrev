@@ -26,8 +26,8 @@ export class UpdateMarkupPropertiesCommand implements Command {
     this.description =
       description ||
       (targets.length > 1
-        ? `Modificar propiedades de ${targets.length} marcas`
-        : 'Modificar propiedades de marca');
+        ? `Edit properties of ${targets.length} markups`
+        : 'Edit markup properties');
   }
 
   execute(): void {

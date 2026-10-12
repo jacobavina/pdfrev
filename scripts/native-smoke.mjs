@@ -483,7 +483,7 @@ try {
 
   // Activar herramienta Rectángulo
   const toolActivated = await executeSync(`
-    const btn = document.querySelector('button[title*="Rectángulo"]');
+    const btn = document.querySelector('button[title*="Rectangle (R)"]');
     if (btn) btn.click();
     return window.__REA_TEST_HOOKS__ ? window.__REA_TEST_HOOKS__.getActiveTool() : null;
   `);
@@ -551,15 +551,15 @@ try {
   if (!newMarkup || newMarkup.type !== 'rectangle') {
     throw new Error(`ASSERTION FAILED: El tipo de la marca creada no es 'rectangle': ${newMarkup?.type}`);
   }
-  if (newMarkup.author !== 'Revisor Técnico') {
-    throw new Error(`ASSERTION FAILED: El autor esperado era 'Revisor Técnico', se obtuvo: '${newMarkup.author}'`);
+  if (newMarkup.author !== 'Reviewer') {
+    throw new Error(`ASSERTION FAILED: El autor esperado era 'Reviewer', se obtuvo: '${newMarkup.author}'`);
   }
   console.log(`    ✓ Aserción superada: Conteo incrementó de ${countBefore} a ${markupsAfter.count} marcas.`);
   console.log(`    ✓ Marca creada: ID ${newMarkup.id}, Tipo '${newMarkup.type}', Autor '${newMarkup.author}'.`);
 
   // Activar herramienta Seleccionar
   const selectActivated = await executeSync(`
-    const btn = document.querySelector('button[title*="Seleccionar"]');
+    const btn = document.querySelector('button[title*="Select (V)"]');
     if (btn) btn.click();
     return window.__REA_TEST_HOOKS__ ? window.__REA_TEST_HOOKS__.getActiveTool() : null;
   `);

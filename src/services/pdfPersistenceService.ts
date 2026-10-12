@@ -22,11 +22,11 @@ export async function validateSavedPdf(
   markups: Markup[]
 ): Promise<void> {
   if (updatedBytes.length < originalBytes.length) {
-    throw new Error('Validación: el PDF guardado es más corto que el original');
+    throw new Error('Validation: the saved PDF is shorter than the original');
   }
   for (let i = 0; i < originalBytes.length; i++) {
     if (updatedBytes[i] !== originalBytes[i]) {
-      throw new Error('Validación: los bytes originales del PDF no se conservaron');
+      throw new Error('Validation: the original PDF bytes were not preserved');
     }
   }
   const [orig, saved] = await Promise.all([
@@ -34,7 +34,7 @@ export async function validateSavedPdf(
     PDFDocument.load(updatedBytes, { updateMetadata: false }),
   ]);
   if (orig.getPageCount() !== saved.getPageCount()) {
-    throw new Error('Validación: el número de páginas cambió al guardar');
+    throw new Error('Validation: the page count changed while saving');
   }
   const seen = new Map<string, number>();
   for (const page of saved.getPages()) {
@@ -51,7 +51,7 @@ export async function validateSavedPdf(
   for (const m of markups) {
     const n = seen.get(m.id) ?? 0;
     if (n !== 1) {
-      throw new Error(`Validación: la marca ${m.id} aparece ${n} veces en el PDF guardado`);
+      throw new Error(`Validation: markup ${m.id} appears ${n} times in the saved PDF`);
     }
   }
 }
@@ -94,7 +94,7 @@ export async function savePdfIncremental(
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[PDF Persistence] Error al guardar PDF incremental: ${message}`);
-    showToast(`Error al guardar PDF: ${message}`);
+    showToast(`Error saving PDF: ${message}`);
     return {
       success: false,
       error: message,

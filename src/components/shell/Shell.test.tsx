@@ -52,7 +52,7 @@ describe('Espacio de trabajo (ADR-0017)', () => {
       render(<MenuBar />);
       fireEvent.click(screen.getByTestId('menu-medicion'));
       expect(screen.getByTestId('menu-popup-medicion')).toBeInTheDocument();
-      fireEvent.click(screen.getByRole('menuitem', { name: /^Área/ }));
+      fireEvent.click(screen.getByRole('menuitem', { name: /^Area/ }));
       expect(useToolStore.getState().activeTool).toBe('area');
       expect(screen.queryByTestId('menu-popup-medicion')).toBeNull();
     });
@@ -87,9 +87,9 @@ describe('Espacio de trabajo (ADR-0017)', () => {
     it('muestra la página, el zoom y navega entre páginas', () => {
       render(<StatusBar />);
       expect(screen.getByTestId('page-indicator')).toHaveTextContent('1 / 3');
-      fireEvent.click(screen.getByTitle('Página siguiente'));
+      fireEvent.click(screen.getByTitle('Next page'));
       expect(useDocumentStore.getState().currentPageIndex).toBe(1);
-      expect(screen.getByTitle('Restablecer zoom a 100%')).toHaveTextContent('100%');
+      expect(screen.getByTitle('Reset zoom to 100%')).toHaveTextContent('100%');
     });
 
     it('convierte la posición del cursor a unidades reales según la calibración', () => {
@@ -111,7 +111,7 @@ describe('Espacio de trabajo (ADR-0017)', () => {
       fireEvent.click(screen.getByTestId('left-tab-layers'));
       const panel = screen.getByTestId('layers-panel');
       expect(panel).toHaveTextContent('Arquitectura');
-      expect(panel).toHaveTextContent('Sin capa');
+      expect(panel).toHaveTextContent('No layer');
 
       fireEvent.click(screen.getByTestId('layer-toggle-Arquitectura'));
       expect(useUiStore.getState().hiddenLayers).toEqual(['Arquitectura']);
@@ -142,8 +142,8 @@ describe('Espacio de trabajo (ADR-0017)', () => {
       render(<MeasurementsPanel defaultCollapsed={false} />);
       expect(screen.getByTestId('measurements-total-length')).toHaveTextContent('5.00 m');
       expect(screen.getByTestId('measurements-total-area')).toHaveTextContent('12.00 m²');
-      expect(screen.getByTestId('measurements-total-count')).toHaveTextContent('1 u');
-      expect(screen.getByTestId('measurements-totals')).toHaveTextContent('Perímetro');
+      expect(screen.getByTestId('measurements-total-count')).toHaveTextContent('1 ea');
+      expect(screen.getByTestId('measurements-totals')).toHaveTextContent('Perimeter');
 
       fireEvent.click(screen.getByTestId('measurements-scope-document'));
       expect(screen.getByTestId('measurements-total-length')).toHaveTextContent('105.00 m');

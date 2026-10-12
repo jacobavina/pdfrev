@@ -73,7 +73,7 @@ export function isAbsolutePath(p: string): boolean {
  */
 export function getBbxPath(pdfPath: string): string {
   if (!pdfPath || typeof pdfPath !== 'string') {
-    throw new Error('La ruta del archivo PDF no puede estar vacía');
+    throw new Error('The PDF file path cannot be empty');
   }
   const cleanPath = pdfPath.trim();
   if (cleanPath.toLowerCase().endsWith('.pdf')) {
@@ -123,8 +123,8 @@ export async function loadBbxForPdf(pdfPath: string | null): Promise<BbxMigratio
       return migrateBbxDocument(JSON.parse(content));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      notifyBbxError(`Error de E/S leyendo anotaciones: ${msg}`, 'read');
-      throw new Error(`Error al leer archivo BBX (${bbxPath}): ${msg}`);
+      notifyBbxError(`I/O error reading markups: ${msg}`, 'read');
+      throw new Error(`Error reading BBX file (${bbxPath}): ${msg}`);
     }
   } else {
     // Fallback para navegador web (localStorage)
@@ -137,7 +137,7 @@ export async function loadBbxForPdf(pdfPath: string | null): Promise<BbxMigratio
       return null;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      notifyBbxError(`Error leyendo de almacenamiento local: ${msg}`, 'read');
+      notifyBbxError(`Error reading local storage: ${msg}`, 'read');
       return null;
     }
   }
@@ -184,7 +184,7 @@ export async function saveBbxForPdf(
       return true;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      notifyBbxError(`Fallo al guardar archivo .bbx.json: ${msg}`, 'write');
+      notifyBbxError(`Failed to save .bbx.json file: ${msg}`, 'write');
       return false;
     }
   } else {
@@ -196,7 +196,7 @@ export async function saveBbxForPdf(
       return true;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      notifyBbxError(`Error guardando en almacenamiento local: ${msg}`, 'write');
+      notifyBbxError(`Error saving to local storage: ${msg}`, 'write');
       return false;
     }
   }

@@ -43,15 +43,15 @@ export function buildCsvContent(
 ): Uint8Array {
   // 1. Cabeceras base y columnas personalizadas
   const baseHeaders = [
-    'Página',
-    'Tipo',
-    'Texto',
-    'Autor',
-    'Fecha',
-    'Estado',
+    'Page',
+    'Type',
+    'Comment',
+    'Author',
+    'Date',
+    'Status',
     'Color',
-    'Medida',
-    'Unidad',
+    'Measurement',
+    'Unit',
   ];
   const customHeaders = customColumns.map((col) => col.nombre);
   const allHeaders = [...baseHeaders, ...customHeaders];
@@ -137,7 +137,7 @@ function aggregateCounts<T extends string>(
 ): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const m of markups) {
-    const key = keyExtractor(m) || 'Sin especificar';
+    const key = keyExtractor(m) || 'Unspecified';
     counts[key] = (counts[key] || 0) + 1;
   }
   return counts;
@@ -166,7 +166,7 @@ export async function buildPdfReportContent(
   let y = PAGE_HEIGHT - MARGIN;
 
   // Encabezado
-  page.drawText('Reporte Resumen de Marcas de Revisión', {
+  page.drawText('Markup Summary Report', {
     x: MARGIN,
     y: y - 18,
     size: 18,
@@ -175,7 +175,7 @@ export async function buildPdfReportContent(
   });
   y -= 26;
 
-  page.drawText(`Documento: ${docTitle}`, {
+  page.drawText(`Document: ${docTitle}`, {
     x: MARGIN,
     y: y - 12,
     size: 11,
@@ -185,7 +185,7 @@ export async function buildPdfReportContent(
   y -= 16;
 
   const dateStr = new Date().toISOString().replace('T', ' ').slice(0, 19);
-  page.drawText(`Fecha de emisión: ${dateStr}   |   Total de marcas analizadas: ${markups.length}`, {
+  page.drawText(`Issued: ${dateStr}   |   Markups analyzed: ${markups.length}`, {
     x: MARGIN,
     y: y - 10,
     size: 9,
@@ -204,7 +204,7 @@ export async function buildPdfReportContent(
   y -= 20;
 
   // Estadísticas agrupadas
-  page.drawText('Resumen Estadístico', {
+  page.drawText('Summary', {
     x: MARGIN,
     y,
     size: 13,
@@ -215,18 +215,18 @@ export async function buildPdfReportContent(
 
   const statusCounts = aggregateCounts(markups, (m) => m.status || 'None');
   const typeCounts = aggregateCounts(markups, (m) => m.type);
-  const authorCounts = aggregateCounts(markups, (m) => m.author || 'Anónimo');
+  const authorCounts = aggregateCounts(markups, (m) => m.author || 'Anonymous');
 
   const statsLines: string[] = [
-    `Estados: ` +
+    `Statuses: ` +
       Object.entries(statusCounts)
         .map(([k, v]) => `${k} (${v})`)
         .join('  •  '),
-    `Tipos: ` +
+    `Types: ` +
       Object.entries(typeCounts)
         .map(([k, v]) => `${k} (${v})`)
         .join('  •  '),
-    `Autores: ` +
+    `Authors: ` +
       Object.entries(authorCounts)
         .map(([k, v]) => `${k} (${v})`)
         .join('  •  '),
@@ -245,7 +245,7 @@ export async function buildPdfReportContent(
   y -= 15;
 
   // Tabla Detallada
-  page.drawText('Detalle de Marcas', {
+  page.drawText('Markup Details', {
     x: MARGIN,
     y,
     size: 13,
@@ -273,11 +273,11 @@ export async function buildPdfReportContent(
       color: rgb(0.92, 0.94, 0.96),
     });
     p.drawText('#', { x: colX.idx, y: currY, size: 9, font: fontBold, color: rgb(0.1, 0.1, 0.2) });
-    p.drawText('Pág', { x: colX.page, y: currY, size: 9, font: fontBold, color: rgb(0.1, 0.1, 0.2) });
-    p.drawText('Tipo', { x: colX.type, y: currY, size: 9, font: fontBold, color: rgb(0.1, 0.1, 0.2) });
-    p.drawText('Autor', { x: colX.author, y: currY, size: 9, font: fontBold, color: rgb(0.1, 0.1, 0.2) });
-    p.drawText('Estado', { x: colX.status, y: currY, size: 9, font: fontBold, color: rgb(0.1, 0.1, 0.2) });
-    p.drawText('Contenido / Nota', { x: colX.text, y: currY, size: 9, font: fontBold, color: rgb(0.1, 0.1, 0.2) });
+    p.drawText('Page', { x: colX.page, y: currY, size: 9, font: fontBold, color: rgb(0.1, 0.1, 0.2) });
+    p.drawText('Type', { x: colX.type, y: currY, size: 9, font: fontBold, color: rgb(0.1, 0.1, 0.2) });
+    p.drawText('Author', { x: colX.author, y: currY, size: 9, font: fontBold, color: rgb(0.1, 0.1, 0.2) });
+    p.drawText('Status', { x: colX.status, y: currY, size: 9, font: fontBold, color: rgb(0.1, 0.1, 0.2) });
+    p.drawText('Comment', { x: colX.text, y: currY, size: 9, font: fontBold, color: rgb(0.1, 0.1, 0.2) });
   };
 
   drawTableHeader(page, y);
@@ -323,7 +323,7 @@ export async function saveExportFileWithDialog(
   extension: 'csv' | 'pdf',
   bytes: Uint8Array
 ): Promise<boolean> {
-  const filterName = extension === 'csv' ? 'Archivo CSV (*.csv)' : 'Documento PDF (*.pdf)';
+  const filterName = extension === 'csv' ? 'CSV file (*.csv)' : 'PDF document (*.pdf)';
 
   try {
     if (isTauriEnvironment()) {
@@ -344,7 +344,7 @@ export async function saveExportFileWithDialog(
         bytes: Array.from(bytes),
       });
 
-      showToast(`Exportación guardada: ${selectedPath}`);
+      showToast(`Export saved: ${selectedPath}`);
       return true;
     } else {
       // Fallback navegador
@@ -358,12 +358,12 @@ export async function saveExportFileWithDialog(
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      showToast(`Exportación descargada: ${defaultName}`);
+      showToast(`Export downloaded: ${defaultName}`);
       return true;
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    showToast(`Error al guardar exportación: ${msg}`);
+    showToast(`Error saving export: ${msg}`);
     throw err;
   }
 }

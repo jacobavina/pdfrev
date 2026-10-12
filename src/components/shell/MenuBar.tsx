@@ -86,70 +86,70 @@ export const MenuBar: React.FC = () => {
   const menus: MenuDef[] = [
     {
       id: 'archivo',
-      label: 'Archivo',
+      label: 'File',
       entries: [
-        { label: 'Abrir PDF…', shortcut: 'Ctrl+O', onSelect: () => openPdfDialog(), testId: 'menu-open' },
+        { label: 'Open PDF…', shortcut: 'Ctrl+O', onSelect: () => openPdfDialog(), testId: 'menu-open' },
         {
-          label: 'Guardar en el PDF',
+          label: 'Save to PDF',
           shortcut: 'Ctrl+S',
           onSelect: () => saveNow(),
           disabled: !filePath || !isDirty,
           testId: 'menu-save',
         },
         'separator',
-        { label: 'Exportar PDF con marcas aplanadas…', onSelect: () => exportFlattenedPdf(), disabled: !hasDoc },
-        { label: 'Exportar lista de marcas (CSV)…', onSelect: () => requestExport('csv'), disabled: !hasDoc },
-        { label: 'Reporte resumen de marcas (PDF)…', onSelect: () => requestExport('report'), disabled: !hasDoc },
+        { label: 'Export PDF with Flattened Markups…', onSelect: () => exportFlattenedPdf(), disabled: !hasDoc },
+        { label: 'Export Markups List (CSV)…', onSelect: () => requestExport('csv'), disabled: !hasDoc },
+        { label: 'Markup Summary Report (PDF)…', onSelect: () => requestExport('report'), disabled: !hasDoc },
       ],
     },
     {
       id: 'editar',
-      label: 'Edición',
+      label: 'Edit',
       entries: [
-        { label: 'Deshacer', shortcut: 'Ctrl+Z', onSelect: undo, disabled: !canUndo },
-        { label: 'Rehacer', shortcut: 'Ctrl+Y', onSelect: redo, disabled: !canRedo },
+        { label: 'Undo', shortcut: 'Ctrl+Z', onSelect: undo, disabled: !canUndo },
+        { label: 'Redo', shortcut: 'Ctrl+Y', onSelect: redo, disabled: !canRedo },
         'separator',
-        { label: 'Copiar', shortcut: 'Ctrl+C', onSelect: () => useMarkupStore.getState().copySelectedMarkups(), disabled: !hasSelection },
+        { label: 'Copy', shortcut: 'Ctrl+C', onSelect: () => useMarkupStore.getState().copySelectedMarkups(), disabled: !hasSelection },
         {
-          label: 'Pegar',
+          label: 'Paste',
           shortcut: 'Ctrl+V',
           onSelect: () => useMarkupStore.getState().pasteMarkups(currentPageIndex),
           disabled: useMarkupStore.getState().clipboardMarkups.length === 0,
         },
-        { label: 'Duplicar', shortcut: 'Ctrl+D', onSelect: () => useMarkupStore.getState().duplicateSelectedMarkups(), disabled: !hasSelection },
-        { label: 'Bloquear / desbloquear', onSelect: () => useMarkupStore.getState().toggleLockSelectedMarkups(), disabled: !hasSelection },
-        { label: 'Eliminar', shortcut: 'Supr', onSelect: () => useMarkupStore.getState().deleteSelectedMarkups(), disabled: !hasSelection },
+        { label: 'Duplicate', shortcut: 'Ctrl+D', onSelect: () => useMarkupStore.getState().duplicateSelectedMarkups(), disabled: !hasSelection },
+        { label: 'Lock / Unlock', onSelect: () => useMarkupStore.getState().toggleLockSelectedMarkups(), disabled: !hasSelection },
+        { label: 'Delete', shortcut: 'Del', onSelect: () => useMarkupStore.getState().deleteSelectedMarkups(), disabled: !hasSelection },
         'separator',
-        { label: 'Seleccionar todo en la página', shortcut: 'Ctrl+A', onSelect: selectAllOnCurrentPage, disabled: !hasDoc },
+        { label: 'Select All on Page', shortcut: 'Ctrl+A', onSelect: selectAllOnCurrentPage, disabled: !hasDoc },
       ],
     },
     {
       id: 'ver',
-      label: 'Ver',
+      label: 'View',
       entries: [
-        { label: 'Acercar', shortcut: '+', onSelect: zoomIn, disabled: !hasDoc },
-        { label: 'Alejar', shortcut: '−', onSelect: zoomOut, disabled: !hasDoc },
-        { label: 'Ajustar a página', shortcut: 'Ctrl+0', onSelect: () => requestFit('page'), disabled: !hasDoc, testId: 'menu-fit-page' },
-        { label: 'Tamaño real (100 %)', shortcut: 'Ctrl+1', onSelect: resetZoom, disabled: !hasDoc },
-        { label: 'Ajustar al ancho', shortcut: 'Ctrl+2', onSelect: () => requestFit('width'), disabled: !hasDoc },
-        { label: 'Rotar vista 90°', onSelect: rotateClockwise, disabled: !hasDoc },
+        { label: 'Zoom In', shortcut: '+', onSelect: zoomIn, disabled: !hasDoc },
+        { label: 'Zoom Out', shortcut: '−', onSelect: zoomOut, disabled: !hasDoc },
+        { label: 'Fit Page', shortcut: 'Ctrl+0', onSelect: () => requestFit('page'), disabled: !hasDoc, testId: 'menu-fit-page' },
+        { label: 'Actual Size (100%)', shortcut: 'Ctrl+1', onSelect: resetZoom, disabled: !hasDoc },
+        { label: 'Fit Width', shortcut: 'Ctrl+2', onSelect: () => requestFit('width'), disabled: !hasDoc },
+        { label: 'Rotate View 90°', onSelect: rotateClockwise, disabled: !hasDoc },
         'separator',
-        { label: 'Página única', checked: viewMode === 'single', onSelect: () => setViewMode('single') },
-        { label: 'Continua', checked: viewMode === 'continuous', onSelect: () => setViewMode('continuous'), testId: 'menu-view-continuous' },
+        { label: 'Single Page', checked: viewMode === 'single', onSelect: () => setViewMode('single') },
+        { label: 'Continuous', checked: viewMode === 'continuous', onSelect: () => setViewMode('continuous'), testId: 'menu-view-continuous' },
         'separator',
-        { label: 'Panel de páginas', onSelect: () => setLeftTab('pages') },
-        { label: 'Panel de marcadores', onSelect: () => setLeftTab('bookmarks') },
-        { label: 'Panel de capas', onSelect: () => setLeftTab('layers') },
-        { label: 'Panel de propiedades', onSelect: requestPropertiesPanel },
-        { label: 'Panel de mediciones', onSelect: requestMeasurementsPanel },
+        { label: 'Thumbnails Panel', onSelect: () => setLeftTab('pages') },
+        { label: 'Bookmarks Panel', onSelect: () => setLeftTab('bookmarks') },
+        { label: 'Layers Panel', onSelect: () => setLeftTab('layers') },
+        { label: 'Properties Panel', onSelect: requestPropertiesPanel },
+        { label: 'Measurements Panel', onSelect: requestMeasurementsPanel },
         'separator',
         {
-          label: theme === 'dark' ? 'Tema claro' : 'Tema oscuro',
+          label: theme === 'dark' ? 'Light Theme' : 'Dark Theme',
           onSelect: toggleTheme,
           testId: 'menu-toggle-theme',
         },
         {
-          label: 'Usar el tema del sistema',
+          label: 'Use System Theme',
           checked: themeFollowsSystem,
           onSelect: followSystem,
           testId: 'menu-system-theme',
@@ -158,22 +158,22 @@ export const MenuBar: React.FC = () => {
     },
     {
       id: 'documento',
-      label: 'Documento',
+      label: 'Document',
       entries: [
-        { label: 'Página anterior', shortcut: 'Re Pág', onSelect: () => goToPage(-1), disabled: currentPageIndex <= 0 },
-        { label: 'Página siguiente', shortcut: 'Av Pág', onSelect: () => goToPage(1), disabled: currentPageIndex >= numPages - 1 },
+        { label: 'Previous Page', shortcut: 'PgUp', onSelect: () => goToPage(-1), disabled: currentPageIndex <= 0 },
+        { label: 'Next Page', shortcut: 'PgDn', onSelect: () => goToPage(1), disabled: currentPageIndex >= numPages - 1 },
         'separator',
-        { label: 'Insertar página en blanco después', onSelect: () => runPageOperation('insertBlank'), disabled: !hasDoc },
-        { label: 'Rotar página 90°', onSelect: () => runPageOperation('rotate'), disabled: !hasDoc },
-        { label: 'Extraer página…', onSelect: () => runPageOperation('extract'), disabled: !hasDoc },
-        { label: 'Eliminar página', onSelect: () => runPageOperation('delete'), disabled: !hasDoc || numPages <= 1 },
+        { label: 'Insert Blank Page After', onSelect: () => runPageOperation('insertBlank'), disabled: !hasDoc },
+        { label: 'Rotate Page 90°', onSelect: () => runPageOperation('rotate'), disabled: !hasDoc },
+        { label: 'Extract Page…', onSelect: () => runPageOperation('extract'), disabled: !hasDoc },
+        { label: 'Delete Page', onSelect: () => runPageOperation('delete'), disabled: !hasDoc || numPages <= 1 },
         'separator',
-        { label: 'Buscar texto…', shortcut: 'Ctrl+F', onSelect: () => useSearchStore.getState().setIsOpen(true), disabled: !hasDoc },
+        { label: 'Find Text…', shortcut: 'Ctrl+F', onSelect: () => useSearchStore.getState().setIsOpen(true), disabled: !hasDoc },
       ],
     },
     {
       id: 'marcado',
-      label: 'Marcado',
+      label: 'Markup',
       entries: TOOL_GROUPS.filter((g) => g.id !== 'measure').flatMap((g, i) => [
         ...(i > 0 ? (['separator'] as MenuEntry[]) : []),
         ...g.tools.map((t) => toolEntry(t.type, t.short, t.shortcut)),
@@ -181,29 +181,29 @@ export const MenuBar: React.FC = () => {
     },
     {
       id: 'medicion',
-      label: 'Medición',
+      label: 'Measure',
       entries: [
         {
-          label: 'Calibrar escala de la página…',
+          label: 'Calibrate Page Scale…',
           onSelect: () => {
             useCalibrationStore.getState().setPendingCalibrationPoints([]);
             useCalibrationStore.getState().setCalibrationModalOpen(true);
           },
           disabled: !hasDoc,
         },
-        { label: 'Calibrar con dos puntos', onSelect: () => setActiveTool('calibrate'), disabled: !hasDoc },
+        { label: 'Calibrate by Two Points', onSelect: () => setActiveTool('calibrate'), disabled: !hasDoc },
         'separator',
         ...(TOOL_GROUPS.find((g) => g.id === 'measure')?.tools ?? [])
           .filter((t) => t.type !== 'calibrate')
           .map((t) => toolEntry(t.type, t.short)),
         'separator',
-        { label: 'Panel de mediciones', onSelect: requestMeasurementsPanel },
+        { label: 'Measurements Panel', onSelect: requestMeasurementsPanel },
       ],
     },
     {
       id: 'ayuda',
-      label: 'Ayuda',
-      entries: [{ label: 'Atajos de teclado', shortcut: 'F1', onSelect: () => setShortcutsOpen(true) }],
+      label: 'Help',
+      entries: [{ label: 'Keyboard Shortcuts', shortcut: 'F1', onSelect: () => setShortcutsOpen(true) }],
     },
   ];
 
@@ -279,8 +279,8 @@ export const MenuBar: React.FC = () => {
             <FileText size={13} className="shrink-0" />
             <span className="truncate" title={filePath ?? fileName}>
               {fileName}
-              {!filePath && ' — demostración (sin guardado)'}
-              {filePath && isDirty && ' — cambios sin guardar'}
+              {!filePath && ' — demo (not saved)'}
+              {filePath && isDirty && ' — unsaved changes'}
             </span>
           </>
         )}
@@ -290,7 +290,7 @@ export const MenuBar: React.FC = () => {
         type="button"
         data-testid="theme-toggle-btn"
         onClick={toggleTheme}
-        title={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+        title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
         className="p-1 rounded hover:bg-cad-hover text-gray-400 hover:text-cad-strong shrink-0"
       >
         {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}

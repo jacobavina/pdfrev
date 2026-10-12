@@ -69,7 +69,7 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
             isActive ? 'text-blue-400 font-bold' : 'text-gray-400 group-hover:text-gray-200'
           }`}
         >
-          Pág. {pageIndex + 1}
+          Page {pageIndex + 1}
         </span>
         <div className="flex items-center space-x-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
@@ -80,7 +80,7 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
               const { executeRotatePage } = await import('../services/pageService');
               await executeRotatePage(pageIndex, 90);
             }}
-            title="Rotar página 90°"
+            title="Rotate page 90°"
             className="p-0.5 rounded text-gray-400 hover:text-cad-strong hover:bg-cad-subtle"
           >
             <RotateCw size={12} />
@@ -93,7 +93,7 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
               const { executeInsertBlankPage } = await import('../services/pageService');
               await executeInsertBlankPage(pageIndex + 1);
             }}
-            title="Insertar página en blanco después"
+            title="Insert blank page after"
             className="p-0.5 rounded text-gray-400 hover:text-cad-strong hover:bg-cad-subtle"
           >
             <PlusSquare size={12} />
@@ -106,7 +106,7 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
               const { executeExtractPage } = await import('../services/pageService');
               await executeExtractPage(pageIndex);
             }}
-            title="Extraer esta página"
+            title="Extract this page"
             className="p-0.5 rounded text-gray-400 hover:text-cad-strong hover:bg-cad-subtle"
           >
             <Download size={12} />
@@ -120,7 +120,7 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
                 const { executeDeletePage } = await import('../services/pageService');
                 await executeDeletePage(pageIndex);
               }}
-              title="Eliminar página"
+              title="Delete page"
               className="p-0.5 rounded text-gray-400 hover:text-red-400 hover:bg-cad-subtle"
             >
               <Trash2 size={12} />
@@ -151,7 +151,7 @@ export const ThumbnailsSidebar: React.FC = () => {
         {!isCollapsed && (
           <div className="flex items-center space-x-1.5">
             <Layers size={14} className="text-gray-400" />
-            <span>Páginas ({numPages})</span>
+            <span>Pages ({numPages})</span>
             <div className="flex items-center ml-2 space-x-1">
               <button
                 type="button"
@@ -160,7 +160,7 @@ export const ThumbnailsSidebar: React.FC = () => {
                   const { executeInsertBlankPage } = await import('../services/pageService');
                   await executeInsertBlankPage(numPages);
                 }}
-                title="Añadir página en blanco al final"
+                title="Add blank page at the end"
                 className="p-1 hover:text-cad-strong rounded hover:bg-cad-subtle text-gray-400"
               >
                 <PlusSquare size={13} />
@@ -172,7 +172,7 @@ export const ThumbnailsSidebar: React.FC = () => {
                   const { executeRotatePage } = await import('../services/pageService');
                   await executeRotatePage(currentPageIndex, 90);
                 }}
-                title="Rotar página activa 90°"
+                title="Rotate current page 90°"
                 className="p-1 hover:text-cad-strong rounded hover:bg-cad-subtle text-gray-400"
               >
                 <RotateCw size={13} />
@@ -183,7 +183,7 @@ export const ThumbnailsSidebar: React.FC = () => {
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="p-1 hover:text-cad-strong rounded hover:bg-cad-subtle ml-auto"
-          title={isCollapsed ? 'Expandir panel de páginas' : 'Colapsar panel'}
+          title={isCollapsed ? 'Expand thumbnails panel' : 'Collapse panel'}
         >
           {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>

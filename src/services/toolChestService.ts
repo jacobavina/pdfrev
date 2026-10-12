@@ -21,7 +21,7 @@ export const TOOLS_STORE = 'tools';
 export const RECENT_TOOLS_STORE = 'recentTools';
 
 export const DEFAULT_PALETTE_ID = 'default-palette';
-export const DEFAULT_PALETTE_NAME = 'Mis Herramientas';
+export const DEFAULT_PALETTE_NAME = 'My Tools';
 
 // In-memory fallback state
 let isPersistent = true;
@@ -175,7 +175,7 @@ async function getDB(): Promise<IDBDatabase | null> {
 
   if (!factory) {
     notifyToolChestError(
-      new Error('IndexedDB no está disponible en este entorno'),
+      new Error('IndexedDB is not available in this environment'),
       'unavailable'
     );
     return null;
@@ -187,7 +187,7 @@ async function getDB(): Promise<IDBDatabase | null> {
 
       request.onblocked = () => {
         notifyToolChestError(
-          new Error('La base de datos de Tool Chest está bloqueada'),
+          new Error('The Tool Chest database is blocked'),
           'blocked'
         );
       };
@@ -213,7 +213,7 @@ async function getDB(): Promise<IDBDatabase | null> {
       };
 
       request.onerror = () => {
-        const err = request.error || new Error('Fallo al abrir IndexedDB');
+        const err = request.error || new Error('Failed to open IndexedDB');
         notifyToolChestError(err, 'openError');
         resolve(null);
       };
@@ -307,14 +307,14 @@ export async function createPalette(
     try {
       const tx = db.transaction(PALETTES_STORE, 'readwrite');
       tx.onabort = () => {
-        const err = tx.error || new Error('Transacción abortada');
+        const err = tx.error || new Error('Transaction aborted');
         notifyToolChestError(
           err,
           err.name === 'QuotaExceededError' ? 'quotaExceeded' : 'transactionError'
         );
       };
       tx.onerror = () => {
-        const err = tx.error || new Error('Error en transacción');
+        const err = tx.error || new Error('Transaction error');
         notifyToolChestError(
           err,
           err.name === 'QuotaExceededError' ? 'quotaExceeded' : 'transactionError'
@@ -339,7 +339,7 @@ export async function updatePalette(
 ): Promise<ToolChestPalette> {
   const current = inMemoryPalettes.get(id);
   if (!current) {
-    throw new Error(`Paleta no encontrada: ${id}`);
+    throw new Error(`Palette not found: ${id}`);
   }
 
   const updated: ToolChestPalette = {
@@ -526,14 +526,14 @@ export async function createTool(
     try {
       const tx = db.transaction(TOOLS_STORE, 'readwrite');
       tx.onabort = () => {
-        const err = tx.error || new Error('Transacción abortada');
+        const err = tx.error || new Error('Transaction aborted');
         notifyToolChestError(
           err,
           err.name === 'QuotaExceededError' ? 'quotaExceeded' : 'transactionError'
         );
       };
       tx.onerror = () => {
-        const err = tx.error || new Error('Error en transacción');
+        const err = tx.error || new Error('Transaction error');
         notifyToolChestError(
           err,
           err.name === 'QuotaExceededError' ? 'quotaExceeded' : 'transactionError'
@@ -558,7 +558,7 @@ export async function updateTool(
 ): Promise<ToolChestTool> {
   const current = inMemoryTools.get(id);
   if (!current) {
-    throw new Error(`Herramienta no encontrada: ${id}`);
+    throw new Error(`Tool not found: ${id}`);
   }
 
   const updated: ToolChestTool = {
@@ -644,7 +644,7 @@ export async function moveToolToPalette(
 ): Promise<ToolChestTool> {
   const current = inMemoryTools.get(toolId);
   if (!current) {
-    throw new Error(`Herramienta no encontrada: ${toolId}`);
+    throw new Error(`Tool not found: ${toolId}`);
   }
 
   const toolsInTarget = Array.from(inMemoryTools.values()).filter(

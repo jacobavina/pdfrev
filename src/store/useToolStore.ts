@@ -25,7 +25,7 @@ export const useToolStore = create<ToolState>((set) => ({
     strokeWidth: 2,
     opacity: 1,
   },
-  author: 'Revisor Técnico',
+  author: 'Reviewer',
   activeLayer: 'Anotaciones',
 
   setActiveTool: (activeTool) => set({ activeTool }),

@@ -28,21 +28,21 @@ describe('summarizeMigrationWarnings (Z.2b)', () => {
   it('formatea correctamente 3 avisos sin coletilla de restantes', () => {
     const warnings = ['Aviso 1', 'Aviso 2', 'Aviso 3'];
     expect(summarizeMigrationWarnings(warnings)).toBe(
-      '3 avisos al abrir el documento: Aviso 1; Aviso 2; Aviso 3'
+      '3 warnings while opening the document: Aviso 1; Aviso 2; Aviso 3'
     );
   });
 
   it('formatea correctamente 10 avisos mostrando los 3 primeros y la coletilla con los 7 restantes', () => {
     const warnings = Array.from({ length: 10 }, (_, i) => `Problema ${i + 1}`);
     expect(summarizeMigrationWarnings(warnings)).toBe(
-      '10 avisos al abrir el documento: Problema 1; Problema 2; Problema 3 (y 7 más, ver consola)'
+      '10 warnings while opening the document: Problema 1; Problema 2; Problema 3 (and 7 more, see console)'
     );
   });
 
   it('acota avisos individuales excesivamente largos para no desbordar el toast', () => {
     const longWarning = 'X'.repeat(120);
     const summary = summarizeMigrationWarnings(['Aviso corto', longWarning]);
-    expect(summary).toContain('2 avisos al abrir el documento: Aviso corto; ');
+    expect(summary).toContain('2 warnings while opening the document: Aviso corto; ');
     expect(summary).toContain('...');
     expect(summary).not.toContain('X'.repeat(120));
   });
@@ -165,13 +165,13 @@ describe('fileDialogService - Carga de Documentos y Avisos BBX (Z.2 / Z.2b)', ()
 
       const mensajeToast = toastListener.mock.calls[0][0];
       // Menciona el total
-      expect(mensajeToast).toContain('5 avisos al abrir el documento');
+      expect(mensajeToast).toContain('5 warnings while opening the document');
       // Menciona los primeros avisos
       expect(mensajeToast).toContain('laser1');
       expect(mensajeToast).toContain('laser2');
       expect(mensajeToast).toContain('laser3');
       // Menciona el resto
-      expect(mensajeToast).toContain('(y 2 más, ver consola)');
+      expect(mensajeToast).toContain('(and 2 more, see console)');
 
       // Debe haber volcado todos a console.warn con prefijo [BBX]
       expect(warnSpy).toHaveBeenCalledTimes(5);

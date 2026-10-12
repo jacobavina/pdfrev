@@ -27,7 +27,7 @@ export function evaluateAst(
     return {
       ok: false,
       error: 'DEPTH',
-      message: `Profundidad de evaluación excedida (máximo ${MAX_AST_DEPTH})`,
+      message: `Evaluation depth exceeded (maximum ${MAX_AST_DEPTH})`,
     };
   }
 
@@ -37,7 +37,7 @@ export function evaluateAst(
         return {
           ok: false,
           error: 'OVERFLOW',
-          message: 'Magnitud numérica no permitida o no finita',
+          message: 'Numeric magnitude not allowed or not finite',
         };
       }
       return { ok: true, value: ast.value };
@@ -57,7 +57,7 @@ export function evaluateAst(
         return {
           ok: false,
           error: 'REF',
-          message: `El campo de marca '${ast.field}' no contiene un valor numérico finito`,
+          message: `Markup field '${ast.field}' does not contain a finite numeric value`,
         };
       }
 
@@ -65,7 +65,7 @@ export function evaluateAst(
         return {
           ok: false,
           error: 'OVERFLOW',
-          message: `El valor de '${ast.field}' excede la magnitud permitida`,
+          message: `The value of '${ast.field}' exceeds the allowed magnitude`,
         };
       }
 
@@ -92,7 +92,7 @@ export function evaluateAst(
         return {
           ok: false,
           error: 'REF',
-          message: `La columna referenciada '{${colId}}' no existe`,
+          message: `The referenced column '{${colId}}' does not exist`,
         };
       }
 
@@ -103,7 +103,7 @@ export function evaluateAst(
           return {
             ok: false,
             error: 'REF',
-            message: `Valor faltante en la columna numérica '{${colId}}'`,
+            message: `Missing value in numeric column '{${colId}}'`,
           };
         }
         const num = Number(rawVal);
@@ -111,14 +111,14 @@ export function evaluateAst(
           return {
             ok: false,
             error: 'NAN',
-            message: `El valor en '{${colId}}' no es un número válido`,
+            message: `The value in '{${colId}}' is not a valid number`,
           };
         }
         if (Math.abs(num) > MAX_MAGNITUDE) {
           return {
             ok: false,
             error: 'OVERFLOW',
-            message: `El valor en '{${colId}}' excede la magnitud admitida`,
+            message: `The value in '{${colId}}' exceeds the allowed magnitude`,
           };
         }
         return { ok: true, value: num };
@@ -131,7 +131,7 @@ export function evaluateAst(
           return {
             ok: false,
             error: 'CYCLE',
-            message: `Dependencia circular detectada al evaluar '{${colId}}'`,
+            message: `Circular dependency detected while evaluating '{${colId}}'`,
           };
         }
 
@@ -158,7 +158,7 @@ export function evaluateAst(
           const errRes: EvaluationResult = {
             ok: false,
             error: 'REF',
-            message: `La fórmula de la columna '{${colId}}' tiene errores de sintaxis`,
+            message: `The formula of column '{${colId}}' has syntax errors`,
           };
           context.valueCache.set(cacheKey, errRes);
           return errRes;
@@ -182,7 +182,7 @@ export function evaluateAst(
       return {
         ok: false,
         error: 'REF',
-        message: `La columna '{${colId}}' es de tipo '${colDef.tipo}' y no es de tipo numérico o fórmula`,
+        message: `Column '{${colId}}' is of type '${colDef.tipo}', not numeric or formula`,
       };
     }
 
@@ -212,7 +212,7 @@ export function evaluateAst(
             return {
               ok: false,
               error: 'DIV0',
-              message: 'División por cero',
+              message: 'Division by zero',
             };
           }
           res = a / b;
@@ -223,7 +223,7 @@ export function evaluateAst(
         return {
           ok: false,
           error: 'NAN',
-          message: 'Resultado no numérico (NaN)',
+          message: 'Non-numeric result (NaN)',
         };
       }
 
@@ -231,7 +231,7 @@ export function evaluateAst(
         return {
           ok: false,
           error: 'DIV0',
-          message: 'Resultado infinito no permitido',
+          message: 'Infinite result not allowed',
         };
       }
 
@@ -239,7 +239,7 @@ export function evaluateAst(
         return {
           ok: false,
           error: 'OVERFLOW',
-          message: 'Resultado excede el límite de magnitud permitido',
+          message: 'Result exceeds the allowed magnitude',
         };
       }
 
@@ -256,7 +256,7 @@ export function evaluateAst(
         return {
           ok: false,
           error: 'OVERFLOW',
-          message: 'Resultado unario excede la magnitud permitida',
+          message: 'Unary result exceeds the allowed magnitude',
         };
       }
 
@@ -295,7 +295,7 @@ export function evaluateAst(
         return {
           ok: false,
           error: 'NAN',
-          message: `La función '${ast.name}' produjo un resultado no numérico (NaN)`,
+          message: `Function '${ast.name}' produced a non-numeric result (NaN)`,
         };
       }
 
@@ -303,7 +303,7 @@ export function evaluateAst(
         return {
           ok: false,
           error: 'OVERFLOW',
-          message: `La función '${ast.name}' produjo un valor fuera de los límites permitidos`,
+          message: `Function '${ast.name}' produced a value out of the allowed range`,
         };
       }
 
@@ -325,7 +325,7 @@ export function evaluateColumnForMarkup(
     return {
       ok: false,
       error: 'REF',
-      message: `La columna '${column.nombre}' no es de tipo fórmula`,
+      message: `Column '${column.nombre}' is not a formula column`,
     };
   }
 
@@ -356,7 +356,7 @@ export function evaluateColumnForMarkup(
     return {
       ok: false,
       error: 'REF',
-      message: `Error de sintaxis en la expresión de la columna '${column.nombre}'`,
+      message: `Syntax error in the expression of column '${column.nombre}'`,
     };
   }
 

@@ -1132,7 +1132,7 @@ export function getMarkupSvgDescriptor(
               fontFamily: style.fontFamily || 'sans-serif',
               className: 'font-medium pointer-events-none',
             },
-            textNode: markup.text || 'Nota',
+            textNode: markup.text || 'Note',
           },
         ],
       };

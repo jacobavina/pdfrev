@@ -161,7 +161,7 @@ export async function importPdfAnnotations(
       const text = extractPdfStringValue(contentsObj);
 
       const authorObj = annotDict.get(PDFName.of('T'));
-      const author = extractPdfStringValue(authorObj) || 'Autor Externo';
+      const author = extractPdfStringValue(authorObj) || 'External author';
 
       // Colores y grosor
       const strokeColor = pdfColorArrayToHex(annotDict.get(PDFName.of('C'))) || '#000000';

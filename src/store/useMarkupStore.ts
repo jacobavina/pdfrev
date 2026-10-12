@@ -93,7 +93,7 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
     canRedo: false,
 
     addMarkup: (markup: Markup) => {
-      get().addMarkups([markup], `Añadir ${markup.type}`);
+      get().addMarkups([markup], `Add ${markup.type}`);
     },
 
     addMarkups: (newMarkups: Markup[], description?: string) => {
@@ -101,7 +101,7 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
       const ids = newMarkups.map((m) => m.id);
       const desc =
         description ||
-        (newMarkups.length === 1 ? `Añadir ${newMarkups[0].type}` : `Crear ${newMarkups.length} marcas`);
+        (newMarkups.length === 1 ? `Add ${newMarkups[0].type}` : `Create ${newMarkups.length} markups`);
 
       const command: Command = {
         description: desc,
@@ -230,8 +230,8 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
       const desc =
         description ||
         (targets.length === 1
-          ? `Aplicar propiedades a ${targets[0].type}`
-          : `Aplicar propiedades a ${targets.length} marcas`);
+          ? `Apply properties to ${targets[0].type}`
+          : `Apply properties to ${targets.length} markups`);
 
       const command: Command = {
         description: desc,
@@ -324,8 +324,8 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
       const now = new Date().toISOString();
       const desc =
         targets.length > 1
-          ? `Cambiar estado de grupo a ${status}`
-          : `Cambiar estado a ${status}`;
+          ? `Set group status to ${status}`
+          : `Set status to ${status}`;
 
       const command = new UpdateMarkupStatusCommand(
         targets,
@@ -361,7 +361,7 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
         ? get().markups.filter((m) => m.groupId === target.groupId && !m.locked)
         : [target];
       const targetIds = targetsToDelete.map((m) => m.id);
-      const desc = targetsToDelete.length > 1 ? 'Eliminar grupo' : `Eliminar ${target.type}`;
+      const desc = targetsToDelete.length > 1 ? 'Delete group' : `Delete ${target.type}`;
 
       const command: Command = {
         description: desc,
@@ -405,7 +405,7 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
       const targetIds = targets.map((m) => m.id);
 
       const command: Command = {
-        description: targets.length > 1 ? `Eliminar ${targets.length} marca(s)` : `Eliminar marca`,
+        description: targets.length > 1 ? `Delete ${targets.length} markup(s)` : `Delete markup`,
         execute: () => {
           set((state) => ({
             markups: state.markups.filter((m) => !targetIds.includes(m.id)),
@@ -492,7 +492,7 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
       });
       if (allowedMoves.length === 0) return;
 
-      const desc = allowedMoves.length === 1 ? 'Mover marca' : `Mover ${allowedMoves.length} marcas`;
+      const desc = allowedMoves.length === 1 ? 'Move markup' : `Move ${allowedMoves.length} markups`;
       const now = new Date().toISOString();
 
       const command: Command = {
@@ -537,7 +537,7 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
       syncHistoryFlags();
     },
 
-    reshapeMarkup: (id, before, after, description = 'Editar puntos de control') => {
+    reshapeMarkup: (id, before, after, description = 'Edit control points') => {
       const target = get().markups.find((m) => m.id === id);
       if (!target || target.locked) return;
       const apply = (patch: ReshapePatch) =>
@@ -578,7 +578,7 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
       const apply = (map: Map<string, Markup>) =>
         set((state) => ({ markups: state.markups.map((m) => map.get(m.id) ?? m), isDirty: true }));
       const command: Command = {
-        description: cloud ? 'Tipo de línea: nube' : 'Quitar estilo de nube',
+        description: cloud ? 'Line style: cloud' : 'Remove cloud style',
         execute: () => apply(after),
         undo: () => apply(before),
       };
@@ -648,7 +648,7 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
         };
       });
 
-      addMarkups(pasted, pasted.length === 1 ? `Pegar ${pasted[0].type}` : `Pegar ${pasted.length} marcas`);
+      addMarkups(pasted, pasted.length === 1 ? `Paste ${pasted[0].type}` : `Paste ${pasted.length} markups`);
     },
 
     duplicateSelectedMarkups: () => {
@@ -699,7 +699,7 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
 
       addMarkups(
         duplicated,
-        duplicated.length === 1 ? `Duplicar ${duplicated[0].type}` : `Duplicar ${duplicated.length} marcas`
+        duplicated.length === 1 ? `Duplicate ${duplicated[0].type}` : `Duplicate ${duplicated.length} markups`
       );
     },
 
@@ -722,10 +722,10 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
         description: targetLocked
           ? targets.length === 1
             ? `Bloquear ${targets[0].type}`
-            : `Bloquear ${targets.length} marcas`
+            : `Lock ${targets.length} markups`
           : targets.length === 1
           ? `Desbloquear ${targets[0].type}`
-          : `Desbloquear ${targets.length} marcas`,
+          : `Unlock ${targets.length} markups`,
         execute: () => {
           set((state) => ({
             markups: state.markups.map((m) => {

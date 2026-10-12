@@ -700,7 +700,7 @@ export const PdfViewer: React.FC = () => {
         e.preventDefault();
         if (pageHasText[currentPageIndex] === false) {
           showToast(
-            'Esta página no contiene capa de texto seleccionable. Utilice el resaltador vectorial (H).'
+            'This page has no selectable text layer. Use the Highlight tool (H).'
           );
         }
         useToolStore.getState().setActiveTool('highlightText');
@@ -877,7 +877,7 @@ export const PdfViewer: React.FC = () => {
       points: [...points],
       style,
       text: measurement ? measurement.formatted : undefined,
-      author: author || 'Revisor',
+      author: author || 'Reviewer',
       createdAt: now,
       updatedAt: now,
       status: 'pending',
@@ -994,7 +994,7 @@ export const PdfViewer: React.FC = () => {
           opacity: 1,
         },
         text: String(countIndex),
-        author: author || 'Revisor',
+        author: author || 'Reviewer',
         createdAt: now,
         updatedAt: now,
         status: 'pending',
@@ -1205,7 +1205,7 @@ export const PdfViewer: React.FC = () => {
           pageIndex: currentPageIndex,
           points: [...freehandPoints],
           style: { ...currentStyle },
-          author: author || 'Revisor',
+          author: author || 'Reviewer',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           status: 'pending',
@@ -1287,7 +1287,7 @@ export const PdfViewer: React.FC = () => {
           pageIndex: currentPageIndex,
           points: [drawingStart, currentDrawPoint],
           style: { ...currentStyle },
-          author: author || 'Revisor',
+          author: author || 'Reviewer',
           createdAt: now,
           updatedAt: now,
           status: 'pending',
@@ -1307,8 +1307,8 @@ export const PdfViewer: React.FC = () => {
             fillColor: '#ffffff',
             strokeWidth: 1.5,
           },
-          text: 'Nota Cloud+',
-          author: author || 'Revisor',
+          text: 'Cloud+ note',
+          author: author || 'Reviewer',
           createdAt: now,
           updatedAt: now,
           status: 'pending',
@@ -1316,11 +1316,11 @@ export const PdfViewer: React.FC = () => {
           groupId,
         };
 
-        addMarkups([cloudMarkup, calloutMarkup], 'Crear Cloud+');
+        addMarkups([cloudMarkup, calloutMarkup], 'Create Cloud+');
         useToolChestStore.getState().recordRecent(cloudMarkup);
       } else if (activeTool === 'callout') {
         const newId = uuidv4();
-        const initialText = 'Nota técnica';
+        const initialText = 'Note';
         const unscaledWidth = pageViewport.width / (scale || 1.0);
         const unscaledHeight = pageViewport.height / (scale || 1.0);
         const normSize = estimateCalloutBoxNormalizedSize(
@@ -1353,7 +1353,7 @@ export const PdfViewer: React.FC = () => {
             strokeWidth: currentStyle.strokeWidth || 1.5,
           },
           text: initialText,
-          author: author || 'Revisor',
+          author: author || 'Reviewer',
           createdAt: now,
           updatedAt: now,
           status: 'pending',
@@ -1427,7 +1427,7 @@ export const PdfViewer: React.FC = () => {
         const calib = useCalibrationStore.getState().getPageCalibration(currentPageIndex);
 
         let measurement: Markup['measurement'];
-        let markupText: string | undefined = activeTool === 'text' ? 'Nota técnica' : undefined;
+        let markupText: string | undefined = activeTool === 'text' ? 'Note' : undefined;
 
         if (activeTool === 'length') {
           measurement = calculateLength([drawingStart, currentDrawPoint], pageDimsPt, calib);
@@ -1451,7 +1451,7 @@ export const PdfViewer: React.FC = () => {
           points: markupPoints,
           style: markupStyle,
           text: markupText,
-          author: author || 'Revisor',
+          author: author || 'Reviewer',
           createdAt: now,
           updatedAt: now,
           status: 'pending',
@@ -1477,7 +1477,7 @@ export const PdfViewer: React.FC = () => {
         if (activeTool === 'text') {
           setInlineEditing({
             markupId: newId,
-            initialText: 'Nota técnica',
+            initialText: 'Note',
             position: drawingStart,
           });
         }
@@ -1588,7 +1588,7 @@ export const PdfViewer: React.FC = () => {
       pageHasText[currentPageIndex] === false
     ) {
       showToast(
-        'Esta página no contiene capa de texto seleccionable. Puede trazar la marca manualmente.'
+        'This page has no selectable text layer. You can draw the markup manually.'
       );
     }
   };
@@ -1604,7 +1604,7 @@ export const PdfViewer: React.FC = () => {
 
     if (pageHasText[currentPageIndex] === false) {
       showToast(
-        'Esta página no contiene capa de texto seleccionable. Puede trazar la marca manualmente.'
+        'This page has no selectable text layer. You can draw the markup manually.'
       );
       return;
     }
@@ -1673,7 +1673,7 @@ export const PdfViewer: React.FC = () => {
         points: [canonicalP1, canonicalP2],
         text: lineText,
         style: markupStyle,
-        author: author || 'Revisor Técnico',
+        author: author || 'Reviewer',
         createdAt: now,
         updatedAt: now,
         status: 'pending',
@@ -1683,14 +1683,14 @@ export const PdfViewer: React.FC = () => {
 
     const actionDesc =
       activeTool === 'underline'
-        ? `Subrayar texto (${newMarkups.length} líneas)`
+        ? `Underline text (${newMarkups.length} lines)`
         : activeTool === 'strikeOut'
-        ? `Tachar texto (${newMarkups.length} líneas)`
-        : `Resaltar texto (${newMarkups.length} líneas)`;
+        ? `Strike out text (${newMarkups.length} lines)`
+        : `Highlight text (${newMarkups.length} lines)`;
 
     addMarkups(
       newMarkups,
-      newMarkups.length > 1 ? actionDesc : actionDesc.replace(/ \(\d+ líneas\)/, '')
+      newMarkups.length > 1 ? actionDesc : actionDesc.replace(/ \(\d+ lines\)/, '')
     );
     if (newMarkups.length > 0) {
       useToolChestStore.getState().recordRecent(newMarkups[0]);
@@ -1858,13 +1858,13 @@ export const PdfViewer: React.FC = () => {
         text:
           tool.text ||
           (tool.type === 'callout'
-            ? 'Nota técnica'
+            ? 'Note'
             : tool.type === 'text'
-            ? 'Texto'
+            ? 'Text'
             : undefined),
         textFormat: tool.textFormat ? { ...tool.textFormat } : undefined,
         style: { ...tool.style },
-        author: author || 'Revisor',
+        author: author || 'Reviewer',
         createdAt: now,
         updatedAt: now,
         status: 'pending',
@@ -1931,7 +1931,7 @@ export const PdfViewer: React.FC = () => {
                       strokeColor: preset.strokeColor,
                       strokeWidth: 1,
                     },
-                    author: author || 'Revisor',
+                    author: author || 'Reviewer',
                     createdAt: now,
                     updatedAt: now,
                     status: 'pending',
@@ -2229,7 +2229,7 @@ export const PdfViewer: React.FC = () => {
                         fillColor: inlineEditing.initialColor || STICKY_NOTE_COLORS.yellow.fillColor,
                         strokeColor: STICKY_NOTE_COLORS.yellow.strokeColor,
                       },
-                      author: author || 'Revisor',
+                      author: author || 'Reviewer',
                       createdAt: '',
                       updatedAt: '',
                       status: 'pending',
@@ -2506,7 +2506,7 @@ export const PdfViewer: React.FC = () => {
                     const unscaledWidth = pageViewport.width / (scale || 1.0);
                     const unscaledHeight = pageViewport.height / (scale || 1.0);
                     const normSize = estimateCalloutBoxNormalizedSize(
-                      'Nota técnica',
+                      'Note',
                       10,
                       unscaledWidth,
                       unscaledHeight
@@ -2609,7 +2609,7 @@ export const PdfViewer: React.FC = () => {
     >
       {isLoading && (
         <div className="absolute inset-0 bg-cad-canvas/80 flex items-center justify-center z-30">
-          <div className="text-gray-300 font-medium animate-pulse">Cargando documento PDF...</div>
+          <div className="text-gray-300 font-medium animate-pulse">Loading PDF document...</div>
         </div>
       )}
 
@@ -2621,8 +2621,8 @@ export const PdfViewer: React.FC = () => {
 
       {!pdfBytes && !isLoading && !error && (
         <div className="m-auto text-center text-white/90">
-          <p className="text-base font-semibold mb-1">Ningún documento abierto</p>
-          <p className="text-xs">Use Archivo → Abrir PDF (Ctrl+O) o el botón Abrir de la cinta</p>
+          <p className="text-base font-semibold mb-1">No document open</p>
+          <p className="text-xs">Use File → Open PDF (Ctrl+O) or the Open button on the ribbon</p>
         </div>
       )}
 
@@ -2733,19 +2733,19 @@ const ZoomWidget: React.FC<{
       className="w-11 h-[100px] rounded-lg border-2 border-dotted border-blue-900 bg-sky-100/90 flex flex-col items-center justify-between py-1.5 select-none"
       onDoubleClick={(e) => e.stopPropagation()}
     >
-      <button type="button" data-testid="zoom-widget-in" className={btn} title="Acercar aquí" onClick={() => onZoom(1.25)}>
+      <button type="button" data-testid="zoom-widget-in" className={btn} title="Zoom in here" onClick={() => onZoom(1.25)}>
         <Plus size={14} />
       </button>
       <button
         type="button"
         data-testid="zoom-widget-center"
         className="text-blue-900 hover:text-blue-600"
-        title="Centrar la vista aquí"
+        title="Center the view here"
         onClick={onCenter}
       >
         <Crosshair size={18} />
       </button>
-      <button type="button" data-testid="zoom-widget-out" className={btn} title="Alejar aquí" onClick={() => onZoom(1 / 1.25)}>
+      <button type="button" data-testid="zoom-widget-out" className={btn} title="Zoom out here" onClick={() => onZoom(1 / 1.25)}>
         <Minus size={14} />
       </button>
     </div>

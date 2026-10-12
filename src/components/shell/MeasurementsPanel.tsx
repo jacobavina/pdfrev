@@ -7,10 +7,10 @@ import { useToolStore } from '../../store/useToolStore';
 import { useUiStore } from '../../store/useUiStore';
 import { computeMeasureTotals, measureCategoryOf, MeasureTotal } from '../../core/measurements/totals';
 
-const CATEGORY_LABEL = { length: 'Longitud', area: 'Área', count: 'Conteo' } as const;
+const CATEGORY_LABEL = { length: 'Length', area: 'Area', count: 'Count' } as const;
 
 function formatTotal(t: MeasureTotal, precision: number): string {
-  if (t.category === 'count') return `${t.total} u`;
+  if (t.category === 'count') return `${t.total} ea`;
   if (t.category === 'area') return `${t.total.toFixed(precision)} ${t.unit}²`;
   return `${t.total.toFixed(precision)} ${t.unit}`;
 }
@@ -56,12 +56,12 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
         <button
           onClick={() => setIsCollapsed(false)}
           className="p-1.5 text-gray-400 hover:text-cad-strong hover:bg-cad-hover rounded mb-3 transition-colors"
-          title="Expandir mediciones"
+          title="Expand measurements"
           data-testid="expand-measurements-btn"
         >
           <Ruler size={16} />
         </button>
-        <span className="text-[10px] text-gray-500 font-medium rotate-90 whitespace-nowrap mt-6">Mediciones</span>
+        <span className="text-[10px] text-gray-500 font-medium rotate-90 whitespace-nowrap mt-6">Measurements</span>
       </aside>
     );
   }
@@ -73,11 +73,11 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
       className="w-72 bg-cad-panel border-l border-cad-border flex flex-col text-xs select-none min-h-0"
     >
       <div className="flex items-center justify-between px-3 h-9 border-b border-cad-border shrink-0">
-        <span className="font-semibold text-gray-300 uppercase tracking-wider">Mediciones</span>
+        <span className="font-semibold text-gray-300 uppercase tracking-wider">Measurements</span>
         <button
           onClick={() => setIsCollapsed(true)}
           className="p-1 text-gray-400 hover:text-cad-strong hover:bg-cad-hover rounded transition-colors"
-          title="Colapsar mediciones"
+          title="Collapse measurements"
           data-testid="collapse-measurements-btn"
         >
           <ChevronRight size={14} />
@@ -88,7 +88,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
         {/* Escala de la página */}
         <section className="rounded border border-cad-border bg-cad-ribbon p-2.5 space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-gray-400">Escala · pág. {currentPageIndex + 1}</span>
+            <span className="text-gray-400">Scale · page {currentPageIndex + 1}</span>
             <span
               className={`px-1.5 rounded text-[10px] ${
                 isCalibrated
@@ -96,11 +96,11 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
                   : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
               }`}
             >
-              {isCalibrated ? 'Calibrada' : 'Sin calibrar'}
+              {isCalibrated ? 'Calibrated' : 'Scale not set'}
             </span>
           </div>
           <div data-testid="measurements-scale" className="font-mono text-gray-200">
-            {isCalibrated ? `1 ${calib.unit} = ${(1 / calib.scale).toFixed(2)} pt` : `Escala de papel (${calib.unit})`}
+            {isCalibrated ? `1 ${calib.unit} = ${(1 / calib.scale).toFixed(2)} pt` : `Paper scale (${calib.unit})`}
           </div>
           <div className="flex gap-1.5 pt-0.5">
             <button
@@ -108,9 +108,9 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
               disabled={!pdfBytes}
               onClick={() => setActiveTool('calibrate')}
               className="flex-1 flex items-center justify-center gap-1 py-1 rounded border border-cad-border hover:bg-cad-hover disabled:opacity-40"
-              title="Trazar una distancia conocida sobre el plano"
+              title="Draw a known distance on the drawing"
             >
-              <Scale size={12} /> Calibrar con 2 puntos
+              <Scale size={12} /> Calibrate (2 points)
             </button>
             <button
               type="button"
@@ -120,9 +120,9 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
                 setCalibrationModalOpen(true);
               }}
               className="px-2 py-1 rounded border border-cad-border hover:bg-cad-hover disabled:opacity-40"
-              title="Escribir la escala numéricamente"
+              title="Type the scale numerically"
             >
-              Escala…
+              Scale…
             </button>
           </div>
         </section>
@@ -140,22 +140,22 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
                   onClick={() => setScope(s)}
                   className={`px-2 py-0.5 ${scope === s ? 'bg-cad-accent text-white' : 'hover:bg-cad-hover'}`}
                 >
-                  {s === 'page' ? 'Página' : 'Documento'}
+                  {s === 'page' ? 'Page' : 'Document'}
                 </button>
               ))}
             </div>
           </div>
           {totals.length === 0 ? (
             <p data-testid="measurements-empty" className="text-gray-500 leading-relaxed">
-              Sin mediciones {scope === 'page' ? 'en esta página' : 'en el documento'}. Use Longitud, Área o Conteo
-              en la cinta (grupo Medición).
+              No measurements {scope === 'page' ? 'on this page' : 'in the document'}. Use Length, Area or Count
+              on the ribbon (Measure group).
             </p>
           ) : (
             <table data-testid="measurements-totals" className="w-full border-collapse">
               <thead>
                 <tr className="text-gray-500 text-[10px] uppercase">
-                  <th className="text-left font-medium pb-1">Tipo</th>
-                  <th className="text-right font-medium pb-1">Elem.</th>
+                  <th className="text-left font-medium pb-1">Type</th>
+                  <th className="text-right font-medium pb-1">Qty</th>
                   <th className="text-right font-medium pb-1">Total</th>
                 </tr>
               </thead>
@@ -169,7 +169,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
                     </tr>
                     {t.category === 'area' && t.perimeter !== undefined && (
                       <tr>
-                        <td className="pb-1 pl-3 text-gray-500">Perímetro</td>
+                        <td className="pb-1 pl-3 text-gray-500">Perimeter</td>
                         <td />
                         <td className="pb-1 text-right font-mono text-gray-400">
                           {t.perimeter.toFixed(precision)} {t.unit}
@@ -186,7 +186,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
         {/* Lista de mediciones */}
         {measureMarkups.length > 0 && (
           <section>
-            <div className="font-semibold text-gray-300 mb-1">Detalle</div>
+            <div className="font-semibold text-gray-300 mb-1">Details</div>
             <ul className="space-y-0.5">
               {measureMarkups.map((m) => {
                 const selected = selectedMarkupIds.includes(m.id);
@@ -203,7 +203,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
                       }`}
                     >
                       <span className="truncate">
-                        {CATEGORY_LABEL[measureCategoryOf(m)!]} · pág. {m.pageIndex + 1}
+                        {CATEGORY_LABEL[measureCategoryOf(m)!]} · p. {m.pageIndex + 1}
                       </span>
                       <span className="font-mono">{m.measurement?.formatted}</span>
                     </button>
@@ -220,7 +220,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
           type="button"
           onClick={() => useUiStore.getState().requestExport('csv')}
           className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded border border-cad-border hover:bg-cad-hover"
-          title="Exportar la lista de marcas con sus medidas a CSV (Excel)"
+          title="Export the markups list with measurements to CSV (Excel)"
         >
           <FileSpreadsheet size={13} /> Exportar a CSV
         </button>

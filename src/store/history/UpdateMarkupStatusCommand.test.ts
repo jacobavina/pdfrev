@@ -26,7 +26,7 @@ describe('UpdateMarkupStatusCommand', () => {
     history.execute(cmd);
 
     expect(statusMap.get('m1')).toBe('accepted');
-    expect(cmd.description).toBe('Cambiar estado a accepted');
+    expect(cmd.description).toBe('Set status to accepted');
     expect(history.canUndo()).toBe(true);
 
     history.undo();
@@ -56,7 +56,7 @@ describe('UpdateMarkupStatusCommand', () => {
     expect(statusMap.get('m1')).toBe('completed');
     expect(statusMap.get('m2')).toBe('completed');
     expect(statusMap.get('m3')).toBe('completed');
-    expect(cmd.description).toBe('Cambiar estado de 3 marcas a completed');
+    expect(cmd.description).toBe('Set status of 3 markups to completed');
 
     // Deshacer revierte cada una a su estado previo correspondiente
     history.undo();

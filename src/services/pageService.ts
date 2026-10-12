@@ -28,7 +28,7 @@ export async function executeRotatePage(
 ): Promise<boolean> {
   const { pdfBytes, filePath, fileName, setDocument } = useDocumentStore.getState();
   if (!pdfBytes) {
-    showToast('No hay documento abierto para rotar.');
+    showToast('No document open to rotate.');
     return false;
   }
 
@@ -36,13 +36,13 @@ export async function executeRotatePage(
     const updatedBytes = await rotatePdfPage(pdfBytes, pageIndex, deltaDegrees);
     const newPdfDoc = await loadPdfDocument(updatedBytes);
 
-    setDocument(filePath, fileName || 'documento.pdf', updatedBytes, newPdfDoc.numPages, newPdfDoc);
-    showToast(`Página ${pageIndex + 1} rotada ${deltaDegrees}° exitosamente.`);
+    setDocument(filePath, fileName || 'document.pdf', updatedBytes, newPdfDoc.numPages, newPdfDoc);
+    showToast(`Page ${pageIndex + 1} rotated ${deltaDegrees}°.`);
     return true;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[PageService] Error rotando página:', msg);
-    showToast(`Error al rotar página: ${msg}`);
+    showToast(`Error rotating page: ${msg}`);
     return false;
   }
 }
@@ -57,12 +57,12 @@ export async function executeDeletePage(pageIndex: number): Promise<boolean> {
   const { calibrations } = useCalibrationStore.getState();
 
   if (!pdfBytes) {
-    showToast('No hay documento abierto para modificar.');
+    showToast('No document open to modify.');
     return false;
   }
 
   if (numPages <= 1) {
-    showToast('No es posible eliminar la única página del documento.');
+    showToast('The only page of the document cannot be deleted.');
     return false;
   }
 
@@ -77,18 +77,18 @@ export async function executeDeletePage(pageIndex: number): Promise<boolean> {
     setMarkups(remappedMarkups);
     useCalibrationStore.setState({ calibrations: remappedCalibrations });
 
-    setDocument(filePath, fileName || 'documento.pdf', updatedBytes, newPdfDoc.numPages, newPdfDoc);
+    setDocument(filePath, fileName || 'document.pdf', updatedBytes, newPdfDoc.numPages, newPdfDoc);
 
     // Ajustar página activa si correspondía a la eliminada o estaba fuera de rango
     const newPageIndex = Math.min(currentPageIndex, newPdfDoc.numPages - 1);
     setCurrentPage(newPageIndex);
 
-    showToast(`Página ${pageIndex + 1} eliminada.`);
+    showToast(`Page ${pageIndex + 1} deleted.`);
     return true;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[PageService] Error eliminando página:', msg);
-    showToast(`Error al eliminar página: ${msg}`);
+    showToast(`Error deleting page: ${msg}`);
     return false;
   }
 }
@@ -105,7 +105,7 @@ export async function executeInsertBlankPage(
   const { calibrations } = useCalibrationStore.getState();
 
   if (!pdfBytes) {
-    showToast('No hay documento abierto.');
+    showToast('No document open.');
     return false;
   }
 
@@ -120,15 +120,15 @@ export async function executeInsertBlankPage(
     setMarkups(remappedMarkups);
     useCalibrationStore.setState({ calibrations: remappedCalibrations });
 
-    setDocument(filePath, fileName || 'documento.pdf', updatedBytes, newPdfDoc.numPages, newPdfDoc);
+    setDocument(filePath, fileName || 'document.pdf', updatedBytes, newPdfDoc.numPages, newPdfDoc);
     setCurrentPage(atIndex);
 
-    showToast(`Página en blanco insertada en la posición ${atIndex + 1}.`);
+    showToast(`Blank page inserted at position ${atIndex + 1}.`);
     return true;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[PageService] Error insertando página:', msg);
-    showToast(`Error al insertar página: ${msg}`);
+    showToast(`Error inserting page: ${msg}`);
     return false;
   }
 }
@@ -140,7 +140,7 @@ export async function executeExtractPage(pageIndex: number): Promise<boolean> {
   const { pdfBytes, fileName } = useDocumentStore.getState();
 
   if (!pdfBytes) {
-    showToast('No hay documento abierto.');
+    showToast('No document open.');
     return false;
   }
 
@@ -150,12 +150,12 @@ export async function executeExtractPage(pageIndex: number): Promise<boolean> {
     const exportName = `${baseName}_pag_${pageIndex + 1}.pdf`;
     const { saveExportFileWithDialog } = await import('./exportService');
     await saveExportFileWithDialog(exportName, 'pdf', extractedBytes);
-    showToast(`Página ${pageIndex + 1} extraída exitosamente como "${exportName}".`);
+    showToast(`Page ${pageIndex + 1} extracted as "${exportName}".`);
     return true;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[PageService] Error extrayendo página:', msg);
-    showToast(`Error al extraer página: ${msg}`);
+    showToast(`Error extracting page: ${msg}`);
     return false;
   }
 }

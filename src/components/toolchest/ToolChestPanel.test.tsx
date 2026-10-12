@@ -308,7 +308,7 @@ describe('ToolChestPanel (Panel Lateral de Tool Chest B.4)', () => {
 
     await waitFor(() => {
       expect(screen.queryByTestId('clear-recent-tools-btn')).toBeNull();
-      expect(screen.getByText('Sin historial reciente')).toBeInTheDocument();
+      expect(screen.getByText('No recent tools')).toBeInTheDocument();
     });
   });
 });

@@ -372,7 +372,7 @@ describe('Incremental Writer (P3-B.1 / ISO 32000-1 §7.5.6)', () => {
       page.node.set(PDFName.of('Annots'), doc.context.obj([...existing.asArray(), PDFRef.of(dupNum, 0)]));
       writer.addObject(page.ref.objectNumber, page.node.toString());
       const duplicated = writer.build();
-      await expect(validateSavedPdf(originalBytes, duplicated, [baseMarkup])).rejects.toThrow(/2 veces/);
+      await expect(validateSavedPdf(originalBytes, duplicated, [baseMarkup])).rejects.toThrow(/2 times/);
     });
   });
 });

@@ -28,8 +28,8 @@ export class UpdateMarkupStatusCommand implements Command {
     this.description =
       description ||
       (targets.length > 1
-        ? `Cambiar estado de ${targets.length} marcas a ${newStatus}`
-        : `Cambiar estado a ${newStatus}`);
+        ? `Set status of ${targets.length} markups to ${newStatus}`
+        : `Set status to ${newStatus}`);
   }
 
   execute(): void {

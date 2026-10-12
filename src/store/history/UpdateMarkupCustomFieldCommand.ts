@@ -30,7 +30,7 @@ export class UpdateMarkupCustomFieldCommand implements Command {
     this.newValue = newValue;
     this.applyValue = applyValue;
     this.description =
-      description || `Modificar campo '${columnId}' de marca '${markupId}'`;
+      description || `Edit field '${columnId}' of markup '${markupId}'`;
   }
 
   execute(): void {

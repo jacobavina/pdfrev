@@ -105,7 +105,7 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
           <button
             type="button"
             data-testid="sticky-cancel-btn"
-            title="Cancelar (Escape)"
+            title="Cancel (Escape)"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               isCancelledRef.current = true;
@@ -130,10 +130,10 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
         style={{
           backgroundColor: colorPresets ? selectedColor.fillColor : '#fefce8',
         }}
-        placeholder={colorPresets ? 'Escriba una nota adhesiva...' : 'Escriba una nota técnica...'}
+        placeholder={colorPresets ? 'Type a note...' : 'Type a comment...'}
       />
       <div className="flex justify-between items-center px-1 py-0.5 bg-gray-50 text-[10px] text-gray-500 rounded mt-0.5">
-        <span>Enter: guardar | Esc: cancelar</span>
+        <span>Enter: save | Esc: cancel</span>
       </div>
     </div>
   );

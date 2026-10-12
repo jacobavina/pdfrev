@@ -6,11 +6,11 @@ import { MarkupStatus, VALID_MARKUP_STATUSES } from '../../types/markup';
 import { markupTypeLabel } from '../../core/markup/typeLabels';
 
 const STATUS_LABELS: Record<MarkupStatus, string> = {
-  pending: 'Pendiente',
-  accepted: 'Aceptado',
-  rejected: 'Rechazado',
-  completed: 'Completado',
-  cancelled: 'Cancelado',
+  pending: 'Pending',
+  accepted: 'Accepted',
+  rejected: 'Rejected',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
 };
 
 const STATUS_DOT: Record<MarkupStatus, string> = {
@@ -89,13 +89,13 @@ export const CanvasContextMenu: React.FC<{ x: number; y: number; onClose: () => 
       onContextMenu={(e) => e.preventDefault()}
     >
       <div className="px-3 py-1 text-[10px] uppercase tracking-wider text-gray-500 truncate">
-        {selected.length > 1 ? `${selected.length} marcas` : markupTypeLabel(first.type)}
+        {selected.length > 1 ? `${selected.length} markups` : markupTypeLabel(first.type)}
       </div>
-      {item('canvas-menu-properties', <SlidersHorizontal size={13} />, 'Propiedades', () =>
+      {item('canvas-menu-properties', <SlidersHorizontal size={13} />, 'Properties', () =>
         useUiStore.getState().requestPropertiesPanel()
       )}
       <div className="my-1 border-t border-cad-border" />
-      <div className="px-3 py-0.5 text-[10px] uppercase tracking-wider text-gray-500">Estado</div>
+      <div className="px-3 py-0.5 text-[10px] uppercase tracking-wider text-gray-500">Status</div>
       {VALID_MARKUP_STATUSES.map((status) => (
         <button
           key={status}
@@ -115,29 +115,29 @@ export const CanvasContextMenu: React.FC<{ x: number; y: number; onClose: () => 
         </button>
       ))}
       <div className="my-1 border-t border-cad-border" />
-      {item('canvas-menu-copy', <Copy size={13} />, 'Copiar', () => useMarkupStore.getState().copySelectedMarkups(), {
+      {item('canvas-menu-copy', <Copy size={13} />, 'Copy', () => useMarkupStore.getState().copySelectedMarkups(), {
         shortcut: 'Ctrl+C',
       })}
       {item(
         'canvas-menu-duplicate',
         <CopyPlus size={13} />,
-        'Duplicar',
+        'Duplicate',
         () => useMarkupStore.getState().duplicateSelectedMarkups(),
         { shortcut: 'Ctrl+D' }
       )}
       {item(
         'canvas-menu-lock',
         allLocked ? <LockOpen size={13} /> : <Lock size={13} />,
-        allLocked ? 'Desbloquear' : 'Bloquear',
+        allLocked ? 'Unlock' : 'Lock',
         () => useMarkupStore.getState().toggleLockSelectedMarkups()
       )}
       <div className="my-1 border-t border-cad-border" />
       {item(
         'canvas-menu-delete',
         <Trash2 size={13} />,
-        'Eliminar',
+        'Delete',
         () => useMarkupStore.getState().deleteSelectedMarkups(),
-        { danger: true, shortcut: 'Supr', disabled: allLocked }
+        { danger: true, shortcut: 'Del', disabled: allLocked }
       )}
     </div>
   );

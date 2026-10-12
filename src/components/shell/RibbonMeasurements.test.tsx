@@ -51,7 +51,7 @@ describe('Cinta de herramientas - Medición y calibración (Paquete 4)', () => {
     for (const id of ['select', 'text', 'draw', 'measure']) {
       expect(screen.getByTestId(`ribbon-group-${id}`)).toBeInTheDocument();
     }
-    expect(screen.getByTestId('ribbon-group-measure')).toHaveTextContent('Medición');
+    expect(screen.getByTestId('ribbon-group-measure')).toHaveTextContent('Measure');
     // La herramienta activa se marca con aria-pressed
     fireEvent.click(screen.getByTestId('tool-rectangle'));
     expect(screen.getByTestId('tool-rectangle')).toHaveAttribute('aria-pressed', 'true');

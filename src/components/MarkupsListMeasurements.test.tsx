@@ -107,8 +107,8 @@ describe('MarkupsList - Columnas de Medición y Agregación de Totales (Paquete 
   it('renderiza cabeceras de Medida y Unidad y muestra los valores formateados en cada fila', () => {
     render(<MarkupsList />);
 
-    expect(screen.getByText(/Medida/i)).toBeInTheDocument();
-    expect(screen.getByText(/Unidad/i)).toBeInTheDocument();
+    expect(screen.getByTitle('Sort by measurement')).toHaveTextContent('Measurement');
+    expect(screen.getByText(/^\s*Unit\s*$/)).toBeInTheDocument();
 
     expect(screen.getByText('10.50 m')).toBeInTheDocument();
     expect(screen.getByText('15.20 m')).toBeInTheDocument();
@@ -128,13 +128,13 @@ describe('MarkupsList - Columnas de Medición y Agregación de Totales (Paquete 
     expect(totalsSummary).toHaveTextContent('24.00 m²');
 
     // Conteo: 1 + 2 = 3
-    expect(totalsSummary).toHaveTextContent('Conteo:');
+    expect(totalsSummary).toHaveTextContent('Count:');
   });
 
   it('permite ordenar por la columna Medida de forma ascendente y descendente', () => {
     render(<MarkupsList />);
 
-    const headerMedida = screen.getByText(/Medida/i);
+    const headerMedida = screen.getByTitle('Sort by measurement');
     fireEvent.click(headerMedida); // orden ascendente
 
     const rows = screen.getAllByTestId(/^markup-row-/);

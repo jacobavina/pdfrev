@@ -97,7 +97,7 @@ describe('BbxDocumentFile Migration & Backward Compatibility (P1 / P2)', () => {
     };
 
     expect(() => migrateBbxDocument(futureDoc)).toThrow(
-      /Archivo creado por una versión más reciente o incompatible de la aplicación \(v2\.0\.0\)/
+      /File created by a newer or incompatible version of the application \(v2\.0\.0\)/
     );
   });
 
@@ -366,8 +366,8 @@ describe('BbxDocumentFile Migration & Backward Compatibility (P1 / P2)', () => {
       expect(warnings.length).toBeGreaterThanOrEqual(8);
       expect(warnings.some((w) => w.includes('__proto__'))).toBe(true);
       expect(warnings.some((w) => w.includes('constructor'))).toBe(true);
-      expect(warnings.some((w) => w.includes('no finito'))).toBe(true);
-      expect(warnings.some((w) => w.includes('longitud permitida'))).toBe(true);
+      expect(warnings.some((w) => w.includes('Non-finite'))).toBe(true);
+      expect(warnings.some((w) => w.includes('allowed length'))).toBe(true);
     });
 
     it('descarta customFields no objeto con aviso', () => {
@@ -449,7 +449,7 @@ describe('BbxDocumentFile Migration & Backward Compatibility (P1 / P2)', () => {
       expect(migrated.customColumns![0].id).toBe('col-valida');
       expect(migrated.customColumns![0].tipo).toBe('text');
       expect(warnings).toHaveLength(1);
-      expect(warnings[0]).toContain('tipo desconocido "fecha"');
+      expect(warnings[0]).toContain('unknown type "fecha"');
     });
 
     it('ida y vuelta serializa únicamente tipos canónicos en el JSON en disco (Z.2b)', () => {
@@ -503,7 +503,7 @@ describe('BbxDocumentFile Migration & Backward Compatibility (P1 / P2)', () => {
       // Exactamente un aviso agregado por categoría
       expect(warnings).toHaveLength(1);
       expect(warnings[0]).toContain(
-        `Se excedió el límite máximo de columnas personalizadas (${MAX_CUSTOM_COLUMNS}); se conservan las primeras ${MAX_CUSTOM_COLUMNS}`
+        `Custom column limit exceeded (${MAX_CUSTOM_COLUMNS}); keeping the first ${MAX_CUSTOM_COLUMNS}`
       );
     });
 
@@ -539,7 +539,7 @@ describe('BbxDocumentFile Migration & Backward Compatibility (P1 / P2)', () => {
       // Exactamente un aviso agregado para la marca
       expect(warnings).toHaveLength(1);
       expect(warnings[0]).toContain(
-        `Se excedió el límite de campos personalizados por marca (${MAX_CUSTOM_FIELDS_PER_MARKUP}) en marca "m-51-fields"; se conservan los primeros ${MAX_CUSTOM_FIELDS_PER_MARKUP}`
+        `Custom fields limit per markup exceeded (${MAX_CUSTOM_FIELDS_PER_MARKUP}) in markup "m-51-fields"; keeping the first ${MAX_CUSTOM_FIELDS_PER_MARKUP}`
       );
     });
   });

@@ -39,7 +39,7 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({
   const handleConfirm = () => {
     const parsedLength = parseFloat(realLengthStr);
     if (!Number.isFinite(parsedLength) || parsedLength <= 0) {
-      setErrorMessage('Por favor ingrese una dimensión válida mayor a cero.');
+      setErrorMessage('Please enter a valid length greater than zero.');
       return;
     }
 
@@ -72,19 +72,19 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({
     >
       <div className="w-96 rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800">
         <h3 className="mb-4 text-lg font-bold text-gray-900 dark:text-gray-100">
-          Calibrar Escala de Página ({pageIndex + 1})
+          Calibrate Page Scale ({pageIndex + 1})
         </h3>
 
         {pendingCalibrationPoints.length >= 2 && (
           <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-            Distancia medida en plano: <strong>{ptDistance.toFixed(2)} pt</strong>
+            Distance measured on the drawing: <strong>{ptDistance.toFixed(2)} pt</strong>
           </p>
         )}
 
         <div className="mb-4 space-y-3">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Longitud conocida real
+              Known real length
             </label>
             <input
               type="number"
@@ -97,14 +97,14 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({
               }}
               className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-cad-strong"
               data-testid="calibration-length-input"
-              placeholder="Ej. 10.0"
+              placeholder="e.g. 10.0"
               autoFocus
             />
           </div>
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Unidad de medida
+              Unit
             </label>
             <select
               value={unit}
@@ -122,7 +122,7 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Precisión decimal
+              Precision
             </label>
             <select
               value={precision}
@@ -131,9 +131,9 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({
               data-testid="calibration-precision-select"
             >
               <option value={1}>1 decimal (0.0)</option>
-              <option value={2}>2 decimales (0.00)</option>
-              <option value={3}>3 decimales (0.000)</option>
-              <option value={4}>4 decimales (0.0000)</option>
+              <option value={2}>2 decimals (0.00)</option>
+              <option value={3}>3 decimals (0.000)</option>
+              <option value={4}>4 decimals (0.0000)</option>
             </select>
           </div>
         </div>
@@ -155,7 +155,7 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({
             className="rounded px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
             data-testid="calibration-cancel-btn"
           >
-            Cancelar
+            Cancel
           </button>
           <button
             type="button"
@@ -163,7 +163,7 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({
             className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
             data-testid="calibration-confirm-btn"
           >
-            Calibrar
+            Calibrate
           </button>
         </div>
       </div>

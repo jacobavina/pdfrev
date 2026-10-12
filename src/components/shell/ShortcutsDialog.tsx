@@ -4,18 +4,18 @@ import { useUiStore } from '../../store/useUiStore';
 import { ALL_TOOLS } from './toolDefinitions';
 
 const GENERAL: [string, string][] = [
-  ['Ctrl+O', 'Abrir PDF'],
-  ['Ctrl+S', 'Guardar las marcas en el PDF'],
-  ['Ctrl+Z / Ctrl+Y', 'Deshacer / Rehacer'],
-  ['Ctrl+C / Ctrl+V / Ctrl+D', 'Copiar / Pegar / Duplicar marcas'],
-  ['Supr', 'Eliminar la selección'],
-  ['Ctrl+F', 'Buscar texto en el plano'],
-  ['Ctrl+rueda', 'Acercar / alejar en el punto del cursor'],
-  ['Ctrl+0 / Ctrl+1 / Ctrl+2', 'Ajustar a página / Tamaño real / Ajustar al ancho'],
-  ['Enter / doble clic', 'Cerrar polígono, polilínea o área'],
-  ['Esc', 'Cancelar el trazo o cerrar menús'],
-  ['Clic derecho', 'Menú contextual de la marca'],
-  ['F1', 'Esta ayuda'],
+  ['Ctrl+O', 'Open PDF'],
+  ['Ctrl+S', 'Save markups to the PDF'],
+  ['Ctrl+Z / Ctrl+Y', 'Undo / Redo'],
+  ['Ctrl+C / Ctrl+V / Ctrl+D', 'Copy / Paste / Duplicate markups'],
+  ['Del', 'Delete the selection'],
+  ['Ctrl+F', 'Find text in the drawing'],
+  ['Ctrl+wheel', 'Zoom in / out at the cursor'],
+  ['Ctrl+0 / Ctrl+1 / Ctrl+2', 'Fit page / Actual size / Fit width'],
+  ['Enter / double-click', 'Close polygon, polyline or area'],
+  ['Esc', 'Cancel the stroke or close menus'],
+  ['Right-click', 'Markup context menu'],
+  ['F1', 'This help'],
 ];
 
 /** Diálogo de atajos de teclado (menú Ayuda o F1). */
@@ -36,14 +36,14 @@ export const ShortcutsDialog: React.FC = () => {
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center" onMouseDown={() => setShortcutsOpen(false)}>
       <div
         role="dialog"
-        aria-label="Atajos de teclado"
+        aria-label="Keyboard shortcuts"
         data-testid="shortcuts-dialog"
         className="w-[560px] max-h-[80vh] overflow-y-auto bg-cad-ribbon border border-cad-border rounded-lg shadow-2xl text-xs text-gray-200"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 h-10 border-b border-cad-border">
-          <span className="font-semibold text-cad-strong text-sm">Atajos de teclado</span>
-          <button onClick={() => setShortcutsOpen(false)} title="Cerrar" className="p-1 rounded hover:bg-cad-hover">
+          <span className="font-semibold text-cad-strong text-sm">Keyboard Shortcuts</span>
+          <button onClick={() => setShortcutsOpen(false)} title="Close" className="p-1 rounded hover:bg-cad-hover">
             <X size={15} />
           </button>
         </div>
@@ -58,7 +58,7 @@ export const ShortcutsDialog: React.FC = () => {
             ))}
           </div>
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-2">Herramientas</div>
+            <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-2">Tools</div>
             {toolShortcuts.map((t) => (
               <div key={t.type} className="flex justify-between gap-3 py-1 border-b border-cad-border/60">
                 <span>{t.short}</span>

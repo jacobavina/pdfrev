@@ -11,7 +11,7 @@ import { showToast } from '../../services/toastService';
 export async function exportFlattenedPdf(): Promise<void> {
   const { pdfBytes, fileName } = useDocumentStore.getState();
   if (!pdfBytes) {
-    showToast('No hay ningún documento PDF cargado para exportar.');
+    showToast('No PDF document is loaded to export.');
     return;
   }
   try {
@@ -21,19 +21,19 @@ export async function exportFlattenedPdf(): Promise<void> {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    const baseName = fileName ? fileName.replace(/\.pdf$/i, '') : 'documento';
-    a.download = `${baseName}_con_marcas.pdf`;
+    const baseName = fileName ? fileName.replace(/\.pdf$/i, '') : 'document';
+    a.download = `${baseName}_markups.pdf`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     if (result.warnings.replacedCharactersCount > 0) {
       showToast(
-        `${result.warnings.replacedCharactersCount} caracteres sin equivalente en la fuente estándar se sustituyeron por "?" en el PDF aplanado.`
+        `${result.warnings.replacedCharactersCount} characters without an equivalent in the standard font were replaced with "?" in the flattened PDF.`
       );
     }
   } catch (err) {
-    showToast(`Error al exportar PDF con marcas: ${err instanceof Error ? err.message : String(err)}`);
+    showToast(`Error exporting PDF with markups: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
@@ -49,7 +49,7 @@ export async function runPageOperation(
     else if (kind === 'delete') await svc.executeDeletePage(currentPageIndex);
     else await svc.executeExtractPage(currentPageIndex);
   } catch (err) {
-    showToast(`Error en la operación de página: ${err instanceof Error ? err.message : String(err)}`);
+    showToast(`Page operation error: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 

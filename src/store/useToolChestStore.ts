@@ -189,7 +189,7 @@ export const useToolChestStore = create<ToolChestState>((set, get) => {
       // Condición 3: Conservar exactamente el MISMO objeto style de la marca sin campos omitidos
       const input: CreateToolInput = {
         paletteId,
-        name: name || `Herramienta ${markup.type}`,
+        name: name || `Tool ${markup.type}`,
         type: markup.type,
         style: { ...markup.style },
         text: markup.text,
@@ -243,7 +243,7 @@ export const useToolChestStore = create<ToolChestState>((set, get) => {
     toggleToolMode: async (toolId: string) => {
       const target = get().tools.find((t) => t.id === toolId);
       if (!target) {
-        throw new Error(`Herramienta no encontrada: ${toolId}`);
+        throw new Error(`Tool not found: ${toolId}`);
       }
       const newMode: ToolChestMode =
         target.mode === 'properties' ? 'drawing' : 'properties';

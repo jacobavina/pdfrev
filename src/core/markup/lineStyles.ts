@@ -10,21 +10,21 @@ import { LineEndingStyle } from '../../types/markup';
 export type LineStyleId = 'solid' | 'dashed' | 'dotted' | 'dashDot';
 
 export const LINE_STYLE_LABELS: Record<LineStyleId, string> = {
-  solid: 'Continua',
-  dashed: 'Discontinua',
-  dotted: 'Punteada',
-  dashDot: 'Trazo y punto',
+  solid: 'Solid',
+  dashed: 'Dashed',
+  dotted: 'Dotted',
+  dashDot: 'Dash-dot',
 };
 
 export const LINE_ENDING_LABELS: Record<LineEndingStyle, string> = {
-  none: 'Ninguno',
-  openArrow: 'Flecha abierta',
-  closedArrow: 'Flecha cerrada',
-  circle: 'Círculo',
-  square: 'Cuadrado',
-  diamond: 'Rombo',
-  butt: 'Trazo perpendicular',
-  slash: 'Barra (arquitectónica)',
+  none: 'None',
+  openArrow: 'Open arrow',
+  closedArrow: 'Closed arrow',
+  circle: 'Circle',
+  square: 'Square',
+  diamond: 'Diamond',
+  butt: 'Butt',
+  slash: 'Slash (architectural)',
 };
 
 /** Patrón de trazo (pt) para un tipo de línea y grosor; `undefined` = continua. */

@@ -26,7 +26,7 @@ export function getStickyNoteNormalizedSize(pageDimensions: {
     pageDimensions.height <= 0
   ) {
     throw new Error(
-      `[getStickyNoteNormalizedSize] pageDimensions es obligatorio y debe tener width > 0 y height > 0`
+      `[getStickyNoteNormalizedSize] pageDimensions is required and must have width > 0 and height > 0`
     );
   }
   return {
@@ -180,7 +180,7 @@ export function getMarkupBounds(
 
   if (markup.type === 'stickyNote' && markup.points.length >= 1) {
     if (!pageDimensions) {
-      throw new Error(`[getMarkupBounds] pageDimensions es obligatorio para 'stickyNote'`);
+      throw new Error(`[getMarkupBounds] pageDimensions is required for 'stickyNote'`);
     }
     const size = getStickyNoteNormalizedSize(pageDimensions);
     return {
@@ -665,7 +665,7 @@ export function hitTestMarkup(
   if (markup.type === 'stickyNote') {
     if (markup.points.length === 0) return false;
     if (!pageDimensions) {
-      throw new Error(`[hitTestMarkup] pageDimensions es obligatorio para 'stickyNote'`);
+      throw new Error(`[hitTestMarkup] pageDimensions is required for 'stickyNote'`);
     }
     const p1 = markup.points[0];
     const size = getStickyNoteNormalizedSize(pageDimensions);

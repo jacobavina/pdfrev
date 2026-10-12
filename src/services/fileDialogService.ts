@@ -30,7 +30,7 @@ export async function openPdfDialog(): Promise<void> {
       }
 
       const filePath = selected;
-      const fileName = filePath.split(/[/\\]/).pop() || 'documento.pdf';
+      const fileName = filePath.split(/[/\\]/).pop() || 'document.pdf';
       const fileBytes = await readFile(filePath);
 
       await loadPdfData(filePath, fileName, fileBytes);
@@ -54,7 +54,7 @@ export async function openPdfDialog(): Promise<void> {
     }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    setError(`Error al abrir archivo PDF: ${message}`);
+    setError(`Error opening PDF file: ${message}`);
   }
 }
 
@@ -76,12 +76,12 @@ export function summarizeMigrationWarnings(warnings: string[]): string {
   const total = warnings.length;
   if (total <= 3) {
     const items = warnings.map(truncate).join('; ');
-    return `${total} avisos al abrir el documento: ${items}`;
+    return `${total} warnings while opening the document: ${items}`;
   }
 
   const firstThree = warnings.slice(0, 3).map(truncate).join('; ');
   const remaining = total - 3;
-  return `${total} avisos al abrir el documento: ${firstThree} (y ${remaining} más, ver consola)`;
+  return `${total} warnings while opening the document: ${firstThree} (and ${remaining} more, see console)`;
 }
 
 /**
@@ -102,7 +102,7 @@ export async function loadPdfData(
     setDocument(filePath, fileName, bytes, numPages, pdfDoc);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    setError(`Error al procesar PDF: ${message}`);
+    setError(`Error processing PDF: ${message}`);
     return;
   }
 
@@ -175,13 +175,13 @@ async function tryImportPdfAnnotations(bytes: Uint8Array): Promise<number> {
       setMarkups(pdfImport.markups);
     }
     if (pdfImport.foreignUnsupportedCount > 0) {
-      showToast(`Documento contiene ${pdfImport.foreignUnsupportedCount} anotaciones no editables`);
+      showToast(`The document contains ${pdfImport.foreignUnsupportedCount} non-editable annotations`);
     }
     return pdfImport.markups.length;
   } catch (pdfErr) {
     const message = pdfErr instanceof Error ? pdfErr.message : String(pdfErr);
     console.warn('[PDF] No se pudieron leer anotaciones estándar del PDF:', pdfErr);
-    showToast(`No se pudieron leer las anotaciones del PDF: ${message}`);
+    showToast(`Could not read the PDF annotations: ${message}`);
     return 0;
   }
 }

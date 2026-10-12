@@ -77,7 +77,7 @@ export function createSampleMarkup(
         { x: 0.95, y: 0.55 },
       ];
       leaders = [[{ x: 0.1, y: 0.85 }]];
-      text = 'Nota';
+      text = 'Note';
       break;
 
     case 'text':
@@ -182,7 +182,7 @@ export const ToolVectorThumbnail: React.FC<ToolVectorThumbnailProps> = ({
     <div
       className={`relative inline-flex items-center justify-center rounded bg-gray-800 border border-gray-700 select-none ${className}`}
       style={{ width: size, height: size }}
-      title={`Herramienta ${type} (${mode === 'properties' ? 'Modo Propiedad' : 'Modo Dibujo'})`}
+      title={`Tool ${type} (${mode === 'properties' ? 'Properties mode' : 'Drawing mode'})`}
       data-testid={`tool-vector-thumbnail-${type}`}
       data-tool-mode={mode}
     >

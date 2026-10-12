@@ -55,7 +55,7 @@ describe('pdfPersistenceService (P3-B.3 y B.4)', () => {
     const result = await savePdfIncremental('C:/documentos/plano.pdf', originalBytes, dummyMarkups);
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain('bytes originales');
+    expect(result.error).toContain('original PDF bytes');
     expect(useDocumentStore.getState().pdfBytes).not.toBe(corrupted);
   });
 

@@ -6,9 +6,9 @@ import { useUiStore, LeftPanelTab, NO_LAYER } from '../../store/useUiStore';
 import { ThumbnailsSidebar } from '../ThumbnailsSidebar';
 
 const TABS: { id: LeftPanelTab; label: string; icon: React.ReactNode }[] = [
-  { id: 'pages', label: 'Páginas', icon: <Files size={16} /> },
-  { id: 'bookmarks', label: 'Marcadores', icon: <Bookmark size={16} /> },
-  { id: 'layers', label: 'Capas', icon: <Layers size={16} /> },
+  { id: 'pages', label: 'Thumbnails', icon: <Files size={16} /> },
+  { id: 'bookmarks', label: 'Bookmarks', icon: <Bookmark size={16} /> },
+  { id: 'layers', label: 'Layers', icon: <Layers size={16} /> },
 ];
 
 const PanelShell: React.FC<{ title: string; testId: string; children: React.ReactNode }> = ({
@@ -66,7 +66,7 @@ const BookmarksPanel: React.FC = () => {
         typeof ref === 'number' ? ref : await pdfDoc.getPageIndex(ref as Parameters<typeof pdfDoc.getPageIndex>[0]);
       setCurrentPage(index);
     } catch (e) {
-      setError(`No se pudo abrir el marcador: ${e instanceof Error ? e.message : String(e)}`);
+      setError(`Could not open the bookmark: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
 
@@ -82,7 +82,7 @@ const BookmarksPanel: React.FC = () => {
               type="button"
               className="w-4 h-5 flex items-center justify-center text-gray-500"
               onClick={() => hasChildren && setCollapsed({ ...collapsed, [key]: !isCollapsed })}
-              aria-label={hasChildren ? (isCollapsed ? 'Expandir' : 'Contraer') : undefined}
+              aria-label={hasChildren ? (isCollapsed ? 'Expand' : 'Collapse') : undefined}
             >
               {hasChildren ? isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} /> : null}
             </button>
@@ -101,12 +101,12 @@ const BookmarksPanel: React.FC = () => {
     });
 
   return (
-    <PanelShell title="Marcadores" testId="bookmarks-panel">
+    <PanelShell title="Bookmarks" testId="bookmarks-panel">
       {error && <div className="p-3 text-red-600 dark:text-red-400">{error}</div>}
-      {!error && outline === null && pdfDoc && <div className="p-3 text-gray-500">Leyendo índice…</div>}
+      {!error && outline === null && pdfDoc && <div className="p-3 text-gray-500">Reading outline…</div>}
       {!error && outline !== null && outline.length === 0 && (
         <div data-testid="bookmarks-empty" className="p-3 text-gray-500 leading-relaxed">
-          Este documento no tiene marcadores.
+          This document has no bookmarks.
         </div>
       )}
       {!error && outline && outline.length > 0 && <div className="py-1">{renderNodes(outline, 0, '')}</div>}
@@ -128,13 +128,13 @@ const LayersPanel: React.FC = () => {
   const layers = [...counts.entries()].sort(([a], [b]) => {
     if (a === NO_LAYER) return 1;
     if (b === NO_LAYER) return -1;
-    return a.localeCompare(b, 'es');
+    return a.localeCompare(b, 'en');
   });
 
   return (
-    <PanelShell title="Capas de marcas" testId="layers-panel">
+    <PanelShell title="Markup layers" testId="layers-panel">
       {layers.length === 0 ? (
-        <div className="p-3 text-gray-500">No hay marcas en el documento.</div>
+        <div className="p-3 text-gray-500">There are no markups in the document.</div>
       ) : (
         <ul className="py-1">
           {layers.map(([layer, count]) => {
@@ -145,14 +145,14 @@ const LayersPanel: React.FC = () => {
                   type="button"
                   data-testid={`layer-toggle-${layer || 'sin-capa'}`}
                   onClick={() => toggleLayerVisibility(layer)}
-                  title={hidden ? 'Mostrar capa' : 'Ocultar capa'}
+                  title={hidden ? 'Show layer' : 'Hide layer'}
                   aria-pressed={!hidden}
                   className="p-0.5 rounded hover:bg-cad-subtle text-gray-400"
                 >
                   {hidden ? <EyeOff size={14} /> : <Eye size={14} className="text-cad-accent" />}
                 </button>
                 <span className={`flex-1 truncate ${hidden ? 'text-gray-500 line-through' : ''}`}>
-                  {layer || 'Sin capa'}
+                  {layer || 'No layer'}
                 </span>
                 <span className="text-gray-500 font-mono">{count}</span>
               </li>
@@ -161,7 +161,7 @@ const LayersPanel: React.FC = () => {
         </ul>
       )}
       <p className="px-3 py-2 text-[11px] text-gray-500 leading-snug border-t border-cad-border">
-        Ocultar una capa oculta sus marcas en el plano y evita seleccionarlas. No modifica el PDF.
+        Hiding a layer hides its markups on the drawing and prevents selecting them. The PDF is not modified.
       </p>
     </PanelShell>
   );

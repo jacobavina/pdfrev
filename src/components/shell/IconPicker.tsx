@@ -4,6 +4,7 @@ import { ChevronDown } from 'lucide-react';
 import { LineEndingStyle } from '../../types/markup';
 import { dashArrayFor, LineStyleId, LINE_STYLE_LABELS, LINE_ENDING_LABELS } from '../../core/markup/lineStyles';
 import { lineEndingShape } from '../../core/markup/lineEndings';
+import { stampById } from '../../core/markup/stamps';
 
 /**
  * Selector visual (ADR-0020): el botón y cada opción muestran un dibujo del valor (tipo de línea, extremo,
@@ -214,3 +215,16 @@ export const OpacityPreview: React.FC<{ opacity: number; color?: string }> = ({ 
     <span className="text-[10px] font-mono text-gray-400 w-7 text-right">{Math.round(opacity * 100)}%</span>
   </span>
 );
+
+/** Sello en miniatura (doble marco del color del sello con su texto). */
+export const StampPreview: React.FC<{ id: string }> = ({ id }) => {
+  const def = stampById(id);
+  return (
+    <span
+      className="inline-flex items-center justify-center px-1.5 h-[16px] rounded-sm text-[9px] font-bold tracking-wide whitespace-nowrap"
+      style={{ color: def.color, border: `2px double ${def.color}`, background: '#ffffffd9' }}
+    >
+      {def.label}
+    </span>
+  );
+};

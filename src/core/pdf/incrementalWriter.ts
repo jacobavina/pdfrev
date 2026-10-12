@@ -8,8 +8,10 @@ import {
   PDFHexString,
   PDFObject,
 } from 'pdf-lib';
-import { LineEndingStyle, Markup, MarkupStatus } from '../../types/markup';
+import { LineEndingStyle, Markup, MarkupStatus, PageCalibration } from '../../types/markup';
 import { DIMENSION_EXTENSION_GAP, DIMENSION_EXTENSION_OVERSHOOT } from '../markup/dimension';
+import { viewportArrayFor } from './pdfScale';
+import { stampById } from '../markup/stamps';
 import {
   emitMarkupOperators,
   normalizedToPdfCoordinates,
@@ -30,6 +32,11 @@ export interface IncrementalSaveOptions {
    * se interpretan como borradas por el usuario y se retiran de /Annots al guardar.
    */
   importedIds?: string[];
+  /**
+   * Escalas que el usuario definió en REA, por página (ADR-0025): se escriben como /VP /Measure en la página.
+   * Las páginas sin entrada conservan su /VP original (p. ej. calibrado en Revu).
+   */
+  calibrations?: Record<number, PageCalibration>;
 }
 
 /**
@@ -401,8 +408,15 @@ export async function saveIncrementalMarkups(
         resourcesDict += `    /ExtGState << /GS_HL << /Type /ExtGState /BM ${emitted.extGState.bm || '/Normal'} /ca ${emitted.extGState.ca ?? 1} /CA ${emitted.extGState.CA ?? 1} >> >>\n`;
       }
       // Texto del /AP (cotas, cuadros de texto, llamadas): Helvetica estándar, sin incrustar
-      if (emitted.fontName) {
-        resourcesDict += `    /Font << /${emitted.fontName} << /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >> >>\n`;
+      if (emitted.fontName || emitted.boldFontName) {
+        resourcesDict += '    /Font <<';
+        if (emitted.fontName) {
+          resourcesDict += ` /${emitted.fontName} << /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>`;
+        }
+        if (emitted.boldFontName) {
+          resourcesDict += ` /${emitted.boldFontName} << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>`;
+        }
+        resourcesDict += ' >>\n';
       }
       resourcesDict += '  >>';
 
@@ -556,6 +570,10 @@ endstream`;
         // Mismos tamaños por defecto que la pantalla y el /AP (llamada 10 pt, texto 12 pt)
         const fontPt = markup.style.fontSize ?? (markup.type === 'callout' ? 10 : 12);
         annotDict += `  /DA (/Helv ${fontPt} Tf 0 0 0 rg)\n`;
+      } else if (annotTypeSubtype === 'Stamp') {
+        // Nombre estándar cuando existe (Approved, Draft…); si no, uno propio: el /AP lleva el dibujo
+        const def = stampById(typeof markup.customFields?.stampId === 'string' ? markup.customFields.stampId : undefined);
+        annotDict += `  /Name /${def.pdfName ?? `REA${def.id.replace(/[^A-Za-z0-9]/g, '')}`}\n`;
       } else if (annotTypeSubtype === 'Text') {
         annotDict += `  /Name /Note\n  /Open false\n`;
       } else if (
@@ -608,7 +626,22 @@ endstream`;
       }
     }
 
+    // Escala de la página (/VP /Measure) si el usuario la definió en REA
+    const pageCalibration = options.calibrations?.[pIdx];
+    let vpChanged = false;
+    if (pageCalibration) {
+      const mb = page.getMediaBox();
+      const vpString = viewportArrayFor(pageCalibration, [mb.x, mb.y, mb.x + mb.width, mb.y + mb.height], transform.rotation);
+      const vpObjNum = writer.allocateObjectNumber();
+      writer.addObject(vpObjNum, vpString);
+      page.node.set(PDFName.of('VP'), PDFRef.of(vpObjNum, 0));
+      vpChanged = true;
+    }
+
     // 5. Actualizar el diccionario de página con el array /Annots (también si solo hubo borrados)
+    if (vpChanged && newAnnotRefsList.length === 0 && removedCount === 0) {
+      writer.addObject(pageObjNum, page.node.toString());
+    }
     if (newAnnotRefsList.length > 0 || removedCount > 0) {
       const newRefs = newAnnotRefsList.map((refStr) => {
         const parts = refStr.split(' ');
@@ -707,6 +740,8 @@ function getPdfAnnotSubtype(markup: Markup): string {
       return 'FreeText';
     case 'stickyNote':
       return 'Text';
+    case 'stamp':
+      return 'Stamp';
     case 'freehand':
       return 'Ink';
     case 'highlightVector':

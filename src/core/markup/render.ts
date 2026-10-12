@@ -12,6 +12,7 @@ import { normalizedToScreen } from '../../utils/coordinates';
 import { lineEndingShape, lineEndingSize, endpointAngles } from './lineEndings';
 import { dimensionGeometry, dimensionTextBaseline, defaultDimensionLinePoint } from './dimension';
 import { revisionCloudPathNormalized, cloudParams } from './revisionCloud';
+import { stampLayout } from './stamps';
 import {
   getHelveticaTextWidth,
   getHelveticaCharWidth,
@@ -562,6 +563,12 @@ function withLineEndings(
   return { tag: 'g', attrs: { opacity }, children };
 }
 
+/** Texto de la etiqueta de una medición: valor, precedido de su etiqueta si tiene (Distance Properties › Label). */
+export function measureLabelText(markup: Markup, formatted: string): string {
+  const label = typeof markup.customFields?.measureLabel === 'string' ? markup.customFields.measureLabel.trim() : '';
+  return label ? `${label}: ${formatted}` : formatted;
+}
+
 /**
  * Función pura que calcula los descriptores de renderizado SVG para cualquier Markup
  * en espacio de pantalla según el ViewportTransform.
@@ -710,6 +717,39 @@ export function getMarkupSvgDescriptor(
       };
     }
 
+    // Sello (ADR-0026): doble marco, título en negrita y autor/fecha; misma distribución que el /AP
+    case 'stamp': {
+      const r = getRectGeometry(p1Screen, p2Screen);
+      const label = (markup.text || 'APPROVED').toUpperCase();
+      const sub = typeof markup.customFields?.stampSubtitle === 'string' ? markup.customFields.stampSubtitle : '';
+      const L = stampLayout({ x: r.x, y: r.y, w: Math.max(1, r.width), h: Math.max(1, r.height) }, label, sub);
+      const color = style.strokeColor || '#15803d';
+      const opacity = style.opacity ?? 1;
+      const children: SvgRenderDescriptor[] = [
+        {
+          tag: 'rect',
+          attrs: { x: L.outer.x, y: L.outer.y, width: L.outer.w, height: L.outer.h, rx: L.outer.h * 0.12, fill: '#ffffff', fillOpacity: 0.85, stroke: color, strokeWidth: L.outerStroke, opacity },
+        },
+        {
+          tag: 'rect',
+          attrs: { x: L.inner.x, y: L.inner.y, width: L.inner.w, height: L.inner.h, rx: L.inner.h * 0.1, fill: 'none', stroke: color, strokeWidth: L.innerStroke, opacity },
+        },
+        {
+          tag: 'text',
+          attrs: { x: L.titleBaseline.x, y: L.titleBaseline.y, fontSize: L.titleSize, fontWeight: 'bold', fontFamily: 'Helvetica, Arial, sans-serif', textAnchor: 'middle', fill: color, opacity },
+          textNode: label,
+        },
+      ];
+      if (L.subBaseline && sub) {
+        children.push({
+          tag: 'text',
+          attrs: { x: L.subBaseline.x, y: L.subBaseline.y, fontSize: L.subSize, fontFamily: 'Helvetica, Arial, sans-serif', textAnchor: 'middle', fill: color, opacity },
+          textNode: sub,
+        });
+      }
+      return { tag: 'g', attrs: { 'data-testid': `markup-stamp-${markup.id}` }, children };
+    }
+
     // Cota con texto propio (ADR-0020): misma geometría que el /AP
     case 'dimension': {
       const s3 = markup.points[2]
@@ -771,7 +811,7 @@ export function getMarkupSvgDescriptor(
         },
       };
 
-      const label = markup.measurement?.formatted || markup.text || '0.00 m';
+      const label = measureLabelText(markup, markup.measurement?.formatted || markup.text || '0.00 m');
       const midX = (p1Screen.x + p2Screen.x) / 2;
       const midY = (p1Screen.y + p2Screen.y) / 2;
       const textWidth = Math.max(50, label.length * 8 + 12);
@@ -812,7 +852,7 @@ export function getMarkupSvgDescriptor(
         attrs: {
           'data-testid': `markup-length-${markup.id}`,
         },
-        children: [lineDescriptor, bgRect, textNode],
+        children: transform.hideMeasureLabels ? [lineDescriptor] : [lineDescriptor, bgRect, textNode],
       };
     }
 
@@ -827,7 +867,7 @@ export function getMarkupSvgDescriptor(
         },
       };
 
-      const label = markup.measurement?.formatted || markup.text || '0.00 m';
+      const label = measureLabelText(markup, markup.measurement?.formatted || markup.text || '0.00 m');
       const lastPt = markup.points[markup.points.length - 1];
       const lastScreen = lastPt ? normalizedToScreen(lastPt, transform) : p2Screen;
       const textWidth = Math.max(50, label.length * 8 + 12);
@@ -868,7 +908,7 @@ export function getMarkupSvgDescriptor(
         attrs: {
           'data-testid': `markup-polyline-measure-${markup.id}`,
         },
-        children: [polylineDesc, bgRect, textNode],
+        children: transform.hideMeasureLabels ? [polylineDesc] : [polylineDesc, bgRect, textNode],
       };
     }
 
@@ -905,7 +945,7 @@ export function getMarkupSvgDescriptor(
         centerPt = { x: cx, y: cy };
       }
 
-      const label = markup.measurement?.formatted || markup.text || '0.00 m²';
+      const label = measureLabelText(markup, markup.measurement?.formatted || markup.text || '0.00 m²');
       const textWidth = Math.max(55, label.length * 8 + 14);
       const textHeight = 22;
 
@@ -944,7 +984,7 @@ export function getMarkupSvgDescriptor(
         attrs: {
           'data-testid': `markup-area-${markup.id}`,
         },
-        children: [shapeDesc, bgRect, textNode],
+        children: transform.hideMeasureLabels ? [shapeDesc] : [shapeDesc, bgRect, textNode],
       };
     }
 

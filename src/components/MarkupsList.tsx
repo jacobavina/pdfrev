@@ -3,14 +3,7 @@ import {
   Trash2,
   ChevronDown,
   ChevronUp,
-  Square,
-  Minus,
-  Cloud,
-  Type,
-  Circle,
   HelpCircle,
-  Highlighter,
-  StickyNote,
   Briefcase,
   Check,
   Plus,
@@ -19,7 +12,30 @@ import {
   FileText,
   Lock,
   LockOpen,
+  Stamp,
 } from 'lucide-react';
+import {
+  RectangleToolIcon,
+  LineToolIcon,
+  PolylineToolIcon,
+  PolygonToolIcon,
+  CloudIcon,
+  CloudPlusIcon,
+  TextBoxIcon,
+  CalloutIcon,
+  EllipseToolIcon,
+  NoteIcon,
+  HighlighterIcon,
+  TextHighlightIcon,
+  UnderlineIcon,
+  StrikeoutIcon,
+  PenIcon,
+  DimensionIcon,
+  LengthMeasureIcon,
+  PolylengthIcon,
+  AreaMeasureIcon,
+  CountMeasureIcon,
+} from './shell/customIcons';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useToolChestStore } from '../store/useToolChestStore';
@@ -86,77 +102,53 @@ const STATUS_CONFIG: Record<
   },
 };
 
+/** Ícono de cada tipo en la lista: el mismo de su herramienta en la cinta (ADR-0023/0026). */
 function getMarkupIcon(type: MarkupType) {
+  const I = (node: React.ReactNode, cls: string) => <span className={`inline-flex ${cls}`}>{node}</span>;
   switch (type) {
     case 'rectangle':
-      return <Square size={14} className="text-orange-400" />;
+      return I(<RectangleToolIcon size={14} />, 'text-orange-400');
     case 'line':
-      return <Minus size={14} className="text-blue-400" />;
+      return I(<LineToolIcon size={14} />, 'text-blue-400');
     case 'polyLine':
-      return (
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="text-cyan-400"
-        >
-          <polyline points="4 18 10 7 15 14 20 6" />
-        </svg>
-      );
+      return I(<PolylineToolIcon size={14} />, 'text-cyan-400');
+    case 'polygon':
+      return I(<PolygonToolIcon size={14} />, 'text-cyan-400');
     case 'cloud':
+      return I(<CloudIcon size={14} />, 'text-emerald-400');
     case 'cloudPlus':
-      return <Cloud size={14} className="text-emerald-400" />;
+      return I(<CloudPlusIcon size={14} />, 'text-emerald-400');
     case 'text':
+      return I(<TextBoxIcon size={14} />, 'text-purple-400');
     case 'callout':
-      return <Type size={14} className="text-purple-400" />;
+      return I(<CalloutIcon size={14} />, 'text-purple-400');
     case 'circle':
-      return <Circle size={14} className="text-yellow-400" />;
+      return I(<EllipseToolIcon size={14} />, 'text-yellow-400');
     case 'stickyNote':
-      return <StickyNote size={14} className="text-amber-400" />;
+      return I(<NoteIcon size={14} />, 'text-amber-400');
     case 'highlightVector':
     case 'highlight':
+      return I(<HighlighterIcon size={14} />, 'text-yellow-400');
     case 'highlightText':
-      return <Highlighter size={14} className="text-yellow-400" />;
+      return I(<TextHighlightIcon size={14} />, 'text-yellow-400');
     case 'underline':
-      return (
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="text-pink-400"
-        >
-          <path d="M6 4v6a6 6 0 0 0 12 0V4" />
-          <line x1="4" y1="20" x2="20" y2="20" />
-        </svg>
-      );
+      return I(<UnderlineIcon size={14} />, 'text-pink-400');
     case 'strikeOut':
-      return (
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="text-rose-400"
-        >
-          <path d="M16 4H9a3 3 0 0 0-2.83 4" />
-          <path d="M14 12a4 4 0 0 1 0 8H6" />
-          <line x1="4" y1="12" x2="20" y2="12" />
-        </svg>
-      );
+      return I(<StrikeoutIcon size={14} />, 'text-rose-400');
+    case 'freehand':
+      return I(<PenIcon size={14} />, 'text-blue-400');
+    case 'stamp':
+      return I(<Stamp size={14} />, 'text-emerald-500');
+    case 'dimension':
+      return I(<DimensionIcon size={14} />, 'text-sky-400');
+    case 'length':
+      return I(<LengthMeasureIcon size={14} />, 'text-violet-400');
+    case 'polylineMeasure':
+      return I(<PolylengthIcon size={14} />, 'text-violet-400');
+    case 'area':
+      return I(<AreaMeasureIcon size={14} />, 'text-violet-400');
+    case 'count':
+      return I(<CountMeasureIcon size={14} />, 'text-violet-400');
     default:
       return <HelpCircle size={14} className="text-gray-400" />;
   }

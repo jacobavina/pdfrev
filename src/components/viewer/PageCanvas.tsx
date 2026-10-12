@@ -13,6 +13,9 @@ interface PageCanvasProps {
   shouldRender: boolean;
   /** Contenedor de la capa de texto; solo la página activa lo tiene. */
   textLayerNode: HTMLDivElement | null;
+  /** Capas del PDF (ADR-0024) y su versión: cambiar la visibilidad de una capa vuelve a renderizar. */
+  ocConfig?: unknown;
+  ocVersion?: number;
   onRendered: (pageIndex: number, result: RenderResult, active: boolean) => void;
 }
 
@@ -29,6 +32,8 @@ export const PageCanvas: React.FC<PageCanvasProps> = ({
   active,
   shouldRender,
   textLayerNode,
+  ocConfig,
+  ocVersion,
   onRendered,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -54,6 +59,7 @@ export const PageCanvas: React.FC<PageCanvasProps> = ({
       scale,
       rotation,
       textLayerContainer: active ? textLayerNode : null,
+      optionalContentConfig: ocConfig ?? undefined,
     })
       .then((result) => {
         if (!cancelled && result) onRenderedRef.current(pageIndex, result, active);
@@ -64,7 +70,7 @@ export const PageCanvas: React.FC<PageCanvasProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [pdfDoc, pageIndex, scale, rotation, active, shouldRender, textLayerNode]);
+  }, [pdfDoc, pageIndex, scale, rotation, active, shouldRender, textLayerNode, ocConfig, ocVersion]);
 
   return (
     <canvas

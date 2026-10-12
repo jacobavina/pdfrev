@@ -37,6 +37,21 @@ export interface PageCalibration {
   rawInputLength?: number;
   rawInputUnit?: MeasurementUnit;
   ptDistance?: number;
+  /** Escala vertical distinta (ADR-0025, "Separate Y Scale"); si falta, igual a `scale`. */
+  scaleY?: number;
+  /** Presentación: pies-pulgadas (unit 'ft') o pulgadas fraccionarias (unit 'in'); por defecto decimales. */
+  format?: 'decimal' | 'ftin' | 'fraction';
+  /** Denominador de la fracción de pulgada (2, 4, 8, 16…) cuando la presentación es fraccionaria. */
+  fractionDenominator?: number;
+  /** Relación "papel = real" con que se definió la escala (para mostrarla y editarla). */
+  ratio?: {
+    paperValue: number;
+    paperUnit: 'mm' | 'cm' | 'in' | 'pt';
+    realValue: number;
+    realUnit: 'mm' | 'cm' | 'm' | 'in' | 'ft' | 'ftin';
+    y?: { paperValue: number; paperUnit: 'mm' | 'cm' | 'in' | 'pt'; realValue: number; realUnit: 'mm' | 'cm' | 'm' | 'in' | 'ft' | 'ftin' };
+  };
+  presetId?: string;
 }
 
 export interface MarkupMeasurement {
@@ -175,6 +190,8 @@ export interface ViewportTransform {
   rotation?: number; // 0, 90, 180, 270
   /** Zoom del visor (px por pt) cuando width/height ya están en píxeles de pantalla y scale = 1. */
   zoom?: number;
+  /** Oculta el valor de las mediciones sobre el plano ("Show Result Information" desactivado). */
+  hideMeasureLabels?: boolean;
 }
 
 export const CANONICAL_CUSTOM_COLUMN_TYPES = [

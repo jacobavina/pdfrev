@@ -120,13 +120,15 @@ function drawViaAppearanceOperators(
       })
     );
   }
-  if (emitted.fontName) {
-    resources.set(
-      PDFName.of('Font'),
-      pdfDoc.context.obj({
-        [emitted.fontName]: { Type: 'Font', Subtype: 'Type1', BaseFont: 'Helvetica', Encoding: 'WinAnsiEncoding' },
-      })
-    );
+  if (emitted.fontName || emitted.boldFontName) {
+    const fonts: Record<string, unknown> = {};
+    if (emitted.fontName) {
+      fonts[emitted.fontName] = { Type: 'Font', Subtype: 'Type1', BaseFont: 'Helvetica', Encoding: 'WinAnsiEncoding' };
+    }
+    if (emitted.boldFontName) {
+      fonts[emitted.boldFontName] = { Type: 'Font', Subtype: 'Type1', BaseFont: 'Helvetica-Bold', Encoding: 'WinAnsiEncoding' };
+    }
+    resources.set(PDFName.of('Font'), pdfDoc.context.obj(fonts as never));
   }
   const stream = pdfDoc.context.stream(emitted.operators, {
     Type: 'XObject',
@@ -430,7 +432,6 @@ export async function exportMarkupsToPdf(
 
   // Caché de fuente estándar Helvetica única para todo el proceso
   const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const helveticaBoldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
   // Agrupar marcas por página
   const markupsByPage: Record<number, Markup[]> = {};
@@ -899,48 +900,8 @@ export async function exportMarkupsToPdf(
 
         // 11. Sello técnico (Stamp)
         case 'stamp': {
-          const p1 = normalizedToPdfCoordinates(markup.points[0] || { x: 0, y: 0 }, transform);
-          const p2 = normalizedToPdfCoordinates(
-            markup.points[1] || markup.points[0] || { x: 0, y: 0 },
-            transform
-          );
-          const x = Math.min(p1.x, p2.x);
-          const y = Math.min(p1.y, p2.y);
-          const width = Math.max(100, Math.abs(p2.x - p1.x));
-          const height = Math.max(40, Math.abs(p2.y - p1.y));
-
-          // Borde doble de sello
-          page.drawRectangle({
-            x,
-            y,
-            width,
-            height,
-            borderColor: strokeColorParsed.color,
-            borderWidth: 2.5,
-            color: rgb(1, 1, 1),
-            opacity: 0.9,
-          });
-          page.drawRectangle({
-            x: x + 3,
-            y: y + 3,
-            width: width - 6,
-            height: height - 6,
-            borderColor: strokeColorParsed.color,
-            borderWidth: 1,
-          });
-
-          const rawText = (markup.text || 'APROBADO').toUpperCase();
-          const sanitized = sanitizeTextToWinAnsi(rawText);
-          totalReplacedCharacters += sanitized.replacedCount;
-
-          const textWidth = helveticaBoldFont.widthOfTextAtSize(sanitized.text, 14);
-          page.drawText(sanitized.text, {
-            x: x + Math.max(6, (width - textWidth) / 2),
-            y: y + height / 2 - 5,
-            size: 14,
-            font: helveticaBoldFont,
-            color: strokeColorParsed.color,
-          });
+          // Mismo dibujo que el /AP del sello (ADR-0026)
+          drawViaAppearanceOperators(pdfDoc, page, markup, transform);
           break;
         }
 

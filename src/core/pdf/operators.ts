@@ -13,10 +13,12 @@ import {
 import { lineEndingShape, lineEndingSize, endpointAngles, shapeExtent, Pt } from '../markup/lineEndings';
 import { dimensionGeometry, dimensionTextBaseline, defaultDimensionLinePoint } from '../markup/dimension';
 import { getHelveticaTextWidth } from '../markup/helveticaMetrics';
+import { stampLayout } from '../markup/stamps';
 import { revisionCloudPathNormalized, cloudParams } from '../markup/revisionCloud';
 
 /** Nombre del recurso de fuente que usan los /AP con texto (Helvetica estándar, WinAnsiEncoding). */
 export const AP_FONT_NAME = 'Helv';
+export const AP_BOLD_FONT_NAME = 'HeBo';
 
 const WIN_ANSI_EXTRA: Record<string, number> = {
   '€': 0x80, '‚': 0x82, 'ƒ': 0x83, '„': 0x84, '…': 0x85, '†': 0x86, '‡': 0x87, 'ˆ': 0x88, '‰': 0x89,
@@ -60,6 +62,8 @@ export interface EmittedOperatorsResult {
   };
   fontName?: string;
   fontSize?: number;
+  /** Recurso de Helvetica-Bold si el /AP lo usa (sellos). */
+  boldFontName?: string;
 }
 
 /**
@@ -294,6 +298,7 @@ export function emitMarkupOperators(
   };
 
   let usesFont = false;
+  let usesBold = false;
   /** Una línea de texto Helvetica con origen y ángulo en coordenadas PDF (amplía la caja envolvente). */
   const textPdf = (
     text: string,
@@ -301,15 +306,16 @@ export function emitMarkupOperators(
     angle: number,
     fontSize: number,
     color: { r: number; g: number; b: number },
-    align: 'left' | 'center'
+    align: 'left' | 'center',
+    bold = false
   ) => {
     if (!text.trim()) return;
-    const width = getHelveticaTextWidth(text, fontSize);
+    const width = getHelveticaTextWidth(text, fontSize) * (bold ? 1.07 : 1);
     const cos = Math.cos(angle);
     const sin = Math.sin(angle);
     const x0 = align === 'center' ? origin.x - (cos * width) / 2 : origin.x;
     const y0 = align === 'center' ? origin.y - (sin * width) / 2 : origin.y;
-    lines.push('q', 'BT', `/${AP_FONT_NAME} ${f2(fontSize)} Tf`, rgbOp(color, 'rg'));
+    lines.push('q', 'BT', `/${bold ? AP_BOLD_FONT_NAME : AP_FONT_NAME} ${f2(fontSize)} Tf`, rgbOp(color, 'rg'));
     lines.push(`${cos.toFixed(4)} ${sin.toFixed(4)} ${(-sin).toFixed(4)} ${cos.toFixed(4)} ${f2(x0)} ${f2(y0)} Tm`);
     lines.push(`${toWinAnsiPdfLiteral(text)} Tj`, 'ET', 'Q');
     for (const [dx, dy] of [
@@ -320,13 +326,21 @@ export function emitMarkupOperators(
     ]) {
       updateBBox(x0 + cos * dx - sin * dy * fontSize, y0 + sin * dx + cos * dy * fontSize);
     }
-    usesFont = true;
+    if (bold) usesBold = true;
+    else usesFont = true;
   };
   /** Texto horizontal en el espacio visual (sigue la rotación de la página). */
-  const textVis = (text: string, originVis: Pt, fontSize: number, color: { r: number; g: number; b: number }) => {
+  const textVis = (
+    text: string,
+    originVis: Pt,
+    fontSize: number,
+    color: { r: number; g: number; b: number },
+    align: 'left' | 'center' = 'left',
+    bold = false
+  ) => {
     const o = visToPdf(originVis);
     const o2 = visToPdf({ x: originVis.x + 1, y: originVis.y });
-    textPdf(text, o, Math.atan2(o2.y - o.y, o2.x - o.x), fontSize, color, 'left');
+    textPdf(text, o, Math.atan2(o2.y - o.y, o2.x - o.x), fontSize, color, align, bold);
   };
   const DARK_TEXT = { r: 0.12, g: 0.16, b: 0.22 };
 
@@ -694,6 +708,34 @@ export function emitMarkupOperators(
       break;
     }
 
+    case 'stamp': {
+      if (markup.points.length < 2) break;
+      const a = toVis(markup.points[0]);
+      const b = toVis(markup.points[1]);
+      const label = (markup.text || 'APPROVED').toUpperCase();
+      const sub = typeof markup.customFields?.stampSubtitle === 'string' ? markup.customFields.stampSubtitle : '';
+      const L = stampLayout(
+        { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(b.x - a.x), h: Math.abs(b.y - a.y) },
+        label,
+        sub
+      );
+      const color = strokeParsed ?? { r: 0.08, g: 0.5, b: 0.24 };
+      const rectPdf = (r: { x: number; y: number; w: number; h: number }) => [
+        visToPdf({ x: r.x, y: r.y }),
+        visToPdf({ x: r.x + r.w, y: r.y }),
+        visToPdf({ x: r.x + r.w, y: r.y + r.h }),
+        visToPdf({ x: r.x, y: r.y + r.h }),
+      ];
+      lines.push(`${f2(L.outerStroke)} w`, rgbOp(color, 'RG'), '1 1 1 rg');
+      pathPdf(rectPdf(L.outer), true);
+      lines.push('B', `${f2(L.innerStroke)} w`);
+      pathPdf(rectPdf(L.inner), true);
+      lines.push('S');
+      textVis(label, L.titleBaseline, L.titleSize, color, 'center', true);
+      if (L.subBaseline && sub) textVis(sub, L.subBaseline, L.subSize, color, 'center');
+      break;
+    }
+
     case 'dimension': {
       if (markup.points.length < 2) break;
       const p1 = normalizedToPdfCoordinates(markup.points[0], transform);
@@ -764,5 +806,6 @@ export function emitMarkupOperators(
     bbox: [minX, minY, maxX, maxY],
     extGState,
     ...(usesFont ? { fontName: AP_FONT_NAME } : {}),
+    ...(usesBold ? { boldFontName: AP_BOLD_FONT_NAME } : {}),
   };
 }

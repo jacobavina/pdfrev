@@ -4,12 +4,20 @@ import { DEFAULT_PAGE_CALIBRATION } from '../core/measurements/calculate';
 
 interface CalibrationState {
   calibrations: Record<number, PageCalibration>;
+  /** Escalas leídas del PDF al abrirlo (ADR-0025): al guardar solo se reescriben las páginas que cambien. */
+  importedCalibrations: Record<number, PageCalibration>;
+  /** Sustituye todas las escalas por las del documento recién abierto. */
+  loadDocumentCalibrations: (calibrations: Record<number, PageCalibration>) => void;
+  /** Escalas definidas o cambiadas por el usuario desde que se abrió el PDF. */
+  changedCalibrations: () => Record<number, PageCalibration>;
   pendingCalibrationPoints: MarkupPoint[];
   isCalibrationModalOpen: boolean;
 
   setPageCalibration: (pageIndex: number, calibration: PageCalibration) => void;
   getPageCalibration: (pageIndex: number) => PageCalibration;
   clearCalibration: (pageIndex: number) => void;
+  /** Aplica la misma escala a varias páginas ("Add scale to more pages" de Revu). */
+  applyCalibrationToPages: (pageIndices: number[], calibration: PageCalibration) => void;
   setPendingCalibrationPoints: (points: MarkupPoint[]) => void;
   setCalibrationModalOpen: (open: boolean) => void;
   calibrateFromPoints: (
@@ -23,6 +31,20 @@ interface CalibrationState {
 
 export const useCalibrationStore = create<CalibrationState>((set, get) => ({
   calibrations: {},
+  importedCalibrations: {},
+
+  loadDocumentCalibrations: (calibrations) =>
+    set({ calibrations: { ...calibrations }, importedCalibrations: { ...calibrations } }),
+
+  changedCalibrations: () => {
+    const { calibrations, importedCalibrations } = get();
+    const out: Record<number, PageCalibration> = {};
+    for (const [k, cal] of Object.entries(calibrations)) {
+      const before = importedCalibrations[Number(k)];
+      if (!before || JSON.stringify(before) !== JSON.stringify(cal)) out[Number(k)] = cal;
+    }
+    return out;
+  },
   pendingCalibrationPoints: [],
   isCalibrationModalOpen: false,
 
@@ -42,6 +64,15 @@ export const useCalibrationStore = create<CalibrationState>((set, get) => ({
 
   getPageCalibration: (pageIndex) => {
     return get().calibrations[pageIndex] ?? { ...DEFAULT_PAGE_CALIBRATION };
+  },
+
+  applyCalibrationToPages: (pageIndices, calibration) => {
+    if (!Number.isFinite(calibration.scale) || calibration.scale <= 0) return;
+    set((state) => {
+      const next = { ...state.calibrations };
+      for (const i of pageIndices) next[i] = { ...calibration };
+      return { calibrations: next };
+    });
   },
 
   clearCalibration: (pageIndex) => {

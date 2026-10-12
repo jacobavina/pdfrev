@@ -873,6 +873,8 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(svgOverlay).toBeVisible({ timeout: 15000 });
     const markupsPanel = page.locator('[data-testid="markups-list-panel"]');
     await expect(markupsPanel).toBeVisible();
+    // Contar solo cuando la marca de demostración ya cargó (si no, el recuento inicial puede ser 0)
+    await expect(page.locator('[data-testid="markup-row-calibration-markup-1"]')).toBeVisible();
 
     const initialGroups = svgOverlay.locator('g[data-testid^="markup-g-"]');
     const initialCount = await initialGroups.count();
@@ -1020,6 +1022,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const spanBox = (await titleSpan.boundingBox())!;
     expect(spanBox).not.toBeNull();
 
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
     const initialGroups = overlaySvg.locator('g[data-testid^="markup-g-"]');
     const initialCount = await initialGroups.count();
 
@@ -1271,6 +1274,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     // "dragDropEnabled": false en src-tauri/tauri.conf.json. Por tanto, este test en verde NO
     // sustituye la comprobación nativa del usuario en la ventana real de Tauri.
     // =========================================================================================
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
     const initialGroups = overlaySvg.locator('g[data-testid^="markup-g-"]');
     const initialCount = await initialGroups.count(); // 1 marca inicial (calibración)
 
@@ -1714,7 +1718,8 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const at = (nx: number, ny: number) => ({ x: box.x + box.width * nx, y: box.y + box.height * ny });
 
     // 1. Menú Medición → Área (la herramienta queda activa en la cinta)
-    await page.locator('[data-testid="menu-medicion"]').click();
+    await page.locator('[data-testid="menu-herramientas"]').click();
+    await page.locator('[data-testid="menu-tools-measure"]').click();
     await page.getByRole('menuitem', { name: /^Area/ }).click();
     await expect(page.locator('[data-testid="tool-measure-area"]')).toHaveAttribute('aria-pressed', 'true');
 
@@ -1895,5 +1900,60 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const before = await zoomBtn.innerText();
     await page.locator('[data-testid="zoom-widget-in"]').click();
     await expect(zoomBtn).not.toHaveText(before);
+  });
+
+  test('Medición estilo Foxit, sellos y capas del PDF (ADR-0024/0025/0026): preset 1:100, etiqueta, snap, Tools ▸ Stamp', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="markup-row-calibration-markup-1"]')).toBeVisible();
+
+    // 1. Panel Measure: preset 1:100 mostrado en metros; la barra de estado indica la escala
+    await page.locator('[data-testid="expand-measurements-btn"]').click();
+    await page.locator('[data-testid="measure-mode-preset"]').check();
+    await page.locator('[data-testid="measure-preset-select"]').selectOption('m-1-100');
+    await page.locator('[data-testid="measure-length-unit"]').selectOption('m');
+    await expect(page.locator('[data-testid="calibration-indicator"]')).toContainText('Scale: 1:100');
+    await page.locator('[data-testid="measure-label"]').fill('Wall');
+
+    // 2. Longitud de 300 pt de papel (0.375 del ancho de 800 pt) = 105.83 mm × 100 = 10.6 m, con su etiqueta
+    const box = (await overlaySvg.boundingBox())!;
+    const at = (nx: number, ny: number) => ({ x: box.x + box.width * nx, y: box.y + box.height * ny });
+    await page.locator('header').click();
+    await page.keyboard.press('Shift+Alt+L');
+    await expect(page.locator('[data-testid="tool-measure-length"]')).toHaveAttribute('aria-pressed', 'true');
+    const a = at(0.125, 0.85);
+    const b = at(0.5, 0.85);
+    await page.mouse.move(a.x, a.y);
+    await page.mouse.down();
+    await page.mouse.move(b.x, b.y, { steps: 6 });
+    await page.mouse.up();
+    const length = overlaySvg.locator('g[data-testid^="markup-length-"]');
+    await expect(length).toHaveCount(1);
+    await expect(length.locator('text')).toHaveText('Wall: 10.6 m');
+
+    // 3. Snap: con Longitud activa, el cursor cerca del extremo muestra el indicador de extremo
+    await page.mouse.move(b.x + 3, b.y + 2);
+    await expect(overlaySvg.locator('[data-testid="snap-indicator-endpoint"]')).toHaveCount(1);
+
+    // 4. Tools ▸ Stamp ▸ NOT FOR CONSTRUCTION y un clic en el plano coloca el sello
+    await page.keyboard.press('Escape');
+    await page.locator('[data-testid="menu-herramientas"]').click();
+    await page.locator('[data-testid="menu-tools-stamp"]').hover();
+    await page.locator('[data-testid="menu-stamp-not-for-construction"]').click();
+    await expect(page.locator('[data-testid="tool-stamp"]')).toHaveAttribute('aria-pressed', 'true');
+    const c = at(0.75, 0.15);
+    await page.mouse.click(c.x, c.y);
+    const stamp = overlaySvg.locator('g[data-testid^="markup-stamp-"]');
+    await expect(stamp).toHaveCount(1);
+    await expect(stamp).toContainText('NOT FOR CONSTRUCTION');
+    await expect(page.locator('[data-testid="markups-list-panel"] tbody tr').filter({ hasText: 'Stamp' })).toHaveCount(1);
+
+    // 5. Panel Layers: sección de capas del PDF (el plano de prueba no tiene capas) y capas de marcas
+    await page.locator('[data-testid="left-tab-layers"]').click();
+    await expect(page.locator('[data-testid="pdf-layers-section"]')).toContainText('This PDF has no layers.');
+    await expect(page.locator('[data-testid="layers-panel"]')).toContainText('Markup Layers');
   });
 });

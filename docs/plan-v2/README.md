@@ -179,4 +179,5 @@ plan y `AGENTS.md`, **gana `AGENTS.md`**.
 | 2026-10-11 | Claude (Opus 5.5) | ADR-0019/0020/0021: vista continua y ajustes de zoom; cota y selectores con dibujo; puntos de control, nube estilo Revu, zoom con doble clic, tema del sistema; correcciones de interoperabilidad PDF (/AP vacíos y pérdidas al reabrir). |
 | 2026-10-11 | Claude (Opus 5.5) | ADR-0022: interfaz en inglés (terminología de Revu); tests unitarios, E2E y smoke nativo adaptados. |
 | 2026-10-11 | Claude (Opus 5.5) | ADR-0023: íconos estilo Revu, menús con íconos, atajos de vista de Revu, zoom con rueda en el control del doble clic. |
+| 2026-10-11 | Claude (Opus 5.5) | ADR-0024/0025/0026: capas del PDF, panel Measure estilo Foxit con escala guardada en el PDF y snap, sellos y menú Tools. Pendiente siguiente lote: Hyperlink, File Attachment, Form, Signature. |
 

@@ -11,6 +11,30 @@ export type LeftPanelTab = 'pages' | 'bookmarks' | 'layers';
 /** Modo de visualización de páginas (ADR-0019): todas apiladas con scroll continuo, o una sola página. */
 export type ViewMode = 'continuous' | 'single';
 export type FitKind = 'page' | 'width';
+export interface SnapSettings {
+  endpoint: boolean;
+  midpoint: boolean;
+  nearest: boolean;
+}
+
+const SNAP_STORAGE_KEY = 'rea-snap';
+const DEFAULT_SNAP: SnapSettings = { endpoint: true, midpoint: true, nearest: false };
+
+function readStoredSnap(): SnapSettings {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SNAP_STORAGE_KEY) ?? 'null');
+    if (raw && typeof raw === 'object') {
+      return {
+        endpoint: raw.endpoint !== false,
+        midpoint: raw.midpoint !== false,
+        nearest: raw.nearest === true,
+      };
+    }
+  } catch {
+    // Preferencia ilegible: se usan los valores por defecto
+  }
+  return { ...DEFAULT_SNAP };
+}
 
 const THEME_STORAGE_KEY = 'rea-theme';
 const VIEW_MODE_STORAGE_KEY = 'rea-view-mode';
@@ -91,6 +115,10 @@ interface UiState {
   viewMode: ViewMode;
   /** Petición de ajuste del zoom (la resuelve el visor, que conoce el tamaño del área y de la página). */
   fitRequest: { kind: FitKind; seq: number } | null;
+  /** Snap al dibujar y medir (ADR-0025), recordado entre sesiones. */
+  snap: SnapSettings;
+  /** Mostrar el valor de las mediciones sobre el plano ("Show Result Information"). */
+  showMeasureLabels: boolean;
 
   setTheme: (theme: Theme) => void;
   /** Olvida la elección del usuario y vuelve a seguir el tema del sistema. */
@@ -107,6 +135,8 @@ interface UiState {
   setShortcutsOpen: (open: boolean) => void;
   setViewMode: (mode: ViewMode) => void;
   requestFit: (kind: FitKind) => void;
+  setSnap: (update: Partial<SnapSettings>) => void;
+  setShowMeasureLabels: (show: boolean) => void;
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
@@ -122,6 +152,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   shortcutsOpen: false,
   viewMode: readStoredViewMode(),
   fitRequest: null,
+  snap: readStoredSnap(),
+  showMeasureLabels: true,
 
   setTheme: (theme) => {
     applyTheme(theme);
@@ -166,4 +198,15 @@ export const useUiStore = create<UiState>((set, get) => ({
     set({ viewMode });
   },
   requestFit: (kind) => set((s) => ({ fitRequest: { kind, seq: (s.fitRequest?.seq ?? 0) + 1 } })),
+  setSnap: (update) =>
+    set((s) => {
+      const snap = { ...s.snap, ...update };
+      try {
+        localStorage.setItem(SNAP_STORAGE_KEY, JSON.stringify(snap));
+      } catch {
+        // Preferencia no persistible: se aplica solo en esta sesión
+      }
+      return { snap };
+    }),
+  setShowMeasureLabels: (showMeasureLabels) => set({ showMeasureLabels }),
 }));

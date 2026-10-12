@@ -4,6 +4,7 @@ import {
   MarkupMeasurement,
   MeasurementUnit,
 } from '../../types/markup';
+import { formatWithCalibration } from './scale';
 
 export interface PageDimensionsPt {
   width: number;
@@ -35,6 +36,13 @@ export function formatMeasurement(
   return `${safeVal.toFixed(precision)} ${unitStr}`;
 }
 
+/** Escalas por eje (unidades reales por pt); Y igual a X salvo "Separate Y Scale". */
+function axisScales(calibration: PageCalibration): { sx: number; sy: number } {
+  const sx = Number.isFinite(calibration.scale) && calibration.scale > 0 ? calibration.scale : 1;
+  const sy = Number.isFinite(calibration.scaleY) && (calibration.scaleY ?? 0) > 0 ? (calibration.scaleY as number) : sx;
+  return { sx, sy };
+}
+
 /**
  * Calcula la longitud euclídea entre dos puntos en espacio físico de página (pt)
  * y la convierte a unidades del mundo real según la calibración.
@@ -48,24 +56,20 @@ export function calculateLength(
     return {
       value: 0,
       unit: calibration.unit,
-      formatted: formatMeasurement(0, calibration.unit, calibration.precision),
+      formatted: formatWithCalibration(0, calibration),
     };
   }
 
   const p1 = points[0];
   const p2 = points[1];
 
-  const dxPt = (p2.x - p1.x) * pageDimsPt.width;
-  const dyPt = (p2.y - p1.y) * pageDimsPt.height;
-  const distPt = Math.hypot(dxPt, dyPt);
-
-  const safeScale = Number.isFinite(calibration.scale) && calibration.scale > 0 ? calibration.scale : 1;
-  const value = distPt * safeScale;
+  const { sx, sy } = axisScales(calibration);
+  const value = Math.hypot((p2.x - p1.x) * pageDimsPt.width * sx, (p2.y - p1.y) * pageDimsPt.height * sy);
 
   return {
     value,
     unit: calibration.unit,
-    formatted: formatMeasurement(value, calibration.unit, calibration.precision),
+    formatted: formatWithCalibration(value, calibration),
   };
 }
 
@@ -81,26 +85,22 @@ export function calculatePolylineLength(
     return {
       value: 0,
       unit: calibration.unit,
-      formatted: formatMeasurement(0, calibration.unit, calibration.precision),
+      formatted: formatWithCalibration(0, calibration),
     };
   }
 
-  let totalPt = 0;
+  const { sx, sy } = axisScales(calibration);
+  let value = 0;
   for (let i = 0; i < points.length - 1; i++) {
     const pA = points[i];
     const pB = points[i + 1];
-    const dxPt = (pB.x - pA.x) * pageDimsPt.width;
-    const dyPt = (pB.y - pA.y) * pageDimsPt.height;
-    totalPt += Math.hypot(dxPt, dyPt);
+    value += Math.hypot((pB.x - pA.x) * pageDimsPt.width * sx, (pB.y - pA.y) * pageDimsPt.height * sy);
   }
-
-  const safeScale = Number.isFinite(calibration.scale) && calibration.scale > 0 ? calibration.scale : 1;
-  const value = totalPt * safeScale;
 
   return {
     value,
     unit: calibration.unit,
-    formatted: formatMeasurement(value, calibration.unit, calibration.precision),
+    formatted: formatWithCalibration(value, calibration),
   };
 }
 
@@ -117,20 +117,23 @@ export function calculateArea(
     return {
       value: 0,
       unit: calibration.unit,
-      formatted: formatMeasurement(0, calibration.unit, calibration.precision, true),
+      formatted: formatWithCalibration(0, calibration, true),
       perimeter: 0,
     };
   }
 
-  const safeScale = Number.isFinite(calibration.scale) && calibration.scale > 0 ? calibration.scale : 1;
+  const { sx, sy } = axisScales(calibration);
+  // Coordenadas ya en unidades reales (escala X e Y independientes)
+  const W = pageDimsPt.width * sx;
+  const H = pageDimsPt.height * sy;
   let areaPt = 0;
   let perimeterPt = 0;
 
   if (isRectangle || points.length === 2) {
     const p1 = points[0];
     const p2 = points[1];
-    const wPt = Math.abs(p2.x - p1.x) * pageDimsPt.width;
-    const hPt = Math.abs(p2.y - p1.y) * pageDimsPt.height;
+    const wPt = Math.abs(p2.x - p1.x) * W;
+    const hPt = Math.abs(p2.y - p1.y) * H;
     areaPt = wPt * hPt;
     perimeterPt = 2 * (wPt + hPt);
   } else {
@@ -140,10 +143,10 @@ export function calculateArea(
     for (let i = 0; i < n; i++) {
       const pA = points[i];
       const pB = points[(i + 1) % n];
-      const xA = pA.x * pageDimsPt.width;
-      const yA = pA.y * pageDimsPt.height;
-      const xB = pB.x * pageDimsPt.width;
-      const yB = pB.y * pageDimsPt.height;
+      const xA = pA.x * W;
+      const yA = pA.y * H;
+      const xB = pB.x * W;
+      const yB = pB.y * H;
 
       sum += xA * yB - xB * yA;
       perimeterPt += Math.hypot(xB - xA, yB - yA);
@@ -151,13 +154,13 @@ export function calculateArea(
     areaPt = Math.abs(sum) / 2;
   }
 
-  const areaValue = areaPt * (safeScale * safeScale);
-  const perimeterValue = perimeterPt * safeScale;
+  const areaValue = areaPt;
+  const perimeterValue = perimeterPt;
 
   return {
     value: areaValue,
     unit: calibration.unit,
-    formatted: formatMeasurement(areaValue, calibration.unit, calibration.precision, true),
+    formatted: formatWithCalibration(areaValue, calibration, true),
     perimeter: perimeterValue,
   };
 }

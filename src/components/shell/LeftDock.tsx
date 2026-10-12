@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Files, Bookmark, Layers, Eye, EyeOff, ChevronRight, ChevronDown } from 'lucide-react';
 import { useDocumentStore } from '../../store/useDocumentStore';
+import { listPdfLayers, OptionalContentConfigLike } from '../../core/pdf/pdfLayers';
 import { useMarkupStore } from '../../store/useMarkupStore';
 import { useUiStore, LeftPanelTab, NO_LAYER } from '../../store/useUiStore';
 import { ThumbnailsSidebar } from '../ThumbnailsSidebar';
@@ -116,6 +117,83 @@ const BookmarksPanel: React.FC = () => {
 
 // ---------------------------------------------------------------- Capas (visibilidad de marcas)
 
+/** Capas propias del PDF (/OCG, ADR-0024): las que exportan los programas de CAD, como el panel Layers de Revu. */
+const PdfLayersSection: React.FC = () => {
+  const ocConfig = useDocumentStore((s) => s.ocConfig);
+  useDocumentStore((s) => s.ocVersion); // re-render al cambiar la visibilidad
+  const { setPdfLayerVisible, setAllPdfLayersVisible } = useDocumentStore();
+  const rows = listPdfLayers(ocConfig as OptionalContentConfigLike | null);
+
+  return (
+    <section data-testid="pdf-layers-section" className="border-b border-cad-border">
+      <div className="flex items-center justify-between px-2 py-1.5 bg-cad-ribbon/60">
+        <span className="font-semibold text-gray-300">PDF Layers ({rows.filter((r) => r.id).length})</span>
+        {rows.length > 0 && (
+          <span className="flex gap-1">
+            <button
+              type="button"
+              data-testid="pdf-layers-show-all"
+              onClick={() => setAllPdfLayersVisible(true)}
+              className="px-1.5 rounded text-[11px] text-gray-400 hover:bg-cad-hover hover:text-cad-strong"
+            >
+              Show all
+            </button>
+            <button
+              type="button"
+              data-testid="pdf-layers-hide-all"
+              onClick={() => setAllPdfLayersVisible(false)}
+              className="px-1.5 rounded text-[11px] text-gray-400 hover:bg-cad-hover hover:text-cad-strong"
+            >
+              Hide all
+            </button>
+          </span>
+        )}
+      </div>
+      {rows.length === 0 ? (
+        <div className="p-3 text-gray-500">This PDF has no layers.</div>
+      ) : (
+        <table className="w-full text-left">
+          <thead>
+            <tr className="text-[11px] text-gray-500 border-b border-cad-border">
+              <th className="font-medium px-2 py-1">Layer</th>
+              <th className="font-medium px-2 py-1 w-14 text-center">Visible</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={`${row.id ?? 'grp'}-${i}`} data-testid={`pdf-layer-row-${i}`} className="hover:bg-cad-hover">
+                <td
+                  className={`px-2 py-1 truncate max-w-0 ${row.id ? '' : 'font-semibold text-gray-300'} ${
+                    row.id && !row.visible ? 'text-gray-500' : ''
+                  }`}
+                  style={{ paddingLeft: 8 + row.depth * 12 }}
+                  title={row.name}
+                >
+                  {row.name}
+                </td>
+                <td className="px-2 py-1 text-center">
+                  {row.id && (
+                    <button
+                      type="button"
+                      data-testid={`pdf-layer-toggle-${i}`}
+                      aria-pressed={row.visible}
+                      onClick={() => setPdfLayerVisible(row.id!, !row.visible)}
+                      title={row.visible ? 'Hide layer' : 'Show layer'}
+                      className="p-0.5 rounded hover:bg-cad-subtle text-gray-400"
+                    >
+                      {row.visible ? <Eye size={14} className="text-cad-accent" /> : <EyeOff size={14} />}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+};
+
 const LayersPanel: React.FC = () => {
   const { markups } = useMarkupStore();
   const { hiddenLayers, toggleLayerVisibility } = useUiStore();
@@ -132,7 +210,9 @@ const LayersPanel: React.FC = () => {
   });
 
   return (
-    <PanelShell title="Markup layers" testId="layers-panel">
+    <PanelShell title="Layers" testId="layers-panel">
+      <PdfLayersSection />
+      <div className="px-2 py-1.5 font-semibold text-gray-300 bg-cad-ribbon/60">Markup Layers</div>
       {layers.length === 0 ? (
         <div className="p-3 text-gray-500">There are no markups in the document.</div>
       ) : (

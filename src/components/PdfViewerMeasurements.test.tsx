@@ -87,7 +87,8 @@ describe('PdfViewer + barra de estado - Calibración e indicador de escala', () 
       fireEvent.click(screen.getByTestId('calibration-indicator'));
     });
 
-    expect(screen.getByTestId('calibration-modal')).toBeInTheDocument();
+    // El modal se carga al abrirlo (carga diferida)
+    expect(await screen.findByTestId('calibration-modal')).toBeInTheDocument();
   });
 
   it('actualiza reactivamente el texto del indicador cuando la página se calibra', async () => {

@@ -6,6 +6,7 @@ import { useCalibrationStore } from '../../store/useCalibrationStore';
 import { useSearchStore } from '../../store/useSearchStore';
 import { useUiStore } from '../../store/useUiStore';
 import { goToPage } from './appActions';
+import { describeCalibration } from '../../core/measurements/scale';
 import { SinglePageIcon, ContinuousIcon, FitPageIcon, FitWidthIcon } from './customIcons';
 
 const Divider = () => <div className="h-4 w-px bg-cad-border mx-1.5 shrink-0" />;
@@ -148,7 +149,7 @@ export const StatusBar: React.FC = () => {
           <span className={`w-2 h-2 rounded-full ${isCalibrated ? 'bg-emerald-500' : 'bg-amber-500'}`} />
           <span className="font-mono">
             {isCalibrated
-              ? `Scale: 1 ${calib.unit} = ${(1 / calib.scale).toFixed(1)} pt`
+              ? `Scale: ${describeCalibration(calib)}`
               : `Scale not set (paper scale, ${calib.unit})`}
           </span>
         </button>

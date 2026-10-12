@@ -9,12 +9,18 @@ interface ToolState {
   currentStyle: MarkupStyle;
   author: string;
   activeLayer: string;
+  /** Etiqueta por defecto de las mediciones nuevas (Distance Properties › Label, ADR-0025). */
+  measureLabel: string;
+  /** Sello que coloca la herramienta Stamp (ADR-0026). */
+  activeStampId: string;
 
   // Actions
   setActiveTool: (tool: ToolType) => void;
   setCurrentStyle: (style: Partial<MarkupStyle>) => void;
   setAuthor: (author: string) => void;
   setActiveLayer: (layer: string) => void;
+  setMeasureLabel: (label: string) => void;
+  setActiveStampId: (id: string) => void;
 }
 
 export const useToolStore = create<ToolState>((set) => ({
@@ -26,7 +32,9 @@ export const useToolStore = create<ToolState>((set) => ({
     opacity: 1,
   },
   author: 'Reviewer',
-  activeLayer: 'Anotaciones',
+  activeLayer: 'Markups',
+  measureLabel: '',
+  activeStampId: 'approved',
 
   setActiveTool: (activeTool) => set({ activeTool }),
   setCurrentStyle: (styleUpdate) =>
@@ -35,4 +43,6 @@ export const useToolStore = create<ToolState>((set) => ({
     })),
   setAuthor: (author) => set({ author }),
   setActiveLayer: (activeLayer) => set({ activeLayer }),
+  setMeasureLabel: (measureLabel) => set({ measureLabel }),
+  setActiveStampId: (activeStampId) => set({ activeStampId }),
 }));

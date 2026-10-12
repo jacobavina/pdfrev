@@ -1,5 +1,6 @@
 import { isTauriEnvironment, loadBbxForPdf } from './bbxPersistenceService';
 import { useDocumentStore } from '../store/useDocumentStore';
+import { useCalibrationStore } from '../store/useCalibrationStore';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { loadPdfDocument } from './pdfService';
 import { showToast } from './toastService';
@@ -104,6 +105,17 @@ export async function loadPdfData(
     const message = err instanceof Error ? err.message : String(err);
     setError(`Error processing PDF: ${message}`);
     return;
+  }
+
+  // Escalas de página del PDF (/VP /Measure, ADR-0025): las de REA, Revu o Acrobat. Nunca se arrastran
+  // las del documento anterior.
+  try {
+    const { importPdfCalibrations } = await import('../core/pdf/pdfScale');
+    useCalibrationStore.getState().loadDocumentCalibrations(await importPdfCalibrations(bytes));
+  } catch (calErr) {
+    useCalibrationStore.getState().loadDocumentCalibrations({});
+    const message = calErr instanceof Error ? calErr.message : String(calErr);
+    showToast(`Could not read the page scales of the PDF: ${message}`);
   }
 
   // Modo demo o archivo sin ruta en disco: no intentar cargar .bbx.json ni importar anotaciones

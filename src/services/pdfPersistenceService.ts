@@ -1,3 +1,4 @@
+import { useCalibrationStore } from '../store/useCalibrationStore';
 import { PDFDocument, PDFArray, PDFDict, PDFName, PDFString, PDFHexString } from 'pdf-lib';
 import { isTauriEnvironment } from './bbxPersistenceService';
 import { saveIncrementalMarkups } from '../core/pdf/incrementalWriter';
@@ -68,7 +69,8 @@ export async function savePdfIncremental(
 ): Promise<SavePdfResult> {
   try {
     const importedIds = useDocumentStore.getState().importedAnnotationIds ?? [];
-    const updatedBytes = await saveIncrementalMarkups(originalBytes, markups, {}, { importedIds });
+    const calibrations = useCalibrationStore.getState().changedCalibrations();
+    const updatedBytes = await saveIncrementalMarkups(originalBytes, markups, {}, { importedIds, calibrations });
 
     // Validación ANTES de escribir en disco: si falla, el archivo del usuario no se toca
     await validateSavedPdf(originalBytes, updatedBytes, markups);
@@ -86,6 +88,8 @@ export async function savePdfIncremental(
     if (setPdfBytes) {
       setPdfBytes(updatedBytes);
     }
+    // Las escalas guardadas ya forman parte del PDF: el próximo guardado solo reescribe las que cambien
+    useCalibrationStore.setState((st) => ({ importedCalibrations: { ...st.calibrations } }));
 
     return {
       success: true,

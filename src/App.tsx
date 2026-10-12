@@ -1,23 +1,33 @@
-import React, { useEffect } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { FileText } from 'lucide-react';
 import { PdfViewer } from './components/PdfViewer';
-import { ToolChestPanel } from './components/toolchest/ToolChestPanel';
 import { PropertiesInspectorPanel } from './components/PropertiesInspectorPanel';
 import { MarkupsList } from './components/MarkupsList';
 import { SearchBar } from './components/SearchBar';
 import { MenuBar } from './components/shell/MenuBar';
 import { Ribbon } from './components/shell/Ribbon';
 import { LeftDock } from './components/shell/LeftDock';
-import { MeasurementsPanel } from './components/shell/MeasurementsPanel';
 import { StatusBar } from './components/shell/StatusBar';
 import { ToastHost } from './components/shell/ToastHost';
-import { ShortcutsDialog } from './components/shell/ShortcutsDialog';
 import { useDocumentStore } from './store/useDocumentStore';
 import { useMarkupStore } from './store/useMarkupStore';
 import { useSearchStore } from './store/useSearchStore';
 import { useUiStore } from './store/useUiStore';
 import { useAutoSave } from './hooks/useAutoSave';
 import { loadPdfData, openPdfDialog } from './services/fileDialogService';
+
+// Paneles y diálogos que no hacen falta para el primer render: se cargan aparte (bundle principal ≤ 800 kB)
+const MeasurementsPanel = lazy(() =>
+  import('./components/shell/MeasurementsPanel').then((m) => ({ default: m.MeasurementsPanel }))
+);
+const ToolChestPanel = lazy(() =>
+  import('./components/toolchest/ToolChestPanel').then((m) => ({ default: m.ToolChestPanel }))
+);
+const ShortcutsDialog = lazy(() =>
+  import('./components/shell/ShortcutsDialog').then((m) => ({ default: m.ShortcutsDialog }))
+);
+/** Hueco de la barra lateral plegada mientras carga el panel. */
+const SidePanelFallback: React.FC = () => <aside className="w-10 bg-cad-panel border-l border-cad-border" />;
 import fixtureMeta from '../fixtures/test-blueprint.meta.json';
 
 /** Pestaña del documento abierto sobre el área de trabajo. */
@@ -133,8 +143,12 @@ export const App: React.FC = () => {
           <PdfViewer />
         </div>
         <PropertiesInspectorPanel defaultCollapsed={true} />
-        <MeasurementsPanel defaultCollapsed={true} />
-        <ToolChestPanel />
+        <Suspense fallback={<SidePanelFallback />}>
+          <MeasurementsPanel defaultCollapsed={true} />
+        </Suspense>
+        <Suspense fallback={<SidePanelFallback />}>
+          <ToolChestPanel />
+        </Suspense>
       </div>
 
       {/* 3. Lista de marcas y barra de estado */}
@@ -142,7 +156,9 @@ export const App: React.FC = () => {
       <StatusBar />
 
       <ToastHost />
-      <ShortcutsDialog />
+      <Suspense fallback={null}>
+        <ShortcutsDialog />
+      </Suspense>
     </div>
   );
 };

@@ -25,6 +25,12 @@ interface DocumentState {
   importedAnnotationIds: string[];
   isLoading: boolean;
   error: string | null;
+  /** Capas del PDF (ADR-0024): configuración de contenido opcional de PDF.js y versión para re-renderizar. */
+  ocConfig: unknown | null;
+  ocVersion: number;
+  setOcConfig: (config: unknown | null) => void;
+  setPdfLayerVisible: (id: string, visible: boolean) => void;
+  setAllPdfLayersVisible: (visible: boolean) => void;
 
   // Actions
   setDocument: (
@@ -72,6 +78,25 @@ export const useDocumentStore = create<DocumentState>((set) => ({
   importedAnnotationIds: [],
   isLoading: false,
   error: null,
+  ocConfig: null,
+  ocVersion: 0,
+
+  setOcConfig: (ocConfig) => set((s) => ({ ocConfig, ocVersion: s.ocVersion + 1 })),
+  setPdfLayerVisible: (id, visible) => {
+    const cfg = useDocumentStore.getState().ocConfig as { setVisibility?: (id: string, v: boolean) => void } | null;
+    if (!cfg?.setVisibility) return;
+    cfg.setVisibility(id, visible);
+    set((s) => ({ ocVersion: s.ocVersion + 1 }));
+  },
+  setAllPdfLayersVisible: (visible) => {
+    const cfg = useDocumentStore.getState().ocConfig as {
+      setVisibility?: (id: string, v: boolean) => void;
+      getGroups?: () => Record<string, unknown> | null;
+    } | null;
+    if (!cfg?.setVisibility || !cfg.getGroups) return;
+    for (const id of Object.keys(cfg.getGroups() ?? {})) cfg.setVisibility(id, visible);
+    set((s) => ({ ocVersion: s.ocVersion + 1 }));
+  },
 
   setDocument: (filePath, fileName, bytes, numPages, pdfDoc) =>
     set({
@@ -87,6 +112,7 @@ export const useDocumentStore = create<DocumentState>((set) => ({
       pageHasText: {},
       customColumns: undefined,
       importedAnnotationIds: [],
+      ocConfig: null,
       error: null,
       isLoading: false,
     }),

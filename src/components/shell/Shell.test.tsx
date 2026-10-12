@@ -50,11 +50,26 @@ describe('Espacio de trabajo (ADR-0017)', () => {
   describe('Barra de menús', () => {
     it('abre un menú, ejecuta su entrada y se cierra (Medición → Área activa la herramienta)', () => {
       render(<MenuBar />);
-      fireEvent.click(screen.getByTestId('menu-medicion'));
-      expect(screen.getByTestId('menu-popup-medicion')).toBeInTheDocument();
+      // Tools ▸ Measure ▸ Area, como en Revu (ADR-0026)
+      fireEvent.click(screen.getByTestId('menu-herramientas'));
+      expect(screen.getByTestId('menu-popup-herramientas')).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId('menu-tools-measure'));
       fireEvent.click(screen.getByRole('menuitem', { name: /^Area/ }));
       expect(useToolStore.getState().activeTool).toBe('area');
-      expect(screen.queryByTestId('menu-popup-medicion')).toBeNull();
+      expect(screen.queryByTestId('menu-popup-herramientas')).toBeNull();
+    });
+
+    it('Tools ▸ Stamp lista los sellos y elegir uno activa la herramienta Stamp (ADR-0026)', () => {
+      useDocumentStore.setState({ pdfBytes: new Uint8Array([1]) });
+      render(<MenuBar />);
+      fireEvent.click(screen.getByTestId('menu-herramientas'));
+      fireEvent.mouseEnter(screen.getByTestId('menu-tools-stamp').parentElement!);
+      const popup = screen.getByTestId('menu-tools-stamp-popup');
+      expect(popup).toHaveTextContent('APPROVED');
+      expect(popup).toHaveTextContent('NOT FOR CONSTRUCTION');
+      fireEvent.click(screen.getByTestId('menu-stamp-revise-resubmit'));
+      expect(useToolStore.getState().activeTool).toBe('stamp');
+      expect(useToolStore.getState().activeStampId).toBe('revise-resubmit');
     });
 
     it('las entradas de los menús llevan ícono y la opción activa lo resalta (ADR-0023)', () => {
@@ -116,6 +131,37 @@ describe('Espacio de trabajo (ADR-0017)', () => {
   });
 
   describe('Panel izquierdo: capas', () => {
+    it('muestra las capas del PDF y oculta/muestra cada una, o todas a la vez (ADR-0024)', () => {
+      const groups: Record<string, { name: string; visible: boolean }> = {
+        g1: { name: 'A-WALL', visible: true },
+        g2: { name: 'E-POWR', visible: true },
+      };
+      const cfg = {
+        getOrder: () => ['g1', 'g2'],
+        getGroup: (id: string) => groups[id] ?? null,
+        getGroups: () => groups,
+        setVisibility: (id: string, visible = true) => {
+          groups[id] = { ...groups[id], visible };
+        },
+      };
+      useDocumentStore.setState({ ocConfig: cfg, ocVersion: 0 });
+      render(<LeftDock />);
+      fireEvent.click(screen.getByTestId('left-tab-layers'));
+      const section = screen.getByTestId('pdf-layers-section');
+      expect(section).toHaveTextContent('PDF Layers (2)');
+      expect(section).toHaveTextContent('A-WALL');
+      const before = useDocumentStore.getState().ocVersion;
+      fireEvent.click(screen.getByTestId('pdf-layer-toggle-1'));
+      expect(groups.g2.visible).toBe(false);
+      expect(useDocumentStore.getState().ocVersion).toBe(before + 1);
+      expect(screen.getByTestId('pdf-layer-toggle-1')).toHaveAttribute('aria-pressed', 'false');
+      fireEvent.click(screen.getByTestId('pdf-layers-hide-all'));
+      expect(groups.g1.visible).toBe(false);
+      fireEvent.click(screen.getByTestId('pdf-layers-show-all'));
+      expect(groups.g1.visible && groups.g2.visible).toBe(true);
+      useDocumentStore.setState({ ocConfig: null });
+    });
+
     it('lista las capas con su número de marcas y oculta/muestra cada una', () => {
       useMarkupStore.setState({
         markups: [mk('a', 'rectangle', 'Arquitectura'), mk('b', 'cloud', 'Arquitectura'), mk('c', 'line')],

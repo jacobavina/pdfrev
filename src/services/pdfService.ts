@@ -25,6 +25,8 @@ export interface RenderOptions {
   scale?: number;
   rotation?: number;
   textLayerContainer?: HTMLDivElement | null;
+  /** Capas del PDF (OptionalContentConfig de PDF.js) con la visibilidad elegida en el panel Layers. */
+  optionalContentConfig?: unknown;
 }
 
 export interface RenderResult {
@@ -104,6 +106,9 @@ export async function renderPageToCanvas(
     canvasContext: offscreenCtx,
     viewport: viewport,
     annotationMode: 0, // AnnotationMode.DISABLE: render dual, REA dibuja las marcas interactivas
+    ...(options.optionalContentConfig
+      ? { optionalContentConfigPromise: Promise.resolve(options.optionalContentConfig as never) }
+      : {}),
   };
 
   const renderTask = page.render(renderContext);

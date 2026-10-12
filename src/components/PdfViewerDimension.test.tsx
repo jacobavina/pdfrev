@@ -189,4 +189,60 @@ describe('Cota, puntos de control y zoom con doble clic (ADR-0020/0021)', () => 
     });
     expect(useUiStore.getState().theme).not.toBe(before);
   });
+
+  it('snap: la longitud nueva arranca exactamente en el extremo de una línea cercana, con su etiqueta (ADR-0025)', async () => {
+    const line: Markup = {
+      id: 'l-snap',
+      type: 'line',
+      pageIndex: 0,
+      points: [
+        { x: 0.25, y: 0.5 },
+        { x: 0.5, y: 0.5 },
+      ],
+      style: { strokeColor: '#000', strokeWidth: 1, opacity: 1 },
+      author: 'Reviewer',
+      createdAt: '',
+      updatedAt: '',
+      status: 'pending',
+    };
+    useMarkupStore.setState({ markups: [line], selectedMarkupIds: [] });
+    useUiStore.setState({ snap: { endpoint: true, midpoint: true, nearest: false }, showMeasureLabels: true });
+    useToolStore.setState({ measureLabel: 'Wall' });
+    await renderViewer();
+    act(() => useToolStore.setState({ activeTool: 'length' }));
+    const svg = screen.getByTestId('markup-overlay-svg');
+    // 4 px a la derecha y 3 px abajo del extremo (200, 300): se ajusta al extremo
+    act(() => {
+      fireEvent.mouseMove(svg, { clientX: 404, clientY: 303 });
+    });
+    expect(screen.getByTestId('snap-indicator-endpoint')).toBeInTheDocument();
+    drag(svg, 404, 303, 600, 450);
+    const m = useMarkupStore.getState().markups.find((x) => x.type === 'length')!;
+    expect(m.points[0]).toEqual({ x: 0.5, y: 0.5 });
+    expect(m.customFields?.measureLabel).toBe('Wall');
+    expect(screen.getByTestId(`markup-length-${m.id}`)).toHaveTextContent(/^Wall: /);
+    // "Show Result Information" desactivado: el valor deja de dibujarse
+    act(() => useUiStore.setState({ showMeasureLabels: false }));
+    expect(screen.getByTestId(`markup-length-${m.id}`).querySelector('text')).toBeNull();
+    act(() => useToolStore.setState({ measureLabel: '' }));
+  });
+
+  it('Stamp: un clic coloca el sello elegido con autor y fecha, centrado en el punto (ADR-0026)', async () => {
+    useToolStore.setState({ activeStampId: 'for-construction', author: 'Ana' });
+    await renderViewer();
+    act(() => useToolStore.setState({ activeTool: 'stamp' }));
+    const svg = screen.getByTestId('markup-overlay-svg');
+    drag(svg, 400, 300, 400, 300);
+    const m = useMarkupStore.getState().markups[0];
+    expect(m.type).toBe('stamp');
+    expect(m.text).toBe('FOR CONSTRUCTION');
+    expect(m.style.strokeColor).toBe('#15803d');
+    expect(String(m.customFields?.stampSubtitle)).toMatch(/^Ana · \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+    const cx = (m.points[0].x + m.points[1].x) / 2;
+    const cy = (m.points[0].y + m.points[1].y) / 2;
+    expect(cx).toBeCloseTo(0.5, 6);
+    expect(cy).toBeCloseTo(0.5, 6);
+    expect(screen.getByTestId(`markup-stamp-${m.id}`)).toHaveTextContent('FOR CONSTRUCTION');
+    act(() => useToolStore.setState({ author: 'Reviewer' }));
+  });
 });

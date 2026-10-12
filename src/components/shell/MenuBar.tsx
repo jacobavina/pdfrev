@@ -34,7 +34,10 @@ import {
   Search,
   Keyboard,
   Contrast,
+  PenLine,
+  Stamp as StampIcon,
 } from 'lucide-react';
+import { STAMPS } from '../../core/markup/stamps';
 import {
   FitPageIcon,
   FitWidthIcon,
@@ -42,6 +45,7 @@ import {
   SinglePageIcon,
   ContinuousIcon,
   CalibrateIcon,
+  LengthMeasureIcon,
 } from './customIcons';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useMarkupStore } from '../../store/useMarkupStore';
@@ -58,7 +62,9 @@ type MenuEntry =
   | {
       label: string;
       shortcut?: string;
-      onSelect: () => void;
+      onSelect?: () => void;
+      /** Submenú (ADR-0026), como Tools ▸ Markup / Stamp / Measure de Revu. */
+      submenu?: MenuEntry[];
       disabled?: boolean;
       checked?: boolean;
       testId?: string;
@@ -79,12 +85,16 @@ interface MenuDef {
  */
 export const MenuBar: React.FC = () => {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [openSub, setOpenSub] = useState<string | null>(null);
+  useEffect(() => {
+    if (!openMenu) setOpenSub(null);
+  }, [openMenu]);
   const barRef = useRef<HTMLDivElement | null>(null);
 
   const { fileName, filePath, pdfBytes, numPages, currentPageIndex, zoomIn, zoomOut, resetZoom, rotateClockwise } =
     useDocumentStore();
   const { canUndo, canRedo, undo, redo, isDirty, selectedMarkupIds } = useMarkupStore();
-  const { activeTool, setActiveTool } = useToolStore();
+  const { activeTool, setActiveTool, activeStampId, setActiveStampId } = useToolStore();
   const {
     theme,
     toggleTheme,
@@ -224,31 +234,55 @@ export const MenuBar: React.FC = () => {
       ],
     },
     {
-      id: 'marcado',
-      label: 'Markup',
-      entries: TOOL_GROUPS.filter((g) => g.id !== 'measure').flatMap((g, i) => [
-        ...(i > 0 ? (['separator'] as MenuEntry[]) : []),
-        ...g.tools.map((t) => toolEntry(t.type, t.short, t.shortcut, t.icon)),
-      ]),
-    },
-    {
-      id: 'medicion',
-      label: 'Measure',
+      id: 'herramientas',
+      label: 'Tools',
       entries: [
         {
-          icon: <CalibrateIcon size={15} />,
-          label: 'Calibrate Page Scale…',
-          onSelect: () => {
-            useCalibrationStore.getState().setPendingCalibrationPoints([]);
-            useCalibrationStore.getState().setCalibrationModalOpen(true);
-          },
-          disabled: !hasDoc,
+          icon: <PenLine size={15} />,
+          label: 'Markup',
+          testId: 'menu-tools-markup',
+          submenu: TOOL_GROUPS.filter((g) => g.id !== 'measure' && g.id !== 'select').flatMap((g, i) => [
+            ...(i > 0 ? (['separator'] as MenuEntry[]) : []),
+            ...g.tools.map((t) => toolEntry(t.type, t.short, t.shortcut, t.icon)),
+          ]),
         },
-        { icon: <Ruler size={15} />, label: 'Calibrate by Two Points', onSelect: () => setActiveTool('calibrate'), disabled: !hasDoc },
-        'separator',
-        ...(TOOL_GROUPS.find((g) => g.id === 'measure')?.tools ?? [])
-          .filter((t) => t.type !== 'calibrate')
-          .map((t) => toolEntry(t.type, t.short, t.shortcut, t.icon)),
+        {
+          icon: <StampIcon size={15} />,
+          label: 'Stamp',
+          testId: 'menu-tools-stamp',
+          submenu: STAMPS.map((st) => ({
+            icon: <span className="w-3 h-3 rounded-sm border-2" style={{ borderColor: st.color }} />,
+            label: st.label,
+            checked: activeTool === 'stamp' && activeStampId === st.id,
+            testId: `menu-stamp-${st.id}`,
+            disabled: !hasDoc,
+            onSelect: () => {
+              setActiveStampId(st.id);
+              setActiveTool('stamp');
+            },
+          })),
+        },
+        {
+          icon: <LengthMeasureIcon size={15} />,
+          label: 'Measure',
+          testId: 'menu-tools-measure',
+          submenu: [
+            {
+              icon: <CalibrateIcon size={15} />,
+              label: 'Calibrate Page Scale…',
+              onSelect: () => {
+                useCalibrationStore.getState().setPendingCalibrationPoints([]);
+                useCalibrationStore.getState().setCalibrationModalOpen(true);
+              },
+              disabled: !hasDoc,
+            },
+            { icon: <Ruler size={15} />, label: 'Calibrate by Two Points', onSelect: () => setActiveTool('calibrate'), disabled: !hasDoc },
+            'separator',
+            ...(TOOL_GROUPS.find((g) => g.id === 'measure')?.tools ?? [])
+              .filter((t) => t.type !== 'calibrate')
+              .map((t) => toolEntry(t.type, t.short, t.shortcut, t.icon)),
+          ],
+        },
         'separator',
         { icon: <Ruler size={15} />, label: 'Measurements Panel', onSelect: requestMeasurementsPanel },
       ],
@@ -298,6 +332,71 @@ export const MenuBar: React.FC = () => {
                 {menu.entries.map((entry, idx) =>
                   entry === 'separator' ? (
                     <div key={`sep-${idx}`} className="my-1 border-t border-cad-border" />
+                  ) : entry.submenu ? (
+                    <div
+                      key={entry.label}
+                      className="relative"
+                      onMouseEnter={() => setOpenSub(entry.label)}
+                    >
+                      <button
+                        type="button"
+                        role="menuitem"
+                        aria-haspopup="true"
+                        aria-expanded={openSub === entry.label}
+                        data-testid={entry.testId}
+                        onClick={() => setOpenSub(openSub === entry.label ? null : entry.label)}
+                        className={`w-full flex items-center justify-between gap-6 px-3 py-1.5 text-left text-gray-200 hover:bg-cad-accent hover:text-white ${
+                          openSub === entry.label ? 'bg-cad-accent text-white' : ''
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <span className="w-[22px] h-[22px] shrink-0 flex items-center justify-center [&_svg]:w-[15px] [&_svg]:h-[15px]">
+                            {entry.icon}
+                          </span>
+                          {entry.label}
+                        </span>
+                        <ChevronRight size={13} />
+                      </button>
+                      {openSub === entry.label && (
+                        <div
+                          role="menu"
+                          data-testid={`${entry.testId}-popup`}
+                          className="absolute left-full top-0 -mt-1 ml-0.5 min-w-[240px] max-h-[70vh] overflow-y-auto bg-cad-ribbon border border-cad-border rounded shadow-xl py-1 z-50"
+                        >
+                          {entry.submenu.map((sub, j) =>
+                            sub === 'separator' ? (
+                              <div key={`ssep-${j}`} className="my-1 border-t border-cad-border" />
+                            ) : (
+                              <button
+                                key={sub.label}
+                                type="button"
+                                role="menuitem"
+                                data-testid={sub.testId}
+                                disabled={sub.disabled}
+                                onClick={() => {
+                                  setOpenMenu(null);
+                                  setOpenSub(null);
+                                  sub.onSelect?.();
+                                }}
+                                className="w-full flex items-center justify-between gap-6 px-3 py-1.5 text-left text-gray-200 hover:bg-cad-accent hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-200"
+                              >
+                                <span className="flex items-center gap-2">
+                                  <span
+                                    className={`w-[22px] h-[22px] shrink-0 rounded-sm flex items-center justify-center [&_svg]:w-[15px] [&_svg]:h-[15px] ${
+                                      sub.checked ? 'bg-cad-accent/25 ring-1 ring-cad-accent text-cad-strong' : ''
+                                    }`}
+                                  >
+                                    {sub.icon}
+                                  </span>
+                                  {sub.label}
+                                </span>
+                                {sub.shortcut && <span className="text-[11px] text-gray-500 font-mono">{sub.shortcut}</span>}
+                              </button>
+                            )
+                          )}
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     <button
                       key={entry.label}
@@ -305,9 +404,10 @@ export const MenuBar: React.FC = () => {
                       role="menuitem"
                       data-testid={entry.testId}
                       disabled={entry.disabled}
+                      onMouseEnter={() => setOpenSub(null)}
                       onClick={() => {
                         setOpenMenu(null);
-                        entry.onSelect();
+                        entry.onSelect?.();
                       }}
                       className="w-full flex items-center justify-between gap-6 px-3 py-1.5 text-left text-gray-200 hover:bg-cad-accent hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-200"
                     >

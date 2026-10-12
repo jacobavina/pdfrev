@@ -1,13 +1,41 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Ruler, ChevronRight, Scale, FileSpreadsheet } from 'lucide-react';
+import { Ruler, ChevronRight, ChevronDown, FileSpreadsheet } from 'lucide-react';
 import { useMarkupStore } from '../../store/useMarkupStore';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useCalibrationStore } from '../../store/useCalibrationStore';
 import { useToolStore } from '../../store/useToolStore';
 import { useUiStore } from '../../store/useUiStore';
 import { computeMeasureTotals, measureCategoryOf, MeasureTotal } from '../../core/measurements/totals';
+import { PageCalibration } from '../../types/markup';
+import {
+  BUILT_IN_SCALE_PRESETS,
+  DISPLAY_UNITS,
+  DISPLAY_UNIT_LABELS,
+  PAPER_UNITS,
+  DisplayUnit,
+  PaperUnit,
+  ScalePreset,
+  buildCalibration,
+  convertLength,
+  describeCalibration,
+  displayUnitOf,
+  formatFeetInches,
+  parseFeetInches,
+  precisionOptions,
+} from '../../core/measurements/scale';
+import { formatWithCalibration } from '../../core/measurements/scale';
 
 const CATEGORY_LABEL = { length: 'Length', area: 'Area', count: 'Count' } as const;
+const USER_PRESETS_KEY = 'rea-scale-presets';
+
+function readUserPresets(): ScalePreset[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(USER_PRESETS_KEY) ?? '[]');
+    return Array.isArray(raw) ? raw.filter((p) => p && typeof p.id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
 
 function formatTotal(t: MeasureTotal, precision: number): string {
   if (t.category === 'count') return `${t.total} ea`;
@@ -15,18 +43,66 @@ function formatTotal(t: MeasureTotal, precision: number): string {
   return `${t.total.toFixed(precision)} ${t.unit}`;
 }
 
+/** Relación del panel a partir de una calibración (o de la escala por defecto de papel). */
+function ratioOf(c: PageCalibration) {
+  if (c.ratio) return c.ratio;
+  const display = displayUnitOf(c);
+  // 1 mm de papel equivale a scale × (pt por mm) unidades reales
+  const real = c.scale * convertLength(1, 'mm', 'pt');
+  return { paperValue: 1, paperUnit: 'mm' as PaperUnit, realValue: Number(real.toPrecision(6)), realUnit: display };
+}
+
+function precisionKeyOf(c: PageCalibration): string {
+  return c.fractionDenominator ? `f${c.fractionDenominator}` : `d${c.precision ?? 2}`;
+}
+
+const inputCls =
+  'h-7 rounded border border-cad-border bg-cad-dark px-1.5 text-gray-200 focus:outline-none focus:border-cad-accent';
+
+/** Sección plegable con rótulo y línea, como los paneles Format de Foxit/Revu. */
+const Section: React.FC<{ title: string; testId?: string; children: React.ReactNode }> = ({ title, testId, children }) => {
+  const [open, setOpen] = useState(true);
+  return (
+    <section data-testid={testId}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-1.5 text-gray-300 font-semibold mb-1.5"
+      >
+        {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        <span>{title}</span>
+        <span className="flex-1 border-t border-cad-border ml-1" />
+      </button>
+      {open && <div className="pl-3 space-y-2">{children}</div>}
+    </section>
+  );
+};
+
+/** Snap: íconos propios (punto final, punto medio, más cercano). */
+const SnapIcon: React.FC<{ kind: 'endpoint' | 'midpoint' | 'nearest' }> = ({ kind }) => (
+  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden="true">
+    <path d="M4 20 20 4" />
+    {kind === 'endpoint' && <rect x="16" y="1" width="6" height="6" stroke="#a78bfa" />}
+    {kind === 'midpoint' && <path d="m12 8.5 3.5 6h-7z" stroke="#a78bfa" />}
+    {kind === 'nearest' && <path d="M9.5 9.5h5v5h-5zM12 12l7 7" stroke="#a78bfa" />}
+  </svg>
+);
+
 /**
- * Panel de mediciones (ADR-0017): escala de la página, totales de takeoff agrupados por tipo y unidad,
- * y lista de mediciones con navegación. Plegable, como el resto de paneles laterales derechos.
+ * Panel de medición (ADR-0025), con la estructura de Format › Measure de Foxit: Scale (Calibrate, presets,
+ * relación personalizada, escala Y separada, precisión), Distance Properties, Snap, Settings, totales y exportación.
  */
 export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ defaultCollapsed = true }) => {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const [scope, setScope] = useState<'page' | 'document'>('page');
   const { markups, selectedMarkupIds, setSelectedMarkupIds } = useMarkupStore();
-  const { currentPageIndex, setCurrentPage, pdfBytes } = useDocumentStore();
-  const { calibrations, getPageCalibration, setPendingCalibrationPoints, setCalibrationModalOpen } =
-    useCalibrationStore();
-  const { setActiveTool } = useToolStore();
+  const { currentPageIndex, setCurrentPage, pdfBytes, numPages } = useDocumentStore();
+  const { calibrations, getPageCalibration, setPageCalibration, applyCalibrationToPages } = useCalibrationStore();
+  const { setActiveTool, measureLabel, setMeasureLabel } = useToolStore();
+  const snap = useUiStore((s) => s.snap);
+  const setSnap = useUiStore((s) => s.setSnap);
+  const showMeasureLabels = useUiStore((s) => s.showMeasureLabels);
+  const setShowMeasureLabels = useUiStore((s) => s.setShowMeasureLabels);
 
   const openRequest = useUiStore((s) => s.measurementsOpenRequest);
   const initialRequest = useRef(openRequest);
@@ -34,17 +110,127 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
     if (openRequest !== initialRequest.current) setIsCollapsed(false);
   }, [openRequest]);
 
+  const calib = getPageCalibration(currentPageIndex);
+  const isCalibrated = calibrations[currentPageIndex] !== undefined;
+  const display = displayUnitOf(calib);
+  const ratio = ratioOf(calib);
+
+  // Borrador del formulario (se aplica a la página al cambiar cualquier valor válido)
+  const [userPresets, setUserPresets] = useState<ScalePreset[]>(readUserPresets);
+  const [mode, setMode] = useState<'preset' | 'custom'>(calib.presetId ? 'preset' : 'custom');
+  const [paperValue, setPaperValue] = useState(String(ratio.paperValue));
+  const [paperUnit, setPaperUnit] = useState<PaperUnit>(ratio.paperUnit);
+  const [realText, setRealText] = useState(
+    ratio.realUnit === 'ftin' ? formatFeetInches(ratio.realValue) : String(ratio.realValue)
+  );
+  const [realUnit, setRealUnit] = useState<DisplayUnit>(ratio.realUnit);
+  const [separateY, setSeparateY] = useState(Boolean(ratio.y));
+  const [yPaper, setYPaper] = useState(String(ratio.y?.paperValue ?? ratio.paperValue));
+  const [yRealText, setYRealText] = useState(String(ratio.y?.realValue ?? ratio.realValue));
+  const [precision, setPrecision] = useState(precisionKeyOf(calib));
+  const [error, setError] = useState<string | null>(null);
+
+  // Al cambiar de página, el formulario muestra la escala de esa página
+  const pageKey = `${currentPageIndex}|${isCalibrated}`;
+  const lastPageKey = useRef(pageKey);
+  useEffect(() => {
+    if (lastPageKey.current === pageKey) return;
+    lastPageKey.current = pageKey;
+    const c = useCalibrationStore.getState().getPageCalibration(currentPageIndex);
+    const r = ratioOf(c);
+    setMode(c.presetId ? 'preset' : 'custom');
+    setPaperValue(String(r.paperValue));
+    setPaperUnit(r.paperUnit);
+    setRealText(r.realUnit === 'ftin' ? formatFeetInches(r.realValue) : String(r.realValue));
+    setRealUnit(r.realUnit);
+    setSeparateY(Boolean(r.y));
+    setPrecision(precisionKeyOf(c));
+    setError(null);
+  }, [pageKey, currentPageIndex]);
+
+  const parseReal = (text: string, unit: DisplayUnit) => (unit === 'ftin' ? parseFeetInches(text) : Number(text));
+
+  /** Aplica la escala del formulario a la página activa. */
+  const apply = (over: Partial<{
+    paperValue: string;
+    paperUnit: PaperUnit;
+    realText: string;
+    realUnit: DisplayUnit;
+    display: DisplayUnit;
+    precision: string;
+    separateY: boolean;
+    yPaper: string;
+    yRealText: string;
+    preset: ScalePreset | null;
+  }> = {}) => {
+    const pv = Number(over.paperValue ?? paperValue);
+    const pu = over.paperUnit ?? paperUnit;
+    const ru = over.realUnit ?? realUnit;
+    const rv = parseReal(over.realText ?? realText, ru);
+    const disp = over.display ?? display;
+    const sepY = over.separateY ?? separateY;
+    const preset = over.preset ?? null;
+    const prec = over.precision ?? precision;
+    // La precisión debe existir para la unidad de presentación
+    const validPrec = precisionOptions(disp).some((o) => o.value === prec) ? prec : precisionOptions(disp)[2].value;
+    const cal = buildCalibration({
+      paperValue: preset ? preset.paperValue : pv,
+      paperUnit: preset ? preset.paperUnit : pu,
+      realValue: preset ? preset.realValue : rv,
+      realUnit: preset ? preset.realUnit : ru,
+      display: disp,
+      precision: validPrec,
+      ...(sepY && !preset
+        ? { y: { paperValue: Number(over.yPaper ?? yPaper), paperUnit: pu, realValue: parseReal(over.yRealText ?? yRealText, ru), realUnit: ru } }
+        : {}),
+      ...(preset ? { presetId: preset.id } : {}),
+    });
+    if (!cal) {
+      setError('Enter positive values for both sides of the scale.');
+      return null;
+    }
+    setError(null);
+    if (validPrec !== prec) setPrecision(validPrec);
+    setPageCalibration(currentPageIndex, cal);
+    return cal;
+  };
+
+  const allPresets = [...BUILT_IN_SCALE_PRESETS, ...userPresets];
+
+  const addPreset = () => {
+    const pv = Number(paperValue);
+    const rv = parseReal(realText, realUnit);
+    if (!(pv > 0) || !(rv > 0)) {
+      setError('Enter positive values for both sides of the scale.');
+      return;
+    }
+    const real = realUnit === 'ftin' ? formatFeetInches(rv) : `${rv} ${DISPLAY_UNIT_LABELS[realUnit]}`;
+    const preset: ScalePreset = {
+      id: `u-${Date.now()}`,
+      label: `${pv} ${paperUnit} = ${real}`,
+      paperValue: pv,
+      paperUnit,
+      realValue: rv,
+      realUnit,
+      group: 'Custom',
+    };
+    const next = [...userPresets, preset];
+    setUserPresets(next);
+    try {
+      localStorage.setItem(USER_PRESETS_KEY, JSON.stringify(next));
+    } catch {
+      setError('The preset could not be saved on this device; it is available only in this session.');
+    }
+    setMode('preset');
+    apply({ preset });
+  };
+
   const pageFilter = scope === 'page' ? currentPageIndex : undefined;
   const totals = useMemo(() => computeMeasureTotals(markups, pageFilter), [markups, pageFilter]);
   const measureMarkups = useMemo(
     () => markups.filter((m) => measureCategoryOf(m) && (pageFilter === undefined || m.pageIndex === pageFilter)),
     [markups, pageFilter]
   );
-
-  const calib = getPageCalibration(currentPageIndex);
-  const isCalibrated = calibrations[currentPageIndex] !== undefined;
-  // Los totales pueden sumar marcas de páginas con escalas distintas: precisión fija de 2 decimales
-  const precision = 2;
 
   if (isCollapsed) {
     return (
@@ -61,19 +247,21 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
         >
           <Ruler size={16} />
         </button>
-        <span className="text-[10px] text-gray-500 font-medium rotate-90 whitespace-nowrap mt-6">Measurements</span>
+        <span className="text-[10px] text-gray-500 font-medium rotate-90 whitespace-nowrap mt-6">Measure</span>
       </aside>
     );
   }
+
+  const selectedPreset = calib.presetId ? allPresets.find((p) => p.id === calib.presetId) : undefined;
 
   return (
     <aside
       data-testid="measurements-panel"
       data-collapsed="false"
-      className="w-72 bg-cad-panel border-l border-cad-border flex flex-col text-xs select-none min-h-0"
+      className="w-80 bg-cad-panel border-l border-cad-border flex flex-col text-xs select-none min-h-0"
     >
       <div className="flex items-center justify-between px-3 h-9 border-b border-cad-border shrink-0">
-        <span className="font-semibold text-gray-300 uppercase tracking-wider">Measurements</span>
+        <span className="font-semibold text-gray-300 uppercase tracking-wider">Measure</span>
         <button
           onClick={() => setIsCollapsed(true)}
           className="p-1 text-gray-400 hover:text-cad-strong hover:bg-cad-hover rounded transition-colors"
@@ -85,52 +273,279 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        {/* Escala de la página */}
-        <section className="rounded border border-cad-border bg-cad-ribbon p-2.5 space-y-1.5">
+        <Section title="Scale" testId="measure-scale-section">
           <div className="flex items-center justify-between">
-            <span className="text-gray-400">Scale · page {currentPageIndex + 1}</span>
+            <span className="text-gray-400">Page {currentPageIndex + 1}</span>
             <span
-              className={`px-1.5 rounded text-[10px] ${
+              data-testid="measurements-scale"
+              className={`px-1.5 rounded text-[11px] font-mono ${
                 isCalibrated
                   ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
                   : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
               }`}
             >
-              {isCalibrated ? 'Calibrated' : 'Scale not set'}
+              {isCalibrated ? describeCalibration(calib) : `Paper scale (${calib.unit})`}
             </span>
           </div>
-          <div data-testid="measurements-scale" className="font-mono text-gray-200">
-            {isCalibrated ? `1 ${calib.unit} = ${(1 / calib.scale).toFixed(2)} pt` : `Paper scale (${calib.unit})`}
-          </div>
-          <div className="flex gap-1.5 pt-0.5">
+          <div className="flex gap-1.5">
             <button
               type="button"
+              data-testid="measure-calibrate-btn"
               disabled={!pdfBytes}
               onClick={() => setActiveTool('calibrate')}
-              className="flex-1 flex items-center justify-center gap-1 py-1 rounded border border-cad-border hover:bg-cad-hover disabled:opacity-40"
+              className="flex-1 py-1.5 rounded border border-cad-border hover:bg-cad-hover disabled:opacity-40"
               title="Draw a known distance on the drawing"
             >
-              <Scale size={12} /> Calibrate (2 points)
+              Calibrate
             </button>
             <button
               type="button"
+              data-testid="measure-add-preset-btn"
               disabled={!pdfBytes}
-              onClick={() => {
-                setPendingCalibrationPoints([]);
-                setCalibrationModalOpen(true);
-              }}
-              className="px-2 py-1 rounded border border-cad-border hover:bg-cad-hover disabled:opacity-40"
-              title="Type the scale numerically"
+              onClick={addPreset}
+              className="flex-1 py-1.5 rounded border border-cad-border hover:bg-cad-hover disabled:opacity-40"
+              title="Save the custom scale as a preset"
             >
-              Scale…
+              Add Preset
             </button>
           </div>
-        </section>
+          <div className="flex gap-4">
+            {(['preset', 'custom'] as const).map((m) => (
+              <label key={m} className="flex items-center gap-1.5 cursor-pointer text-gray-300">
+                <input
+                  type="radio"
+                  name="scale-mode"
+                  data-testid={`measure-mode-${m}`}
+                  checked={mode === m}
+                  onChange={() => setMode(m)}
+                  className="accent-cad-accent"
+                />
+                {m === 'preset' ? 'Preset' : 'Custom'}
+              </label>
+            ))}
+          </div>
 
-        {/* Totales */}
-        <section>
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="font-semibold text-gray-300">Totales</span>
+          {mode === 'preset' ? (
+            <select
+              data-testid="measure-preset-select"
+              value={selectedPreset?.id ?? ''}
+              onChange={(e) => {
+                const preset = allPresets.find((p) => p.id === e.target.value);
+                if (preset) apply({ preset, display: preset.realUnit === 'mm' ? display : preset.realUnit });
+              }}
+              disabled={!pdfBytes}
+              className={`${inputCls} w-full`}
+            >
+              <option value="" disabled>
+                Select a scale…
+              </option>
+              {(['Metric', 'Architectural', 'Engineering', 'Custom'] as const).map((g) => {
+                const items = allPresets.filter((p) => p.group === g);
+                return items.length ? (
+                  <optgroup key={g} label={g}>
+                    {items.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null;
+              })}
+            </select>
+          ) : (
+            <>
+              <div className="flex items-center gap-1">
+                <input
+                  data-testid="measure-paper-value"
+                  value={paperValue}
+                  onChange={(e) => setPaperValue(e.target.value)}
+                  onBlur={() => apply()}
+                  className={`${inputCls} w-14 text-right`}
+                  inputMode="decimal"
+                />
+                <select
+                  data-testid="measure-paper-unit"
+                  value={paperUnit}
+                  onChange={(e) => {
+                    setPaperUnit(e.target.value as PaperUnit);
+                    apply({ paperUnit: e.target.value as PaperUnit });
+                  }}
+                  className={inputCls}
+                >
+                  {PAPER_UNITS.map((u) => (
+                    <option key={u} value={u}>
+                      {u}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-gray-400 px-0.5">=</span>
+                <input
+                  data-testid="measure-real-value"
+                  value={realText}
+                  onChange={(e) => setRealText(e.target.value)}
+                  onBlur={() => apply()}
+                  className={`${inputCls} w-20 text-right`}
+                />
+                <select
+                  data-testid="measure-real-unit"
+                  value={realUnit}
+                  onChange={(e) => {
+                    const u = e.target.value as DisplayUnit;
+                    setRealUnit(u);
+                    apply({ realUnit: u, display: u });
+                  }}
+                  className={inputCls}
+                >
+                  {DISPLAY_UNITS.map((u) => (
+                    <option key={u} value={u}>
+                      {DISPLAY_UNIT_LABELS[u]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <label className="flex items-center gap-1.5 text-gray-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  data-testid="measure-separate-y"
+                  checked={separateY}
+                  onChange={(e) => {
+                    setSeparateY(e.target.checked);
+                    apply({ separateY: e.target.checked });
+                  }}
+                  className="accent-cad-accent"
+                />
+                Separate Y Scale
+              </label>
+              {separateY && (
+                <div className="flex items-center gap-1" data-testid="measure-y-row">
+                  <span className="text-gray-500 w-3">Y</span>
+                  <input
+                    data-testid="measure-y-paper"
+                    value={yPaper}
+                    onChange={(e) => setYPaper(e.target.value)}
+                    onBlur={() => apply()}
+                    className={`${inputCls} w-12 text-right`}
+                  />
+                  <span className="text-gray-400">{paperUnit} =</span>
+                  <input
+                    data-testid="measure-y-real"
+                    value={yRealText}
+                    onChange={(e) => setYRealText(e.target.value)}
+                    onBlur={() => apply()}
+                    className={`${inputCls} w-20 text-right`}
+                  />
+                  <span className="text-gray-400">{DISPLAY_UNIT_LABELS[realUnit]}</span>
+                </div>
+              )}
+            </>
+          )}
+
+          <div className="flex items-center gap-2">
+            <span className="text-gray-400 w-16">Precision:</span>
+            <select
+              data-testid="measure-precision"
+              value={precision}
+              onChange={(e) => {
+                setPrecision(e.target.value);
+                apply({ precision: e.target.value, ...(mode === 'preset' && selectedPreset ? { preset: selectedPreset } : {}) });
+              }}
+              className={`${inputCls} flex-1`}
+            >
+              {precisionOptions(display).map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          {error && (
+            <p role="alert" data-testid="measure-scale-error" className="text-rose-600 dark:text-rose-400">
+              {error}
+            </p>
+          )}
+          <button
+            type="button"
+            data-testid="measure-apply-all-pages"
+            disabled={!pdfBytes || numPages < 2}
+            onClick={() =>
+              applyCalibrationToPages(
+                Array.from({ length: numPages }, (_, i) => i),
+                useCalibrationStore.getState().getPageCalibration(currentPageIndex)
+              )
+            }
+            className="w-full py-1 rounded border border-cad-border hover:bg-cad-hover disabled:opacity-40"
+          >
+            Apply scale to all pages
+          </button>
+        </Section>
+
+        <Section title="Distance Properties">
+          <label className="flex items-center gap-2">
+            <span className="text-gray-400 w-16">Label:</span>
+            <input
+              data-testid="measure-label"
+              value={measureLabel}
+              onChange={(e) => setMeasureLabel(e.target.value)}
+              placeholder="e.g. Wall"
+              className={`${inputCls} flex-1`}
+            />
+          </label>
+          <label className="flex items-center gap-2">
+            <span className="text-gray-400 w-16">Length:</span>
+            <select
+              data-testid="measure-length-unit"
+              value={display}
+              onChange={(e) => {
+                const u = e.target.value as DisplayUnit;
+                apply({ display: u, ...(mode === 'preset' && selectedPreset ? { preset: selectedPreset } : {}) });
+              }}
+              disabled={!pdfBytes}
+              className={`${inputCls} flex-1`}
+            >
+              {DISPLAY_UNITS.map((u) => (
+                <option key={u} value={u}>
+                  {DISPLAY_UNIT_LABELS[u]}
+                </option>
+              ))}
+            </select>
+          </label>
+        </Section>
+
+        <Section title="Snap" testId="measure-snap-section">
+          <div className="flex gap-1">
+            {(['endpoint', 'midpoint', 'nearest'] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                data-testid={`snap-${k}`}
+                aria-pressed={snap[k]}
+                onClick={() => setSnap({ [k]: !snap[k] })}
+                title={k === 'endpoint' ? 'Snap to endpoints' : k === 'midpoint' ? 'Snap to midpoints' : 'Snap to nearest point on markup'}
+                className={`p-1.5 rounded border ${
+                  snap[k] ? 'border-cad-accent bg-cad-accent/20 text-cad-strong' : 'border-transparent text-gray-400 hover:bg-cad-hover'
+                }`}
+              >
+                <SnapIcon kind={k} />
+              </button>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Settings">
+          <label className="flex items-center gap-1.5 text-gray-300 cursor-pointer">
+            <input
+              type="checkbox"
+              data-testid="measure-show-results"
+              checked={showMeasureLabels}
+              onChange={(e) => setShowMeasureLabels(e.target.checked)}
+              className="accent-cad-accent"
+            />
+            Show Result Information
+          </label>
+        </Section>
+
+        <Section title="Totals">
+          <div className="flex items-center justify-end">
             <div className="flex rounded border border-cad-border overflow-hidden text-[11px]">
               {(['page', 'document'] as const).map((s) => (
                 <button
@@ -165,14 +580,18 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
                     <tr className="border-t border-cad-border" data-testid={`measurements-total-${t.category}`}>
                       <td className="py-1 text-gray-200">{CATEGORY_LABEL[t.category]}</td>
                       <td className="py-1 text-right font-mono text-gray-400">{t.items}</td>
-                      <td className="py-1 text-right font-mono text-cad-strong">{formatTotal(t, precision)}</td>
+                      <td className="py-1 text-right font-mono text-cad-strong">
+                        {t.category === 'length' && calib.format === 'ftin' && t.unit === 'ft'
+                          ? formatWithCalibration(t.total, calib)
+                          : formatTotal(t, 2)}
+                      </td>
                     </tr>
                     {t.category === 'area' && t.perimeter !== undefined && (
                       <tr>
                         <td className="pb-1 pl-3 text-gray-500">Perimeter</td>
                         <td />
                         <td className="pb-1 text-right font-mono text-gray-400">
-                          {t.perimeter.toFixed(precision)} {t.unit}
+                          {t.perimeter.toFixed(2)} {t.unit}
                         </td>
                       </tr>
                     )}
@@ -181,12 +600,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
               </tbody>
             </table>
           )}
-        </section>
-
-        {/* Lista de mediciones */}
-        {measureMarkups.length > 0 && (
-          <section>
-            <div className="font-semibold text-gray-300 mb-1">Details</div>
+          {measureMarkups.length > 0 && (
             <ul className="space-y-0.5">
               {measureMarkups.map((m) => {
                 const selected = selectedMarkupIds.includes(m.id);
@@ -211,19 +625,19 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
                 );
               })}
             </ul>
-          </section>
-        )}
-      </div>
+          )}
+        </Section>
 
-      <div className="p-2 border-t border-cad-border shrink-0">
-        <button
-          type="button"
-          onClick={() => useUiStore.getState().requestExport('csv')}
-          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded border border-cad-border hover:bg-cad-hover"
-          title="Export the markups list with measurements to CSV (Excel)"
-        >
-          <FileSpreadsheet size={13} /> Exportar a CSV
-        </button>
+        <Section title="Export">
+          <button
+            type="button"
+            onClick={() => useUiStore.getState().requestExport('csv')}
+            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded border border-cad-border hover:bg-cad-hover"
+            title="Export the markups list with measurements to CSV (Excel)"
+          >
+            <FileSpreadsheet size={13} /> Export to CSV
+          </button>
+        </Section>
       </div>
     </aside>
   );

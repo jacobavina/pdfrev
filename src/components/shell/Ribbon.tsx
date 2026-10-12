@@ -1,5 +1,6 @@
 import React from 'react';
-import { FolderOpen, Save, Download, Undo2, Redo2 } from 'lucide-react';
+import { FolderOpen, Save, Download, Undo2, Redo2, Stamp as StampIcon } from 'lucide-react';
+import { STAMPS, stampById } from '../../core/markup/stamps';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useMarkupStore } from '../../store/useMarkupStore';
 import { useToolStore } from '../../store/useToolStore';
@@ -15,6 +16,7 @@ import {
   LineEndingPreview,
   StrokeWidthPreview,
   OpacityPreview,
+  StampPreview,
   LINE_STYLE_OPTIONS,
   LINE_ENDING_OPTIONS,
 } from './IconPicker';
@@ -68,7 +70,7 @@ const LargeButton: React.FC<{
 export const Ribbon: React.FC = () => {
   const { filePath, pdfBytes, pageHasText, currentPageIndex } = useDocumentStore();
   const { canUndo, canRedo, undo, redo, isDirty } = useMarkupStore();
-  const { activeTool, setActiveTool, currentStyle, setCurrentStyle } = useToolStore();
+  const { activeTool, setActiveTool, currentStyle, setCurrentStyle, activeStampId, setActiveStampId } = useToolStore();
   const { saveNow } = useAutoSave(0);
 
   const lineStyle = lineStyleOf(currentStyle.dashArray);
@@ -169,6 +171,36 @@ export const Ribbon: React.FC = () => {
           </div>
         </RibbonGroup>
       ))}
+
+      <RibbonGroup label="Stamp" testId="ribbon-group-stamp">
+        <div className="flex flex-col items-center gap-1">
+          <button
+            type="button"
+            data-testid="tool-stamp"
+            aria-pressed={activeTool === 'stamp'}
+            disabled={!pdfBytes}
+            onClick={() => setActiveTool('stamp')}
+            title={`Stamp: ${stampById(activeStampId).label} (click on the drawing to place it, drag to size it)`}
+            className={`h-[24px] px-1.5 rounded flex items-center gap-1 transition-colors disabled:opacity-40 ${
+              activeTool === 'stamp' ? 'bg-cad-accent text-white' : 'text-gray-300 hover:text-cad-strong hover:bg-cad-hover'
+            }`}
+          >
+            <StampIcon size={16} />
+          </button>
+          <IconPicker
+            compact
+            testId="ribbon-stamp-picker"
+            title="Stamp"
+            value={activeStampId}
+            options={STAMPS.map((st) => ({ value: st.id, label: st.label }))}
+            renderIcon={(id) => <StampPreview id={id} />}
+            onChange={(id) => {
+              setActiveStampId(id);
+              setActiveTool('stamp');
+            }}
+          />
+        </div>
+      </RibbonGroup>
 
       <RibbonGroup label="Style (new markups)" testId="ribbon-group-style">
         <div className="grid grid-cols-[auto_auto] gap-x-3 gap-y-1 items-center">

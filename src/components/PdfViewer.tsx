@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
@@ -42,7 +42,6 @@ import {
 import { InlineTextEditor } from './markup/InlineTextEditor';
 import { showToast } from '../services/toastService';
 import { extractTextForLineRect, mergeLineRects } from '../utils/textLayerUtils';
-import { CalibrationModal } from './CalibrationModal';
 import { useCalibrationStore } from '../store/useCalibrationStore';
 import { useSearchStore } from '../store/useSearchStore';
 import { useUiStore, NO_LAYER } from '../store/useUiStore';
@@ -52,6 +51,8 @@ import { translucentFill } from '../core/markup/typeLabels';
 import { defaultDimensionLinePoint } from '../core/markup/dimension';
 import { controlPointsOf, applyControlPointDrag } from '../core/markup/controlPoints';
 import { revisionCloudPathNormalized } from '../core/markup/revisionCloud';
+import { snapPoint, SnapResult } from '../core/markup/snap';
+import { stampById, stampSubtitle, defaultStampSizePt } from '../core/markup/stamps';
 import { Plus, Minus, Crosshair } from 'lucide-react';
 import {
   calculateLength,
@@ -59,6 +60,15 @@ import {
   calculateArea,
   calculateCount,
 } from '../core/measurements/calculate';
+
+// El modal de calibración solo se descarga al abrirlo (bundle principal ≤ 800 kB)
+const CalibrationModal = lazy(() => import('./CalibrationModal').then((m) => ({ default: m.CalibrationModal })));
+
+/** Herramientas que usan snap al dibujar o medir (ADR-0025). */
+const SNAP_TOOLS = new Set<string>([
+  'line', 'arrow', 'dimension', 'length', 'polylineMeasure', 'area', 'count', 'calibrate',
+  'polygon', 'polyLine', 'rectangle', 'circle', 'cloud', 'cloudPlus', 'callout',
+]);
 
 /** Desfase inicial de la línea de cota respecto a los puntos acotados (pt de página). */
 const DIMENSION_DEFAULT_OFFSET_PT = 15;
@@ -102,6 +112,9 @@ export const PdfViewer: React.FC = () => {
     error,
   } = useDocumentStore();
   const viewMode = useUiStore((s) => s.viewMode);
+  const showMeasureLabels = useUiStore((s) => s.showMeasureLabels);
+  const ocConfig = useDocumentStore((s) => s.ocConfig);
+  const ocVersion = useDocumentStore((s) => s.ocVersion);
   const fitRequest = useUiStore((s) => s.fitRequest);
 
   const {
@@ -127,7 +140,7 @@ export const PdfViewer: React.FC = () => {
   } = useMarkupStore();
 
   const { activeTool, currentStyle, author, activeLayer } = useToolStore();
-  const { setCalibrationModalOpen, setPendingCalibrationPoints } = useCalibrationStore();
+  const { setCalibrationModalOpen, setPendingCalibrationPoints, isCalibrationModalOpen } = useCalibrationStore();
   const { matches: searchMatches, activeMatchIndex } = useSearchStore();
 
   // Capas ocultas (panel Capas): sus marcas no se dibujan ni se pueden seleccionar en el plano (ADR-0017)
@@ -225,6 +238,30 @@ export const PdfViewer: React.FC = () => {
       cancelled = true;
     };
   }, [pdfDoc, numPages, rotation]);
+
+  // Capas del PDF (ADR-0024): se cargan al abrir, todas con su visibilidad inicial del documento
+  useEffect(() => {
+    const doc = pdfDoc as unknown as { getOptionalContentConfig?: () => Promise<unknown> } | null;
+    const { setOcConfig } = useDocumentStore.getState();
+    if (!doc || typeof doc.getOptionalContentConfig !== 'function') {
+      setOcConfig(null);
+      return;
+    }
+    let cancelled = false;
+    doc
+      .getOptionalContentConfig()
+      .then((cfg) => {
+        if (!cancelled) setOcConfig(cfg);
+      })
+      .catch((err) => {
+        // Sin capas el plano se ve con su contenido por defecto; se informa en consola para diagnóstico
+        console.error('No se pudieron leer las capas del PDF:', err);
+        if (!cancelled) setOcConfig(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pdfDoc]);
 
   const isContinuous = viewMode === 'continuous' && pageSizes.length === numPages && numPages > 0;
 
@@ -798,8 +835,9 @@ export const PdfViewer: React.FC = () => {
       offsetX: 0,
       offsetY: 0,
       zoom: scale || 1.0,
+      hideMeasureLabels: !showMeasureLabels,
     }),
-    [pageViewport.width, pageViewport.height, scale]
+    [pageViewport.width, pageViewport.height, scale, showMeasureLabels]
   );
 
   // Listener global de mouseup para asegurar finalización de arrastre limpia incluso fuera del svg
@@ -856,14 +894,30 @@ export const PdfViewer: React.FC = () => {
     return () => window.removeEventListener('mouseup', handleWindowMouseUp);
   }, [viewportTransform, commitMoveMarkups, setMarkupsTransient]);
 
+  // Snap (ADR-0025): al dibujar o medir, el cursor se ajusta a extremos, puntos medios o aristas de las marcas
+  const [snapIndicator, setSnapIndicator] = useState<SnapResult | null>(null);
+  const snapAt = useCallback(
+    (pt: MarkupPoint): SnapResult | null => {
+      if (!SNAP_TOOLS.has(useToolStore.getState().activeTool)) return null;
+      const { snap, hiddenLayers: hidden } = useUiStore.getState();
+      const page = useDocumentStore.getState().currentPageIndex;
+      const candidates = useMarkupStore
+        .getState()
+        .markups.filter((m) => m.pageIndex === page && !hidden.includes(m.layer ?? NO_LAYER));
+      return snapPoint(pt, candidates, { width: viewportTransform.width, height: viewportTransform.height }, snap);
+    },
+    [viewportTransform]
+  );
+
   const getEventPoint = useCallback(
     (e: React.MouseEvent<SVGSVGElement>): MarkupPoint => {
       const rect = e.currentTarget.getBoundingClientRect();
       const screenX = e.clientX - rect.left;
       const screenY = e.clientY - rect.top;
-      return screenToNormalized(screenX, screenY, viewportTransform);
+      const raw = screenToNormalized(screenX, screenY, viewportTransform);
+      return snapAt(raw)?.point ?? raw;
     },
-    [viewportTransform]
+    [viewportTransform, snapAt]
   );
 
   /**
@@ -906,6 +960,9 @@ export const PdfViewer: React.FC = () => {
       status: 'pending',
       layer: activeLayer,
       measurement,
+      ...(measurement && useToolStore.getState().measureLabel.trim()
+        ? { customFields: { measureLabel: useToolStore.getState().measureLabel.trim() } }
+        : {}),
     };
     addMarkup(newMarkup);
     useToolChestStore.getState().recordRecent(newMarkup);
@@ -1049,6 +1106,15 @@ export const PdfViewer: React.FC = () => {
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const pt = getEventPoint(e);
+    {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const snapped = snapAt(screenToNormalized(e.clientX - rect.left, e.clientY - rect.top, viewportTransform));
+      setSnapIndicator((prev) =>
+        prev?.point.x === snapped?.point.x && prev?.point.y === snapped?.point.y && prev?.kind === snapped?.kind
+          ? prev
+          : snapped
+      );
+    }
     setMouseCursorPoint(pt);
     // Coordenadas para la barra de estado, en puntos PDF desde la esquina superior izquierda
     setCursorPt({
@@ -1151,6 +1217,28 @@ export const PdfViewer: React.FC = () => {
     }
   };
 
+  /** Caja normalizada del sello: la del arrastre o, con un clic, el tamaño por defecto centrado en el punto. */
+  const stampBoxFor = (a: MarkupPoint, b: MarkupPoint): MarkupPoint[] => {
+    if (exceedsScreenThreshold(a, b, viewportTransform, 4)) {
+      return [
+        { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y) },
+        { x: Math.max(a.x, b.x), y: Math.max(a.y, b.y) },
+      ];
+    }
+    const def = stampById(useToolStore.getState().activeStampId);
+    const size = defaultStampSizePt(def.label, stampSubtitle(author || 'Reviewer', new Date().toISOString()));
+    const pw = pageViewport.width / (scale || 1.0);
+    const ph = pageViewport.height / (scale || 1.0);
+    const w = Math.min(1, size.width / pw);
+    const h = Math.min(1, size.height / ph);
+    const x = Math.max(0, Math.min(1 - w, b.x - w / 2));
+    const y = Math.max(0, Math.min(1 - h, b.y - h / 2));
+    return [
+      { x, y },
+      { x: x + w, y: y + h },
+    ];
+  };
+
   const handleMouseUp = (_e: React.MouseEvent<SVGSVGElement>) => {
     if (vertexDragRef.current) {
       finishVertexDrag();
@@ -1250,6 +1338,36 @@ export const PdfViewer: React.FC = () => {
       setDrawingStart(null);
       setCurrentDrawPoint(null);
       useToolStore.getState().setActiveTool('select');
+      return;
+    }
+
+    // Sello (ADR-0026): clic = tamaño por defecto centrado; arrastre = caja del sello
+    if (activeTool === 'stamp') {
+      if (drawingStart && currentDrawPoint) {
+        const box = stampBoxFor(drawingStart, currentDrawPoint);
+        const def = stampById(useToolStore.getState().activeStampId);
+        const now = new Date().toISOString();
+        const id = uuidv4();
+        const stamp: Markup = {
+          id,
+          type: 'stamp',
+          pageIndex: currentPageIndex,
+          points: box,
+          text: def.label,
+          style: { strokeColor: def.color, fillColor: '#ffffff', strokeWidth: 2, opacity: 1 },
+          author: author || 'Reviewer',
+          createdAt: now,
+          updatedAt: now,
+          status: 'pending',
+          layer: activeLayer,
+          customFields: { stampId: def.id, stampSubtitle: stampSubtitle(author || 'Reviewer', now) },
+        };
+        addMarkup(stamp);
+        useToolChestStore.getState().recordRecent(stamp);
+        setSelectedMarkupIds([id]);
+      }
+      setDrawingStart(null);
+      setCurrentDrawPoint(null);
       return;
     }
 
@@ -1479,7 +1597,10 @@ export const PdfViewer: React.FC = () => {
           updatedAt: now,
           status: 'pending',
           layer: activeLayer,
-          customFields,
+          customFields:
+            activeTool === 'length' && useToolStore.getState().measureLabel.trim()
+              ? { ...(customFields ?? {}), measureLabel: useToolStore.getState().measureLabel.trim() }
+              : customFields,
           measurement,
         };
 
@@ -2044,7 +2165,10 @@ export const PdfViewer: React.FC = () => {
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
-            onMouseLeave={() => setCursorPt(null)}
+            onMouseLeave={() => {
+              setCursorPt(null);
+              setSnapIndicator(null);
+            }}
             onContextMenu={handleContextMenu}
             onDoubleClick={handleDoubleClick}
             onDragOver={handleDragOver}
@@ -2381,6 +2505,28 @@ export const PdfViewer: React.FC = () => {
                     );
                   }
 
+                  if (activeTool === 'stamp') {
+                    const def = stampById(useToolStore.getState().activeStampId);
+                    const previewStamp: Markup = {
+                      id: 'preview-stamp',
+                      type: 'stamp',
+                      pageIndex: currentPageIndex,
+                      points: stampBoxFor(drawingStart, currentDrawPoint),
+                      text: def.label,
+                      style: { strokeColor: def.color, strokeWidth: 2, opacity: 1 },
+                      customFields: { stampSubtitle: stampSubtitle(author || 'Reviewer', new Date().toISOString()) },
+                      author: '',
+                      createdAt: '',
+                      updatedAt: '',
+                      status: 'pending',
+                    };
+                    return (
+                      <g opacity={0.7}>
+                        {renderSvgDescriptor(getMarkupSvgDescriptor(previewStamp, viewportTransform), 'preview-stamp')}
+                      </g>
+                    );
+                  }
+
                   if (activeTool === 'dimension') {
                     const pw = pageViewport.width / (scale || 1.0);
                     const ph = pageViewport.height / (scale || 1.0);
@@ -2567,6 +2713,25 @@ export const PdfViewer: React.FC = () => {
               </g>
             )}
 
+            {/* Indicador de snap (ADR-0025): cuadrado = extremo, triángulo = punto medio, aspa = más cercano */}
+            {snapIndicator && SNAP_TOOLS.has(activeTool) && (() => {
+              const s = normalizedToScreen(snapIndicator.point, viewportTransform);
+              const c = '#a78bfa';
+              return (
+                <g data-testid={`snap-indicator-${snapIndicator.kind}`} className="pointer-events-none">
+                  {snapIndicator.kind === 'endpoint' && (
+                    <rect x={s.x - 5} y={s.y - 5} width={10} height={10} fill="none" stroke={c} strokeWidth={1.8} />
+                  )}
+                  {snapIndicator.kind === 'midpoint' && (
+                    <polygon points={`${s.x},${s.y - 6} ${s.x + 6},${s.y + 5} ${s.x - 6},${s.y + 5}`} fill="none" stroke={c} strokeWidth={1.8} />
+                  )}
+                  {snapIndicator.kind === 'nearest' && (
+                    <path d={`M${s.x - 5} ${s.y - 5}L${s.x + 5} ${s.y + 5}M${s.x + 5} ${s.y - 5}L${s.x - 5} ${s.y + 5}`} stroke={c} strokeWidth={1.8} />
+                  )}
+                </g>
+              );
+            })()}
+
             {/* D. Rectángulo elástico de selección Marquee (Sub-entregable A.2) */}
             {marqueeState && (() => {
               const p1 = normalizedToScreen(marqueeState.start, viewportTransform);
@@ -2686,6 +2851,8 @@ export const PdfViewer: React.FC = () => {
                     active={isActive}
                     shouldRender={shouldRender}
                     textLayerNode={isActive ? textLayerNode : null}
+                    ocConfig={ocConfig}
+                    ocVersion={ocVersion}
                     onRendered={handlePageRendered}
                   />
                 )}
@@ -2697,14 +2864,16 @@ export const PdfViewer: React.FC = () => {
       )}
 
       {/* Modal de calibración (el indicador de escala vive en la barra de estado, ADR-0017) */}
-      {pdfBytes && (
-        <CalibrationModal
-          pageIndex={currentPageIndex}
-          pageSizePt={{
-            width: pageViewport.width / (scale || 1.0),
-            height: pageViewport.height / (scale || 1.0),
-          }}
-        />
+      {pdfBytes && isCalibrationModalOpen && (
+        <Suspense fallback={null}>
+          <CalibrationModal
+            pageIndex={currentPageIndex}
+            pageSizePt={{
+              width: pageViewport.width / (scale || 1.0),
+              height: pageViewport.height / (scale || 1.0),
+            }}
+          />
+        </Suspense>
       )}
 
       {zoomWidget && (

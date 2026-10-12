@@ -115,21 +115,24 @@ describe('PDF Annotation Reader (P3-B.4 / Interoperabilidad e Importación)', ()
     });
     const squareRef = doc.context.register(squareDict);
 
-    // Anotación 2: Link no soportado para marcado gráfico (/Widget o /Link)
-    const linkDict = doc.context.obj({
+    // Anotación 2: /Caret, sin equivalente en REA (se conserva en el PDF y se cuenta como no editable)
+    const caretDict = doc.context.obj({
       Type: 'Annot',
-      Subtype: 'Link',
+      Subtype: 'Caret',
       Rect: [50, 50, 80, 80],
     });
-    const linkRef = doc.context.register(linkDict);
+    const caretRef = doc.context.register(caretDict);
 
-    const annotsArray = doc.context.obj([squareRef, linkRef]);
+    // Anotación 3: /Link ajeno: se conserva y se puede seguir en el visor, no cuenta como no editable (ADR-0027)
+    const linkRef = doc.context.register(doc.context.obj({ Type: 'Annot', Subtype: 'Link', Rect: [90, 90, 120, 120] }));
+
+    const annotsArray = doc.context.obj([squareRef, caretRef, linkRef]);
     page.node.set(PDFName.of('Annots'), annotsArray);
 
     const pdfBytes = await doc.save();
     const result = await importPdfAnnotations(pdfBytes);
 
-    expect(result.foreignUnsupportedCount).toBe(1); // El Link no está en los tipos gráficos soportados
+    expect(result.foreignUnsupportedCount).toBe(1); // Solo el /Caret
     expect(result.markups.length).toBe(1);
 
     const imported = result.markups[0];

@@ -595,11 +595,17 @@ export function hitTestMarkup(
     markup.type === 'highlightText' ||
     markup.type === 'underline' ||
     markup.type === 'strikeOut' ||
-    markup.type === 'stamp'
+    markup.type === 'stamp' ||
+    markup.type === 'link' ||
+    markup.type === 'fileAttachment' ||
+    markup.type === 'formField'
   ) {
     if (
       hasFill ||
       markup.type === 'stamp' ||
+      markup.type === 'link' ||
+      markup.type === 'fileAttachment' ||
+      markup.type === 'formField' ||
       markup.type === 'highlight' ||
       markup.type === 'highlightVector' ||
       markup.type === 'highlightText' ||

@@ -7,6 +7,8 @@ import {
   PDFHexString,
   PDFNumber,
   PDFRef,
+  PDFRawStream,
+  decodePDFRawStream,
 } from 'pdf-lib';
 import { Markup, MarkupPoint, MarkupStatus, MarkupType, LineEndingStyle } from '../../types/markup';
 import { pdfToNormalizedCoordinates, PageTransformInfo } from './operators';
@@ -14,6 +16,8 @@ import { pdfToNormalizedCoordinates, PageTransformInfo } from './operators';
 export interface ImportAnnotationsResult {
   markups: Markup[];
   foreignUnsupportedCount: number;
+  /** Adjuntos embebidos de las marcas de REA, por `attachmentKey` (ADR-0027). */
+  attachments: Record<string, { name: string; mime: string; bytes: Uint8Array }>;
 }
 
 /**
@@ -91,6 +95,7 @@ export async function importPdfAnnotations(
 
   const markups: Markup[] = [];
   let foreignUnsupportedCount = 0;
+  const attachments: ImportAnnotationsResult['attachments'] = {};
 
   // Mapa para vincular estados de revisión estándar (/StateModel Review) con el id de anotación padre
   const reviewStatesByParentId = new Map<string, MarkupStatus>();
@@ -363,8 +368,9 @@ export async function importPdfAnnotations(
           'StrikeOut',
         ].includes(subtype)
       ) {
-        // Subtipo no soportado por REA
-        foreignUnsupportedCount++;
+        // Subtipo no soportado por REA. Enlaces, campos de formulario y ventanas emergentes ajenos se conservan
+        // intactos en el PDF (los enlaces se pueden seguir en el visor): no se cuentan como no editables.
+        if (!['Link', 'Widget', 'Popup'].includes(subtype)) foreignUnsupportedCount++;
         continue;
       }
 
@@ -493,6 +499,9 @@ export async function importPdfAnnotations(
         ...(layer ? { layer } : {}),
       };
 
+      // Enlaces, adjuntos y campos de REA (ADR-0027): lo editado en Revu/Acrobat manda (destino, valor rellenado)
+      if (isRea) syncInteractiveFields(markup, annotDict, pdfDoc, pages, attachments);
+
       markups.push(markup);
     }
   }
@@ -507,5 +516,58 @@ export async function importPdfAnnotations(
   return {
     markups,
     foreignUnsupportedCount,
+    attachments,
   };
+}
+
+/** Valor, destino o adjunto actuales de una marca interactiva de REA, leídos del propio PDF. */
+function syncInteractiveFields(
+  markup: Markup,
+  annotDict: PDFDict,
+  pdfDoc: PDFDocument,
+  pages: ReturnType<PDFDocument['getPages']>,
+  attachments: ImportAnnotationsResult['attachments']
+): void {
+  const fields: Record<string, string | number> = { ...(markup.customFields ?? {}) };
+  if (markup.type === 'link') {
+    const action = annotDict.lookup(PDFName.of('A'));
+    const uri = action instanceof PDFDict ? extractPdfStringValue(action.lookup(PDFName.of('URI'))) : '';
+    const dest = annotDict.lookup(PDFName.of('Dest'));
+    if (uri) {
+      fields.linkUri = uri;
+      delete fields.linkPage;
+    } else if (dest instanceof PDFArray && dest.get(0) instanceof PDFRef) {
+      const ref = dest.get(0) as PDFRef;
+      const idx = pages.findIndex((p) => p.ref.objectNumber === ref.objectNumber);
+      if (idx >= 0) {
+        fields.linkPage = idx + 1;
+        delete fields.linkUri;
+      }
+    }
+  } else if (markup.type === 'fileAttachment') {
+    const fs = annotDict.lookup(PDFName.of('FS'));
+    const ef = fs instanceof PDFDict ? fs.lookup(PDFName.of('EF')) : null;
+    const stream = ef instanceof PDFDict ? ef.lookup(PDFName.of('F')) : null;
+    const key = String(fields.attachmentKey ?? markup.id);
+    if (stream instanceof PDFRawStream) {
+      const bytes = decodePDFRawStream(stream).decode();
+      const name = String(fields.attachmentName ?? (fs instanceof PDFDict ? extractPdfStringValue(fs.lookup(PDFName.of('UF'))) || extractPdfStringValue(fs.lookup(PDFName.of('F'))) : '') ?? 'attachment');
+      attachments[key] = { name, mime: String(fields.attachmentMime ?? 'application/octet-stream'), bytes };
+      fields.attachmentKey = key;
+    }
+  } else if (markup.type === 'formField') {
+    const type = String(fields.fieldType ?? 'text');
+    if (type === 'checkbox' || type === 'radio') {
+      const as = annotDict.get(PDFName.of('AS'));
+      if (as instanceof PDFName) fields.fieldValue = as.asString() === '/Off' ? 'Off' : 'Yes';
+    } else {
+      const own = annotDict.lookup(PDFName.of('V'));
+      const parent = annotDict.lookup(PDFName.of('Parent'));
+      const v = own ?? (parent instanceof PDFDict ? parent.lookup(PDFName.of('V')) : undefined);
+      const text = extractPdfStringValue(v);
+      if (v !== undefined) fields.fieldValue = text;
+    }
+  }
+  void pdfDoc;
+  markup.customFields = fields;
 }

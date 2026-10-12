@@ -13,6 +13,14 @@ import { DIMENSION_EXTENSION_GAP, DIMENSION_EXTENSION_OVERSHOOT } from '../marku
 import { viewportArrayFor } from './pdfScale';
 import { stampById } from '../markup/stamps';
 import {
+  FieldType,
+  fieldOptions,
+  fieldTypeDef,
+  fieldTypeOf,
+  isFieldChecked,
+  radioExportValue,
+} from '../markup/formFields';
+import {
   emitMarkupOperators,
   normalizedToPdfCoordinates,
   parseCssColorRgb,
@@ -37,6 +45,8 @@ export interface IncrementalSaveOptions {
    * Las páginas sin entrada conservan su /VP original (p. ej. calibrado en Revu).
    */
   calibrations?: Record<number, PageCalibration>;
+  /** Bytes de los adjuntos por clave (`customFields.attachmentKey`), para embeberlos (ADR-0027). */
+  attachments?: Record<string, { name: string; mime: string; bytes: Uint8Array }>;
 }
 
 /**
@@ -333,6 +343,17 @@ export async function saveIncrementalMarkups(
     markupsByPage.set(m.pageIndex, list);
   }
 
+  // Formularios (ADR-0027): campos de primer nivel nuevos y grupos de botones de opción (un campo padre por grupo)
+  const newFieldRefs: string[] = [];
+  const radioGroups = new Map<string, { objNum: number; kids: string[]; value: string | null }>();
+  for (const m of markups) {
+    if (m.type === 'formField' && fieldTypeOf(m) === 'radio') {
+      const group = String(m.customFields?.fieldName ?? 'Group1');
+      if (!radioGroups.has(group)) radioGroups.set(group, { objNum: writer.allocateObjectNumber(), kids: [], value: null });
+      if (isFieldChecked(m)) radioGroups.get(group)!.value = radioExportValue(m);
+    }
+  }
+
   for (let pIdx = 0; pIdx < pages.length; pIdx++) {
     const pageMarkups = markupsByPage.get(pIdx) || [];
     const page = pages[pIdx];
@@ -501,6 +522,33 @@ endstream`;
       }
       reaDict += ' >>';
 
+      // Widgets: /T es el nombre del campo (los botones de opción lo heredan de su grupo); casillas y opciones
+      // llevan dos apariencias (activada y /Off) y su estado /AS
+      const isField = markup.type === 'formField';
+      const ft = isField ? fieldTypeOf(markup) : null;
+      const titleLine = isField
+        ? ft === 'radio'
+          ? ''
+          : `  /T ${escapePdfString(String(markup.customFields?.fieldName ?? 'Field'))}\n`
+        : `  /T ${escapePdfString(markup.author || options.authorDefault || 'Revisor')}\n`;
+      let apLine = `  /AP << /N ${apObjNum} 0 R >>\n`;
+      if (ft === 'checkbox' || ft === 'radio') {
+        const onName = ft === 'radio' ? radioExportValue(markup) : 'Yes';
+        const states: [string, string][] = [[onName, 'Yes'], ['Off', 'Off']];
+        const refs: string[] = [];
+        for (const [stateName, value] of states) {
+          const e = emitMarkupOperators({ ...markup, customFields: { ...markup.customFields, fieldValue: value } }, transform);
+          const num = writer.allocateObjectNumber();
+          const bytes = new TextEncoder().encode(e.operators);
+          writer.addObject(
+            num,
+            `<< /Type /XObject /Subtype /Form /BBox [${e.bbox.map((n) => n.toFixed(2)).join(' ')}] /Resources << >> /Length ${bytes.length} >>\nstream\n${e.operators}\nendstream`
+          );
+          refs.push(`/${stateName} ${num} 0 R`);
+        }
+        apLine = `  /AP << /N << ${refs.join(' ')} >> >>\n  /AS /${isFieldChecked(markup) ? onName : 'Off'}\n`;
+      }
+
       // Construcción del diccionario de anotación
       let annotDict = `<<
   /Type /Annot
@@ -508,14 +556,12 @@ endstream`;
   /Rect ${rectStr}
   /P ${pageObjNum} 0 R
   /NM ${escapePdfString(markup.id)}
-  /T ${escapePdfString(markup.author || options.authorDefault || 'Revisor')}
-  /Contents ${escapePdfString(markup.text || '')}
+${titleLine}  /Contents ${escapePdfString(markup.text || '')}
   /M ${formatPdfDate(markup.updatedAt || markup.createdAt)}
   /CreationDate ${formatPdfDate(markup.createdAt)}
   /F ${markup.locked ? 132 : 4}
   /BS ${borderStyleEntry(strokeWidth, markup.style.dashArray)}
-  /AP << /N ${apObjNum} 0 R >>
-  /REA ${reaDict}
+${apLine}  /REA ${reaDict}
 `;
 
       if (markup.locked) {
@@ -570,6 +616,38 @@ endstream`;
         // Mismos tamaños por defecto que la pantalla y el /AP (llamada 10 pt, texto 12 pt)
         const fontPt = markup.style.fontSize ?? (markup.type === 'callout' ? 10 : 12);
         annotDict += `  /DA (/Helv ${fontPt} Tf 0 0 0 rg)\n`;
+      } else if (annotTypeSubtype === 'Link') {
+        annotDict += `  /Border [0 0 0]\n  /H /I\n`;
+        const uri = markup.customFields?.linkUri;
+        const pageNo = markup.customFields?.linkPage;
+        if (typeof uri === 'string' && uri) {
+          annotDict += `  /A << /S /URI /URI ${escapePdfString(uri)} >>\n`;
+        } else if (typeof pageNo === 'number' && pages[pageNo - 1]) {
+          annotDict += `  /Dest [${pages[pageNo - 1].ref.objectNumber} ${pages[pageNo - 1].ref.generationNumber} R /Fit]\n`;
+        }
+      } else if (annotTypeSubtype === 'FileAttachment') {
+        const key = String(markup.customFields?.attachmentKey ?? '');
+        const file = options.attachments?.[key];
+        const name = String(markup.customFields?.attachmentName ?? file?.name ?? 'attachment');
+        if (file) {
+          const efNum = writer.allocateObjectNumber();
+          const head = new TextEncoder().encode(
+            `<< /Type /EmbeddedFile /Length ${file.bytes.length} /Params << /Size ${file.bytes.length} >> >>\nstream\n`
+          );
+          const tail = new TextEncoder().encode('\nendstream');
+          writer.addObject(efNum, concatUint8Arrays([head, file.bytes, tail]));
+          annotDict += `  /FS << /Type /Filespec /F ${escapePdfString(name)} /UF ${escapePdfString(name)} /EF << /F ${efNum} 0 R >> >>\n`;
+        } else {
+          annotDict += `  /FS << /Type /Filespec /F ${escapePdfString(name)} /UF ${escapePdfString(name)} >>\n`;
+        }
+        annotDict += `  /Name /Paperclip\n`;
+      } else if (annotTypeSubtype === 'Widget' && ft) {
+        annotDict += `  ${widgetFieldEntries(markup, ft, radioGroups)}\n`;
+        if (ft === 'radio') {
+          radioGroups.get(String(markup.customFields?.fieldName ?? 'Group1'))?.kids.push(`${annotObjNum} 0 R`);
+        } else {
+          newFieldRefs.push(`${annotObjNum} 0 R`);
+        }
       } else if (annotTypeSubtype === 'Stamp') {
         // Nombre estándar cuando existe (Approved, Draft…); si no, uno propio: el /AP lleva el dibujo
         const def = stampById(typeof markup.customFields?.stampId === 'string' ? markup.customFields.stampId : undefined);
@@ -658,7 +736,93 @@ endstream`;
     }
   }
 
+  // Campos padre de los grupos de botones de opción
+  for (const [group, g] of radioGroups) {
+    if (g.kids.length === 0) continue;
+    writer.addObject(
+      g.objNum,
+      `<< /FT /Btn /Ff 49152 /T ${escapePdfString(group)} /V /${g.value ?? 'Off'} /Kids [${g.kids.join(' ')}] /REA << /v 1 /tool (radioGroup) >> >>`
+    );
+    newFieldRefs.push(`${g.objNum} 0 R`);
+  }
+  updateAcroForm(pdfDoc, writer, newFieldRefs);
+
   return writer.build();
+}
+
+/** Entradas de campo de un widget (/FT, /Ff, /V, /Opt, /DA, /MK); los botones de opción las heredan del grupo. */
+function widgetFieldEntries(
+  markup: Markup,
+  ft: FieldType,
+  radioGroups: Map<string, { objNum: number }>
+): string {
+  const def = fieldTypeDef(ft);
+  const mk = '/MK << /BG [0.933 0.957 1] /BC [0.39 0.45 0.55]';
+  if (ft === 'radio') {
+    const group = radioGroups.get(String(markup.customFields?.fieldName ?? 'Group1'));
+    return `/Parent ${group?.objNum ?? 0} 0 R ${mk} >>`;
+  }
+  const parts = [`/FT /${def.pdfFT}`];
+  if (def.flags) parts.push(`/Ff ${def.flags}`);
+  parts.push('/DA (/Helv 0 Tf 0 g)');
+  const value = markup.customFields?.fieldValue;
+  if (ft === 'text' && typeof value === 'string') parts.push(`/V ${escapePdfString(value)}`);
+  if (ft === 'checkbox') parts.push(`/V /${isFieldChecked(markup) ? 'Yes' : 'Off'}`);
+  if (ft === 'listbox' || ft === 'dropdown') {
+    parts.push(`/Opt [${fieldOptions(markup).map((o) => escapePdfString(o)).join(' ')}]`);
+    if (typeof value === 'string' && value) parts.push(`/V ${escapePdfString(value)}`);
+  }
+  const caption = ft === 'button' ? ` /CA ${escapePdfString(String(markup.customFields?.buttonCaption ?? 'Button'))}` : '';
+  parts.push(`${mk}${caption} >>`);
+  return parts.join(' ');
+}
+
+/**
+ * /AcroForm del catálogo (ADR-0027): conserva los campos ajenos, retira los de REA escritos antes y añade los
+ * actuales. Solo reescribe el catálogo si hay campos de REA nuevos o anteriores.
+ */
+function updateAcroForm(pdfDoc: PDFDocument, writer: IncrementalWriter, newFieldRefs: string[]): void {
+  const catalog = pdfDoc.catalog;
+  const existing = catalog.lookup(PDFName.of('AcroForm'));
+  const kept: PDFObject[] = [];
+  let hadRea = false;
+  if (existing instanceof PDFDict) {
+    const fields = existing.lookup(PDFName.of('Fields'));
+    if (fields instanceof PDFArray) {
+      for (let i = 0; i < fields.size(); i++) {
+        const item = fields.get(i);
+        const dict = item instanceof PDFRef ? pdfDoc.context.lookup(item) : item;
+        if (dict instanceof PDFDict && dict.get(PDFName.of('REA'))) {
+          hadRea = true;
+          continue;
+        }
+        kept.push(item);
+      }
+    }
+  }
+  if (newFieldRefs.length === 0 && !hadRea) return;
+  const ctx = pdfDoc.context;
+  const acro = existing instanceof PDFDict ? existing : ctx.obj({});
+  const refs = newFieldRefs.map((r) => PDFRef.of(parseInt(r, 10), 0));
+  acro.set(PDFName.of('Fields'), ctx.obj([...kept, ...refs]));
+  if (!acro.get(PDFName.of('DA'))) acro.set(PDFName.of('DA'), PDFString.of('/Helv 0 Tf 0 g'));
+  const dr = acro.lookup(PDFName.of('DR'));
+  const drDict = dr instanceof PDFDict ? dr : ctx.obj({});
+  const fonts = drDict.lookup(PDFName.of('Font'));
+  const fontDict = fonts instanceof PDFDict ? fonts : ctx.obj({});
+  if (!fontDict.get(PDFName.of('Helv'))) {
+    fontDict.set(
+      PDFName.of('Helv'),
+      ctx.obj({ Type: 'Font', Subtype: 'Type1', BaseFont: 'Helvetica', Encoding: 'WinAnsiEncoding' })
+    );
+  }
+  drDict.set(PDFName.of('Font'), fontDict);
+  acro.set(PDFName.of('DR'), drDict);
+  const acroNum = writer.allocateObjectNumber();
+  writer.addObject(acroNum, acro.toString());
+  catalog.set(PDFName.of('AcroForm'), PDFRef.of(acroNum, 0));
+  const rootRef = pdfDoc.context.trailerInfo.Root;
+  if (rootRef instanceof PDFRef) writer.addObject(rootRef.objectNumber, catalog.toString());
 }
 
 /** Nombre PDF de un extremo de línea (ISO 32000-1 tabla 176), con los seis estilos de REA. */
@@ -742,6 +906,12 @@ function getPdfAnnotSubtype(markup: Markup): string {
       return 'Text';
     case 'stamp':
       return 'Stamp';
+    case 'link':
+      return 'Link';
+    case 'fileAttachment':
+      return 'FileAttachment';
+    case 'formField':
+      return 'Widget';
     case 'freehand':
       return 'Ink';
     case 'highlightVector':

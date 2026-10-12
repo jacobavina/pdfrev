@@ -1,4 +1,5 @@
 import { useCalibrationStore } from '../store/useCalibrationStore';
+import { useAttachmentStore } from '../store/useAttachmentStore';
 import { PDFDocument, PDFArray, PDFDict, PDFName, PDFString, PDFHexString } from 'pdf-lib';
 import { isTauriEnvironment } from './bbxPersistenceService';
 import { saveIncrementalMarkups } from '../core/pdf/incrementalWriter';
@@ -70,7 +71,12 @@ export async function savePdfIncremental(
   try {
     const importedIds = useDocumentStore.getState().importedAnnotationIds ?? [];
     const calibrations = useCalibrationStore.getState().changedCalibrations();
-    const updatedBytes = await saveIncrementalMarkups(originalBytes, markups, {}, { importedIds, calibrations });
+    const attachments = useAttachmentStore.getState().files;
+    const updatedBytes = await saveIncrementalMarkups(originalBytes, markups, {}, {
+      importedIds,
+      calibrations,
+      attachments,
+    });
 
     // Validación ANTES de escribir en disco: si falla, el archivo del usuario no se toca
     await validateSavedPdf(originalBytes, updatedBytes, markups);

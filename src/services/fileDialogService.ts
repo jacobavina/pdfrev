@@ -1,6 +1,7 @@
 import { isTauriEnvironment, loadBbxForPdf } from './bbxPersistenceService';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useCalibrationStore } from '../store/useCalibrationStore';
+import { useAttachmentStore } from '../store/useAttachmentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { loadPdfDocument } from './pdfService';
 import { showToast } from './toastService';
@@ -107,6 +108,9 @@ export async function loadPdfData(
     return;
   }
 
+  // Los adjuntos del documento anterior nunca pasan al nuevo
+  useAttachmentStore.getState().resetAttachments();
+
   // Escalas de página del PDF (/VP /Measure, ADR-0025): las de REA, Revu o Acrobat. Nunca se arrastran
   // las del documento anterior.
   try {
@@ -181,6 +185,8 @@ async function tryImportPdfAnnotations(bytes: Uint8Array): Promise<number> {
   try {
     const { importPdfAnnotations } = await import('../core/pdf/annotationReader');
     const pdfImport = await importPdfAnnotations(bytes);
+    // Adjuntos embebidos en las marcas de REA (ADR-0027)
+    useAttachmentStore.getState().resetAttachments(pdfImport.attachments);
     useDocumentStore.getState().setImportedAnnotationIds(pdfImport.markups.map((m) => m.id));
     if (pdfImport.markups.length > 0) {
       console.log(`[PDF] ${pdfImport.markups.length} marcas importadas desde anotaciones PDF`);

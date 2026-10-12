@@ -11,6 +11,7 @@ import {
   LINE_ENDING_OPTIONS,
 } from './shell/IconPicker';
 import { CLOUD_SIZE_FACTOR, DEFAULT_CLOUD_STEP } from '../core/markup/revisionCloud';
+import { InteractiveProperties } from './markup/InteractiveProperties';
 import { Markup, MarkupStatus, VALID_MARKUP_STATUSES, LineEndingStyle } from '../types/markup';
 
 const STATUS_LABELS: Record<MarkupStatus, string> = {
@@ -307,6 +308,10 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
       </div>
 
       <div className="space-y-3">
+        {selectedMarkups.length === 1 &&
+          (selectedMarkups[0].type === 'link' ||
+            selectedMarkups[0].type === 'fileAttachment' ||
+            selectedMarkups[0].type === 'formField') && <InteractiveProperties markup={selectedMarkups[0]} />}
         {/* Color de trazo */}
         <div className="flex flex-col gap-1">
           <label className="text-gray-400 font-medium">Line color</label>

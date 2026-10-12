@@ -214,9 +214,59 @@ fn save_pdf(file_path: String, bytes: Vec<u8>) -> Result<(), String> {
   Ok(())
 }
 
+/// Valida una URL de enlace (ADR-0027): solo http, https o mailto, sin espacios ni caracteres de control, ni
+/// comillas o símbolos que un intérprete pudiera reinterpretar. Devuelve la URL tal cual si es válida.
+fn validate_link_url(url: &str) -> Result<&str, String> {
+  let lower = url.to_ascii_lowercase();
+  let allowed = lower.starts_with("http://") || lower.starts_with("https://") || lower.starts_with("mailto:");
+  if !allowed {
+    return Err("Solo se abren enlaces http, https o mailto".into());
+  }
+  if url.len() > 2048 {
+    return Err("La URL es demasiado larga".into());
+  }
+  if url
+    .chars()
+    .any(|c| c.is_control() || c.is_whitespace() || matches!(c, '"' | '\'' | '`' | '<' | '>' | '|' | '^' | '\\'))
+  {
+    return Err("La URL contiene caracteres no permitidos".into());
+  }
+  Ok(url)
+}
+
+/// Abre un enlace en el navegador o cliente de correo del sistema. Se invoca el programa directamente con la URL
+/// como único argumento (sin intérprete de comandos), tras validarla.
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+  let url = validate_link_url(&url)?;
+  #[cfg(target_os = "windows")]
+  let result = std::process::Command::new("explorer").arg(url).spawn();
+  #[cfg(target_os = "macos")]
+  let result = std::process::Command::new("open").arg(url).spawn();
+  #[cfg(all(unix, not(target_os = "macos")))]
+  let result = std::process::Command::new("xdg-open").arg(url).spawn();
+  result.map(|_| ()).map_err(|e| format!("No se pudo abrir el enlace: {}", e))
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn test_validate_link_url_accepts_http_https_mailto() {
+    assert!(validate_link_url("https://example.com/specs?a=1&b=2").is_ok());
+    assert!(validate_link_url("http://example.com").is_ok());
+    assert!(validate_link_url("mailto:pm@example.com").is_ok());
+  }
+
+  #[test]
+  fn test_validate_link_url_rejects_other_schemes_and_injection() {
+    assert!(validate_link_url("file:///C:/Windows/system32/calc.exe").is_err());
+    assert!(validate_link_url("javascript:alert(1)").is_err());
+    assert!(validate_link_url("https://example.com/\" & calc").is_err());
+    assert!(validate_link_url("https://example.com/a b").is_err());
+    assert!(validate_link_url("https://example.com/|calc").is_err());
+  }
   use std::env;
 
   #[test]
@@ -386,7 +436,7 @@ pub fn run() {
     })
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_fs::init())
-    .invoke_handler(tauri::generate_handler![write_bbx, read_bbx, save_export_file, save_pdf])
+    .invoke_handler(tauri::generate_handler![write_bbx, read_bbx, save_export_file, save_pdf, open_url])
     .run(tauri::generate_context!())
     .expect("error while building tauri application");
 }

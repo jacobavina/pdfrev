@@ -53,6 +53,9 @@ import { controlPointsOf, applyControlPointDrag } from '../core/markup/controlPo
 import { revisionCloudPathNormalized } from '../core/markup/revisionCloud';
 import { snapPoint, SnapResult } from '../core/markup/snap';
 import { stampById, stampSubtitle, defaultStampSizePt } from '../core/markup/stamps';
+import { fieldTypeDef, fieldTypeOf, nextFieldName } from '../core/markup/formFields';
+import { useAttachmentStore } from '../store/useAttachmentStore';
+import { openExternalUrl, goToPageNumber, pickAttachmentFile, saveAttachment } from '../services/linkService';
 import { Plus, Minus, Crosshair } from 'lucide-react';
 import {
   calculateLength,
@@ -60,6 +63,19 @@ import {
   calculateArea,
   calculateCount,
 } from '../core/measurements/calculate';
+
+// Diálogo de hipervínculo (ADR-0027), cargado al usarlo
+const LinkDialog = lazy(() => import('./markup/LinkDialog').then((m) => ({ default: m.LinkDialog })));
+
+/** Enlace propio del PDF (no de REA) en la página activa, en coordenadas normalizadas (ADR-0027). */
+interface PdfLinkArea {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  url?: string;
+  pageIndex?: number;
+}
 
 // El modal de calibración solo se descarga al abrirlo (bundle principal ≤ 800 kB)
 const CalibrationModal = lazy(() => import('./CalibrationModal').then((m) => ({ default: m.CalibrationModal })));
@@ -190,6 +206,11 @@ export const PdfViewer: React.FC = () => {
   const vertexDragRef = useRef<{ original: Markup; index: number; hasMoved: boolean; latest: Markup } | null>(null);
   // Control de zoom del doble clic (ADR-0021): posición en pantalla
   const [zoomWidget, setZoomWidget] = useState<{ x: number; y: number } | null>(null);
+  // Hipervínculo en creación (caja ya dibujada, falta el destino) y enlaces propios del PDF en la página activa
+  const [linkDraft, setLinkDraft] = useState<MarkupPoint[] | null>(null);
+  const [pdfLinks, setPdfLinks] = useState<PdfLinkArea[]>([]);
+  // Grupo de botones de opción en curso: los botones seguidos se agrupan como en Revu
+  const radioGroupRef = useRef<{ name: string; count: number } | null>(null);
   const zoomWidgetRef = useRef<{ x: number; y: number } | null>(null);
   zoomWidgetRef.current = zoomWidget;
 
@@ -262,6 +283,70 @@ export const PdfViewer: React.FC = () => {
       cancelled = true;
     };
   }, [pdfDoc]);
+
+  // Enlaces propios del PDF en la página activa (índices de láminas, referencias): se siguen con un clic
+  useEffect(() => {
+    let cancelled = false;
+    setPdfLinks([]);
+    const doc = pdfDoc as unknown as {
+      getPage?: (n: number) => Promise<{
+        rotate: number;
+        getViewport: (o: { scale: number; rotation: number }) => {
+          width: number;
+          height: number;
+          convertToViewportRectangle: (r: number[]) => number[];
+        };
+        getAnnotations: () => Promise<{ subtype: string; rect: number[]; url?: string; dest?: unknown; id?: string }[]>;
+      }>;
+      getDestination?: (name: string) => Promise<unknown[] | null>;
+      getPageIndex?: (ref: unknown) => Promise<number>;
+    } | null;
+    if (!doc || typeof doc.getPage !== 'function') return;
+    (async () => {
+      const page = await doc.getPage!(currentPageIndex + 1);
+      const vp = page.getViewport({ scale: 1, rotation: (((page.rotate + rotation) % 360) + 360) % 360 });
+      const annots = await page.getAnnotations();
+      const reaIds = new Set(useMarkupStore.getState().markups.map((m) => m.id));
+      const out: PdfLinkArea[] = [];
+      for (const a of annots) {
+        if (a.subtype !== 'Link' || (a.id && reaIds.has(a.id))) continue;
+        const [x1, y1, x2, y2] = vp.convertToViewportRectangle(a.rect);
+        const area: PdfLinkArea = {
+          x: Math.min(x1, x2) / vp.width,
+          y: Math.min(y1, y2) / vp.height,
+          w: Math.abs(x2 - x1) / vp.width,
+          h: Math.abs(y2 - y1) / vp.height,
+        };
+        if (a.url) area.url = a.url;
+        else if (a.dest) {
+          const dest = typeof a.dest === 'string' ? await doc.getDestination?.(a.dest) : (a.dest as unknown[]);
+          if (Array.isArray(dest) && dest[0] && typeof doc.getPageIndex === 'function') {
+            area.pageIndex =
+              typeof dest[0] === 'number' ? (dest[0] as number) : await doc.getPageIndex(dest[0]).catch(() => undefined);
+          }
+        }
+        if (area.url || area.pageIndex !== undefined) out.push(area);
+      }
+      if (!cancelled) setPdfLinks(out);
+    })().catch((err) => {
+      // Sin enlaces navegables el plano se sigue viendo: se registra para diagnóstico
+      console.error('No se pudieron leer los enlaces de la página:', err);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [pdfDoc, currentPageIndex, rotation]);
+
+  const followPdfLink = (l: PdfLinkArea) => {
+    if (l.url) void openExternalUrl(l.url);
+    else if (l.pageIndex !== undefined) goToPageNumber(l.pageIndex + 1);
+  };
+  const followMarkupLink = (m: Markup) => {
+    const uri = m.customFields?.linkUri;
+    const pageNo = m.customFields?.linkPage;
+    if (typeof uri === 'string' && uri) void openExternalUrl(uri);
+    else if (typeof pageNo === 'number') goToPageNumber(pageNo);
+  };
 
   const isContinuous = viewMode === 'continuous' && pageSizes.length === numPages && numPages > 0;
 
@@ -999,6 +1084,18 @@ export const PdfViewer: React.FC = () => {
       const pageDims = { width: unscaledW, height: unscaledH };
       const hit = [...pageMarkups].reverse().find((m) => hitTestMarkup(pt, m, 0.015, pageDims));
 
+      if (hit && hit.type === 'link' && (e.ctrlKey || e.metaKey)) {
+        followMarkupLink(hit);
+        return;
+      }
+      if (!hit) {
+        const link = pdfLinks.find((l) => pt.x >= l.x && pt.x <= l.x + l.w && pt.y >= l.y && pt.y <= l.y + l.h);
+        if (link) {
+          followPdfLink(link);
+          return;
+        }
+      }
+
       if (hit) {
         const newDragState = handleSelectMouseDown({
           point: pt,
@@ -1217,6 +1314,89 @@ export const PdfViewer: React.FC = () => {
     }
   };
 
+  /** Caja normalizada: la del arrastre o, con un clic, `sizePt` centrado en el punto. */
+  const boxFromDragOrDefault = (a: MarkupPoint, b: MarkupPoint, sizePt: { width: number; height: number }): MarkupPoint[] => {
+    if (exceedsScreenThreshold(a, b, viewportTransform, 4)) {
+      return [
+        { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y) },
+        { x: Math.max(a.x, b.x), y: Math.max(a.y, b.y) },
+      ];
+    }
+    const pw = pageViewport.width / (scale || 1.0);
+    const ph = pageViewport.height / (scale || 1.0);
+    const w = Math.min(1, sizePt.width / pw);
+    const h = Math.min(1, sizePt.height / ph);
+    const x = Math.max(0, Math.min(1 - w, b.x - w / 2));
+    const y = Math.max(0, Math.min(1 - h, b.y - h / 2));
+    return [
+      { x, y },
+      { x: x + w, y: y + h },
+    ];
+  };
+
+  /** Crea un enlace (tras el diálogo), un adjunto (tras elegir archivo) o un campo de formulario (ADR-0027). */
+  const createInteractiveMarkup = (tool: 'link' | 'fileAttachment' | 'formField', a: MarkupPoint, b: MarkupPoint) => {
+    const base = () => {
+      const now = new Date().toISOString();
+      return { id: uuidv4(), pageIndex: currentPageIndex, author: author || 'Reviewer', createdAt: now, updatedAt: now, status: 'pending' as const, layer: activeLayer };
+    };
+    if (tool === 'link') {
+      setLinkDraft(boxFromDragOrDefault(a, b, { width: 120, height: 24 }));
+      return;
+    }
+    if (tool === 'fileAttachment') {
+      const box = boxFromDragOrDefault(a, b, { width: 20, height: 20 });
+      void pickAttachmentFile().then((file) => {
+        if (!file) return;
+        const key = uuidv4();
+        useAttachmentStore.getState().putAttachment(key, file);
+        const m: Markup = {
+          ...base(),
+          type: 'fileAttachment',
+          points: box,
+          text: file.name,
+          style: { strokeColor: '#b45309', strokeWidth: 1, opacity: 1 },
+          customFields: { attachmentKey: key, attachmentName: file.name, attachmentMime: file.mime, attachmentSize: file.bytes.length },
+        };
+        addMarkup(m);
+        setSelectedMarkupIds([m.id]);
+      });
+      return;
+    }
+    const type = useToolStore.getState().activeFieldType;
+    const def = fieldTypeDef(type);
+    const all = useMarkupStore.getState().markups;
+    let fieldName = nextFieldName(type, all);
+    const extra: Record<string, string | number> = {};
+    if (type === 'radio') {
+      // Los botones de opción seguidos forman un grupo; cambiar de herramienta empieza otro
+      if (!radioGroupRef.current) radioGroupRef.current = { name: fieldName, count: 0 };
+      radioGroupRef.current.count += 1;
+      fieldName = radioGroupRef.current.name;
+      extra.radioValue = `Choice${radioGroupRef.current.count}`;
+      extra.fieldValue = 'Off';
+    }
+    if (type === 'checkbox') extra.fieldValue = 'Off';
+    if (type === 'dropdown' || type === 'listbox') extra.fieldOptions = 'Option 1\nOption 2\nOption 3';
+    if (type === 'button') extra.buttonCaption = 'Button';
+    const m: Markup = {
+      ...base(),
+      type: 'formField',
+      points: boxFromDragOrDefault(a, b, def.size),
+      text: fieldName,
+      style: { strokeColor: '#64748b', strokeWidth: 1, opacity: 1 },
+      customFields: { fieldType: type, fieldName, ...extra },
+    };
+    addMarkup(m);
+    setSelectedMarkupIds([m.id]);
+    useUiStore.getState().requestPropertiesPanel();
+  };
+
+  // Un grupo de botones de opción termina al cambiar de herramienta o de tipo de campo
+  useEffect(() => {
+    radioGroupRef.current = null;
+  }, [activeTool]);
+
   /** Caja normalizada del sello: la del arrastre o, con un clic, el tamaño por defecto centrado en el punto. */
   const stampBoxFor = (a: MarkupPoint, b: MarkupPoint): MarkupPoint[] => {
     if (exceedsScreenThreshold(a, b, viewportTransform, 4)) {
@@ -1338,6 +1518,14 @@ export const PdfViewer: React.FC = () => {
       setDrawingStart(null);
       setCurrentDrawPoint(null);
       useToolStore.getState().setActiveTool('select');
+      return;
+    }
+
+    // Enlace, adjunto y campo de formulario (ADR-0027): clic = tamaño por defecto; arrastre = caja
+    if (activeTool === 'link' || activeTool === 'fileAttachment' || activeTool === 'formField') {
+      if (drawingStart && currentDrawPoint) createInteractiveMarkup(activeTool, drawingStart, currentDrawPoint);
+      setDrawingStart(null);
+      setCurrentDrawPoint(null);
       return;
     }
 
@@ -1642,6 +1830,59 @@ export const PdfViewer: React.FC = () => {
 
     // Doble clic sobre texto, callout o nota adhesiva existente para editar inline
     const pt = getEventPoint(e);
+
+    // Enlaces, adjuntos y campos (ADR-0027): seguir, guardar o rellenar
+    {
+      const dims = { width: pageViewport.width / (scale || 1.0), height: pageViewport.height / (scale || 1.0) };
+      const interactive = [...markups]
+        .filter((m) => m.pageIndex === currentPageIndex && isMarkupVisible(m))
+        .reverse()
+        .find(
+          (m) =>
+            (m.type === 'link' || m.type === 'fileAttachment' || m.type === 'formField') &&
+            hitTestMarkup(pt, m, 0.005, dims)
+        );
+      if (interactive?.type === 'link') {
+        followMarkupLink(interactive);
+        return;
+      }
+      if (interactive?.type === 'fileAttachment') {
+        const file = useAttachmentStore.getState().getAttachment(String(interactive.customFields?.attachmentKey ?? ''));
+        if (file) void saveAttachment(file);
+        else showToast('The attached file is not available in this document.');
+        return;
+      }
+      if (interactive?.type === 'formField' && !interactive.locked) {
+        const ft = fieldTypeOf(interactive);
+        const { applyPropertiesToMarkups } = useMarkupStore.getState();
+        if (ft === 'checkbox') {
+          const next = interactive.customFields?.fieldValue === 'Yes' ? 'Off' : 'Yes';
+          applyPropertiesToMarkups([interactive.id], { customFields: { fieldValue: next } }, `Set ${String(interactive.customFields?.fieldName)} to ${next}`);
+          return;
+        }
+        if (ft === 'radio') {
+          const group = String(interactive.customFields?.fieldName ?? '');
+          const others = markups
+            .filter((m) => m.type === 'formField' && m.id !== interactive.id && fieldTypeOf(m) === 'radio' && m.customFields?.fieldName === group)
+            .map((m) => m.id);
+          if (others.length) applyPropertiesToMarkups(others, { customFields: { fieldValue: 'Off' } }, `Clear ${group}`);
+          applyPropertiesToMarkups([interactive.id], { customFields: { fieldValue: 'Yes' } }, `Select ${String(interactive.customFields?.radioValue)}`);
+          return;
+        }
+        if (ft === 'text') {
+          setInlineEditing({
+            markupId: interactive.id,
+            initialText: String(interactive.customFields?.fieldValue ?? ''),
+            position: interactive.points[0],
+          });
+          return;
+        }
+        // Listas, desplegables, botones y firma: se editan en Propiedades
+        setSelectedMarkupIds([interactive.id]);
+        useUiStore.getState().requestPropertiesPanel();
+        return;
+      }
+    }
     const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex && isMarkupVisible(m));
     const unscaledW = pageViewport.width / (scale || 1.0);
     const unscaledH = pageViewport.height / (scale || 1.0);
@@ -2089,6 +2330,15 @@ export const PdfViewer: React.FC = () => {
                 }
 
                 const targetMarkup = markupsRef.current.find((m) => m.id === inlineEditing.markupId);
+                if (targetMarkup?.type === 'formField') {
+                  if (String(targetMarkup.customFields?.fieldValue ?? '') !== newText) {
+                    useMarkupStore
+                      .getState()
+                      .applyPropertiesToMarkups([targetMarkup.id], { customFields: { fieldValue: newText } }, 'Fill text field');
+                  }
+                  setInlineEditing(null);
+                  return;
+                }
                 if (targetMarkup) {
                   if (targetMarkup.type === 'stickyNote') {
                     const preset = selectedColor;
@@ -2505,6 +2755,23 @@ export const PdfViewer: React.FC = () => {
                     );
                   }
 
+                  if (activeTool === 'link' || activeTool === 'formField' || activeTool === 'fileAttachment') {
+                    const r = getRectGeometry(p1, p2);
+                    return (
+                      <rect
+                        data-testid="interactive-box-preview"
+                        x={r.x}
+                        y={r.y}
+                        width={r.width}
+                        height={r.height}
+                        fill="rgba(37, 99, 235, 0.08)"
+                        stroke="#2563eb"
+                        strokeWidth={1}
+                        strokeDasharray="4 3"
+                      />
+                    );
+                  }
+
                   if (activeTool === 'stamp') {
                     const def = stampById(useToolStore.getState().activeStampId);
                     const previewStamp: Markup = {
@@ -2713,6 +2980,27 @@ export const PdfViewer: React.FC = () => {
               </g>
             )}
 
+            {/* Enlaces propios del PDF: con Seleccionar, un clic los sigue (ADR-0027) */}
+            {activeTool === 'select' &&
+              pdfLinks.map((l, i) => {
+                const a = normalizedToScreen({ x: l.x, y: l.y }, viewportTransform);
+                const b = normalizedToScreen({ x: l.x + l.w, y: l.y + l.h }, viewportTransform);
+                return (
+                  <rect
+                    key={`pdflink-${i}`}
+                    data-testid={`pdf-link-${i}`}
+                    x={a.x}
+                    y={a.y}
+                    width={b.x - a.x}
+                    height={b.y - a.y}
+                    fill="transparent"
+                    className="cursor-pointer hover:fill-blue-500/10"
+                  >
+                    <title>{l.url ?? `Go to page ${(l.pageIndex ?? 0) + 1}`}</title>
+                  </rect>
+                );
+              })}
+
             {/* Indicador de snap (ADR-0025): cuadrado = extremo, triángulo = punto medio, aspa = más cercano */}
             {snapIndicator && SNAP_TOOLS.has(activeTool) && (() => {
               const s = normalizedToScreen(snapIndicator.point, viewportTransform);
@@ -2871,6 +3159,36 @@ export const PdfViewer: React.FC = () => {
             pageSizePt={{
               width: pageViewport.width / (scale || 1.0),
               height: pageViewport.height / (scale || 1.0),
+            }}
+          />
+        </Suspense>
+      )}
+
+      {linkDraft && (
+        <Suspense fallback={null}>
+          <LinkDialog
+            numPages={numPages}
+            onCancel={() => setLinkDraft(null)}
+            onConfirm={(target) => {
+              const now = new Date().toISOString();
+              const isUri = 'uri' in target;
+              const m: Markup = {
+                id: uuidv4(),
+                type: 'link',
+                pageIndex: currentPageIndex,
+                points: linkDraft,
+                text: isUri ? target.uri : `Page ${target.page}`,
+                style: { strokeColor: '#2563eb', strokeWidth: 1, opacity: 1 },
+                author: author || 'Reviewer',
+                createdAt: now,
+                updatedAt: now,
+                status: 'pending',
+                layer: activeLayer,
+                customFields: isUri ? { linkUri: target.uri } : { linkPage: target.page },
+              };
+              addMarkup(m);
+              setSelectedMarkupIds([m.id]);
+              setLinkDraft(null);
             }}
           />
         </Suspense>

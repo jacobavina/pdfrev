@@ -13,6 +13,7 @@ import { lineEndingShape, lineEndingSize, endpointAngles } from './lineEndings';
 import { dimensionGeometry, dimensionTextBaseline, defaultDimensionLinePoint } from './dimension';
 import { revisionCloudPathNormalized, cloudParams } from './revisionCloud';
 import { stampLayout } from './stamps';
+import { fieldTypeOf, fieldDisplayText, isFieldChecked } from './formFields';
 import {
   getHelveticaTextWidth,
   getHelveticaCharWidth,
@@ -715,6 +716,112 @@ export function getMarkupSvgDescriptor(
           points: pointsToSvgPointsString(markup.points, transform),
         },
       };
+    }
+
+    // Enlace (ADR-0027): recuadro azul discontinuo (en el PDF es invisible, como los enlaces de Revu/Acrobat)
+    case 'link': {
+      const r = getRectGeometry(p1Screen, p2Screen);
+      const target =
+        typeof markup.customFields?.linkUri === 'string'
+          ? markup.customFields.linkUri
+          : typeof markup.customFields?.linkPage === 'number'
+          ? `Page ${markup.customFields.linkPage}`
+          : '';
+      return {
+        tag: 'g',
+        attrs: { 'data-testid': `markup-link-${markup.id}` },
+        children: [
+          {
+            tag: 'rect',
+            attrs: { x: r.x, y: r.y, width: r.width, height: r.height, fill: 'rgba(37, 99, 235, 0.08)', stroke: '#2563eb', strokeWidth: 1, strokeDasharray: '4 3' },
+          },
+          ...(target
+            ? [
+                {
+                  tag: 'text' as const,
+                  attrs: { x: r.x + 3, y: r.y - 3, fontSize: 9, fill: '#2563eb', fontFamily: 'Helvetica, Arial, sans-serif' },
+                  textNode: `🔗 ${target}`,
+                },
+              ]
+            : []),
+        ],
+      };
+    }
+
+    // Adjunto (ADR-0027): clip sobre fondo amarillo, como el ícono de Revu/Acrobat
+    case 'fileAttachment': {
+      const r = getRectGeometry(p1Screen, p2Screen);
+      const s = Math.min(r.width, r.height);
+      const k = s / 24;
+      const ox = r.x + (r.width - s) / 2;
+      const oy = r.y + (r.height - s) / 2;
+      return {
+        tag: 'g',
+        attrs: { 'data-testid': `markup-attachment-${markup.id}` },
+        children: [
+          { tag: 'rect', attrs: { x: r.x, y: r.y, width: r.width, height: r.height, rx: 3, fill: '#fef3c7', stroke: style.strokeColor || '#b45309', strokeWidth: 1 } },
+          {
+            tag: 'path',
+            attrs: {
+              d: `M${ox + 15 * k} ${oy + 7 * k}l${-6 * k} ${6 * k}a${2 * k} ${2 * k} 0 0 0 ${3 * k} ${3 * k}l${7 * k} ${-7 * k}a${3.5 * k} ${3.5 * k} 0 0 0 ${-5 * k} ${-5 * k}l${-7 * k} ${7 * k}a${5 * k} ${5 * k} 0 0 0 ${7 * k} ${7 * k}l${6 * k} ${-6 * k}`,
+              fill: 'none',
+              stroke: style.strokeColor || '#b45309',
+              strokeWidth: Math.max(1, 1.6 * k),
+              strokeLinecap: 'round',
+            },
+          },
+        ],
+      };
+    }
+
+    // Campo de formulario (ADR-0027): misma presentación que su /AP
+    case 'formField': {
+      const r = getRectGeometry(p1Screen, p2Screen);
+      const ft = fieldTypeOf(markup);
+      const name = String(markup.customFields?.fieldName ?? '');
+      const children: SvgRenderDescriptor[] = [
+        {
+          tag: ft === 'radio' ? 'ellipse' : 'rect',
+          attrs:
+            ft === 'radio'
+              ? { cx: r.x + r.width / 2, cy: r.y + r.height / 2, rx: r.width / 2, ry: r.height / 2, fill: '#eef4ff', stroke: '#64748b', strokeWidth: 1 }
+              : { x: r.x, y: r.y, width: r.width, height: r.height, rx: ft === 'button' ? 4 : 0, fill: ft === 'button' ? '#e2e8f0' : '#eef4ff', stroke: '#64748b', strokeWidth: 1 },
+        },
+      ];
+      const fs = Math.max(6, Math.min(r.height * 0.6, 12));
+      const txt = fieldDisplayText(markup);
+      if (ft === 'checkbox' && isFieldChecked(markup)) {
+        children.push({ tag: 'path', attrs: { d: `M${r.x + r.width * 0.2} ${r.y + r.height * 0.55}L${r.x + r.width * 0.42} ${r.y + r.height * 0.78}L${r.x + r.width * 0.82} ${r.y + r.height * 0.25}`, fill: 'none', stroke: '#111827', strokeWidth: Math.max(1, r.width * 0.12) } });
+      } else if (ft === 'radio' && isFieldChecked(markup)) {
+        children.push({ tag: 'ellipse', attrs: { cx: r.x + r.width / 2, cy: r.y + r.height / 2, rx: r.width * 0.25, ry: r.height * 0.25, fill: '#111827' } });
+      } else if (txt) {
+        children.push({
+          tag: 'text',
+          attrs: {
+            x: ft === 'button' || ft === 'signature' ? r.x + r.width / 2 : r.x + 3,
+            y: ft === 'listbox' ? r.y + fs + 2 : r.y + r.height / 2 + fs * 0.35,
+            fontSize: fs,
+            fill: ft === 'signature' ? '#64748b' : '#111827',
+            fontFamily: 'Helvetica, Arial, sans-serif',
+            textAnchor: ft === 'button' || ft === 'signature' ? 'middle' : 'start',
+          },
+          textNode: txt,
+        });
+      }
+      if (ft === 'dropdown') {
+        children.push({ tag: 'path', attrs: { d: `M${r.x + r.width - 12} ${r.y + r.height / 2 - 2}l4 4 4-4`, fill: 'none', stroke: '#475569', strokeWidth: 1.2 } });
+      }
+      // Rótulo con el nombre del campo (solo en pantalla, como el modo de edición de formularios de Revu)
+      // Los botones de opción muestran su valor a la derecha (el nombre del grupo está en Propiedades)
+      children.push({
+        tag: 'text',
+        attrs:
+          ft === 'radio'
+            ? { x: r.x + r.width + 3, y: r.y + r.height / 2 + 3, fontSize: 8, fill: '#64748b', fontFamily: 'Helvetica, Arial, sans-serif' }
+            : { x: r.x, y: r.y - 2, fontSize: 8, fill: '#64748b', fontFamily: 'Helvetica, Arial, sans-serif' },
+        textNode: ft === 'radio' ? String(markup.customFields?.radioValue ?? '') : name,
+      });
+      return { tag: 'g', attrs: { 'data-testid': `markup-field-${markup.id}` }, children };
     }
 
     // Sello (ADR-0026): doble marco, título en negrita y autor/fecha; misma distribución que el /AP

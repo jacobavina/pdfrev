@@ -14,6 +14,7 @@ import { lineEndingShape, lineEndingSize, endpointAngles, shapeExtent, Pt } from
 import { dimensionGeometry, dimensionTextBaseline, defaultDimensionLinePoint } from '../markup/dimension';
 import { getHelveticaTextWidth } from '../markup/helveticaMetrics';
 import { stampLayout } from '../markup/stamps';
+import { fieldTypeOf, fieldDisplayText, isFieldChecked } from '../markup/formFields';
 import { revisionCloudPathNormalized, cloudParams } from '../markup/revisionCloud';
 
 /** Nombre del recurso de fuente que usan los /AP con texto (Helvetica estándar, WinAnsiEncoding). */
@@ -705,6 +706,103 @@ export function emitMarkupOperators(
       wrapCalloutText(markup.text || '', maxTextWidth, fontSize).forEach((line, i) => {
         textVis(line, { x: bx.x + 6, y: bx.y + 14 + i * (fontSize + 3) }, fontSize, DARK_TEXT);
       });
+      break;
+    }
+
+    // Campo de formulario (ADR-0027): fondo, borde y valor; casillas y opciones con su marca si están activas
+    case 'formField': {
+      if (markup.points.length < 2) break;
+      const a = toVis(markup.points[0]);
+      const b = toVis(markup.points[1]);
+      const x = Math.min(a.x, b.x);
+      const y = Math.min(a.y, b.y);
+      const w = Math.abs(b.x - a.x);
+      const h = Math.abs(b.y - a.y);
+      const ft = fieldTypeOf(markup);
+      const border = { r: 0.39, g: 0.45, b: 0.55 };
+      const bg = ft === 'button' ? { r: 0.886, g: 0.91, b: 0.941 } : { r: 0.933, g: 0.957, b: 1 };
+      lines.push('1 w', rgbOp(border, 'RG'), rgbOp(bg, 'rg'));
+      if (ft === 'radio') {
+        const c = visToPdf({ x: x + w / 2, y: y + h / 2 });
+        const r = Math.min(w, h) / 2;
+        const k = 0.5522847498 * r;
+        updateBBox(c.x - r, c.y - r);
+        updateBBox(c.x + r, c.y + r);
+        const circle = (rr: number, kk: number) => [
+          `${f2(c.x + rr)} ${f2(c.y)} m`,
+          `${f2(c.x + rr)} ${f2(c.y + kk)} ${f2(c.x + kk)} ${f2(c.y + rr)} ${f2(c.x)} ${f2(c.y + rr)} c`,
+          `${f2(c.x - kk)} ${f2(c.y + rr)} ${f2(c.x - rr)} ${f2(c.y + kk)} ${f2(c.x - rr)} ${f2(c.y)} c`,
+          `${f2(c.x - rr)} ${f2(c.y - kk)} ${f2(c.x - kk)} ${f2(c.y - rr)} ${f2(c.x)} ${f2(c.y - rr)} c`,
+          `${f2(c.x + kk)} ${f2(c.y - rr)} ${f2(c.x + rr)} ${f2(c.y - kk)} ${f2(c.x + rr)} ${f2(c.y)} c`,
+        ];
+        lines.push(...circle(r, k), 'B');
+        if (isFieldChecked(markup)) {
+          lines.push('0 0 0 rg', ...circle(r * 0.5, k * 0.5), 'f');
+        }
+        break;
+      }
+      pathPdf([visToPdf({ x, y }), visToPdf({ x: x + w, y }), visToPdf({ x: x + w, y: y + h }), visToPdf({ x, y: y + h })], true);
+      lines.push('B');
+      if (ft === 'checkbox') {
+        if (isFieldChecked(markup)) {
+          lines.push(`${f2(Math.max(1, w * 0.12))} w`, '0 0 0 RG');
+          pathPdf([visToPdf({ x: x + w * 0.2, y: y + h * 0.55 }), visToPdf({ x: x + w * 0.42, y: y + h * 0.78 }), visToPdf({ x: x + w * 0.82, y: y + h * 0.25 })], false);
+          lines.push('S');
+        }
+        break;
+      }
+      const fs = Math.max(6, Math.min(h * 0.6, 12));
+      const txt = fieldDisplayText(markup);
+      if (txt) {
+        const centered = ft === 'button' || ft === 'signature';
+        const color = ft === 'signature' ? { r: 0.39, g: 0.45, b: 0.55 } : { r: 0.07, g: 0.09, b: 0.15 };
+        const baseY = ft === 'listbox' ? y + fs + 2 : y + h / 2 + fs * 0.35;
+        textVis(txt, { x: centered ? x + w / 2 : x + 3, y: baseY }, fs, color, centered ? 'center' : 'left');
+      }
+      break;
+    }
+
+    // Adjunto (ADR-0027): clip sobre fondo amarillo
+    case 'fileAttachment': {
+      if (markup.points.length < 2) break;
+      const a = toVis(markup.points[0]);
+      const b = toVis(markup.points[1]);
+      const x = Math.min(a.x, b.x);
+      const y = Math.min(a.y, b.y);
+      const w = Math.abs(b.x - a.x);
+      const h = Math.abs(b.y - a.y);
+      const color = strokeParsed ?? { r: 0.706, g: 0.325, b: 0.035 };
+      lines.push('1 w', rgbOp(color, 'RG'), '0.996 0.953 0.78 rg');
+      pathPdf([visToPdf({ x, y }), visToPdf({ x: x + w, y }), visToPdf({ x: x + w, y: y + h }), visToPdf({ x, y: y + h })], true);
+      lines.push('B');
+      // Clip estilizado: dos trazos paralelos inclinados unidos por arcos simplificados
+      const s = Math.min(w, h) / 24;
+      const ox = x + (w - Math.min(w, h)) / 2;
+      const oy = y + (h - Math.min(w, h)) / 2;
+      lines.push(`${f2(Math.max(1, 1.6 * s))} w`);
+      pathPdf(
+        [
+          visToPdf({ x: ox + 15 * s, y: oy + 7 * s }),
+          visToPdf({ x: ox + 9 * s, y: oy + 13 * s }),
+          visToPdf({ x: ox + 11 * s, y: oy + 16 * s }),
+          visToPdf({ x: ox + 19 * s, y: oy + 8 * s }),
+          visToPdf({ x: ox + 15 * s, y: oy + 4 * s }),
+          visToPdf({ x: ox + 6 * s, y: oy + 13 * s }),
+          visToPdf({ x: ox + 11 * s, y: oy + 20 * s }),
+          visToPdf({ x: ox + 18 * s, y: oy + 13 * s }),
+        ],
+        false
+      );
+      lines.push('S');
+      break;
+    }
+
+    // Enlace: invisible en el PDF (como los de Revu/Acrobat); solo ocupa su rectángulo
+    case 'link': {
+      for (const p of markup.points.slice(0, 2)) {
+        const q = normalizedToPdfCoordinates(p, transform);
+        updateBBox(q.x, q.y);
+      }
       break;
     }
 

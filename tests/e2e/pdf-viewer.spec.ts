@@ -1956,4 +1956,68 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(page.locator('[data-testid="pdf-layers-section"]')).toContainText('This PDF has no layers.');
     await expect(page.locator('[data-testid="layers-panel"]')).toContainText('Markup Layers');
   });
+
+  test('Hyperlink, File Attachment y Form (ADR-0027): casilla desde Tools ▸ Form, enlace a página y adjunto', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
+    const box = (await overlaySvg.boundingBox())!;
+    const at = (nx: number, ny: number) => ({ x: box.x + box.width * nx, y: box.y + box.height * ny });
+
+    // 1. Tools ▸ Form ▸ Check Box: un clic crea la casilla; con Seleccionar, doble clic la marca
+    await page.locator('[data-testid="menu-herramientas"]').click();
+    await page.locator('[data-testid="menu-tools-form"]').hover();
+    await page.locator('[data-testid="menu-field-checkbox"]').click();
+    const c = at(0.8, 0.2);
+    await page.mouse.click(c.x, c.y);
+    const field = overlaySvg.locator('g[data-testid^="markup-field-"]');
+    await expect(field).toHaveCount(1);
+    await expect(field).toContainText('Check1');
+    await page.locator('header').click();
+    await page.keyboard.press('v');
+    // Crear el campo abre Propiedades y la hoja se desplaza: se usa la posición actual de la casilla
+    const fb = (await field.locator('rect').first().boundingBox())!;
+    await page.mouse.dblclick(fb.x + fb.width / 2, fb.y + fb.height / 2);
+    await expect(field.locator('path')).toHaveCount(1); // la marca de verificación
+
+    // 2. Hyperlink a la página 3: recuadro, diálogo y Ctrl+clic para seguirlo
+    await page.locator('[data-testid="collapse-properties-btn"]').click();
+    const box2 = (await overlaySvg.boundingBox())!;
+    const at2 = (nx: number, ny: number) => ({ x: box2.x + box2.width * nx, y: box2.y + box2.height * ny });
+    await page.locator('[data-testid="tool-link"]').click();
+    const a = at2(0.72, 0.55);
+    const b = at2(0.92, 0.6);
+    await page.mouse.move(a.x, a.y);
+    await page.mouse.down();
+    await page.mouse.move(b.x, b.y, { steps: 5 });
+    await page.mouse.up();
+    await expect(page.locator('[data-testid="link-dialog"]')).toBeVisible();
+    await page.locator('[data-testid="link-mode-page"]').check();
+    await page.locator('[data-testid="link-page"]').fill('3');
+    await page.locator('[data-testid="link-confirm"]').click();
+    await expect(overlaySvg.locator('g[data-testid^="markup-link-"]')).toContainText('Page 3');
+    await page.keyboard.press('v');
+    await page.keyboard.down('Control');
+    await page.mouse.click((a.x + b.x) / 2, (a.y + b.y) / 2);
+    await page.keyboard.up('Control');
+    await expect(page.locator('[data-testid="page-indicator"]')).toHaveText('3 / 3');
+
+    // 3. File Attachment: un clic abre el selector de archivos y la marca lleva el nombre del archivo
+    await page.locator('[data-testid="thumbnail-0"]').click({ position: { x: 20, y: 20 } });
+    await expect(page.locator('[data-testid="page-indicator"]')).toHaveText('1 / 3');
+    await page.locator('[data-testid="tool-fileAttachment"]').click();
+    const chooser = page.waitForEvent('filechooser');
+    const box3 = (await overlaySvg.boundingBox())!;
+    const d = { x: box3.x + box3.width * 0.6, y: box3.y + box3.height * 0.12 };
+    await page.mouse.click(d.x, d.y);
+    await (await chooser).setFiles({ name: 'RFI-012.txt', mimeType: 'text/plain', buffer: Buffer.from('RFI 012') });
+    const row = page.locator('[data-testid="markups-list-panel"] tbody tr').filter({ hasText: 'File Attachment' });
+    await expect(row).toHaveCount(1);
+    // El comentario es un campo editable: el nombre del archivo está en su valor
+    await expect(row.locator('input[type="text"]').first()).toHaveValue('RFI-012.txt');
+    await expect(overlaySvg.locator('g[data-testid^="markup-attachment-"]')).toHaveCount(1);
+  });
 });

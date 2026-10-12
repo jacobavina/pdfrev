@@ -36,7 +36,13 @@ import {
   Contrast,
   PenLine,
   Stamp as StampIcon,
+  FormInput,
+  Signature,
+  Link2,
+  Paperclip,
 } from 'lucide-react';
+import { FIELD_TYPES, FieldType } from '../../core/markup/formFields';
+import { fieldTypeIcon } from './fieldIcons';
 import { STAMPS } from '../../core/markup/stamps';
 import {
   FitPageIcon,
@@ -94,7 +100,7 @@ export const MenuBar: React.FC = () => {
   const { fileName, filePath, pdfBytes, numPages, currentPageIndex, zoomIn, zoomOut, resetZoom, rotateClockwise } =
     useDocumentStore();
   const { canUndo, canRedo, undo, redo, isDirty, selectedMarkupIds } = useMarkupStore();
-  const { activeTool, setActiveTool, activeStampId, setActiveStampId } = useToolStore();
+  const { activeTool, setActiveTool, activeStampId, setActiveStampId, activeFieldType, setActiveFieldType } = useToolStore();
   const {
     theme,
     toggleTheme,
@@ -130,6 +136,18 @@ export const MenuBar: React.FC = () => {
 
   const hasDoc = Boolean(pdfBytes);
   const hasSelection = selectedMarkupIds.length > 0;
+  /** Entrada de Tools ▸ Form: elige el tipo de campo y activa la herramienta (ADR-0027). */
+  const fieldEntry = (type: FieldType, label: string): MenuEntry => ({
+    icon: fieldTypeIcon(type),
+    label,
+    testId: `menu-field-${type}`,
+    checked: activeTool === 'formField' && activeFieldType === type,
+    disabled: !hasDoc,
+    onSelect: () => {
+      setActiveFieldType(type);
+      setActiveTool('formField');
+    },
+  });
   const toolEntry = (type: ToolType, label: string, shortcut?: string, icon?: React.ReactNode): MenuEntry => ({
     label,
     shortcut,
@@ -282,6 +300,35 @@ export const MenuBar: React.FC = () => {
               .filter((t) => t.type !== 'calibrate')
               .map((t) => toolEntry(t.type, t.short, t.shortcut, t.icon)),
           ],
+        },
+        {
+          icon: <FormInput size={15} />,
+          label: 'Form',
+          testId: 'menu-tools-form',
+          submenu: FIELD_TYPES.filter((f) => f.id !== 'signature').map((f) => fieldEntry(f.id, f.label)),
+        },
+        {
+          icon: <Signature size={15} />,
+          label: 'Signature',
+          testId: 'menu-tools-signature',
+          submenu: [fieldEntry('signature', 'Digital Signature Field')],
+        },
+        'separator',
+        {
+          icon: <Link2 size={15} />,
+          label: 'Hyperlink',
+          testId: 'menu-tools-hyperlink',
+          checked: activeTool === 'link',
+          onSelect: () => setActiveTool('link'),
+          disabled: !hasDoc,
+        },
+        {
+          icon: <Paperclip size={15} />,
+          label: 'File Attachment',
+          testId: 'menu-tools-attachment',
+          checked: activeTool === 'fileAttachment',
+          onSelect: () => setActiveTool('fileAttachment'),
+          disabled: !hasDoc,
         },
         'separator',
         { icon: <Ruler size={15} />, label: 'Measurements Panel', onSelect: requestMeasurementsPanel },

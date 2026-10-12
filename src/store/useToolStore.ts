@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { MarkupStyle, MarkupType } from '../types/markup';
+import type { FieldType } from '../core/markup/formFields';
 
 // 'arrow' crea una marca de tipo 'line' con extremo final de flecha (ADR-0018)
 export type ToolType = MarkupType | 'select' | 'pan' | 'calibrate' | 'arrow';
@@ -13,6 +14,8 @@ interface ToolState {
   measureLabel: string;
   /** Sello que coloca la herramienta Stamp (ADR-0026). */
   activeStampId: string;
+  /** Tipo de campo que crea la herramienta Form (ADR-0027). */
+  activeFieldType: FieldType;
 
   // Actions
   setActiveTool: (tool: ToolType) => void;
@@ -21,6 +24,7 @@ interface ToolState {
   setActiveLayer: (layer: string) => void;
   setMeasureLabel: (label: string) => void;
   setActiveStampId: (id: string) => void;
+  setActiveFieldType: (type: FieldType) => void;
 }
 
 export const useToolStore = create<ToolState>((set) => ({
@@ -35,6 +39,7 @@ export const useToolStore = create<ToolState>((set) => ({
   activeLayer: 'Markups',
   measureLabel: '',
   activeStampId: 'approved',
+  activeFieldType: 'text',
 
   setActiveTool: (activeTool) => set({ activeTool }),
   setCurrentStyle: (styleUpdate) =>
@@ -45,4 +50,5 @@ export const useToolStore = create<ToolState>((set) => ({
   setActiveLayer: (activeLayer) => set({ activeLayer }),
   setMeasureLabel: (measureLabel) => set({ measureLabel }),
   setActiveStampId: (activeStampId) => set({ activeStampId }),
+  setActiveFieldType: (activeFieldType) => set({ activeFieldType }),
 }));

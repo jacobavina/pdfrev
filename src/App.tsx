@@ -1,9 +1,7 @@
 import React, { Suspense, lazy, useEffect } from 'react';
 import { FileText } from 'lucide-react';
 import { PdfViewer } from './components/PdfViewer';
-import { PropertiesInspectorPanel } from './components/PropertiesInspectorPanel';
 import { MarkupsList } from './components/MarkupsList';
-import { SearchBar } from './components/SearchBar';
 import { MenuBar } from './components/shell/MenuBar';
 import { Ribbon } from './components/shell/Ribbon';
 import { LeftDock } from './components/shell/LeftDock';
@@ -23,6 +21,10 @@ const MeasurementsPanel = lazy(() =>
 const ToolChestPanel = lazy(() =>
   import('./components/toolchest/ToolChestPanel').then((m) => ({ default: m.ToolChestPanel }))
 );
+const PropertiesInspectorPanel = lazy(() =>
+  import('./components/PropertiesInspectorPanel').then((m) => ({ default: m.PropertiesInspectorPanel }))
+);
+const SearchBar = lazy(() => import('./components/SearchBar').then((m) => ({ default: m.SearchBar })));
 const ShortcutsDialog = lazy(() =>
   import('./components/shell/ShortcutsDialog').then((m) => ({ default: m.ShortcutsDialog }))
 );
@@ -133,7 +135,9 @@ export const App: React.FC = () => {
       {/* 1. Barra de menús (<header>) y cinta de herramientas agrupada (ADR-0017) */}
       <MenuBar />
       <Ribbon />
-      <SearchBar />
+      <Suspense fallback={null}>
+        <SearchBar />
+      </Suspense>
 
       {/* 2. Espacio de trabajo: panel izquierdo con pestañas · documento · paneles derechos */}
       <div className="flex-1 flex overflow-hidden relative min-h-0">
@@ -142,7 +146,9 @@ export const App: React.FC = () => {
           <DocumentTab />
           <PdfViewer />
         </div>
-        <PropertiesInspectorPanel defaultCollapsed={true} />
+        <Suspense fallback={<SidePanelFallback />}>
+          <PropertiesInspectorPanel defaultCollapsed={true} />
+        </Suspense>
         <Suspense fallback={<SidePanelFallback />}>
           <MeasurementsPanel defaultCollapsed={true} />
         </Suspense>

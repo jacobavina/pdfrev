@@ -1,6 +1,8 @@
 import React from 'react';
-import { FolderOpen, Save, Download, Undo2, Redo2, Stamp as StampIcon } from 'lucide-react';
+import { FolderOpen, Save, Download, Undo2, Redo2, Stamp as StampIcon, Link2, Paperclip } from 'lucide-react';
 import { STAMPS, stampById } from '../../core/markup/stamps';
+import { FIELD_TYPES, fieldTypeDef } from '../../core/markup/formFields';
+import { fieldTypeIcon } from './fieldIcons';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useMarkupStore } from '../../store/useMarkupStore';
 import { useToolStore } from '../../store/useToolStore';
@@ -70,7 +72,16 @@ const LargeButton: React.FC<{
 export const Ribbon: React.FC = () => {
   const { filePath, pdfBytes, pageHasText, currentPageIndex } = useDocumentStore();
   const { canUndo, canRedo, undo, redo, isDirty } = useMarkupStore();
-  const { activeTool, setActiveTool, currentStyle, setCurrentStyle, activeStampId, setActiveStampId } = useToolStore();
+  const {
+    activeTool,
+    setActiveTool,
+    currentStyle,
+    setCurrentStyle,
+    activeStampId,
+    setActiveStampId,
+    activeFieldType,
+    setActiveFieldType,
+  } = useToolStore();
   const { saveNow } = useAutoSave(0);
 
   const lineStyle = lineStyleOf(currentStyle.dashArray);
@@ -197,6 +208,64 @@ export const Ribbon: React.FC = () => {
             onChange={(id) => {
               setActiveStampId(id);
               setActiveTool('stamp');
+            }}
+          />
+        </div>
+      </RibbonGroup>
+
+      <RibbonGroup label="Link & Form" testId="ribbon-group-insert">
+        <div className="flex flex-col gap-1">
+          <div className="flex gap-0.5">
+            {(
+              [
+                ['link', 'Hyperlink: drag the link area, then choose a web address or page', <Link2 key="l" size={16} />],
+                ['fileAttachment', 'File Attachment: click to attach a file', <Paperclip key="p" size={16} />],
+              ] as const
+            ).map(([tool, title, icon]) => (
+              <button
+                key={tool}
+                type="button"
+                data-testid={`tool-${tool}`}
+                aria-pressed={activeTool === tool}
+                disabled={!pdfBytes}
+                onClick={() => setActiveTool(tool)}
+                title={title}
+                className={`w-[26px] h-[24px] rounded flex items-center justify-center transition-colors disabled:opacity-40 ${
+                  activeTool === tool ? 'bg-cad-accent text-white' : 'text-gray-300 hover:text-cad-strong hover:bg-cad-hover'
+                }`}
+              >
+                {icon}
+              </button>
+            ))}
+            <button
+              type="button"
+              data-testid="tool-formField"
+              aria-pressed={activeTool === 'formField'}
+              disabled={!pdfBytes}
+              onClick={() => setActiveTool('formField')}
+              title={`Form field: ${fieldTypeDef(activeFieldType).label}`}
+              className={`w-[26px] h-[24px] rounded flex items-center justify-center transition-colors disabled:opacity-40 ${
+                activeTool === 'formField' ? 'bg-cad-accent text-white' : 'text-gray-300 hover:text-cad-strong hover:bg-cad-hover'
+              }`}
+            >
+              {fieldTypeIcon(activeFieldType, 16)}
+            </button>
+          </div>
+          <IconPicker
+            compact
+            testId="ribbon-field-type"
+            title="Form field type"
+            value={activeFieldType}
+            options={FIELD_TYPES.map((f) => ({ value: f.id, label: f.label }))}
+            renderIcon={(id) => (
+              <span className="flex items-center gap-1 text-[10px]">
+                {fieldTypeIcon(id, 13)}
+                <span className="whitespace-nowrap">{fieldTypeDef(id).label}</span>
+              </span>
+            )}
+            onChange={(id) => {
+              setActiveFieldType(id);
+              setActiveTool('formField');
             }}
           />
         </div>

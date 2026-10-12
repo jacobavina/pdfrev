@@ -13,6 +13,9 @@ import {
   Lock,
   LockOpen,
   Stamp,
+  Link2,
+  Paperclip,
+  FormInput,
 } from 'lucide-react';
 import {
   RectangleToolIcon,
@@ -139,6 +142,12 @@ function getMarkupIcon(type: MarkupType) {
       return I(<PenIcon size={14} />, 'text-blue-400');
     case 'stamp':
       return I(<Stamp size={14} />, 'text-emerald-500');
+    case 'link':
+      return I(<Link2 size={14} />, 'text-blue-500');
+    case 'fileAttachment':
+      return I(<Paperclip size={14} />, 'text-amber-600');
+    case 'formField':
+      return I(<FormInput size={14} />, 'text-slate-400');
     case 'dimension':
       return I(<DimensionIcon size={14} />, 'text-sky-400');
     case 'length':

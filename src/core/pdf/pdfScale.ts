@@ -18,12 +18,11 @@ function numberFormat(unit: string, factor: number, denominator: number, fractio
   } /RT () /SS () >>`;
 }
 
-/** Diccionario /VP (array con un viewport de página completa) para la calibración dada. */
-export function viewportArrayFor(
-  calibration: PageCalibration,
-  pageBox: [number, number, number, number],
-  rotation: 0 | 90 | 180 | 270
-): string {
+/**
+ * Diccionario /Measure /RL de una calibración (ISO 32000-1 §12.9.2). Lo usan el viewport de la página y cada
+ * medición (ADR-0030), que así lleva su propia escala como las de Revu y Acrobat.
+ */
+export function measureDictFor(calibration: PageCalibration, rotation: 0 | 90 | 180 | 270): string {
   const sx = calibration.scale;
   const sy = calibration.scaleY ?? calibration.scale;
   // En páginas giradas 90/270 el eje X de la vista es el eje Y del PDF
@@ -37,14 +36,24 @@ export function viewportArrayFor(
   const yEntry =
     Math.abs(pdfY - pdfX) > 1e-12 ? ` /Y [${numberFormat(isFtIn ? 'ft' : unit, pdfY / pdfX, den)}]` : '';
   const areaUnit = isFtIn ? 'sq ft' : `sq ${unit}`;
-  const reaJson = JSON.stringify(calibration);
-  return `[<< /Type /Viewport /Name ${escapeLiteral(REA_VP_NAME)} /BBox [${pageBox.map((n) => n.toFixed(2)).join(' ')}] /Measure << /Type /Measure /Subtype /RL /R ${escapeLiteral(
-    describeCalibration(calibration)
-  )} /X ${xFormats}${yEntry} /D [${numberFormat(isFtIn ? 'ft' : unit, 1, den)}] /A [${numberFormat(
-    areaUnit,
+  return `<< /Type /Measure /Subtype /RL /R ${escapeLiteral(describeCalibration(calibration))} /X ${xFormats}${yEntry} /D [${numberFormat(
+    isFtIn ? 'ft' : unit,
     1,
     den
-  )}] >> /REACal ${escapeLiteral(reaJson)} >>]`;
+  )}] /A [${numberFormat(areaUnit, 1, den)}] >>`;
+}
+
+/** Diccionario /VP (array con un viewport de página completa) para la calibración dada. */
+export function viewportArrayFor(
+  calibration: PageCalibration,
+  pageBox: [number, number, number, number],
+  rotation: 0 | 90 | 180 | 270
+): string {
+  const reaJson = JSON.stringify(calibration);
+  return `[<< /Type /Viewport /Name ${escapeLiteral(REA_VP_NAME)} /BBox [${pageBox.map((n) => n.toFixed(2)).join(' ')}] /Measure ${measureDictFor(
+    calibration,
+    rotation
+  )} /REACal ${escapeLiteral(reaJson)} >>]`;
 }
 
 function text(obj: unknown): string | undefined {
@@ -106,36 +115,44 @@ export function readPageCalibration(pageNode: PDFDict, rotation: 0 | 90 | 180 | 
     if (!cal) {
       const measure = v.lookup(PDFName.of('Measure'));
       if (!(measure instanceof PDFDict)) continue;
-      const x = measure.lookup(PDFName.of('X'));
-      const first = x instanceof PDFArray ? x.lookup(0) : null;
-      if (!(first instanceof PDFDict)) continue;
-      const c = first.lookup(PDFName.of('C'));
-      const unit = normalizeUnit(text(first.lookup(PDFName.of('U'))));
-      if (!(c instanceof PDFNumber) || !unit || !(c.asNumber() > 0)) continue;
-      let scaleY: number | undefined;
-      const y = measure.lookup(PDFName.of('Y'));
-      const yFirst = y instanceof PDFArray ? y.lookup(0) : null;
-      if (yFirst instanceof PDFDict) {
-        const yc = yFirst.lookup(PDFName.of('C'));
-        if (yc instanceof PDFNumber && yc.asNumber() > 0) scaleY = c.asNumber() * yc.asNumber();
-      }
-      let sx = c.asNumber();
-      let sy = scaleY;
-      if (sy !== undefined && (rotation === 90 || rotation === 270)) [sx, sy] = [sy, sx];
-      // Compuesto pies + pulgadas (como lo escribe Acrobat/Revu): se presenta en pies-pulgadas
-      const second = x instanceof PDFArray ? x.lookup(1) : null;
-      const isFtIn = unit === 'ft' && second instanceof PDFDict && normalizeUnit(text(second.lookup(PDFName.of('U')))) === 'in';
-      cal = {
-        scale: sx,
-        ...(sy !== undefined ? { scaleY: sy } : {}),
-        unit,
-        precision: 2,
-        ...(isFtIn ? { format: 'ftin' as const, fractionDenominator: 16 } : {}),
-      };
+      cal = calibrationFromMeasure(measure, rotation);
     }
     if (cal && (!best || area > best.area)) best = { cal, area };
   }
   return best?.cal ?? null;
+}
+
+/**
+ * Calibración a partir de un diccionario /Measure /RL (de una página o de una medición de Revu/Acrobat):
+ * /X[0]/C es el factor "unidades por punto" de la unidad /U. null si no se puede interpretar.
+ */
+export function calibrationFromMeasure(measure: PDFDict, rotation: 0 | 90 | 180 | 270): PageCalibration | null {
+  const x = measure.lookup(PDFName.of('X'));
+  const first = x instanceof PDFArray ? x.lookup(0) : null;
+  if (!(first instanceof PDFDict)) return null;
+  const c = first.lookup(PDFName.of('C'));
+  const unit = normalizeUnit(text(first.lookup(PDFName.of('U'))));
+  if (!(c instanceof PDFNumber) || !unit || !(c.asNumber() > 0)) return null;
+  let scaleY: number | undefined;
+  const y = measure.lookup(PDFName.of('Y'));
+  const yFirst = y instanceof PDFArray ? y.lookup(0) : null;
+  if (yFirst instanceof PDFDict) {
+    const yc = yFirst.lookup(PDFName.of('C'));
+    if (yc instanceof PDFNumber && yc.asNumber() > 0) scaleY = c.asNumber() * yc.asNumber();
+  }
+  let sx = c.asNumber();
+  let sy = scaleY;
+  if (sy !== undefined && (rotation === 90 || rotation === 270)) [sx, sy] = [sy, sx];
+  // Compuesto pies + pulgadas (como lo escribe Acrobat/Revu): se presenta en pies-pulgadas
+  const second = x instanceof PDFArray ? x.lookup(1) : null;
+  const isFtIn = unit === 'ft' && second instanceof PDFDict && normalizeUnit(text(second.lookup(PDFName.of('U')))) === 'in';
+  return {
+    scale: sx,
+    ...(sy !== undefined ? { scaleY: sy } : {}),
+    unit,
+    precision: 2,
+    ...(isFtIn ? { format: 'ftin' as const, fractionDenominator: 16 } : {}),
+  };
 }
 
 /** Escalas de todas las páginas de un PDF (las que tengan /VP con /Measure). */

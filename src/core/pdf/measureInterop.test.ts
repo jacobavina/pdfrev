@@ -45,7 +45,7 @@ const markups: Markup[] = [
 ];
 
 describe('Mediciones adicionales en el PDF (ADR-0029)', () => {
-  it('subtipos estándar: perímetro y volumen /Polygon, ángulo /PolyLine, radio y diámetro /Circle', async () => {
+  it('subtipos estándar: perímetro /PolyLine cerrada (ADR-0030), volumen /Polygon, ángulo /PolyLine, radio y diámetro /Circle', async () => {
     const saved = await saveIncrementalMarkups(blueprint, markups);
     const doc = await PDFDocument.load(saved);
     const annots = doc.getPages()[0].node.lookup(PDFName.of('Annots'), PDFArray);
@@ -54,7 +54,7 @@ describe('Mediciones adicionales en el PDF (ADR-0029)', () => {
       .map((r) => doc.context.lookup(r, PDFDict))
       .filter((d) => d.get(PDFName.of('Subtype'))?.toString() !== '/Popup')
       .map((d) => d.get(PDFName.of('Subtype'))?.toString());
-    expect(subtypes).toEqual(['/Polygon', '/Polygon', '/PolyLine', '/Circle', '/Circle']);
+    expect(subtypes).toEqual(['/PolyLine', '/Polygon', '/PolyLine', '/Circle', '/Circle']);
   });
 
   it('ida y vuelta: tipo, vértices exactos, medida y profundidad del volumen', async () => {
@@ -78,11 +78,12 @@ describe('Mediciones adicionales en el PDF (ADR-0029)', () => {
       contentsObj?: { str: string };
     }[];
     const ours = annots.filter((a) => ['Polygon', 'PolyLine', 'Circle'].includes(a.subtype)).slice(-5);
-    expect(ours.map((a) => a.subtype)).toEqual(['Polygon', 'Polygon', 'PolyLine', 'Circle', 'Circle']);
+    expect(ours.map((a) => a.subtype)).toEqual(['PolyLine', 'Polygon', 'PolyLine', 'Circle', 'Circle']);
     expect(ours.every((a) => a.hasAppearance)).toBe(true);
-    // PDF.js entrega los vértices planos (x, y, x, y…): 4 del perímetro y 3 del ángulo
-    expect(ours[0].vertices).toHaveLength(8);
+    // PDF.js entrega los vértices planos (x, y, x, y…): 4 del perímetro más el de cierre, y 3 del ángulo
+    expect(ours[0].vertices).toHaveLength(10);
     expect(Array.from(ours[0].vertices!).slice(0, 4)).toEqual([80, 540, 240, 540]);
+    expect(Array.from(ours[0].vertices!).slice(8)).toEqual([80, 540]);
     expect(ours[2].vertices).toHaveLength(6);
     await pdf.destroy();
   });

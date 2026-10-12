@@ -183,4 +183,5 @@ plan y `AGENTS.md`, **gana `AGENTS.md`**.
 | 2026-10-12 | Claude (Opus 5.5) | ADR-0027: hipervínculos, adjuntos embebidos, campos AcroForm y campo de firma; comando nativo open_url. Pendiente: firma con certificado, reglas, mediciones Perimeter/Angle/Radius/Diameter/Volume. |
 | 2026-10-12 | Claude (Opus 5.5) | ADR-0028: Save, Save As (Ctrl+Shift+S) y File ▸ Export, también con el documento de demostración. |
 | 2026-10-12 | Claude (Opus 5.5) | ADR-0029: Perimeter, Volume, Angle, Radius, Diameter y reglas (View ▸ Rulers, Ctrl+R). |
+| 2026-10-12 | Claude (Opus 5.5) | ADR-0030: mediciones con /IT y /Measure estándar (vivas en Revu/Acrobat) e importación de las mediciones de Acrobat/Revu. |
 

@@ -10,7 +10,8 @@ import {
 } from 'pdf-lib';
 import { LineEndingStyle, Markup, MarkupStatus, PageCalibration } from '../../types/markup';
 import { DIMENSION_EXTENSION_GAP, DIMENSION_EXTENSION_OVERSHOOT } from '../markup/dimension';
-import { viewportArrayFor } from './pdfScale';
+import { viewportArrayFor, measureDictFor, readPageCalibration } from './pdfScale';
+import { DEFAULT_PAGE_CALIBRATION } from '../measurements/calculate';
 import { stampById } from '../markup/stamps';
 import {
   FieldType,
@@ -368,6 +369,11 @@ export async function saveIncrementalMarkups(
       originY: 0,
     };
 
+    // Escala vigente de la página para el /Measure de cada medición (ADR-0030): la definida en REA, la que ya
+    // trae el PDF o, sin ninguna, milímetros de papel (lo mismo que muestra el visor)
+    const effectiveCalibration =
+      options.calibrations?.[pIdx] ?? readPageCalibration(page.node, transform.rotation) ?? DEFAULT_PAGE_CALIBRATION;
+
     // Anotaciones existentes en la página. Se retiran de /Annots (para reescribirlas desde el modelo,
     // sin duplicar) las propias de REA (/REA), las que el modelo contiene (por /NM o referencia) y las
     // importadas que el usuario borró; con ellas, sus estados de revisión y popups dependientes.
@@ -583,6 +589,15 @@ ${apLine}  /REA ${reaDict}
         if (markup.type === 'dimension') {
           annotDict += `  ${dimensionLineEntries(markup, transform)}\n`;
         }
+      } else if (markup.type === 'area' && markup.points.length === 2) {
+        // Área rectangular: sus cuatro esquinas como polígono
+        const a = normalizedToPdfCoordinates(markup.points[0], transform);
+        const b = normalizedToPdfCoordinates(markup.points[1], transform);
+        const x0 = Math.min(a.x, b.x).toFixed(2);
+        const y0 = Math.min(a.y, b.y).toFixed(2);
+        const x1 = Math.max(a.x, b.x).toFixed(2);
+        const y1 = Math.max(a.y, b.y).toFixed(2);
+        annotDict += `  /Vertices [${x0} ${y1} ${x1} ${y1} ${x1} ${y0} ${x0} ${y0}]\n`;
       } else if (
         (markup.type === 'cloud' || markup.type === 'cloudPlus') &&
         markup.points.length === 2
@@ -599,7 +614,8 @@ ${apLine}  /REA ${reaDict}
         (annotTypeSubtype === 'Polygon' || annotTypeSubtype === 'PolyLine') &&
         markup.points.length >= 2
       ) {
-        const vList = markup.points
+        const vertexPts = markup.type === 'perimeter' ? [...markup.points, markup.points[0]] : markup.points;
+        const vList = vertexPts
           .map((pt) => {
             const pdfPt = normalizedToPdfCoordinates(pt, transform);
             return `${pdfPt.x.toFixed(2)} ${pdfPt.y.toFixed(2)}`;
@@ -612,7 +628,12 @@ ${apLine}  /REA ${reaDict}
         if (markup.type === 'cloud' || markup.type === 'cloudPlus') {
           annotDict += `  /BE << /S /C /I 1 >>\n`;
         }
-      } else if (annotTypeSubtype === 'FreeText') {
+      }
+      const intent = measurementIntentOf(markup);
+      if (intent) {
+        annotDict += `  /IT /${intent}\n  /Measure ${measureDictFor(effectiveCalibration, transform.rotation)}\n`;
+      }
+      if (annotTypeSubtype === 'FreeText') {
         // Mismos tamaños por defecto que la pantalla y el /AP (llamada 10 pt, texto 12 pt)
         const fontPt = markup.style.fontSize ?? (markup.type === 'callout' ? 10 : 12);
         annotDict += `  /DA (/Helv ${fontPt} Tf 0 0 0 rg)\n`;
@@ -875,6 +896,24 @@ export function borderStyleEntry(strokeWidth: number, dashArray: number[] | unde
 }
 
 /**
+ * Intención de medición estándar (ISO 32000-1 §12.5.6.7/12.5.6.9, la que escriben Acrobat y Revu) para que otro
+ * lector trate la marca como medición viva (ADR-0030). null si el tipo no tiene equivalente estándar.
+ */
+export function measurementIntentOf(markup: Markup): string | null {
+  switch (markup.type) {
+    case 'length':
+      return 'LineDimension';
+    case 'polylineMeasure':
+    case 'perimeter':
+      return 'PolyLineDimension';
+    case 'area':
+      return 'PolygonDimension';
+    default:
+      return null;
+  }
+}
+
+/**
  * Mapea el tipo de marca de REA al subtipo canónico de anotación de PDF (ISO 32000-1 §12.5).
  */
 function getPdfAnnotSubtype(markup: Markup): string {
@@ -887,6 +926,8 @@ function getPdfAnnotSubtype(markup: Markup): string {
     case 'diameter':
       return 'Circle';
     case 'perimeter':
+      // Como el perímetro de Acrobat: polilínea cerrada (el último vértice repite el primero)
+      return 'PolyLine';
     case 'volume':
       return 'Polygon';
     case 'angle':
@@ -899,7 +940,8 @@ function getPdfAnnotSubtype(markup: Markup): string {
       if (markup.customFields?.isPolyLine) return 'PolyLine';
       return 'Polygon';
     case 'area':
-      return markup.points.length === 2 ? 'Square' : 'Polygon';
+      // Siempre polígono (también la rectangular): es el que Revu y Acrobat reconocen como medición de área
+      return 'Polygon';
     case 'polyLine':
     case 'polylineMeasure':
       return 'PolyLine';

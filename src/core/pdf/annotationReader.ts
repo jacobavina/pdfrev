@@ -12,6 +12,17 @@ import {
 } from 'pdf-lib';
 import { Markup, MarkupPoint, MarkupStatus, MarkupType, LineEndingStyle } from '../../types/markup';
 import { pdfToNormalizedCoordinates, PageTransformInfo } from './operators';
+import { calibrationFromMeasure, readPageCalibration } from './pdfScale';
+import {
+  DEFAULT_PAGE_CALIBRATION,
+  calculateArea,
+  calculateLength,
+  calculatePerimeter,
+  calculatePolylineLength,
+} from '../measurements/calculate';
+
+/** Mediciones cuyo valor se recalcula de la geometría del PDF si esta cambió fuera de REA (ADR-0030). */
+const RECOMPUTED_MEASURES = new Set<MarkupType>(['length', 'polylineMeasure', 'perimeter', 'area']);
 
 export interface ImportAnnotationsResult {
   markups: Markup[];
@@ -112,6 +123,12 @@ export async function importPdfAnnotations(
       heightPt: page.getHeight(),
       originX: 0,
       originY: 0,
+    };
+    const pageCalibration = readPageCalibration(page.node, transform.rotation);
+    const isRotated = transform.rotation === 90 || transform.rotation === 270;
+    const visualDims = {
+      width: isRotated ? transform.heightPt : transform.widthPt,
+      height: isRotated ? transform.widthPt : transform.heightPt,
     };
 
     for (let aIdx = 0; aIdx < annotsObj.size(); aIdx++) {
@@ -269,11 +286,23 @@ export async function importPdfAnnotations(
         }
       }
 
+      const itObj = annotDict.get(PDFName.of('IT'));
+      const intent = itObj instanceof PDFName ? itObj.asString().replace(/^\//, '') : '';
+      const measureObj = annotDict.lookup(PDFName.of('Measure'));
+
       if (subtype === 'Line') {
-        // Las marcas de REA conservan su tipo (longitud, cota); una /Line ajena con /LL es una cota
+        // Las marcas de REA conservan su tipo (longitud, cota); una /Line ajena con /LL es una cota y una
+        // /LineDimension con /Measure sin /LL, una medición de distancia (Acrobat/Revu)
         const llObj = annotDict.get(PDFName.of('LL'));
         const ll = llObj instanceof PDFNumber ? llObj.asNumber() : 0;
-        if (!isRea) markupType = Math.abs(ll) > 1e-6 ? 'dimension' : 'line';
+        if (!isRea) {
+          markupType =
+            Math.abs(ll) > 1e-6
+              ? 'dimension'
+              : intent === 'LineDimension' && measureObj instanceof PDFDict
+                ? 'length'
+                : 'line';
+        }
         const lObj = annotDict.get(PDFName.of('L'));
         if (lObj instanceof PDFArray && lObj.size() >= 4) {
           const lx1 = lObj.get(0);
@@ -311,7 +340,7 @@ export async function importPdfAnnotations(
           }
         }
       } else if (subtype === 'Polygon') {
-        if (!isRea) markupType = 'polygon';
+        if (!isRea) markupType = intent === 'PolygonDimension' ? 'area' : 'polygon';
         const vObj = annotDict.get(PDFName.of('Vertices'));
         if (vObj instanceof PDFArray && vObj.size() >= 4) {
           points.length = 0;
@@ -326,7 +355,7 @@ export async function importPdfAnnotations(
           }
         }
       } else if (subtype === 'PolyLine') {
-        if (!isRea) markupType = 'polyLine';
+        if (!isRea) markupType = intent === 'PolyLineDimension' ? 'polylineMeasure' : 'polyLine';
         const vObj = annotDict.get(PDFName.of('Vertices'));
         if (vObj instanceof PDFArray && vObj.size() >= 4) {
           points.length = 0;
@@ -340,6 +369,13 @@ export async function importPdfAnnotations(
             }
           }
         }
+        // Polilínea de medida cerrada (el último vértice repite el primero) = perímetro, como en Acrobat
+        const first = points[0];
+        const last = points[points.length - 1];
+        const closed =
+          points.length >= 4 && Math.abs(first.x - last.x) < 1e-4 && Math.abs(first.y - last.y) < 1e-4;
+        if (!isRea && markupType === 'polylineMeasure' && closed) markupType = 'perimeter';
+        if (markupType === 'perimeter' && closed) points.pop();
       } else if (subtype === 'Circle') {
         if (!isRea) markupType = 'circle';
       } else if (subtype === 'Text') {
@@ -378,6 +414,7 @@ export async function importPdfAnnotations(
       let leaders: MarkupPoint[][] | undefined;
       let groupId: string | undefined;
       let layer: string | undefined;
+      let exactGeometry = false;
       if (isRea && reaObj instanceof PDFDict) {
         const readPts = (arr: unknown): MarkupPoint[] | null => {
           if (!(arr instanceof PDFArray) || arr.size() < 2 || arr.size() % 2 !== 0) return null;
@@ -410,6 +447,7 @@ export async function importPdfAnnotations(
           savedRect.every((v, i) => Math.abs(v - currentRect[i]) < 0.5);
         const exactPts = readPts(reaObj.get(PDFName.of('pts')));
         if (unchanged && exactPts) {
+          exactGeometry = true;
           points.length = 0;
           points.push(...exactPts);
           const leadersObj = reaObj.get(PDFName.of('leaders'));
@@ -427,6 +465,19 @@ export async function importPdfAnnotations(
         }
         groupId = extractPdfStringValue(reaObj.get(PDFName.of('groupId'))) || undefined;
         layer = extractPdfStringValue(reaObj.get(PDFName.of('layer'))) || undefined;
+      }
+
+      // Medición ajena, o de REA movida en otra aplicación: el valor sale de su geometría y de su /Measure (o de la
+      // escala de la página), como lo calcularía Revu/Acrobat (ADR-0030)
+      if (RECOMPUTED_MEASURES.has(markupType) && !exactGeometry && points.length >= 2) {
+        const cal =
+          (measureObj instanceof PDFDict ? calibrationFromMeasure(measureObj, transform.rotation) : null) ??
+          pageCalibration ??
+          DEFAULT_PAGE_CALIBRATION;
+        if (markupType === 'length') measurement = calculateLength(points.slice(0, 2), visualDims, cal);
+        else if (markupType === 'polylineMeasure') measurement = calculatePolylineLength(points, visualDims, cal);
+        else if (markupType === 'perimeter') measurement = calculatePerimeter(points, visualDims, cal);
+        else if (points.length >= 3) measurement = calculateArea(points, visualDims, cal, false);
       }
 
       // Opacidad (/CA) y tamaño de fuente (/DA)

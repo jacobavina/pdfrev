@@ -200,3 +200,17 @@ export const LINE_STYLE_OPTIONS: IconPickerOption<LineStyleId>[] = (Object.keys(
 export const LINE_ENDING_OPTIONS: IconPickerOption<LineEndingStyle>[] = (
   ['none', 'openArrow', 'closedArrow', 'circle', 'square', 'diamond', 'butt', 'slash'] as LineEndingStyle[]
 ).map((id) => ({ value: id, label: LINE_ENDING_LABELS[id] }));
+
+/** Opacidad: muestra del color sobre damero y su porcentaje. */
+export const OpacityPreview: React.FC<{ opacity: number; color?: string }> = ({ opacity, color = '#e02424' }) => (
+  <span className="flex items-center gap-1">
+    <svg width={14} height={14} aria-hidden="true">
+      <rect x={0} y={0} width={7} height={7} fill="#9ca3af" />
+      <rect x={7} y={7} width={7} height={7} fill="#9ca3af" />
+      <rect x={0} y={7} width={7} height={7} fill="#e5e7eb" />
+      <rect x={7} y={0} width={7} height={7} fill="#e5e7eb" />
+      <rect x={0} y={0} width={14} height={14} fill={color} fillOpacity={opacity} stroke="currentColor" strokeWidth={0.8} />
+    </svg>
+    <span className="text-[10px] font-mono text-gray-400 w-7 text-right">{Math.round(opacity * 100)}%</span>
+  </span>
+);

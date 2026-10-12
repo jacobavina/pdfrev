@@ -1,21 +1,29 @@
 import React from 'react';
+import { MousePointer, Hand } from 'lucide-react';
 import {
-  MousePointer,
-  Hand,
-  Square,
-  Type,
-  Circle,
-  Hexagon,
-  Pencil,
-  MessageSquareText,
-  StickyNote,
-  Highlighter,
-  TextSelect,
-  Ruler,
-  Hash,
-  Scale,
-} from 'lucide-react';
-import { CloudIcon, CloudPlusIcon, DimensionIcon, LineToolIcon, ArrowToolIcon } from './customIcons';
+  CloudIcon,
+  CloudPlusIcon,
+  DimensionIcon,
+  LineToolIcon,
+  ArrowToolIcon,
+  TextBoxIcon,
+  CalloutIcon,
+  NoteIcon,
+  TextHighlightIcon,
+  UnderlineIcon,
+  StrikeoutIcon,
+  PenIcon,
+  HighlighterIcon,
+  PolylineToolIcon,
+  RectangleToolIcon,
+  EllipseToolIcon,
+  PolygonToolIcon,
+  LengthMeasureIcon,
+  PolylengthIcon,
+  AreaMeasureIcon,
+  CountMeasureIcon,
+  CalibrateIcon,
+} from './customIcons';
 import { ToolType } from '../../store/useToolStore';
 
 /**
@@ -38,21 +46,6 @@ export interface ToolGroup {
   tools: ToolDefinition[];
 }
 
-const svgIcon = (children: React.ReactNode) => (
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    {children}
-  </svg>
-);
-
 export const TOOL_GROUPS: ToolGroup[] = [
   {
     id: 'select',
@@ -66,32 +59,21 @@ export const TOOL_GROUPS: ToolGroup[] = [
     id: 'text',
     label: 'Text & Review',
     tools: [
-      { type: 'text', label: 'Text Box (T)', short: 'Text', icon: <Type size={18} />, shortcut: 'T' },
-      { type: 'callout', label: 'Callout (Q)', short: 'Callout', icon: <MessageSquareText size={18} />, shortcut: 'Q' },
-      { type: 'stickyNote', label: 'Note (N)', short: 'Note', icon: <StickyNote size={18} />, shortcut: 'N' },
-      { type: 'highlightText', label: 'Text Highlight (Shift+H)', short: 'Highlight', icon: <TextSelect size={18} />, shortcut: 'Shift+H' },
+      { type: 'text', label: 'Text Box (T)', short: 'Text', icon: <TextBoxIcon />, shortcut: 'T' },
+      { type: 'callout', label: 'Callout (Q)', short: 'Callout', icon: <CalloutIcon />, shortcut: 'Q' },
+      { type: 'stickyNote', label: 'Note (N)', short: 'Note', icon: <NoteIcon />, shortcut: 'N' },
+      { type: 'highlightText', label: 'Text Highlight (Shift+H)', short: 'Highlight', icon: <TextHighlightIcon />, shortcut: 'Shift+H' },
       {
         type: 'underline',
         label: 'Underline',
         short: 'Underline',
-        icon: svgIcon(
-          <>
-            <path d="M6 4v6a6 6 0 0 0 12 0V4" />
-            <line x1="4" y1="20" x2="20" y2="20" />
-          </>
-        ),
+        icon: <UnderlineIcon />,
       },
       {
         type: 'strikeOut',
         label: 'Strikethrough',
         short: 'Strike',
-        icon: svgIcon(
-          <>
-            <path d="M16 4H9a3 3 0 0 0-2.83 4" />
-            <path d="M14 12a4 4 0 0 1 0 8H6" />
-            <line x1="4" y1="12" x2="20" y2="12" />
-          </>
-        ),
+        icon: <StrikeoutIcon />,
       },
     ],
   },
@@ -99,8 +81,8 @@ export const TOOL_GROUPS: ToolGroup[] = [
     id: 'draw',
     label: 'Draw',
     tools: [
-      { type: 'freehand', label: 'Pen (F)', short: 'Pen', icon: <Pencil size={18} />, shortcut: 'F' },
-      { type: 'highlightVector', label: 'Highlight (H)', short: 'Highlighter', icon: <Highlighter size={18} />, shortcut: 'H' },
+      { type: 'freehand', label: 'Pen (F)', short: 'Pen', icon: <PenIcon />, shortcut: 'F' },
+      { type: 'highlightVector', label: 'Highlight (H)', short: 'Highlighter', icon: <HighlighterIcon />, shortcut: 'H' },
       { type: 'line', label: 'Line (L)', short: 'Line', icon: <LineToolIcon />, shortcut: 'L' },
       { type: 'arrow', label: 'Arrow (A)', short: 'Arrow', icon: <ArrowToolIcon />, shortcut: 'A' },
       { type: 'dimension', label: 'Dimension (Shift+L)', short: 'Dimension', icon: <DimensionIcon />, shortcut: 'Shift+L' },
@@ -108,11 +90,11 @@ export const TOOL_GROUPS: ToolGroup[] = [
         type: 'polyLine',
         label: 'Polyline',
         short: 'Polyline',
-        icon: svgIcon(<polyline points="4 18 10 7 15 14 20 6" />),
+        icon: <PolylineToolIcon />,
       },
-      { type: 'rectangle', label: 'Rectangle (R)', short: 'Rectangle', icon: <Square size={18} />, shortcut: 'R' },
-      { type: 'circle', label: 'Ellipse (O)', short: 'Ellipse', icon: <Circle size={18} />, shortcut: 'O' },
-      { type: 'polygon', label: 'Polygon (P)', short: 'Polygon', icon: <Hexagon size={18} />, shortcut: 'P' },
+      { type: 'rectangle', label: 'Rectangle (R)', short: 'Rectangle', icon: <RectangleToolIcon />, shortcut: 'R' },
+      { type: 'circle', label: 'Ellipse (O)', short: 'Ellipse', icon: <EllipseToolIcon />, shortcut: 'O' },
+      { type: 'polygon', label: 'Polygon (P)', short: 'Polygon', icon: <PolygonToolIcon />, shortcut: 'P' },
       { type: 'cloud', label: 'Cloud (C)', short: 'Cloud', icon: <CloudIcon />, shortcut: 'C' },
       { type: 'cloudPlus', label: 'Cloud+ (K)', short: 'Cloud+', icon: <CloudPlusIcon />, shortcut: 'K' },
     ],
@@ -121,18 +103,13 @@ export const TOOL_GROUPS: ToolGroup[] = [
     id: 'measure',
     label: 'Measure',
     tools: [
-      { type: 'calibrate', label: 'Calibrate Page Scale', short: 'Calibrate', icon: <Scale size={18} />, testId: 'tool-calibrate' },
-      { type: 'length', label: 'Length (Shift+Alt+L)', short: 'Length', icon: <Ruler size={18} />, testId: 'tool-measure-length', shortcut: 'Shift+Alt+L' },
+      { type: 'calibrate', label: 'Calibrate Page Scale', short: 'Calibrate', icon: <CalibrateIcon />, testId: 'tool-calibrate' },
+      { type: 'length', label: 'Length (Shift+Alt+L)', short: 'Length', icon: <LengthMeasureIcon />, testId: 'tool-measure-length', shortcut: 'Shift+Alt+L' },
       {
         type: 'polylineMeasure',
         label: 'Polylength (Shift+Alt+Q)',
         short: 'Polylength',
-        icon: svgIcon(
-          <>
-            <polyline points="3 17 9 11 13 15 21 7" />
-            <path d="M18 7h3v3" />
-          </>
-        ),
+        icon: <PolylengthIcon />,
         testId: 'tool-measure-polyline',
         shortcut: 'Shift+Alt+Q',
       },
@@ -140,16 +117,11 @@ export const TOOL_GROUPS: ToolGroup[] = [
         type: 'area',
         label: 'Area (Shift+Alt+A): click each vertex, Enter or double-click to close',
         short: 'Area',
-        icon: svgIcon(
-          <>
-            <polygon points="4 6 14 3 21 11 16 21 5 17" />
-            <path d="M8 10l6 6" strokeDasharray="2 2" />
-          </>
-        ),
+        icon: <AreaMeasureIcon />,
         testId: 'tool-measure-area',
         shortcut: 'Shift+Alt+A',
       },
-      { type: 'count', label: 'Count (Shift+Alt+C)', short: 'Count', icon: <Hash size={18} />, testId: 'tool-measure-count', shortcut: 'Shift+Alt+C' },
+      { type: 'count', label: 'Count (Shift+Alt+C)', short: 'Count', icon: <CountMeasureIcon />, testId: 'tool-measure-count', shortcut: 'Shift+Alt+C' },
     ],
   },
 ];

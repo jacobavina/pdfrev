@@ -14,6 +14,7 @@ import {
   LineStylePreview,
   LineEndingPreview,
   StrokeWidthPreview,
+  OpacityPreview,
   LINE_STYLE_OPTIONS,
   LINE_ENDING_OPTIONS,
 } from './IconPicker';
@@ -21,8 +22,6 @@ import { translucentFill } from '../../core/markup/typeLabels';
 
 const STROKE_WIDTHS = [0.5, 1, 1.5, 2, 3, 5, 8];
 const OPACITIES = [1, 0.75, 0.5, 0.25];
-const selectClass =
-  'bg-cad-panel border border-cad-border rounded px-1 py-0 text-[11px] text-gray-200 focus:outline-none focus:border-cad-accent';
 
 /** Grupo de la cinta: contenido arriba y rótulo abajo, separado por una línea vertical. */
 const RibbonGroup: React.FC<{ label: string; children: React.ReactNode; testId?: string }> = ({
@@ -259,19 +258,15 @@ export const Ribbon: React.FC = () => {
               renderIcon={(id) => <LineEndingPreview ending={id} side="end" />}
               onChange={(id) => setCurrentStyle({ lineEndingEnd: id })}
             />
-            <select
-              data-testid="ribbon-opacity"
-              value={currentStyle.opacity ?? 1}
-              onChange={(e) => setCurrentStyle({ opacity: Number(e.target.value) })}
-              className={selectClass}
+            <IconPicker
+              compact
+              testId="ribbon-opacity"
               title="Opacity"
-            >
-              {OPACITIES.map((o) => (
-                <option key={o} value={o}>
-                  {Math.round(o * 100)} %
-                </option>
-              ))}
-            </select>
+              value={currentStyle.opacity ?? 1}
+              options={OPACITIES.map((o) => ({ value: o, label: `${Math.round(o * 100)}%` }))}
+              renderIcon={(o) => <OpacityPreview opacity={o} color={currentStyle.strokeColor} />}
+              onChange={(o) => setCurrentStyle({ opacity: o })}
+            />
           </div>
         </div>
       </RibbonGroup>

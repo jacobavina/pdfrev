@@ -96,7 +96,7 @@ export const StatusBar: React.FC = () => {
         aria-pressed={viewMode === 'single'}
         onClick={() => setViewMode('single')}
         className={modeBtn(viewMode === 'single')}
-        title="Single page"
+        title="Single page (Ctrl+4)"
       >
         <SinglePageIcon />
       </button>
@@ -106,7 +106,7 @@ export const StatusBar: React.FC = () => {
         aria-pressed={viewMode === 'continuous'}
         onClick={() => setViewMode('continuous')}
         className={modeBtn(viewMode === 'continuous')}
-        title="Continuous (all pages)"
+        title="Continuous pages (Ctrl+5)"
       >
         <ContinuousIcon />
       </button>
@@ -116,7 +116,7 @@ export const StatusBar: React.FC = () => {
         onClick={() => requestFit('page')}
         disabled={!pdfBytes}
         className={modeBtn(false) + ' ml-1 disabled:opacity-30'}
-        title="Fit page (Ctrl+0)"
+        title="Fit page (Ctrl+9)"
       >
         <FitPageIcon />
       </button>
@@ -126,7 +126,7 @@ export const StatusBar: React.FC = () => {
         onClick={() => requestFit('width')}
         disabled={!pdfBytes}
         className={modeBtn(false) + ' disabled:opacity-30'}
-        title="Fit width (Ctrl+2)"
+        title="Fit width (Ctrl+0)"
       >
         <FitWidthIcon />
       </button>

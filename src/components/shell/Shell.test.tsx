@@ -57,6 +57,19 @@ describe('Espacio de trabajo (ADR-0017)', () => {
       expect(screen.queryByTestId('menu-popup-medicion')).toBeNull();
     });
 
+    it('las entradas de los menús llevan ícono y la opción activa lo resalta (ADR-0023)', () => {
+      useUiStore.setState({ viewMode: 'continuous' });
+      render(<MenuBar />);
+      fireEvent.click(screen.getByTestId('menu-ver'));
+      const continuous = screen.getByRole('menuitem', { name: /Continuous Pages/ });
+      expect(continuous.querySelector('svg')).not.toBeNull();
+      expect(continuous).toHaveTextContent('Ctrl+5');
+      expect(continuous.querySelector('.ring-1')).not.toBeNull();
+      const fitPage = screen.getByRole('menuitem', { name: /Fit Page/ });
+      expect(fitPage.querySelector('svg')).not.toBeNull();
+      expect(fitPage).toHaveTextContent('Ctrl+9');
+    });
+
     it('Escape cierra el menú abierto', () => {
       render(<MenuBar />);
       fireEvent.click(screen.getByTestId('menu-archivo'));

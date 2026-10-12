@@ -1,5 +1,48 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Moon, Sun, FileText } from 'lucide-react';
+import {
+  Moon,
+  Sun,
+  FileText,
+  FolderOpen,
+  Save,
+  FileDown,
+  FileSpreadsheet,
+  ClipboardList,
+  Undo2,
+  Redo2,
+  Copy,
+  ClipboardPaste,
+  CopyPlus,
+  Lock,
+  Trash2,
+  BoxSelect,
+  ZoomIn,
+  ZoomOut,
+  RotateCw,
+  RotateCcw,
+  PanelLeft,
+  Bookmark,
+  Layers,
+  SlidersHorizontal,
+  Ruler,
+  MonitorCog,
+  ChevronLeft,
+  ChevronRight,
+  FilePlus2,
+  FileOutput,
+  FileX2,
+  Search,
+  Keyboard,
+  Contrast,
+} from 'lucide-react';
+import {
+  FitPageIcon,
+  FitWidthIcon,
+  ActualSizeIcon,
+  SinglePageIcon,
+  ContinuousIcon,
+  CalibrateIcon,
+} from './customIcons';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useMarkupStore } from '../../store/useMarkupStore';
 import { useToolStore, ToolType } from '../../store/useToolStore';
@@ -19,6 +62,8 @@ type MenuEntry =
       disabled?: boolean;
       checked?: boolean;
       testId?: string;
+      /** Ícono a la izquierda (ADR-0023); si la entrada está activa, el ícono se resalta como en Revu. */
+      icon?: React.ReactNode;
     }
   | 'separator';
 
@@ -75,9 +120,10 @@ export const MenuBar: React.FC = () => {
 
   const hasDoc = Boolean(pdfBytes);
   const hasSelection = selectedMarkupIds.length > 0;
-  const toolEntry = (type: ToolType, label: string, shortcut?: string): MenuEntry => ({
+  const toolEntry = (type: ToolType, label: string, shortcut?: string, icon?: React.ReactNode): MenuEntry => ({
     label,
     shortcut,
+    icon,
     checked: activeTool === type,
     onSelect: () => setActiveTool(type),
     disabled: !hasDoc,
@@ -88,8 +134,9 @@ export const MenuBar: React.FC = () => {
       id: 'archivo',
       label: 'File',
       entries: [
-        { label: 'Open PDF…', shortcut: 'Ctrl+O', onSelect: () => openPdfDialog(), testId: 'menu-open' },
+        { icon: <FolderOpen size={15} />, label: 'Open PDF…', shortcut: 'Ctrl+O', onSelect: () => openPdfDialog(), testId: 'menu-open' },
         {
+          icon: <Save size={15} />,
           label: 'Save to PDF',
           shortcut: 'Ctrl+S',
           onSelect: () => saveNow(),
@@ -97,58 +144,63 @@ export const MenuBar: React.FC = () => {
           testId: 'menu-save',
         },
         'separator',
-        { label: 'Export PDF with Flattened Markups…', onSelect: () => exportFlattenedPdf(), disabled: !hasDoc },
-        { label: 'Export Markups List (CSV)…', onSelect: () => requestExport('csv'), disabled: !hasDoc },
-        { label: 'Markup Summary Report (PDF)…', onSelect: () => requestExport('report'), disabled: !hasDoc },
+        { icon: <FileDown size={15} />, label: 'Export PDF with Flattened Markups…', onSelect: () => exportFlattenedPdf(), disabled: !hasDoc },
+        { icon: <FileSpreadsheet size={15} />, label: 'Export Markups List (CSV)…', onSelect: () => requestExport('csv'), disabled: !hasDoc },
+        { icon: <ClipboardList size={15} />, label: 'Markup Summary Report (PDF)…', onSelect: () => requestExport('report'), disabled: !hasDoc },
       ],
     },
     {
       id: 'editar',
       label: 'Edit',
       entries: [
-        { label: 'Undo', shortcut: 'Ctrl+Z', onSelect: undo, disabled: !canUndo },
-        { label: 'Redo', shortcut: 'Ctrl+Y', onSelect: redo, disabled: !canRedo },
+        { icon: <Undo2 size={15} />, label: 'Undo', shortcut: 'Ctrl+Z', onSelect: undo, disabled: !canUndo },
+        { icon: <Redo2 size={15} />, label: 'Redo', shortcut: 'Ctrl+Y', onSelect: redo, disabled: !canRedo },
         'separator',
-        { label: 'Copy', shortcut: 'Ctrl+C', onSelect: () => useMarkupStore.getState().copySelectedMarkups(), disabled: !hasSelection },
+        { icon: <Copy size={15} />, label: 'Copy', shortcut: 'Ctrl+C', onSelect: () => useMarkupStore.getState().copySelectedMarkups(), disabled: !hasSelection },
         {
+          icon: <ClipboardPaste size={15} />,
           label: 'Paste',
           shortcut: 'Ctrl+V',
           onSelect: () => useMarkupStore.getState().pasteMarkups(currentPageIndex),
           disabled: useMarkupStore.getState().clipboardMarkups.length === 0,
         },
-        { label: 'Duplicate', shortcut: 'Ctrl+D', onSelect: () => useMarkupStore.getState().duplicateSelectedMarkups(), disabled: !hasSelection },
-        { label: 'Lock / Unlock', onSelect: () => useMarkupStore.getState().toggleLockSelectedMarkups(), disabled: !hasSelection },
-        { label: 'Delete', shortcut: 'Del', onSelect: () => useMarkupStore.getState().deleteSelectedMarkups(), disabled: !hasSelection },
+        { icon: <CopyPlus size={15} />, label: 'Duplicate', shortcut: 'Ctrl+D', onSelect: () => useMarkupStore.getState().duplicateSelectedMarkups(), disabled: !hasSelection },
+        { icon: <Lock size={15} />, label: 'Lock / Unlock', onSelect: () => useMarkupStore.getState().toggleLockSelectedMarkups(), disabled: !hasSelection },
+        { icon: <Trash2 size={15} />, label: 'Delete', shortcut: 'Del', onSelect: () => useMarkupStore.getState().deleteSelectedMarkups(), disabled: !hasSelection },
         'separator',
-        { label: 'Select All on Page', shortcut: 'Ctrl+A', onSelect: selectAllOnCurrentPage, disabled: !hasDoc },
+        { icon: <BoxSelect size={15} />, label: 'Select All on Page', shortcut: 'Ctrl+A', onSelect: selectAllOnCurrentPage, disabled: !hasDoc },
       ],
     },
     {
       id: 'ver',
       label: 'View',
       entries: [
-        { label: 'Zoom In', shortcut: '+', onSelect: zoomIn, disabled: !hasDoc },
-        { label: 'Zoom Out', shortcut: '−', onSelect: zoomOut, disabled: !hasDoc },
-        { label: 'Fit Page', shortcut: 'Ctrl+0', onSelect: () => requestFit('page'), disabled: !hasDoc, testId: 'menu-fit-page' },
-        { label: 'Actual Size (100%)', shortcut: 'Ctrl+1', onSelect: resetZoom, disabled: !hasDoc },
-        { label: 'Fit Width', shortcut: 'Ctrl+2', onSelect: () => requestFit('width'), disabled: !hasDoc },
-        { label: 'Rotate View 90°', onSelect: rotateClockwise, disabled: !hasDoc },
+        { icon: <ZoomIn size={15} />, label: 'Zoom In', shortcut: 'Ctrl+wheel', onSelect: zoomIn, disabled: !hasDoc },
+        { icon: <ZoomOut size={15} />, label: 'Zoom Out', shortcut: 'Ctrl+wheel', onSelect: zoomOut, disabled: !hasDoc },
+        { icon: <FitPageIcon size={15} />, label: 'Fit Page', shortcut: 'Ctrl+9', onSelect: () => requestFit('page'), disabled: !hasDoc, testId: 'menu-fit-page' },
+        { icon: <FitWidthIcon size={15} />, label: 'Fit Width', shortcut: 'Ctrl+0', onSelect: () => requestFit('width'), disabled: !hasDoc },
+        { icon: <ActualSizeIcon size={15} />, label: 'Actual Size', shortcut: 'Ctrl+8', onSelect: resetZoom, disabled: !hasDoc },
+        { icon: <RotateCw size={15} />, label: 'Rotate View 90°', onSelect: rotateClockwise, disabled: !hasDoc },
         'separator',
-        { label: 'Single Page', checked: viewMode === 'single', onSelect: () => setViewMode('single') },
-        { label: 'Continuous', checked: viewMode === 'continuous', onSelect: () => setViewMode('continuous'), testId: 'menu-view-continuous' },
+        { icon: <SinglePageIcon size={15} />, label: 'Single Page', shortcut: 'Ctrl+4', checked: viewMode === 'single', onSelect: () => setViewMode('single') },
+        { icon: <ContinuousIcon size={15} />, label: 'Continuous Pages', shortcut: 'Ctrl+5', checked: viewMode === 'continuous', onSelect: () => setViewMode('continuous'), testId: 'menu-view-continuous' },
         'separator',
-        { label: 'Thumbnails Panel', onSelect: () => setLeftTab('pages') },
-        { label: 'Bookmarks Panel', onSelect: () => setLeftTab('bookmarks') },
-        { label: 'Layers Panel', onSelect: () => setLeftTab('layers') },
-        { label: 'Properties Panel', onSelect: requestPropertiesPanel },
-        { label: 'Measurements Panel', onSelect: requestMeasurementsPanel },
+        { icon: <PanelLeft size={15} />, label: 'Thumbnails Panel', onSelect: () => setLeftTab('pages') },
+        { icon: <Bookmark size={15} />, label: 'Bookmarks Panel', onSelect: () => setLeftTab('bookmarks') },
+        { icon: <Layers size={15} />, label: 'Layers Panel', onSelect: () => setLeftTab('layers') },
+        { icon: <SlidersHorizontal size={15} />, label: 'Properties Panel', onSelect: requestPropertiesPanel },
+        { icon: <Ruler size={15} />, label: 'Measurements Panel', onSelect: requestMeasurementsPanel },
         'separator',
         {
-          label: theme === 'dark' ? 'Light Theme' : 'Dark Theme',
+          icon: <Contrast size={15} />,
+          label: 'Dark Mode',
+          shortcut: 'Ctrl+3',
+          checked: theme === 'dark',
           onSelect: toggleTheme,
           testId: 'menu-toggle-theme',
         },
         {
+          icon: <MonitorCog size={15} />,
           label: 'Use System Theme',
           checked: themeFollowsSystem,
           onSelect: followSystem,
@@ -160,15 +212,15 @@ export const MenuBar: React.FC = () => {
       id: 'documento',
       label: 'Document',
       entries: [
-        { label: 'Previous Page', shortcut: 'PgUp', onSelect: () => goToPage(-1), disabled: currentPageIndex <= 0 },
-        { label: 'Next Page', shortcut: 'PgDn', onSelect: () => goToPage(1), disabled: currentPageIndex >= numPages - 1 },
+        { icon: <ChevronLeft size={15} />, label: 'Previous Page', shortcut: 'PgUp', onSelect: () => goToPage(-1), disabled: currentPageIndex <= 0 },
+        { icon: <ChevronRight size={15} />, label: 'Next Page', shortcut: 'PgDn', onSelect: () => goToPage(1), disabled: currentPageIndex >= numPages - 1 },
         'separator',
-        { label: 'Insert Blank Page After', onSelect: () => runPageOperation('insertBlank'), disabled: !hasDoc },
-        { label: 'Rotate Page 90°', onSelect: () => runPageOperation('rotate'), disabled: !hasDoc },
-        { label: 'Extract Page…', onSelect: () => runPageOperation('extract'), disabled: !hasDoc },
-        { label: 'Delete Page', onSelect: () => runPageOperation('delete'), disabled: !hasDoc || numPages <= 1 },
+        { icon: <FilePlus2 size={15} />, label: 'Insert Blank Page After', onSelect: () => runPageOperation('insertBlank'), disabled: !hasDoc },
+        { icon: <RotateCcw size={15} />, label: 'Rotate Page 90°', shortcut: 'Ctrl+Shift+R', onSelect: () => runPageOperation('rotate'), disabled: !hasDoc },
+        { icon: <FileOutput size={15} />, label: 'Extract Page…', shortcut: 'Ctrl+Shift+X', onSelect: () => runPageOperation('extract'), disabled: !hasDoc },
+        { icon: <FileX2 size={15} />, label: 'Delete Page', onSelect: () => runPageOperation('delete'), disabled: !hasDoc || numPages <= 1 },
         'separator',
-        { label: 'Find Text…', shortcut: 'Ctrl+F', onSelect: () => useSearchStore.getState().setIsOpen(true), disabled: !hasDoc },
+        { icon: <Search size={15} />, label: 'Find Text…', shortcut: 'Ctrl+F', onSelect: () => useSearchStore.getState().setIsOpen(true), disabled: !hasDoc },
       ],
     },
     {
@@ -176,7 +228,7 @@ export const MenuBar: React.FC = () => {
       label: 'Markup',
       entries: TOOL_GROUPS.filter((g) => g.id !== 'measure').flatMap((g, i) => [
         ...(i > 0 ? (['separator'] as MenuEntry[]) : []),
-        ...g.tools.map((t) => toolEntry(t.type, t.short, t.shortcut)),
+        ...g.tools.map((t) => toolEntry(t.type, t.short, t.shortcut, t.icon)),
       ]),
     },
     {
@@ -184,6 +236,7 @@ export const MenuBar: React.FC = () => {
       label: 'Measure',
       entries: [
         {
+          icon: <CalibrateIcon size={15} />,
           label: 'Calibrate Page Scale…',
           onSelect: () => {
             useCalibrationStore.getState().setPendingCalibrationPoints([]);
@@ -191,19 +244,19 @@ export const MenuBar: React.FC = () => {
           },
           disabled: !hasDoc,
         },
-        { label: 'Calibrate by Two Points', onSelect: () => setActiveTool('calibrate'), disabled: !hasDoc },
+        { icon: <Ruler size={15} />, label: 'Calibrate by Two Points', onSelect: () => setActiveTool('calibrate'), disabled: !hasDoc },
         'separator',
         ...(TOOL_GROUPS.find((g) => g.id === 'measure')?.tools ?? [])
           .filter((t) => t.type !== 'calibrate')
-          .map((t) => toolEntry(t.type, t.short)),
+          .map((t) => toolEntry(t.type, t.short, t.shortcut, t.icon)),
         'separator',
-        { label: 'Measurements Panel', onSelect: requestMeasurementsPanel },
+        { icon: <Ruler size={15} />, label: 'Measurements Panel', onSelect: requestMeasurementsPanel },
       ],
     },
     {
       id: 'ayuda',
       label: 'Help',
-      entries: [{ label: 'Keyboard Shortcuts', shortcut: 'F1', onSelect: () => setShortcutsOpen(true) }],
+      entries: [{ icon: <Keyboard size={15} />, label: 'Keyboard Shortcuts', shortcut: 'F1', onSelect: () => setShortcutsOpen(true) }],
     },
   ];
 
@@ -259,7 +312,13 @@ export const MenuBar: React.FC = () => {
                       className="w-full flex items-center justify-between gap-6 px-3 py-1.5 text-left text-gray-200 hover:bg-cad-accent hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-200"
                     >
                       <span className="flex items-center gap-2">
-                        <span className="w-3 text-cad-accent">{entry.checked ? '✓' : ''}</span>
+                        <span
+                          className={`w-[22px] h-[22px] shrink-0 rounded-sm flex items-center justify-center [&_svg]:w-[15px] [&_svg]:h-[15px] ${
+                            entry.checked && entry.icon ? 'bg-cad-accent/25 ring-1 ring-cad-accent text-cad-strong' : ''
+                          }`}
+                        >
+                          {entry.icon ?? (entry.checked ? <span className="text-cad-accent">✓</span> : null)}
+                        </span>
                         {entry.label}
                       </span>
                       {entry.shortcut && <span className="text-[11px] text-gray-500 font-mono">{entry.shortcut}</span>}

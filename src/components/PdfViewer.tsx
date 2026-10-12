@@ -47,6 +47,7 @@ import { useCalibrationStore } from '../store/useCalibrationStore';
 import { useSearchStore } from '../store/useSearchStore';
 import { useUiStore, NO_LAYER } from '../store/useUiStore';
 import { CanvasContextMenu } from './shell/CanvasContextMenu';
+import { runPageOperation } from './shell/appActions';
 import { translucentFill } from '../core/markup/typeLabels';
 import { defaultDimensionLinePoint } from '../core/markup/dimension';
 import { controlPointsOf, applyControlPointDrag } from '../core/markup/controlPoints';
@@ -176,6 +177,8 @@ export const PdfViewer: React.FC = () => {
   const vertexDragRef = useRef<{ original: Markup; index: number; hasMoved: boolean; latest: Markup } | null>(null);
   // Control de zoom del doble clic (ADR-0021): posición en pantalla
   const [zoomWidget, setZoomWidget] = useState<{ x: number; y: number } | null>(null);
+  const zoomWidgetRef = useRef<{ x: number; y: number } | null>(null);
+  zoomWidgetRef.current = zoomWidget;
 
   const marqueeStateRef = useRef<{
     start: MarkupPoint;
@@ -474,6 +477,13 @@ export const PdfViewer: React.FC = () => {
     const el = containerRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
+      // Con el control de zoom abierto (doble clic), la rueda acerca/aleja en ese punto sin Ctrl, como en Revu
+      const widget = zoomWidgetRef.current;
+      if (widget) {
+        e.preventDefault();
+        zoomAtClientPoint(widget.x, widget.y, e.deltaY < 0 ? 1.15 : 1 / 1.15);
+        return;
+      }
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
       zoomAtClientPoint(e.clientX, e.clientY, e.deltaY < 0 ? 1.15 : 1 / 1.15);
@@ -604,11 +614,24 @@ export const PdfViewer: React.FC = () => {
         return;
       }
 
-      // Ajustes de zoom (ADR-0019): Ctrl+0 ajustar a página, Ctrl+1 tamaño real, Ctrl+2 ajustar al ancho
-      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === '0' || e.key === '1' || e.key === '2')) {
+      // Atajos de vista de Revu (ADR-0023): Ctrl+9 ajustar a página, Ctrl+0 al ancho, Ctrl+8 tamaño real,
+      // Ctrl+4 página única, Ctrl+5 continua, Ctrl+3 modo oscuro
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && /^Digit[034589]$/.test(e.code)) {
         e.preventDefault();
-        if (e.key === '1') useDocumentStore.getState().resetZoom();
-        else useUiStore.getState().requestFit(e.key === '0' ? 'page' : 'width');
+        const ui = useUiStore.getState();
+        if (e.code === 'Digit9') ui.requestFit('page');
+        else if (e.code === 'Digit0') ui.requestFit('width');
+        else if (e.code === 'Digit8') useDocumentStore.getState().resetZoom();
+        else if (e.code === 'Digit4') ui.setViewMode('single');
+        else if (e.code === 'Digit5') ui.setViewMode('continuous');
+        else if (e.code === 'Digit3') ui.toggleTheme();
+        return;
+      }
+
+      // Páginas (Revu): Ctrl+Shift+R rotar, Ctrl+Shift+X extraer
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && (e.code === 'KeyR' || e.code === 'KeyX')) {
+        e.preventDefault();
+        void runPageOperation(e.code === 'KeyR' ? 'rotate' : 'extract');
         return;
       }
 
@@ -2729,6 +2752,7 @@ const ZoomWidget: React.FC<{
     <div
       ref={ref}
       data-testid="zoom-widget"
+      title="Scroll the mouse wheel to zoom in / out here"
       style={{ position: 'fixed', left: x - 22, top: y - 50, zIndex: 40 }}
       className="w-11 h-[100px] rounded-lg border-2 border-dotted border-blue-900 bg-sky-100/90 flex flex-col items-center justify-between py-1.5 select-none"
       onDoubleClick={(e) => e.stopPropagation()}

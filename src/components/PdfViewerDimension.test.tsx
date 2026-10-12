@@ -137,4 +137,56 @@ describe('Cota, puntos de control y zoom con doble clic (ADR-0020/0021)', () => 
       expect(useToolStore.getState().activeTool).toBe(tool);
     }
   });
+
+  it('con el control de zoom abierto, la rueda acerca y aleja sin Ctrl (ADR-0023)', async () => {
+    await renderViewer();
+    const container = screen.getByTestId('pdf-viewer-container');
+    // Sin control abierto, la rueda sin Ctrl no cambia el zoom (es scroll)
+    act(() => {
+      fireEvent.wheel(container, { deltaY: -100, clientX: 700, clientY: 50 });
+    });
+    expect(useDocumentStore.getState().scale).toBe(1);
+    act(() => {
+      fireEvent.doubleClick(screen.getByTestId('markup-overlay-svg'), { clientX: 700, clientY: 50 });
+    });
+    act(() => {
+      fireEvent.wheel(container, { deltaY: -100, clientX: 700, clientY: 50 });
+    });
+    expect(useDocumentStore.getState().scale).toBe(1.15);
+    act(() => {
+      fireEvent.wheel(screen.getByTestId('zoom-widget'), { deltaY: 100, clientX: 700, clientY: 50 });
+    });
+    expect(useDocumentStore.getState().scale).toBe(1);
+  });
+
+  it('atajos de vista de Revu: Ctrl+9 ajustar, Ctrl+8 tamaño real, Ctrl+4/5 modo de vista, Ctrl+3 modo oscuro', async () => {
+    await renderViewer();
+    const fitSeq = useUiStore.getState().fitRequest?.seq ?? 0;
+    act(() => {
+      fireEvent.keyDown(window, { key: '9', code: 'Digit9', ctrlKey: true });
+    });
+    expect(useUiStore.getState().fitRequest).toEqual({ kind: 'page', seq: fitSeq + 1 });
+    act(() => {
+      fireEvent.keyDown(window, { key: '0', code: 'Digit0', ctrlKey: true });
+    });
+    expect(useUiStore.getState().fitRequest?.kind).toBe('width');
+    act(() => useDocumentStore.setState({ scale: 2 }));
+    act(() => {
+      fireEvent.keyDown(window, { key: '8', code: 'Digit8', ctrlKey: true });
+    });
+    expect(useDocumentStore.getState().scale).toBe(1);
+    act(() => {
+      fireEvent.keyDown(window, { key: '4', code: 'Digit4', ctrlKey: true });
+    });
+    expect(useUiStore.getState().viewMode).toBe('single');
+    act(() => {
+      fireEvent.keyDown(window, { key: '5', code: 'Digit5', ctrlKey: true });
+    });
+    expect(useUiStore.getState().viewMode).toBe('continuous');
+    const before = useUiStore.getState().theme;
+    act(() => {
+      fireEvent.keyDown(window, { key: '3', code: 'Digit3', ctrlKey: true });
+    });
+    expect(useUiStore.getState().theme).not.toBe(before);
+  });
 });

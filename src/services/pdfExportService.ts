@@ -922,7 +922,8 @@ export async function exportMarkupsToPdf(
         case 'diameter':
         case 'dimension': {
           drawViaAppearanceOperators(pdfDoc, page, markup, transform);
-          if (markup.measurement) {
+          // El valor de las mediciones ya forma parte del /AP (ADR-0032); el conteo conserva su número aparte
+          if (markup.measurement && markup.type === 'count') {
             drawMeasurementLabel(page, markup, transform, helveticaFont);
           }
           break;

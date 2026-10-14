@@ -26,6 +26,7 @@ import {
 } from '../../core/measurements/scale';
 import { formatWithCalibration } from '../../core/measurements/scale';
 import { rescaleVolumeDepth } from '../../core/measurements/calculate';
+import { captionStyleOf } from '../../core/markup/measureCaption';
 
 const CATEGORY_LABEL = { length: 'Length', area: 'Area', count: 'Count', volume: 'Volume', other: 'Other' } as const;
 const USER_PRESETS_KEY = 'rea-scale-presets';
@@ -109,7 +110,8 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
   const { markups, selectedMarkupIds, setSelectedMarkupIds } = useMarkupStore();
   const { currentPageIndex, setCurrentPage, pdfBytes, numPages } = useDocumentStore();
   const { calibrations, getPageCalibration, setPageCalibration, applyCalibrationToPages } = useCalibrationStore();
-  const { setActiveTool, measureLabel, setMeasureLabel, volumeDepth, setVolumeDepth } = useToolStore();
+  const { setActiveTool, measureLabel, setMeasureLabel, volumeDepth, setVolumeDepth, measureCaption, setMeasureCaption } =
+    useToolStore();
   const showRulers = useUiStore((s) => s.showRulers);
   const setShowRulers = useUiStore((s) => s.setShowRulers);
   const updateMarkup = useMarkupStore((s) => s.updateMarkup);
@@ -125,6 +127,10 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
   }, [openRequest]);
 
   const calib = getPageCalibration(currentPageIndex);
+
+  // Distancia seleccionada: el campo Caption edita la suya; si no, el de las distancias nuevas (ADR-0032)
+  const selectedLength =
+    selectedMarkupIds.length === 1 ? markups.find((m) => m.id === selectedMarkupIds[0] && m.type === 'length') : undefined;
 
   // Volumen seleccionado: el campo Depth edita su profundidad; si no, la de las mediciones nuevas
   const selectedVolume =
@@ -541,6 +547,29 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
                   {DISPLAY_UNIT_LABELS[u]}
                 </option>
               ))}
+            </select>
+          </label>
+        </Section>
+
+        <Section title="Caption">
+          <label className="flex items-center gap-2">
+            <span className="text-gray-400 w-16">Value:</span>
+            <select
+              data-testid="measure-caption"
+              value={selectedLength ? captionStyleOf(selectedLength.customFields?.captionStyle) : measureCaption}
+              onChange={(e) => {
+                const v = e.target.value === 'top' ? 'top' : 'inline';
+                if (selectedLength) {
+                  updateMarkup(selectedLength.id, { customFields: { ...selectedLength.customFields, captionStyle: v } });
+                } else {
+                  setMeasureCaption(v);
+                }
+              }}
+              className={`${inputCls} flex-1`}
+              title="Where the distance value goes, like Caption Style in Acrobat"
+            >
+              <option value="inline">Inside the line</option>
+              <option value="top">On top of the line</option>
             </select>
           </label>
         </Section>

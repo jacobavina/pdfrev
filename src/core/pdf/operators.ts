@@ -16,6 +16,15 @@ import { getHelveticaTextWidth } from '../markup/helveticaMetrics';
 import { stampLayout } from '../markup/stamps';
 import { fieldTypeOf, fieldDisplayText, isFieldChecked } from '../markup/formFields';
 import { revisionCloudPathNormalized, cloudParams } from '../markup/revisionCloud';
+import {
+  CaptionText,
+  MEASURE_CAPTION_PT,
+  captionStyleOf,
+  lineCaptionLayout,
+  measureLabelText,
+  pointCaption,
+  verticesCenter,
+} from '../markup/measureCaption';
 
 /** Nombre del recurso de fuente que usan los /AP con texto (Helvetica estándar, WinAnsiEncoding). */
 export const AP_FONT_NAME = 'Helv';
@@ -345,17 +354,31 @@ export function emitMarkupOperators(
   };
   const DARK_TEXT = { r: 0.12, g: 0.16, b: 0.22 };
 
+  /** Valor de una medición (con su etiqueta) o '' si no es una medición. */
+  const measureCaptionLabel = () => {
+    const formatted = markup.measurement?.formatted || '';
+    if (!formatted) return '';
+    const text = measureLabelText(markup, formatted);
+    return markup.type === 'radius' ? `R ${text}` : markup.type === 'diameter' ? `Ø ${text}` : text;
+  };
+  /** Texto de medición de Acrobat (ADR-0032): Helvetica negra, geometría del espacio visual de la página. */
+  const captionPdf = (c: CaptionText) => {
+    const o = visToPdf(c.origin);
+    const o2 = visToPdf({ x: c.origin.x + Math.cos(c.angle), y: c.origin.y + Math.sin(c.angle) });
+    textPdf(c.text, o, Math.atan2(o2.y - o.y, o2.x - o.x), c.fontSize, { r: 0, g: 0, b: 0 }, 'center');
+  };
+
   /**
    * Extremos de línea (ADR-0018) con la misma geometría que la pantalla. Se dibujan sólidos (sin el patrón
    * discontinuo de la línea) y rellenos con el color de trazo; amplían la caja envolvente del /AP.
    */
-  const emitLineEndings = (pdfPts: Pt[]) => {
+  const emitLineEndings = (pdfPts: Pt[], endings: Pick<Markup['style'], 'lineEndingStart' | 'lineEndingEnd'> = markup.style) => {
     const angles = endpointAngles(pdfPts);
     if (!angles) return;
     const size = lineEndingSize(strokeWidth);
     const items: [Pt, number, Markup['style']['lineEndingStart']][] = [
-      [pdfPts[0], angles.start, markup.style.lineEndingStart],
-      [pdfPts[pdfPts.length - 1], angles.end, markup.style.lineEndingEnd],
+      [pdfPts[0], angles.start, endings.lineEndingStart],
+      [pdfPts[pdfPts.length - 1], angles.end, endings.lineEndingEnd],
     ];
     let prepared = false;
     for (const [tip, angle, ending] of items) {
@@ -441,8 +464,29 @@ export function emitMarkupOperators(
       break;
     }
 
-    case 'line':
     case 'length': {
+      // Distancia de Acrobat (ADR-0032): la línea se interrumpe donde va el valor, con flechas abiertas
+      if (markup.points.length < 2) break;
+      const a = toVis(markup.points[0]);
+      const b = toVis(markup.points[1]);
+      const ends = {
+        lineEndingStart: markup.style.lineEndingStart ?? ('openArrow' as const),
+        lineEndingEnd: markup.style.lineEndingEnd ?? ('openArrow' as const),
+      };
+      const label = measureCaptionLabel();
+      const layout = label
+        ? lineCaptionLayout(a, b, label, MEASURE_CAPTION_PT, captionStyleOf(markup.customFields?.captionStyle), lineEndingSize(strokeWidth))
+        : null;
+      for (const [u, w] of layout ? layout.pieces : [[a, b] as [Pt, Pt]]) {
+        pathPdf([visToPdf(u), visToPdf(w)], false);
+        lines.push('S');
+      }
+      emitLineEndings([visToPdf(a), visToPdf(b)], ends);
+      if (layout) captionPdf(layout.caption);
+      break;
+    }
+
+    case 'line': {
       if (markup.points.length >= 2) {
         const p1 = normalizedToPdfCoordinates(markup.points[0], transform);
         const p2 = normalizedToPdfCoordinates(markup.points[1], transform);
@@ -952,6 +996,31 @@ export function emitMarkupOperators(
         updateBBox(p2.x, p2.y);
       }
       break;
+    }
+  }
+
+  // Valor de las mediciones (ADR-0032): forma parte del /AP, así que se ve igual en Revu, Acrobat y el aplanado
+  {
+    const label = markup.type === 'length' ? '' : measureCaptionLabel();
+    const vis = markup.points.map(toVis);
+    if (label && vis.length >= 1) {
+      if (markup.type === 'area' || markup.type === 'perimeter' || markup.type === 'volume') {
+        captionPdf(pointCaption(verticesCenter(vis), label, MEASURE_CAPTION_PT));
+      } else if (markup.type === 'polylineMeasure' && vis.length >= 2) {
+        captionPdf(lineCaptionLayout(vis[vis.length - 2], vis[vis.length - 1], label, MEASURE_CAPTION_PT, 'top').caption);
+      } else if ((markup.type === 'radius' || markup.type === 'diameter') && vis.length >= 2) {
+        captionPdf(lineCaptionLayout(vis[0], vis[1], label, MEASURE_CAPTION_PT, 'top').caption);
+      } else if (markup.type === 'angle' && vis.length >= 3) {
+        const [p, v, q] = vis;
+        const r = Math.max(12, Math.min(28, Math.hypot(p.x - v.x, p.y - v.y) / 3, Math.hypot(q.x - v.x, q.y - v.y) / 3));
+        const t1 = Math.atan2(p.y - v.y, p.x - v.x);
+        let d = Math.atan2(q.y - v.y, q.x - v.x) - t1;
+        while (d > Math.PI) d -= 2 * Math.PI;
+        while (d < -Math.PI) d += 2 * Math.PI;
+        const mid = t1 + d / 2;
+        const fs = MEASURE_CAPTION_PT;
+        captionPdf(pointCaption({ x: v.x + (r + fs * 1.6) * Math.cos(mid), y: v.y + (r + fs * 1.1) * Math.sin(mid) }, label, fs));
+      }
     }
   }
 

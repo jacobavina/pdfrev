@@ -185,4 +185,5 @@ plan y `AGENTS.md`, **gana `AGENTS.md`**.
 | 2026-10-12 | Claude (Opus 5.5) | ADR-0029: Perimeter, Volume, Angle, Radius, Diameter y reglas (View ▸ Rulers, Ctrl+R). |
 | 2026-10-12 | Claude (Opus 5.5) | ADR-0030: mediciones con /IT y /Measure estándar (vivas en Revu/Acrobat) e importación de las mediciones de Acrobat/Revu. |
 | 2026-10-12 | Claude (Opus 5.5) | ADR-0031: snap al dibujo del PDF e intersecciones, medir con clic-clic y calibración por dos puntos con recálculo. |
+| 2026-10-14 | Claude (Opus 5.5) | ADR-0032: flechas y mediciones al estilo de Acrobat (puntas de 60°, flechas invertidas, valor dentro o encima de la línea y dentro del /AP). |
 

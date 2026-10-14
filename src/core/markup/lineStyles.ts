@@ -25,6 +25,8 @@ export const LINE_ENDING_LABELS: Record<LineEndingStyle, string> = {
   diamond: 'Diamond',
   butt: 'Butt',
   slash: 'Slash (architectural)',
+  rOpenArrow: 'Reverse open arrow',
+  rClosedArrow: 'Reverse closed arrow',
 };
 
 /** Patrón de trazo (pt) para un tipo de línea y grosor; `undefined` = continua. */

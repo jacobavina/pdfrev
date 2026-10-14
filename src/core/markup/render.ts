@@ -10,6 +10,18 @@ import {
 } from '../../types/markup';
 import { normalizedToScreen } from '../../utils/coordinates';
 import { lineEndingShape, lineEndingSize, endpointAngles } from './lineEndings';
+import {
+  CaptionText,
+  MEASURE_CAPTION_COLOR,
+  MEASURE_CAPTION_PT,
+  captionStyleOf,
+  lineCaptionLayout,
+  pointCaption,
+  verticesCenter,
+  measureLabelText,
+  measureLineEndings,
+} from './measureCaption';
+export { measureLabelText, measureLineEndings } from './measureCaption';
 import { dimensionGeometry, dimensionTextBaseline, defaultDimensionLinePoint } from './dimension';
 import { revisionCloudPathNormalized, cloudParams } from './revisionCloud';
 import { stampLayout } from './stamps';
@@ -548,9 +560,10 @@ function withLineEndings(
   const hasEnd = style.lineEndingEnd && style.lineEndingEnd !== 'none';
   if (!angles || (!hasStart && !hasEnd)) return main;
 
-  const scale = transform.scale || 1;
-  const widthScreen = (style.strokeWidth || 1) * scale;
-  const size = lineEndingSize(style.strokeWidth || 1) * scale;
+  // Puntas en unidades de página (ADR-0032): con el zoom crecen igual que en el PDF de Acrobat
+  const pxPerPt = transform.zoom ?? transform.scale ?? 1;
+  const widthScreen = (style.strokeWidth || 1) * (transform.scale || 1);
+  const size = lineEndingSize(style.strokeWidth || 1) * pxPerPt;
   const children: SvgRenderDescriptor[] = [main];
   if (hasStart) {
     const d = createLineEndingDescriptor(screenPts[0], angles.start, style.lineEndingStart!, style.strokeColor, widthScreen, size);
@@ -564,25 +577,31 @@ function withLineEndings(
   return { tag: 'g', attrs: { opacity }, children };
 }
 
-/** Etiqueta de valor de una medición (fondo blanco y texto en negrita), centrada en (x, y). */
-function measureLabelDescriptors(label: string, x: number, y: number, stroke: string): SvgRenderDescriptor[] {
-  const w = Math.max(44, label.length * 7.5 + 12);
-  const h = 18;
-  return [
-    { tag: 'rect', attrs: { x: x - w / 2, y: y - h / 2, width: w, height: h, rx: 3, ry: 3, fill: '#ffffff', stroke, strokeWidth: 1, opacity: 0.9 } },
-    {
-      tag: 'text',
-      attrs: { x, y: y + 4, fill: '#111827', fontSize: 11, fontFamily: 'sans-serif', fontWeight: 'bold', textAnchor: 'middle' },
-      textNode: label,
-    },
-  ];
+/** Tamaño en px del texto de las mediciones: 10 pt de página con el zoom del visor (ADR-0032). */
+function captionPx(transform: ViewportTransform): number {
+  return MEASURE_CAPTION_PT * (transform.zoom ?? transform.scale ?? 1);
 }
 
-/** Texto de la etiqueta de una medición: valor, precedido de su etiqueta si tiene (Distance Properties › Label). */
-export function measureLabelText(markup: Markup, formatted: string): string {
-  const label = typeof markup.customFields?.measureLabel === 'string' ? markup.customFields.measureLabel.trim() : '';
-  return label ? `${label}: ${formatted}` : formatted;
+/** Texto de una medición en pantalla: Helvetica negra sin recuadro, girada con la línea si hace falta. */
+function captionDescriptor(c: CaptionText, opacity: string | number): SvgRenderDescriptor {
+  const deg = (c.angle * 180) / Math.PI;
+  return {
+    tag: 'text',
+    attrs: {
+      x: c.origin.x,
+      y: c.origin.y,
+      fontSize: c.fontSize,
+      fill: MEASURE_CAPTION_COLOR,
+      fontFamily: 'Helvetica, Arial, sans-serif',
+      textAnchor: 'middle',
+      opacity,
+      ...(Math.abs(deg) > 0.01 ? { transform: `rotate(${deg.toFixed(2)} ${c.origin.x.toFixed(2)} ${c.origin.y.toFixed(2)})` } : {}),
+    },
+    textNode: c.text,
+  };
 }
+
+
 
 /**
  * Función pura que calcula los descriptores de renderizado SVG para cualquier Markup
@@ -919,7 +938,7 @@ export function getMarkupSvgDescriptor(
       return { tag: 'g', attrs: { 'data-testid': `markup-dimension-${markup.id}` }, children };
     }
 
-    // Mediciones adicionales (ADR-0029): perímetro, volumen, ángulo, radio y diámetro
+    // Mediciones al estilo de Acrobat (ADR-0029/0032): trazo de la marca y su valor en Helvetica negra, sin recuadro
     case 'perimeter':
     case 'volume': {
       const pts = markup.points.map((p) => normalizedToScreen(p, transform));
@@ -937,13 +956,14 @@ export function getMarkupSvgDescriptor(
           strokeLinejoin: 'round',
         },
       };
-      const cx = pts.reduce((a, p) => a + p.x, 0) / Math.max(1, pts.length);
-      const cy = pts.reduce((a, p) => a + p.y, 0) / Math.max(1, pts.length);
       const label = measureLabelText(markup, markup.measurement?.formatted || markup.text || '');
+      const showLabel = !transform.hideMeasureLabels && Boolean(label);
       return {
         tag: 'g',
         attrs: { 'data-testid': `markup-${markup.type}-${markup.id}` },
-        children: transform.hideMeasureLabels || !label ? [shape] : [shape, ...measureLabelDescriptors(label, cx, cy, style.strokeColor)],
+        children: showLabel
+          ? [shape, captionDescriptor(pointCaption(verticesCenter(pts), label, captionPx(transform)), baseAttrs.opacity)]
+          : [shape],
       };
     }
 
@@ -968,8 +988,11 @@ export function getMarkupSvgDescriptor(
         });
         const label = measureLabelText(markup, markup.measurement?.formatted || markup.text || '');
         if (!transform.hideMeasureLabels && label) {
+          // Sobre la bisectriz, por fuera del arco
           const mid = t1 + d / 2;
-          children.push(...measureLabelDescriptors(label, v.x + (r + 22) * Math.cos(mid), v.y + (r + 14) * Math.sin(mid), style.strokeColor));
+          const fs = captionPx(transform);
+          const at = { x: v.x + (r + fs * 1.6) * Math.cos(mid), y: v.y + (r + fs * 1.1) * Math.sin(mid) };
+          children.push(captionDescriptor(pointCaption(at, label, fs), baseAttrs.opacity));
         }
       }
       return { tag: 'g', attrs: { 'data-testid': `markup-angle-${markup.id}` }, children };
@@ -988,68 +1011,35 @@ export function getMarkupSvgDescriptor(
       ];
       const label = measureLabelText(markup, markup.measurement?.formatted || markup.text || '');
       if (!transform.hideMeasureLabels && label) {
-        const lx = markup.type === 'radius' ? (a.x + b.x) / 2 : c.x;
-        const ly = markup.type === 'radius' ? (a.y + b.y) / 2 - 12 : c.y - 12;
-        children.push(...measureLabelDescriptors(`${markup.type === 'radius' ? 'R ' : 'Ø '}${label}`, lx, ly, style.strokeColor));
+        const text = `${markup.type === 'radius' ? 'R ' : 'Ø '}${label}`;
+        children.push(captionDescriptor(lineCaptionLayout(a, b, text, captionPx(transform), 'top').caption, baseAttrs.opacity));
       }
       return { tag: 'g', attrs: { 'data-testid': `markup-${markup.type}-${markup.id}` }, children };
     }
 
-    // Herramientas de Medición y Takeoff (Paquete 4)
+    // Distancia (Distance de Acrobat): flecha abierta en ambos extremos y el valor dentro o encima de la línea
     case 'length': {
-      const lineDescriptor: SvgRenderDescriptor = {
-        tag: 'line',
-        attrs: {
-          ...baseAttrs,
-          x1: p1Screen.x,
-          y1: p1Screen.y,
-          x2: p2Screen.x,
-          y2: p2Screen.y,
-        },
+      const label = measureLabelText(markup, markup.measurement?.formatted || markup.text || '');
+      const ends = measureLineEndings(style);
+      const inset = lineEndingSize(style.strokeWidth || 1) * (transform.zoom ?? transform.scale ?? 1);
+      const layout =
+        !transform.hideMeasureLabels && label
+          ? lineCaptionLayout(p1Screen, p2Screen, label, captionPx(transform), captionStyleOf(markup.customFields?.captionStyle), inset)
+          : null;
+      const pieces = layout ? layout.pieces : [[p1Screen, p2Screen] as [{ x: number; y: number }, { x: number; y: number }]];
+      const lineGroup: SvgRenderDescriptor = {
+        tag: 'g',
+        attrs: {},
+        children: pieces.map(([u, w]) => ({
+          tag: 'line',
+          attrs: { ...baseAttrs, fill: 'none', x1: u.x, y1: u.y, x2: w.x, y2: w.y },
+        })),
       };
-
-      const label = measureLabelText(markup, markup.measurement?.formatted || markup.text || '0.00 m');
-      const midX = (p1Screen.x + p2Screen.x) / 2;
-      const midY = (p1Screen.y + p2Screen.y) / 2;
-      const textWidth = Math.max(50, label.length * 8 + 12);
-      const textHeight = 20;
-
-      const bgRect: SvgRenderDescriptor = {
-        tag: 'rect',
-        attrs: {
-          x: midX - textWidth / 2,
-          y: midY - textHeight / 2 - 2,
-          width: textWidth,
-          height: textHeight,
-          fill: '#ffffff',
-          stroke: style.strokeColor,
-          strokeWidth: 1,
-          rx: 3,
-          ry: 3,
-          opacity: 0.9,
-        },
-      };
-
-      const textNode: SvgRenderDescriptor = {
-        tag: 'text',
-        attrs: {
-          x: midX,
-          y: midY + 4,
-          fill: '#111827',
-          fontSize: 12,
-          fontFamily: 'sans-serif',
-          fontWeight: 'bold',
-          textAnchor: 'middle',
-        },
-        textNode: label,
-      };
-
+      const withEnds = withLineEndings(lineGroup, [p1Screen, p2Screen], ends, transform, baseAttrs.opacity);
       return {
         tag: 'g',
-        attrs: {
-          'data-testid': `markup-length-${markup.id}`,
-        },
-        children: transform.hideMeasureLabels ? [lineDescriptor] : [lineDescriptor, bgRect, textNode],
+        attrs: { 'data-testid': `markup-length-${markup.id}` },
+        children: layout ? [withEnds, captionDescriptor(layout.caption, baseAttrs.opacity)] : [withEnds],
       };
     }
 
@@ -1063,49 +1053,18 @@ export function getMarkupSvgDescriptor(
           strokeLinejoin: 'round',
         },
       };
-
-      const label = measureLabelText(markup, markup.measurement?.formatted || markup.text || '0.00 m');
-      const lastPt = markup.points[markup.points.length - 1];
-      const lastScreen = lastPt ? normalizedToScreen(lastPt, transform) : p2Screen;
-      const textWidth = Math.max(50, label.length * 8 + 12);
-      const textHeight = 20;
-
-      const bgRect: SvgRenderDescriptor = {
-        tag: 'rect',
-        attrs: {
-          x: lastScreen.x - textWidth / 2,
-          y: lastScreen.y - textHeight / 2 - 12,
-          width: textWidth,
-          height: textHeight,
-          fill: '#ffffff',
-          stroke: style.strokeColor,
-          strokeWidth: 1,
-          rx: 3,
-          ry: 3,
-          opacity: 0.9,
-        },
-      };
-
-      const textNode: SvgRenderDescriptor = {
-        tag: 'text',
-        attrs: {
-          x: lastScreen.x,
-          y: lastScreen.y - 6,
-          fill: '#111827',
-          fontSize: 12,
-          fontFamily: 'sans-serif',
-          fontWeight: 'bold',
-          textAnchor: 'middle',
-        },
-        textNode: label,
-      };
-
+      const label = measureLabelText(markup, markup.measurement?.formatted || markup.text || '');
+      const pts = markup.points.map((p) => normalizedToScreen(p, transform));
+      const children: SvgRenderDescriptor[] = [polylineDesc];
+      if (!transform.hideMeasureLabels && label && pts.length >= 2) {
+        // Encima del último tramo, como el perímetro abierto de Acrobat
+        const caption = lineCaptionLayout(pts[pts.length - 2], pts[pts.length - 1], label, captionPx(transform), 'top').caption;
+        children.push(captionDescriptor(caption, baseAttrs.opacity));
+      }
       return {
         tag: 'g',
-        attrs: {
-          'data-testid': `markup-polyline-measure-${markup.id}`,
-        },
-        children: transform.hideMeasureLabels ? [polylineDesc] : [polylineDesc, bgRect, textNode],
+        attrs: { 'data-testid': `markup-polyline-measure-${markup.id}` },
+        children,
       };
     }
 
@@ -1136,52 +1095,17 @@ export function getMarkupSvgDescriptor(
             fill: style.fillColor || 'rgba(59, 130, 246, 0.25)',
           },
         };
-        const screenPts = markup.points.map((p) => normalizedToScreen(p, transform));
-        const cx = screenPts.reduce((acc, p) => acc + p.x, 0) / screenPts.length;
-        const cy = screenPts.reduce((acc, p) => acc + p.y, 0) / screenPts.length;
-        centerPt = { x: cx, y: cy };
+        centerPt = verticesCenter(markup.points.map((p) => normalizedToScreen(p, transform)));
       }
 
-      const label = measureLabelText(markup, markup.measurement?.formatted || markup.text || '0.00 m²');
-      const textWidth = Math.max(55, label.length * 8 + 14);
-      const textHeight = 22;
-
-      const bgRect: SvgRenderDescriptor = {
-        tag: 'rect',
-        attrs: {
-          x: centerPt.x - textWidth / 2,
-          y: centerPt.y - textHeight / 2,
-          width: textWidth,
-          height: textHeight,
-          fill: '#ffffff',
-          stroke: style.strokeColor,
-          strokeWidth: 1,
-          rx: 3,
-          ry: 3,
-          opacity: 0.9,
-        },
-      };
-
-      const textNode: SvgRenderDescriptor = {
-        tag: 'text',
-        attrs: {
-          x: centerPt.x,
-          y: centerPt.y + 4,
-          fill: '#111827',
-          fontSize: 12,
-          fontFamily: 'sans-serif',
-          fontWeight: 'bold',
-          textAnchor: 'middle',
-        },
-        textNode: label,
-      };
-
+      const label = measureLabelText(markup, markup.measurement?.formatted || markup.text || '');
       return {
         tag: 'g',
-        attrs: {
-          'data-testid': `markup-area-${markup.id}`,
-        },
-        children: transform.hideMeasureLabels ? [shapeDesc] : [shapeDesc, bgRect, textNode],
+        attrs: { 'data-testid': `markup-area-${markup.id}` },
+        children:
+          transform.hideMeasureLabels || !label
+            ? [shapeDesc]
+            : [shapeDesc, captionDescriptor(pointCaption(centerPt, label, captionPx(transform)), baseAttrs.opacity)],
       };
     }
 

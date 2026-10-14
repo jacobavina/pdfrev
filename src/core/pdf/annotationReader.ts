@@ -302,6 +302,9 @@ export async function importPdfAnnotations(
               : intent === 'LineDimension' && measureObj instanceof PDFDict
                 ? 'length'
                 : 'line';
+          // Dónde pone el valor el otro programa (/CP): dentro (por defecto) o encima de la línea (ADR-0032)
+          const cp = annotDict.get(PDFName.of('CP'));
+          if (markupType === 'length' && cp instanceof PDFName && cp.asString() === '/Top') customFields.captionStyle = 'top';
         }
         const lObj = annotDict.get(PDFName.of('L'));
         if (lObj instanceof PDFArray && lObj.size() >= 4) {
@@ -512,6 +515,8 @@ export async function importPdfAnnotations(
             if (raw === 'diamond') return 'diamond';
             if (raw === 'butt') return 'butt';
             if (raw === 'slash') return 'slash';
+            if (raw === 'ropenarrow') return 'rOpenArrow';
+            if (raw === 'rclosedarrow') return 'rClosedArrow';
             if (raw === 'none') return 'none';
           }
           return undefined;

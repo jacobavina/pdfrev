@@ -41,7 +41,7 @@ describe('Herramienta Flecha y estilo de línea al dibujar (ADR-0018)', () => {
     });
   });
 
-  it('la flecha crea una línea con punta cerrada al final', async () => {
+  it('la flecha crea una línea con punta abierta al final, como el Arrow de Acrobat (ADR-0032)', async () => {
     await act(async () => {
       render(<PdfViewer />);
     });
@@ -50,7 +50,7 @@ describe('Herramienta Flecha y estilo de línea al dibujar (ADR-0018)', () => {
 
     const [m] = useMarkupStore.getState().markups;
     expect(m.type).toBe('line');
-    expect(m.style.lineEndingEnd).toBe('closedArrow');
+    expect(m.style.lineEndingEnd).toBe('openArrow');
     expect(m.points).toHaveLength(2);
   });
 

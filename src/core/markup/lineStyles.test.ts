@@ -64,9 +64,10 @@ describe('Geometría de extremos de línea (ADR-0018)', () => {
   });
 
   it('el tamaño crece con el grosor y tiene un mínimo legible', () => {
-    expect(lineEndingSize(1)).toBe(7);
-    expect(lineEndingSize(4)).toBe(16);
-    expect(lineEndingSize(Number.NaN)).toBe(7);
+    // Proporciones de Acrobat (ADR-0032): 9 pt con 1 pt de grosor
+    expect(lineEndingSize(1)).toBe(9);
+    expect(lineEndingSize(4)).toBe(21);
+    expect(lineEndingSize(Number.NaN)).toBe(9);
   });
 
   it('calcula el ángulo de llegada a cada extremo de una polilínea', () => {

@@ -199,7 +199,7 @@ export const LINE_STYLE_OPTIONS: IconPickerOption<LineStyleId>[] = (Object.keys(
 );
 
 export const LINE_ENDING_OPTIONS: IconPickerOption<LineEndingStyle>[] = (
-  ['none', 'openArrow', 'closedArrow', 'circle', 'square', 'diamond', 'butt', 'slash'] as LineEndingStyle[]
+  ['none', 'openArrow', 'closedArrow', 'rOpenArrow', 'rClosedArrow', 'circle', 'square', 'diamond', 'butt', 'slash'] as LineEndingStyle[]
 ).map((id) => ({ value: id, label: LINE_ENDING_LABELS[id] }));
 
 /** Opacidad: muestra del color sobre damero y su porcentaje. */

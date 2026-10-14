@@ -95,8 +95,9 @@ describe('Mediciones adicionales en el PDF (ADR-0029)', () => {
     expect(vol.extGState?.ca).toBeCloseTo(0.15);
 
     const per = emitMarkupOperators(markups[0], transform).operators.split('\n');
-    expect(per).toContain('h');
-    expect(per[per.length - 2]).toBe('S'); // solo contorno
+    // Solo contorno (h y después S), seguido del texto del valor (ADR-0032)
+    expect(per[per.indexOf('h') + 1]).toBe('S');
+    expect(per.some((l) => l.endsWith(' Tj'))).toBe(true);
 
     const ang = emitMarkupOperators(markups[2], transform).operators.split('\n');
     // Dos lados (3 vértices) + arco de 17 puntos

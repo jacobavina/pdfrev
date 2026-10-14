@@ -15,13 +15,17 @@ export type LineEndingShape =
   | { kind: 'polyline' | 'polygon'; points: Pt[]; filled: boolean }
   | { kind: 'circle'; cx: number; cy: number; r: number; filled: boolean };
 
-/** Tamaño del extremo en puntos de página, proporcional al grosor de la línea. */
+/**
+ * Tamaño del extremo en puntos de página, proporcional al grosor de la línea como en Acrobat (ADR-0032):
+ * 9 pt con una línea de 1 pt, 13 pt con 2 pt.
+ */
 export function lineEndingSize(strokeWidthPt: number): number {
   const w = Number.isFinite(strokeWidthPt) && strokeWidthPt > 0 ? strokeWidthPt : 1;
-  return Math.max(7, w * 3 + 4);
+  return Math.max(9, w * 4 + 5);
 }
 
-const ARROW_HALF_ANGLE = 0.45; // ≈ 26°
+/** Media apertura de las flechas: 30° (punta de 60°), la de Acrobat. */
+const ARROW_HALF_ANGLE = Math.PI / 6;
 
 /**
  * Forma del extremo en `tip`. `angle` es la dirección con la que la línea llega a la punta
@@ -51,6 +55,15 @@ export function lineEndingShape(
       ],
       filled: false,
     };
+  }
+
+  if (ending === 'rOpenArrow' || ending === 'rClosedArrow') {
+    // Invertida: el vértice en el extremo y las alas hacia fuera de la línea
+    const a1 = { x: tip.x + size * Math.cos(angle - ARROW_HALF_ANGLE), y: tip.y + size * Math.sin(angle - ARROW_HALF_ANGLE) };
+    const a2 = { x: tip.x + size * Math.cos(angle + ARROW_HALF_ANGLE), y: tip.y + size * Math.sin(angle + ARROW_HALF_ANGLE) };
+    return ending === 'rOpenArrow'
+      ? { kind: 'polyline', points: [a1, tip, a2], filled: false }
+      : { kind: 'polygon', points: [a1, tip, a2], filled: true };
   }
 
   if (ending === 'openArrow' || ending === 'closedArrow') {

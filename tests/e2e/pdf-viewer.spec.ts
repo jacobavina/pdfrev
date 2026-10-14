@@ -1774,7 +1774,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   });
 
-  test('Flechas y tipos de línea (ADR-0018): atajo A, punta cerrada, línea discontinua con extremos elegidos en la cinta', async ({
+  test('Flechas y tipos de línea (ADR-0018): atajo A, punta abierta de Acrobat, línea discontinua con extremos elegidos en la cinta', async ({
     page,
   }) => {
     await page.goto('/');
@@ -1792,7 +1792,8 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const groups = overlaySvg.locator('g[data-testid^="markup-g-"]');
     const before = await groups.count();
 
-    // 1. Atajo A → herramienta Flecha activa en la cinta; se dibuja una línea con punta cerrada (polígono)
+    // 1. Atajo A → herramienta Flecha activa en la cinta; se dibuja una línea con punta abierta, como el Arrow de
+    //    Acrobat (ADR-0032; antes cerrada)
     await page.locator('header').click(); // quitar foco de cualquier control
     await page.keyboard.press('a');
     await expect(page.locator('[data-testid="tool-arrow"]')).toHaveAttribute('aria-pressed', 'true');
@@ -1800,7 +1801,8 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(groups).toHaveCount(before + 1);
     const arrowGroup = groups.last();
     await expect(arrowGroup.locator('line')).toHaveCount(1);
-    await expect(arrowGroup.locator('polygon')).toHaveCount(1);
+    await expect(arrowGroup.locator('polyline')).toHaveCount(1);
+    await expect(arrowGroup.locator('polygon')).toHaveCount(0);
     await expect(
       page.locator('[data-testid="markups-list-panel"] tbody tr').filter({ hasText: 'Line' })
     ).toHaveCount(1);
@@ -2143,5 +2145,40 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     // La medición anterior se recalcula con la escala nueva
     await expect(length.locator('text')).toHaveText(`140'-0"`);
     await expect(page.locator('[data-testid="calibrate-hint"]')).toHaveCount(0);
+  });
+  test('Estilo de Acrobat en las mediciones (ADR-0032): flechas abiertas, valor dentro de la línea o encima', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
+    const box = (await overlaySvg.boundingBox())!;
+    const at = (nx: number, ny: number) => ({ x: box.x + box.width * nx, y: box.y + box.height * ny });
+
+    // Distancia con dos clics: línea interrumpida por el valor, una flecha abierta en cada extremo y sin recuadro
+    await page.locator('header').click();
+    await page.keyboard.press('Shift+Alt+L');
+    const a = at(0.55, 0.3);
+    const b = at(0.9, 0.42);
+    await page.mouse.click(a.x, a.y);
+    await page.mouse.move(b.x, b.y, { steps: 4 });
+    await page.mouse.click(b.x, b.y);
+    const length = overlaySvg.locator('g[data-testid^="markup-length-"]');
+    await expect(length).toHaveCount(1);
+    await expect(length.locator('line')).toHaveCount(2);
+    await expect(length.locator('polyline')).toHaveCount(2);
+    await expect(length.locator('rect')).toHaveCount(0);
+    await expect(length.locator('text')).toHaveAttribute('fill', '#000000');
+    await expect(length.locator('text')).toHaveAttribute('transform', /rotate\(/);
+
+    // Panel Measure ▸ Caption "On top of the line" para la distancia seleccionada: la línea vuelve a ser continua
+    await page.keyboard.press('v');
+    // Un cuarto del recorrido: sobre el tramo visible, lejos del texto
+    await page.mouse.click(a.x + (b.x - a.x) * 0.25, a.y + (b.y - a.y) * 0.25);
+    await expect(page.locator('[data-testid="markups-list-panel"] tbody tr').filter({ hasText: 'Length' })).toHaveCount(1);
+    await page.locator('[data-testid="expand-measurements-btn"]').click();
+    await page.locator('[data-testid="measure-caption"]').selectOption('top');
+    await expect(length.locator('line')).toHaveCount(1);
   });
 });

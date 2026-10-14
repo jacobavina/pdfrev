@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { CaptionStyle } from '../core/markup/measureCaption';
 import { MarkupStyle, MarkupType } from '../types/markup';
 import type { FieldType } from '../core/markup/formFields';
 
@@ -16,6 +17,8 @@ interface ToolState {
   activeStampId: string;
   /** Tipo de campo que crea la herramienta Form (ADR-0027). */
   activeFieldType: FieldType;
+  /** Texto de las distancias nuevas: dentro de la línea o encima ("Caption Style" de Acrobat, ADR-0032). */
+  measureCaption: CaptionStyle;
   /** Profundidad por defecto de la herramienta Volume, en la unidad de la escala (ADR-0029). */
   volumeDepth: number;
 
@@ -28,6 +31,7 @@ interface ToolState {
   setActiveStampId: (id: string) => void;
   setActiveFieldType: (type: FieldType) => void;
   setVolumeDepth: (depth: number) => void;
+  setMeasureCaption: (style: CaptionStyle) => void;
 }
 
 export const useToolStore = create<ToolState>((set) => ({
@@ -44,6 +48,7 @@ export const useToolStore = create<ToolState>((set) => ({
   activeStampId: 'approved',
   activeFieldType: 'text',
   volumeDepth: 1,
+  measureCaption: 'inline',
 
   setActiveTool: (activeTool) => set({ activeTool }),
   setCurrentStyle: (styleUpdate) =>
@@ -55,5 +60,6 @@ export const useToolStore = create<ToolState>((set) => ({
   setMeasureLabel: (measureLabel) => set({ measureLabel }),
   setActiveStampId: (activeStampId) => set({ activeStampId }),
   setActiveFieldType: (activeFieldType) => set({ activeFieldType }),
+  setMeasureCaption: (measureCaption) => set({ measureCaption }),
   setVolumeDepth: (volumeDepth) => set({ volumeDepth: Number.isFinite(volumeDepth) && volumeDepth > 0 ? volumeDepth : 1 }),
 }));

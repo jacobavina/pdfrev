@@ -1872,6 +1872,9 @@ export const PdfViewer: React.FC = () => {
                 strokeWidth: 0,
                 opacity: HIGHLIGHT_STYLE.opacity,
               }
+            : activeTool === 'length'
+            ? // Distancia de Acrobat (ADR-0032): flecha abierta en ambos extremos (editable después)
+              { ...currentStyle, lineEndingStart: 'openArrow' as const, lineEndingEnd: 'openArrow' as const }
             : activeTool === 'dimension'
             ? {
                 // Cota: flechas cerradas en ambos extremos salvo que la cinta indique otros
@@ -1887,12 +1890,12 @@ export const PdfViewer: React.FC = () => {
               }
             : activeTool === 'arrow'
             ? {
-                // Flecha = línea con punta final (cerrada por defecto si la cinta no indica otra)
+                // Flecha = línea con punta final: abierta por defecto, como el Arrow de Acrobat (ADR-0032)
                 ...currentStyle,
                 lineEndingEnd:
                   currentStyle.lineEndingEnd && currentStyle.lineEndingEnd !== 'none'
                     ? currentStyle.lineEndingEnd
-                    : ('closedArrow' as const),
+                    : ('openArrow' as const),
               }
             : { ...currentStyle };
 
@@ -1931,13 +1934,17 @@ export const PdfViewer: React.FC = () => {
           updatedAt: now,
           status: 'pending',
           layer: activeLayer,
-          customFields:
-            (activeTool === 'length' || activeTool === 'radius' || activeTool === 'diameter') &&
+          customFields: {
+            ...((activeTool === 'length' || activeTool === 'radius' || activeTool === 'diameter') &&
             useToolStore.getState().measureLabel.trim()
               ? { ...(customFields ?? {}), measureLabel: useToolStore.getState().measureLabel.trim() }
-              : customFields,
+              : customFields),
+            // Distancia: dónde va el valor ("Caption Style" de Acrobat, ADR-0032)
+            ...(activeTool === 'length' ? { captionStyle: useToolStore.getState().measureCaption } : {}),
+          },
           measurement,
         };
+        if (newMarkup.customFields && Object.keys(newMarkup.customFields).length === 0) delete newMarkup.customFields;
 
         addMarkup(newMarkup);
         useToolChestStore.getState().recordRecent(newMarkup);
@@ -2550,7 +2557,9 @@ export const PdfViewer: React.FC = () => {
             height={pageViewport.height}
             viewBox={`0 0 ${pageViewport.width} ${pageViewport.height}`}
             style={{ width: `${pageViewport.width}px`, height: `${pageViewport.height}px` }}
-            className={`absolute inset-0 w-full h-full ${
+            // select-none (ADR-0032): el texto de las mediciones no debe iniciar una selección del navegador, que al
+            // arrastrar cerca del borde desplaza el visor y movería el punto final
+            className={`absolute inset-0 w-full h-full select-none ${
               activeTool === 'highlightText' ||
               activeTool === 'underline' ||
               activeTool === 'strikeOut'
@@ -2882,7 +2891,7 @@ export const PdfViewer: React.FC = () => {
                     const previewStyle =
                       activeTool === 'arrow' &&
                       (!currentStyle.lineEndingEnd || currentStyle.lineEndingEnd === 'none')
-                        ? { ...currentStyle, lineEndingEnd: 'closedArrow' as const }
+                        ? { ...currentStyle, lineEndingEnd: 'openArrow' as const }
                         : currentStyle;
                     const previewMarkup: Markup = {
                       id: 'preview-line',
@@ -2994,7 +3003,35 @@ export const PdfViewer: React.FC = () => {
                     );
                   }
 
-                  if (activeTool === 'length' || activeTool === 'calibrate') {
+                  if (activeTool === 'length') {
+                    // Vista previa idéntica al resultado (ADR-0032): flechas abiertas y el valor en vivo
+                    const dimsPt = { width: pageViewport.width / (scale || 1), height: pageViewport.height / (scale || 1) };
+                    const live = calculateLength(
+                      [drawingStart, currentDrawPoint],
+                      dimsPt,
+                      useCalibrationStore.getState().getPageCalibration(currentPageIndex)
+                    );
+                    const previewMarkup: Markup = {
+                      id: 'preview-length',
+                      type: 'length',
+                      pageIndex: currentPageIndex,
+                      points: [drawingStart, currentDrawPoint],
+                      style: { ...currentStyle, lineEndingStart: 'openArrow', lineEndingEnd: 'openArrow' },
+                      measurement: live,
+                      customFields: { captionStyle: useToolStore.getState().measureCaption },
+                      author: '',
+                      createdAt: '',
+                      updatedAt: '',
+                      status: 'pending',
+                    };
+                    return (
+                      <g className="pointer-events-none" opacity={0.85}>
+                        {renderSvgDescriptor(getMarkupSvgDescriptor(previewMarkup, viewportTransform), 'preview-length')}
+                      </g>
+                    );
+                  }
+
+                  if (activeTool === 'calibrate') {
                     return (
                       <g>
                         <line

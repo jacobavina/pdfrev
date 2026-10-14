@@ -13,6 +13,7 @@ import { DIMENSION_EXTENSION_GAP, DIMENSION_EXTENSION_OVERSHOOT } from '../marku
 import { viewportArrayFor, measureDictFor, readPageCalibration } from './pdfScale';
 import { DEFAULT_PAGE_CALIBRATION } from '../measurements/calculate';
 import { stampById } from '../markup/stamps';
+import { measureLineEndings } from '../markup/measureCaption';
 import {
   FieldType,
   fieldOptions,
@@ -581,13 +582,18 @@ ${apLine}  /REA ${reaDict}
       if (fillEntry) annotDict += `  ${fillEntry}\n`;
 
       // Entradas específicas según subtipo
-      const leEntry = `/LE [${toPdfLineEnding(markup.style.lineEndingStart)} ${toPdfLineEnding(markup.style.lineEndingEnd)}]`;
+      // Una distancia sin extremos elegidos lleva flechas abiertas, como en pantalla y en su /AP (ADR-0032)
+      const endStyle = markup.type === 'length' ? measureLineEndings(markup.style) : markup.style;
+      const leEntry = `/LE [${toPdfLineEnding(endStyle.lineEndingStart)} ${toPdfLineEnding(endStyle.lineEndingEnd)}]`;
       if (annotTypeSubtype === 'Line' && markup.points.length >= 2) {
         const p1 = normalizedToPdfCoordinates(markup.points[0], transform);
         const p2 = normalizedToPdfCoordinates(markup.points[1], transform);
         annotDict += `  /L [${p1.x.toFixed(2)} ${p1.y.toFixed(2)} ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}]\n  ${leEntry}\n`;
         if (markup.type === 'dimension') {
           annotDict += `  ${dimensionLineEntries(markup, transform)}\n`;
+        } else if (markup.type === 'length') {
+          // Texto dentro o encima de la línea, como "Caption Style" de Acrobat (ADR-0032)
+          annotDict += `  /Cap true /CP /${markup.customFields?.captionStyle === 'top' ? 'Top' : 'Inline'}\n`;
         }
       } else if (markup.type === 'area' && markup.points.length === 2) {
         // Área rectangular: sus cuatro esquinas como polígono
@@ -863,6 +869,10 @@ export function toPdfLineEnding(ending: LineEndingStyle | undefined): string {
       return '/Butt';
     case 'slash':
       return '/Slash';
+    case 'rOpenArrow':
+      return '/ROpenArrow';
+    case 'rClosedArrow':
+      return '/RClosedArrow';
     default:
       return '/None';
   }

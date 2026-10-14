@@ -140,7 +140,10 @@ export type LineEndingStyle =
   | 'square'
   | 'diamond'
   | 'butt'
-  | 'slash';
+  | 'slash'
+  /** Flechas invertidas de ISO 32000 (/ROpenArrow, /RClosedArrow), como en Acrobat (ADR-0032). */
+  | 'rOpenArrow'
+  | 'rClosedArrow';
 
 export interface MarkupStyle {
   strokeColor: string;

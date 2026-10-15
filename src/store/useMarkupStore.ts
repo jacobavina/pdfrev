@@ -17,7 +17,7 @@ export interface MoveMarkupItem {
   newLeaders?: MarkupPoint[][];
 }
 
-export type ReshapePatch = Pick<Markup, 'points'> & Partial<Pick<Markup, 'measurement' | 'text'>>;
+export type ReshapePatch = Pick<Markup, 'points'> & Partial<Pick<Markup, 'measurement' | 'text' | 'leaders'>>;
 
 interface MarkupState {
   markups: Markup[];

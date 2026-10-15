@@ -19,6 +19,9 @@ import {
   LINE_ENDING_OPTIONS,
 } from './IconPicker';
 import { translucentFill } from '../../core/markup/typeLabels';
+import { CAPTION_FAMILIES, markupFontOf, BOX_TEXT_COLOR } from '../../core/markup/measureCaption';
+import { useMarkupStore } from '../../store/useMarkupStore';
+import type { MarkupStyle } from '../../types/markup';
 
 const STROKE_WIDTHS = [0.5, 1, 1.5, 2, 3, 5, 8];
 
@@ -63,11 +66,28 @@ export const Ribbon: React.FC = () => {
     setActiveFieldType,
   } = useToolStore();
 
-  const lineStyle = lineStyleOf(currentStyle.dashArray);
-  const hasFill = Boolean(currentStyle.fillColor && currentStyle.fillColor !== 'transparent');
+  // Barra de propiedades contextual (ADR-0040), como la de Revu: con marcas seleccionadas edita la selección; sin
+  // selección, el estilo de las marcas nuevas
+  const { markups, selectedMarkupIds, applyPropertiesToMarkups } = useMarkupStore();
+  const selection = markups.filter((m) => selectedMarkupIds.includes(m.id) && !m.locked);
+  // Con una herramienta de dibujo activa, la barra define el estilo de lo que se va a dibujar (como Revu)
+  const editingSelection = selection.length > 0 && (activeTool === 'select' || activeTool === 'pan');
+  const style: MarkupStyle = editingSelection ? selection[0].style : currentStyle;
+  const applyStyle = (patch: Partial<MarkupStyle>) => {
+    if (editingSelection) applyPropertiesToMarkups(selection.map((m) => m.id), { style: patch }, 'Edit properties');
+    else setCurrentStyle(patch);
+  };
+  const font = markupFontOf(editingSelection ? selection[0] : { style: currentStyle }, 10, BOX_TEXT_COLOR);
+  const toggleFormat = (key: 'bold' | 'italic') => {
+    if (!editingSelection) return;
+    const next = { bold: key === 'bold' ? !font.bold : font.bold, italic: key === 'italic' ? !font.italic : font.italic };
+    applyPropertiesToMarkups(selection.map((m) => m.id), { textFormat: next }, key === 'bold' ? 'Bold' : 'Italic');
+  };
+
+  const lineStyle = lineStyleOf(style.dashArray);
+  const hasFill = Boolean(style.fillColor && style.fillColor !== 'transparent');
   // El patrón discontinuo es proporcional al grosor: se recalcula al cambiar de grosor
-  const changeWidth = (w: number) =>
-    setCurrentStyle({ strokeWidth: w, dashArray: dashArrayFor(lineStyle, w) });
+  const changeWidth = (w: number) => applyStyle({ strokeWidth: w, dashArray: dashArrayFor(lineStyle, w) });
 
   const selectTool = (tool: ToolDefinition) => {
     if (TEXT_LAYER_TOOLS.includes(tool.type) && pageHasText[currentPageIndex] === false) {
@@ -186,7 +206,10 @@ export const Ribbon: React.FC = () => {
         </div>
       </RibbonGroup>
 
-      <RibbonGroup label="Style (new markups)" testId="ribbon-group-style">
+      <RibbonGroup
+        label={editingSelection ? `Properties · ${selection.length} selected` : 'Style (new markups)'}
+        testId="ribbon-group-style"
+      >
         <div className="grid grid-cols-[auto_auto] gap-x-3 gap-y-1 items-center">
           {/* Fila 1: color de trazo y relleno */}
           <div className="flex items-center gap-1" title="Line color">
@@ -195,10 +218,10 @@ export const Ribbon: React.FC = () => {
               <button
                 key={c}
                 type="button"
-                onClick={() => setCurrentStyle({ strokeColor: c })}
+                onClick={() => applyStyle({ strokeColor: c })}
                 style={{ backgroundColor: c }}
                 className={`w-4 h-4 rounded-full border ${
-                  currentStyle.strokeColor === c
+                  style.strokeColor === c
                     ? 'ring-2 ring-cad-accent ring-offset-1 ring-offset-cad-ribbon'
                     : 'border-gray-600'
                 }`}
@@ -211,7 +234,7 @@ export const Ribbon: React.FC = () => {
             <button
               type="button"
               data-testid="ribbon-fill-none"
-              onClick={() => setCurrentStyle({ fillColor: 'transparent' })}
+              onClick={() => applyStyle({ fillColor: 'transparent' })}
               title="No fill"
               className={`w-4 h-4 rounded-full border border-gray-500 bg-cad-ribbon relative overflow-hidden ${
                 !hasFill ? 'ring-2 ring-cad-accent ring-offset-1 ring-offset-cad-ribbon' : ''
@@ -225,10 +248,10 @@ export const Ribbon: React.FC = () => {
                 <button
                   key={c}
                   type="button"
-                  onClick={() => setCurrentStyle({ fillColor: fill })}
+                  onClick={() => applyStyle({ fillColor: fill })}
                   style={{ backgroundColor: fill, borderColor: c }}
                   className={`w-4 h-4 rounded-full border ${
-                    currentStyle.fillColor === fill ? 'ring-2 ring-cad-accent ring-offset-1 ring-offset-cad-ribbon' : ''
+                    style.fillColor === fill ? 'ring-2 ring-cad-accent ring-offset-1 ring-offset-cad-ribbon' : ''
                   }`}
                   title={`Translucent fill: ${c}`}
                 />
@@ -242,7 +265,7 @@ export const Ribbon: React.FC = () => {
               compact
               testId="ribbon-stroke-width"
               title="Line width (pt)"
-              value={currentStyle.strokeWidth ?? 2}
+              value={style.strokeWidth ?? 2}
               options={STROKE_WIDTHS.map((w) => ({ value: w, label: `${w} pt` }))}
               renderIcon={(w) => <StrokeWidthPreview width={w} />}
               onChange={changeWidth}
@@ -254,35 +277,102 @@ export const Ribbon: React.FC = () => {
               value={lineStyle}
               options={LINE_STYLE_OPTIONS}
               renderIcon={(id) => <LineStylePreview id={id} />}
-              onChange={(id) => setCurrentStyle({ dashArray: dashArrayFor(id, currentStyle.strokeWidth ?? 2) })}
+              onChange={(id) => applyStyle({ dashArray: dashArrayFor(id, style.strokeWidth ?? 2) })}
             />
             <IconPicker
               compact
               testId="ribbon-line-start"
               title="Start (lines, arrows and polylines)"
-              value={currentStyle.lineEndingStart ?? 'none'}
+              value={style.lineEndingStart ?? 'none'}
               options={LINE_ENDING_OPTIONS}
               renderIcon={(id) => <LineEndingPreview ending={id} side="start" />}
-              onChange={(id) => setCurrentStyle({ lineEndingStart: id })}
+              onChange={(id) => applyStyle({ lineEndingStart: id })}
             />
             <IconPicker
               compact
               testId="ribbon-line-end"
               title="End (the Arrow tool uses a closed arrow when None)"
-              value={currentStyle.lineEndingEnd ?? 'none'}
+              value={style.lineEndingEnd ?? 'none'}
               options={LINE_ENDING_OPTIONS}
               renderIcon={(id) => <LineEndingPreview ending={id} side="end" />}
-              onChange={(id) => setCurrentStyle({ lineEndingEnd: id })}
+              onChange={(id) => applyStyle({ lineEndingEnd: id })}
             />
             <IconPicker
               compact
               testId="ribbon-opacity"
               title="Opacity"
-              value={currentStyle.opacity ?? 1}
+              value={style.opacity ?? 1}
               options={OPACITIES.map((o) => ({ value: o, label: `${Math.round(o * 100)}%` }))}
-              renderIcon={(o) => <OpacityPreview opacity={o} color={currentStyle.strokeColor} />}
-              onChange={(o) => setCurrentStyle({ opacity: o })}
+              renderIcon={(o) => <OpacityPreview opacity={o} color={style.strokeColor} />}
+              onChange={(o) => applyStyle({ opacity: o })}
             />
+          </div>
+        </div>
+      </RibbonGroup>
+
+      {/* Texto (ADR-0040): fuente, tamaño, negrita, cursiva y color, como en la barra de propiedades de Revu */}
+      <RibbonGroup label="Text" testId="ribbon-group-font">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-1">
+            <select
+              data-testid="ribbon-font-family"
+              value={font.family}
+              onChange={(e) => applyStyle({ fontFamily: e.target.value })}
+              className="ui-input !h-6 w-[96px] !text-[11px]"
+              title="Font"
+            >
+              {CAPTION_FAMILIES.map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              data-testid="ribbon-font-size"
+              min={6}
+              max={72}
+              value={font.size}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                if (v >= 6 && v <= 72) applyStyle({ fontSize: v });
+              }}
+              className="ui-input !h-6 w-[46px] !px-1.5 !text-[11px]"
+              title="Font size (pt)"
+            />
+          </div>
+          <div className="flex items-center gap-1">
+            {(
+              [
+                ['bold', 'B', 'Bold', 'font-bold'],
+                ['italic', 'I', 'Italic', 'italic font-serif'],
+              ] as const
+            ).map(([key, glyph, title, cls]) => (
+              <button
+                key={key}
+                type="button"
+                data-testid={`ribbon-font-${key}`}
+                aria-pressed={font[key]}
+                disabled={!editingSelection}
+                onClick={() => toggleFormat(key)}
+                title={editingSelection ? title : `${title} (select a markup first)`}
+                className={`w-6 h-6 rounded-md text-[12px] ${cls} disabled:opacity-35 ${
+                  font[key] ? 'bg-cad-accent/15 text-cad-accent ring-1 ring-inset ring-cad-accent/50' : 'text-gray-300 hover:bg-cad-hover'
+                }`}
+              >
+                {glyph}
+              </button>
+            ))}
+            <label className="flex items-center gap-1 text-[10px] text-gray-500" title="Text color">
+              <span>A</span>
+              <input
+                type="color"
+                data-testid="ribbon-text-color"
+                value={font.color}
+                onChange={(e) => applyStyle({ textColor: e.target.value })}
+                className="ui-swatch !w-5 !h-5"
+              />
+            </label>
           </div>
         </div>
       </RibbonGroup>

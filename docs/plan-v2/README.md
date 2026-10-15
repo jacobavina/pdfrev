@@ -192,4 +192,5 @@ plan y `AGENTS.md`, **gana `AGENTS.md`**.
 | 2026-10-14 | Claude (Opus 5.5) | ADR-0036: sistema visual de herramienta de diseño en toda la app (tokens, tipografía y componentes comunes). |
 | 2026-10-14 | Claude (Opus 5.5) | ADR-0037: sistema visual en Tool Chest, panel izquierdo y miniaturas. |
 | 2026-10-14 | Claude (Opus 5.5) | ADR-0038: Overlay Pages para comparar revisiones (rojo/azul, alineación por desplazamiento). |
+| 2026-10-15 | Claude (Opus 5.5) | ADR-0039/0040: nube de forma libre, tiradores de Revu, barra de propiedades con fuentes y sellos estilo Revu. |
 

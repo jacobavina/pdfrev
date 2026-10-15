@@ -47,17 +47,22 @@ describe('Sellos predeterminados (ADR-0026)', () => {
   });
 
   it('el título cabe siempre dentro del marco y el subtítulo lleva autor y fecha', () => {
-    const L = stampLayout({ x: 0, y: 0, w: 60, h: 40 }, 'NOT FOR CONSTRUCTION', 'Reviewer · 2026-10-11 12:00');
-    expect(boldTextWidth('NOT FOR CONSTRUCTION', L.titleSize)).toBeLessThanOrEqual(L.inner.w);
+    const L = stampLayout({ x: 0, y: 0, w: 60, h: 40 }, 'NOT FOR CONSTRUCTION', 'By Reviewer at 12:00 pm, Oct 11, 2026');
+    expect(boldTextWidth('NOT FOR CONSTRUCTION', L.titleSize)).toBeLessThanOrEqual(L.outer.w - 4 * Math.max(1.5, 40 * 0.07));
     expect(L.subBaseline).not.toBeNull();
-    expect(stampSubtitle('Ana', '2026-10-11T12:05:00')).toBe('Ana · 2026-10-11 12:05');
-    expect(defaultStampSizePt('APPROVED', 'Ana · 2026-10-11 12:05').height).toBe(44);
+    // Línea dinámica como la de Revu y Acrobat (ADR-0040)
+    expect(stampSubtitle('Ana', '2026-10-11T12:05:00')).toBe('By Ana at 12:05 pm, Oct 11, 2026');
+    expect(stampSubtitle('Ana', '2026-10-11T00:07:00')).toBe('By Ana at 12:07 am, Oct 11, 2026');
+    expect(L.radius).toBeGreaterThan(0);
+    expect(defaultStampSizePt('APPROVED', 'By Ana at 12:05 pm, Oct 11, 2026').height).toBe(42);
   });
 
-  it('el /AP dibuja doble marco y el título en Helvetica-Bold', () => {
+  it('el /AP dibuja el marco único redondeado, el título en Helvetica-Bold y la línea dinámica en cursiva (ADR-0040)', () => {
     const out = emitMarkupOperators(stamp, transform);
     expect(out.boldFontName).toBe('HeBo');
-    expect(out.fontName).toBe('Helv');
+    expect(out.extraFonts).toEqual({ HeOb: 'Helvetica-Oblique' });
+    expect(out.operators.split('\n').filter((l) => l.endsWith(' c')).length).toBe(4); // cuatro esquinas redondeadas
+    expect(out.operators).not.toMatch(/^B$/m); // sin relleno
     expect(out.operators).toContain('(APPROVED) Tj');
     expect(out.operators).toContain('(Reviewer \\267 2026-10-11 12:00) Tj');
   });

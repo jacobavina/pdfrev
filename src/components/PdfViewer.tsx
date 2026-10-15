@@ -52,6 +52,7 @@ import { controlPointsOf, applyControlPointDrag } from '../core/markup/controlPo
 import { revisionCloudPathNormalized } from '../core/markup/revisionCloud';
 import { snapPoint, SnapResult } from '../core/markup/snap';
 import { remeasureMarkup, SCALED_MEASURE_TYPES } from '../core/measurements/remeasure';
+import { markupBounds, boundsCorners, canScale, canRotate, scaleMarkup, rotateMarkup, snapAngle } from '../core/markup/transformHandles';
 import type { ContentSnapIndex } from '../core/markup/contentSnap';
 import type { loadContentSnapIndex } from '../services/contentSnapService';
 import { showToast } from '../services/toastService';
@@ -128,7 +129,11 @@ export function minPointsFor(tool: string): number {
 }
 
 /** Contornos cerrados: se cierran también con un clic en el primer vértice. */
+/** Nube y Cloud+ (ADR-0039): un clic sin arrastrar empieza una nube de forma libre, como en Revu. */
+const isCloudTool = (tool: string) => tool === 'cloud' || tool === 'cloudPlus';
+
 const isClosedMultiPointTool = (tool: string) =>
+  isCloudTool(tool) ||
   tool === 'polygon' || tool === 'area' || tool === 'perimeter' || tool === 'volume';
 
 /** Quita vértices consecutivos prácticamente iguales (los dos mousedown que preceden a un doble clic). */
@@ -231,7 +236,14 @@ export const PdfViewer: React.FC = () => {
   } | null>(null);
 
   // Arrastre de un punto de control (ADR-0021): marca original y vértice
-  const vertexDragRef = useRef<{ original: Markup; index: number; hasMoved: boolean; latest: Markup } | null>(null);
+  const vertexDragRef = useRef<{
+    original: Markup;
+    index: number;
+    hasMoved: boolean;
+    latest: Markup;
+    /** Tiradores de la caja (ADR-0039): escalar desde una esquina o rotar alrededor del centro. */
+    transform?: { mode: 'scale' | 'rotate'; corner: number; startAngle: number };
+  } | null>(null);
   // Control de zoom del doble clic (ADR-0021): posición en pantalla
   const [zoomWidget, setZoomWidget] = useState<{ x: number; y: number } | null>(null);
   // Hipervínculo en creación (caja ya dibujada, falta el destino) y enlaces propios del PDF en la página activa
@@ -668,6 +680,24 @@ export const PdfViewer: React.FC = () => {
     vertexDragRef.current = { original: markup, index, hasMoved: false, latest: markup };
   };
 
+  /** Escalar desde una esquina o rotar con el tirador superior (ADR-0039). */
+  const handleTransformMouseDown = (e: React.MouseEvent, markup: Markup, mode: 'scale' | 'rotate', corner = 0) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    if (markup.locked) return;
+    let startAngle = 0;
+    if (mode === 'rotate') {
+      const b = markupBounds(markup)!;
+      const w = pageViewport.width / (scale || 1);
+      const h = pageViewport.height / (scale || 1);
+      const rect = (e.currentTarget as SVGElement).ownerSVGElement!.getBoundingClientRect();
+      const pt = screenToNormalized(e.clientX - rect.left, e.clientY - rect.top, viewportTransform);
+      startAngle = Math.atan2((pt.y - (b.minY + b.maxY) / 2) * h, (pt.x - (b.minX + b.maxX) / 2) * w);
+    }
+    vertexDragRef.current = { original: markup, index: -1, hasMoved: false, latest: markup, transform: { mode, corner, startAngle } };
+  };
+
   const finishVertexDrag = () => {
     const drag = vertexDragRef.current;
     if (!drag) return;
@@ -676,8 +706,9 @@ export const PdfViewer: React.FC = () => {
     const { original, latest } = drag;
     useMarkupStore.getState().reshapeMarkup(
       original.id,
-      { points: original.points, measurement: original.measurement, text: original.text },
-      { points: latest.points, measurement: latest.measurement, text: latest.text }
+      { points: original.points, measurement: original.measurement, text: original.text, leaders: original.leaders },
+      { points: latest.points, measurement: latest.measurement, text: latest.text, leaders: latest.leaders },
+      drag.transform ? (drag.transform.mode === 'rotate' ? 'Rotate markup' : 'Scale markup') : undefined
     );
   };
   const finishVertexDragRef = useRef(finishVertexDrag);
@@ -747,7 +778,7 @@ export const PdfViewer: React.FC = () => {
       }
 
       // Enter finaliza el polígono, la polilínea, la polilínea de medida o el área
-      if (e.key === 'Enter' && isMultiPointTool(activeTool)) {
+      if (e.key === 'Enter' && (isMultiPointTool(activeTool) || (isCloudTool(activeTool) && polygonPoints.length > 0))) {
         if (polygonPoints.length >= minPointsFor(activeTool)) {
           e.preventDefault();
         }
@@ -1102,11 +1133,119 @@ export const PdfViewer: React.FC = () => {
   );
 
   /**
+   * Cloud+ (nube + llamada agrupadas): `cloudPoints` son las dos esquinas de una nube rectangular o los vértices de
+   * una de forma libre (ADR-0039). La llamada se coloca a la derecha y su flecha apunta al vértice más cercano a la
+   * esquina superior derecha del contorno.
+   */
+  const createCloudPlus = (cloudPoints: MarkupPoint[]) => {
+    const now = new Date().toISOString();
+    const groupId = uuidv4();
+    const cloudId = uuidv4();
+    const calloutId = uuidv4();
+    const xs = cloudPoints.map((p) => p.x);
+    const ys = cloudPoints.map((p) => p.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+
+    const calloutWidth = 0.12;
+    const calloutHeight = 0.04;
+    let boxX = maxX + 0.03;
+    if (boxX + calloutWidth > 0.99) {
+      boxX = Math.max(0.01, minX - calloutWidth - 0.03);
+    }
+    let boxY = minY - 0.04;
+    if (boxY < 0.01) {
+      boxY = Math.min(0.95, maxY + 0.03);
+    }
+    const boxP1 = {
+      x: Math.max(0, Math.min(0.99 - calloutWidth, boxX)),
+      y: Math.max(0, Math.min(0.99 - calloutHeight, boxY)),
+    };
+    const boxP2 = { x: boxP1.x + calloutWidth, y: boxP1.y + calloutHeight };
+    const corner = { x: maxX, y: minY };
+    const arrowTarget =
+      cloudPoints.length > 2
+        ? cloudPoints.reduce((best, p) =>
+            Math.hypot(p.x - corner.x, p.y - corner.y) < Math.hypot(best.x - corner.x, best.y - corner.y) ? p : best
+          )
+        : corner;
+
+    const cloudMarkup: Markup = {
+      id: cloudId,
+      type: 'cloudPlus',
+      pageIndex: currentPageIndex,
+      points: cloudPoints.map((p) => ({ ...p })),
+      style: { ...currentStyle },
+      author: author || 'Reviewer',
+      createdAt: now,
+      updatedAt: now,
+      status: 'pending',
+      layer: activeLayer,
+      groupId,
+      customFields: { arcStep: DEFAULT_ARC_STEP },
+    };
+    const calloutMarkup: Markup = {
+      id: calloutId,
+      type: 'callout',
+      pageIndex: currentPageIndex,
+      points: [boxP1, boxP2],
+      leaders: [[{ ...arrowTarget }]],
+      style: {
+        ...currentStyle,
+        fillColor: '#ffffff',
+        strokeWidth: 1.5,
+      },
+      text: 'Cloud+ note',
+      author: author || 'Reviewer',
+      createdAt: now,
+      updatedAt: now,
+      status: 'pending',
+      layer: activeLayer,
+      groupId,
+    };
+    addMarkups([cloudMarkup, calloutMarkup], 'Create Cloud+');
+    useToolChestStore.getState().recordRecent(cloudMarkup);
+  };
+
+  /** Cierra una nube de forma libre (ADR-0039): nube poligonal o Cloud+. */
+  const createCloudFromPolygon = (points: MarkupPoint[]) => {
+    const pts = dedupeConsecutivePoints(points);
+    if (pts.length < 3) return;
+    if (activeTool === 'cloudPlus') {
+      createCloudPlus(pts);
+      return;
+    }
+    const now = new Date().toISOString();
+    const cloud: Markup = {
+      id: uuidv4(),
+      type: 'cloud',
+      pageIndex: currentPageIndex,
+      points: pts.map((p) => ({ ...p })),
+      style: { ...currentStyle },
+      author: author || 'Reviewer',
+      createdAt: now,
+      updatedAt: now,
+      status: 'pending',
+      layer: activeLayer,
+      customFields: { arcStep: DEFAULT_ARC_STEP },
+    };
+    addMarkup(cloud);
+    useToolChestStore.getState().recordRecent(cloud);
+  };
+
+  /**
    * Cierra una figura multipunto y crea la marca (un solo comando, deshacible). El área se mide como
    * polígono (fórmula del área firmada) con su perímetro; la polilínea de medida, como longitud acumulada.
    */
   const finalizeMultiPoint = (points: MarkupPoint[]) => {
     setPolygonPoints([]);
+    if (isCloudTool(activeTool)) {
+      // Nube de forma libre (ADR-0039)
+      if (points.length >= 3) createCloudFromPolygon(points);
+      return;
+    }
     if (!isMultiPointTool(activeTool) || points.length < minPointsFor(activeTool)) return;
 
     const pageDimsPt = {
@@ -1237,8 +1376,9 @@ export const PdfViewer: React.FC = () => {
       return;
     }
 
-    // 2. Herramientas multipunto: polígono, polilínea, polilínea de medida y área (polígono)
-    if (isMultiPointTool(activeTool)) {
+    // 2. Herramientas multipunto: polígono, polilínea, polilínea de medida y área (polígono); y la nube de forma
+    //    libre una vez empezada con un clic (ADR-0039)
+    if (isMultiPointTool(activeTool) || (isCloudTool(activeTool) && polygonPoints.length > 0)) {
       if (polygonPoints.length === 0) {
         setPolygonPoints([pt]);
       } else {
@@ -1345,7 +1485,21 @@ export const PdfViewer: React.FC = () => {
     if (vertexDragRef.current) {
       const drag = vertexDragRef.current;
       drag.hasMoved = true;
-      drag.latest = reshapedMarkup(drag.original, applyControlPointDrag(drag.original, drag.index, pt));
+      if (drag.transform) {
+        // Tiradores de la caja (ADR-0039): escala (Mayús = proporcional) o rotación (Mayús = pasos de 15°)
+        const dims = { width: pageViewport.width / (scale || 1), height: pageViewport.height / (scale || 1) };
+        let res: { points: MarkupPoint[]; leaders?: MarkupPoint[][] };
+        if (drag.transform.mode === 'scale') {
+          res = scaleMarkup(drag.original, drag.transform.corner, pt, e.shiftKey);
+        } else {
+          const b = markupBounds(drag.original)!;
+          const now = Math.atan2((pt.y - (b.minY + b.maxY) / 2) * dims.height, (pt.x - (b.minX + b.maxX) / 2) * dims.width);
+          res = rotateMarkup(drag.original, snapAngle(now - drag.transform.startAngle, e.shiftKey), dims);
+        }
+        drag.latest = { ...reshapedMarkup(drag.original, res.points), ...(res.leaders ? { leaders: res.leaders } : {}) };
+      } else {
+        drag.latest = reshapedMarkup(drag.original, applyControlPointDrag(drag.original, drag.index, pt));
+      }
       setMarkupsTransient([drag.latest]);
       return;
     }
@@ -1762,6 +1916,14 @@ export const PdfViewer: React.FC = () => {
       return;
     }
 
+    // Nube de forma libre (ADR-0039): un clic sin arrastrar es su primer vértice
+    if (isCloudTool(activeTool) && !exceedsScreenThreshold(drawingStart, currentDrawPoint, viewportTransform, 4)) {
+      setPolygonPoints([drawingStart]);
+      setDrawingStart(null);
+      setCurrentDrawPoint(null);
+      return;
+    }
+
     // Evitar crear marcas accidentales con un microclic (umbral de 4 px de pantalla invariable a la escala)
     const hasExceededThreshold = exceedsScreenThreshold(
       drawingStart,
@@ -1779,70 +1941,7 @@ export const PdfViewer: React.FC = () => {
       const now = new Date().toISOString();
 
       if (activeTool === 'cloudPlus') {
-        const groupId = uuidv4();
-        const cloudId = uuidv4();
-        const calloutId = uuidv4();
-
-        const minX = Math.min(drawingStart.x, currentDrawPoint.x);
-        const maxX = Math.max(drawingStart.x, currentDrawPoint.x);
-        const minY = Math.min(drawingStart.y, currentDrawPoint.y);
-        const maxY = Math.max(drawingStart.y, currentDrawPoint.y);
-
-        const calloutWidth = 0.12;
-        const calloutHeight = 0.04;
-        let boxX = maxX + 0.03;
-        if (boxX + calloutWidth > 0.99) {
-          boxX = Math.max(0.01, minX - calloutWidth - 0.03);
-        }
-        let boxY = minY - 0.04;
-        if (boxY < 0.01) {
-          boxY = Math.min(0.95, maxY + 0.03);
-        }
-
-        const boxP1 = {
-          x: Math.max(0, Math.min(0.99 - calloutWidth, boxX)),
-          y: Math.max(0, Math.min(0.99 - calloutHeight, boxY)),
-        };
-        const boxP2 = { x: boxP1.x + calloutWidth, y: boxP1.y + calloutHeight };
-        const arrowTarget = { x: maxX, y: minY };
-
-        const cloudMarkup: Markup = {
-          id: cloudId,
-          type: 'cloudPlus',
-          pageIndex: currentPageIndex,
-          points: [drawingStart, currentDrawPoint],
-          style: { ...currentStyle },
-          author: author || 'Reviewer',
-          createdAt: now,
-          updatedAt: now,
-          status: 'pending',
-          layer: activeLayer,
-          groupId,
-          customFields: { arcStep: DEFAULT_ARC_STEP },
-        };
-
-        const calloutMarkup: Markup = {
-          id: calloutId,
-          type: 'callout',
-          pageIndex: currentPageIndex,
-          points: [boxP1, boxP2],
-          leaders: [[arrowTarget]],
-          style: {
-            ...currentStyle,
-            fillColor: '#ffffff',
-            strokeWidth: 1.5,
-          },
-          text: 'Cloud+ note',
-          author: author || 'Reviewer',
-          createdAt: now,
-          updatedAt: now,
-          status: 'pending',
-          layer: activeLayer,
-          groupId,
-        };
-
-        addMarkups([cloudMarkup, calloutMarkup], 'Create Cloud+');
-        useToolChestStore.getState().recordRecent(cloudMarkup);
+        createCloudPlus([drawingStart, currentDrawPoint]);
       } else if (activeTool === 'callout') {
         const newId = uuidv4();
         const initialText = 'Note';
@@ -2026,7 +2125,7 @@ export const PdfViewer: React.FC = () => {
 
   // Doble clic para finalizar polígono o polilínea o para abrir editor de texto
   const handleDoubleClick = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (isMultiPointTool(activeTool)) {
+    if (isMultiPointTool(activeTool) || (isCloudTool(activeTool) && polygonPoints.length > 0)) {
       // El doble clic dispara antes dos mousedown en el mismo punto: se descartan vértices repetidos
       finalizeMultiPoint(dedupeConsecutivePoints(polygonPoints));
       return;
@@ -2717,9 +2816,9 @@ export const PdfViewer: React.FC = () => {
                           width={Math.max(8, b.maxX - b.minX + 8)}
                           height={Math.max(8, b.maxY - b.minY + 8)}
                           fill="none"
-                          stroke={markup.locked ? '#f59e0b' : '#0284c7'}
-                          strokeWidth={1.5}
-                          strokeDasharray="4 2"
+                          stroke={markup.locked ? '#f59e0b' : '#3b82f6'}
+                          strokeWidth={1}
+                          strokeDasharray="3 2"
                           className="pointer-events-none"
                         />
                       );
@@ -2740,10 +2839,10 @@ export const PdfViewer: React.FC = () => {
                             data-testid={`callout-anchor-handle-${lIdx}`}
                             cx={anchorScr.x}
                             cy={anchorScr.y}
-                            r={6}
-                            fill="#ffffff"
-                            stroke="#0284c7"
-                            strokeWidth={2}
+                            r={3.5}
+                            fill="#d9b93a"
+                            stroke="#3f3f46"
+                            strokeWidth={1}
                             className="cursor-move"
                             onMouseDown={(e) => handleAnchorMouseDown(e, markup.id, lIdx)}
                             onContextMenu={(e) => handleAnchorContextMenu(e, markup.id, lIdx)}
@@ -2765,13 +2864,13 @@ export const PdfViewer: React.FC = () => {
                             className="cursor-pointer"
                             onClick={(e) => handleAddLeader(e, markup.id)}
                           >
-                            <circle cx={addX} cy={addY} r={8} fill="#0284c7" stroke="#ffffff" strokeWidth={1.5} />
+                            <circle cx={addX} cy={addY} r={6} fill="#3b82f6" stroke="#ffffff" strokeWidth={1} />
                             <text
                               x={addX}
                               y={addY + 3.5}
                               textAnchor="middle"
                               fill="#ffffff"
-                              fontSize="11"
+                              fontSize="10"
                               fontWeight="bold"
                               className="select-none pointer-events-none"
                             >
@@ -2804,15 +2903,67 @@ export const PdfViewer: React.FC = () => {
                           data-testid={`control-point-${idx}`}
                           cx={scr.x}
                           cy={scr.y}
-                          r={4.5}
-                          fill="#facc15"
-                          stroke="#1e3a8a"
-                          strokeWidth={1.2}
+                          r={3.5}
+                          fill="#d9b93a"
+                          stroke="#3f3f46"
+                          strokeWidth={1}
                           className="cursor-crosshair"
                           onMouseDown={(e) => handleControlPointMouseDown(e, markup, idx)}
                         />
                       );
                     })}
+                  </g>
+                );
+              })()}
+
+            {/* Tiradores de la caja (ADR-0039): cuadros azules en las esquinas para escalar y círculo para rotar */}
+            {activeTool === 'select' &&
+              selectedMarkupIds.length === 1 &&
+              (() => {
+                const markup = pageMarkups.find((m) => m.id === selectedMarkupIds[0]);
+                if (!markup || markup.locked || !canScale(markup)) return null;
+                const bounds = markupBounds(markup);
+                if (!bounds) return null;
+                const pad = 4;
+                const tl = normalizedToScreen({ x: bounds.minX, y: bounds.minY }, viewportTransform);
+                const br = normalizedToScreen({ x: bounds.maxX, y: bounds.maxY }, viewportTransform);
+                const box = { x0: tl.x - pad, y0: tl.y - pad, x1: br.x + pad, y1: br.y + pad };
+                const corners = boundsCorners({ minX: box.x0, minY: box.y0, maxX: box.x1, maxY: box.y1 });
+                const cursors = ['cursor-nwse-resize', 'cursor-nesw-resize', 'cursor-nwse-resize', 'cursor-nesw-resize'];
+                const cx = (box.x0 + box.x1) / 2;
+                return (
+                  <g data-testid="transform-handles-layer">
+                    {corners.map((c, i) => (
+                      <rect
+                        key={`sh-${i}`}
+                        data-testid={`scale-handle-${i}`}
+                        x={c.x - 3.5}
+                        y={c.y - 3.5}
+                        width={7}
+                        height={7}
+                        fill="#3b82f6"
+                        stroke="#1e3a8a"
+                        strokeWidth={1}
+                        className={cursors[i]}
+                        onMouseDown={(e) => handleTransformMouseDown(e, markup, 'scale', i)}
+                      />
+                    ))}
+                    {canRotate(markup) && (
+                      <>
+                        <line x1={cx} y1={box.y0} x2={cx} y2={box.y0 - 18} stroke="#3b82f6" strokeWidth={1} strokeDasharray="2 2" className="pointer-events-none" />
+                        <circle
+                          data-testid="rotate-handle"
+                          cx={cx}
+                          cy={box.y0 - 22}
+                          r={4}
+                          fill="#3b82f6"
+                          stroke="#1e3a8a"
+                          strokeWidth={1}
+                          className="cursor-grab"
+                          onMouseDown={(e) => handleTransformMouseDown(e, markup, 'rotate')}
+                        />
+                      </>
+                    )}
                   </g>
                 );
               })()}
@@ -2846,7 +2997,7 @@ export const PdfViewer: React.FC = () => {
 
             {/* Previsualización en vivo mientras se dibuja */}
             {/* A. Polígono o Polilínea en construcción */}
-            {isMultiPointTool(activeTool) && polygonPoints.length > 0 && (
+            {(isMultiPointTool(activeTool) || isCloudTool(activeTool)) && polygonPoints.length > 0 && (
               <g className="pointer-events-none">
                 <polyline
                   points={

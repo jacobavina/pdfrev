@@ -222,7 +222,7 @@ export const StampPreview: React.FC<{ id: string }> = ({ id }) => {
   return (
     <span
       className="inline-flex items-center justify-center px-1.5 h-[16px] rounded-sm text-[9px] font-bold tracking-wide whitespace-nowrap"
-      style={{ color: def.color, border: `2px double ${def.color}`, background: '#ffffffd9' }}
+      style={{ color: def.color, border: `1.5px solid ${def.color}`, borderRadius: 4, background: '#ffffffd9' }}
     >
       {def.label}
     </span>

@@ -176,16 +176,28 @@ export const CAPTIONED_MEASURES = new Set([
   'diameter',
 ]);
 
-export function captionFontOf(markup: Pick<Markup, 'style' | 'textFormat'>): CaptionFont {
+/** Tipografía de cualquier texto de una marca (ADR-0040) con su tamaño y color por defecto. */
+export function markupFontOf(
+  markup: Pick<Markup, 'style' | 'textFormat'>,
+  defaultSize: number,
+  defaultColor: string
+): CaptionFont {
   const f = markup.style.fontFamily;
   return {
     family: f === 'Times' || f === 'Courier' ? f : 'Helvetica',
-    size: markup.style.fontSize && markup.style.fontSize > 0 ? markup.style.fontSize : MEASURE_CAPTION_PT,
-    color: markup.style.textColor || MEASURE_CAPTION_COLOR,
+    size: markup.style.fontSize && markup.style.fontSize > 0 ? markup.style.fontSize : defaultSize,
+    color: markup.style.textColor || defaultColor,
     bold: Boolean(markup.textFormat?.bold),
     italic: Boolean(markup.textFormat?.italic),
   };
 }
+
+export function captionFontOf(markup: Pick<Markup, 'style' | 'textFormat'>): CaptionFont {
+  return markupFontOf(markup, MEASURE_CAPTION_PT, MEASURE_CAPTION_COLOR);
+}
+
+/** Color por defecto del texto de cuadros de texto y llamadas. */
+export const BOX_TEXT_COLOR = '#1f2937';
 
 /** Ancho del texto en las mismas unidades que `size` (métricas de Helvetica; Courier exacta; Times aproximada). */
 export function captionTextWidth(text: string, size: number, font: Pick<CaptionFont, 'family' | 'bold'>): number {

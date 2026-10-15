@@ -28,6 +28,8 @@ import {
   captionTextWidth,
   captionPdfFont,
   CaptionFont,
+  markupFontOf,
+  BOX_TEXT_COLOR,
   distanceGeometry,
   MEASURE_LEADER_EXTENSION_PT,
   MEASURE_END_TICK_PT,
@@ -282,7 +284,7 @@ export function emitMarkupOperators(
 
   /** Trazado SVG de solo M/Q/Z en espacio visual → PDF (las cuadráticas pasan a cúbicas exactas). */
   const svgQuadPathToPdf = (d: string) => {
-    const tokens = d.match(/[MQCZ]|-?\d*\.?\d+(?:e-?\d+)?/gi) ?? [];
+    const tokens = d.match(/[MLQCZ]|-?\d*\.?\d+(?:e-?\d+)?/gi) ?? [];
     let i = 0;
     let current: Pt | null = null;
     const num = () => Number(tokens[i++]);
@@ -292,6 +294,10 @@ export function emitMarkupOperators(
         current = visToPdf({ x: num(), y: num() });
         updateBBox(current.x, current.y);
         lines.push(`${f2(current.x)} ${f2(current.y)} m`);
+      } else if (cmd === 'L' && current) {
+        current = visToPdf({ x: num(), y: num() });
+        updateBBox(current.x, current.y);
+        lines.push(`${f2(current.x)} ${f2(current.y)} l`);
       } else if (cmd === 'Q' && current) {
         const q = visToPdf({ x: num(), y: num() });
         const end = visToPdf({ x: num(), y: num() });
@@ -361,13 +367,20 @@ export function emitMarkupOperators(
     fontSize: number,
     color: { r: number; g: number; b: number },
     align: 'left' | 'center' = 'left',
-    bold = false
+    bold = false,
+    font?: CaptionFont
   ) => {
     const o = visToPdf(originVis);
     const o2 = visToPdf({ x: originVis.x + 1, y: originVis.y });
-    textPdf(text, o, Math.atan2(o2.y - o.y, o2.x - o.x), fontSize, color, align, bold);
+    textPdf(text, o, Math.atan2(o2.y - o.y, o2.x - o.x), fontSize, color, align, bold, font ? captionPdfFont(font) : undefined, font);
+  };
+  /** Tipografía de un cuadro de texto o una llamada (ADR-0040) y su color en PDF. */
+  const boxFont = (defaultSize: number) => {
+    const font = markupFontOf(markup, defaultSize, BOX_TEXT_COLOR);
+    return { font, color: parseCssColorRgb(font.color) ?? DARK_TEXT_RGB };
   };
   const DARK_TEXT = { r: 0.12, g: 0.16, b: 0.22 };
+  const DARK_TEXT_RGB = DARK_TEXT;
 
   /** Valor de una medición (con su etiqueta) o '' si no es una medición. */
   const measureCaptionLabel = () => {
@@ -747,10 +760,11 @@ export function emitMarkupOperators(
       lines.push('1 w', rgbOp(fillParsed ?? { r: 1, g: 0.984, b: 0.91 }, 'rg'));
       pathPdf([visToPdf({ x, y }), visToPdf({ x: x + w, y }), visToPdf({ x: x + w, y: y + h }), visToPdf({ x, y: y + h })], true);
       lines.push(strokeParsed ? 'B' : 'f');
-      const fontSize = markup.style.fontSize ?? 12;
+      const tb = boxFont(12);
+      const fontSize = tb.font.size;
       wrapCalloutText(markup.text || '', w - 12, fontSize).forEach((line, i) => {
         const baseline = y + 4 + fontSize + i * (fontSize + 2);
-        if (baseline <= y + h) textVis(line, { x: x + 6, y: baseline }, fontSize, DARK_TEXT);
+        if (baseline <= y + h) textVis(line, { x: x + 6, y: baseline }, fontSize, tb.color, 'left', false, tb.font);
       });
       break;
     }
@@ -782,10 +796,11 @@ export function emitMarkupOperators(
         true
       );
       lines.push(strokeParsed ? 'B' : 'f');
-      const fontSize = markup.style.fontSize ?? 10;
+      const cb = boxFont(10);
+      const fontSize = cb.font.size;
       const maxTextWidth = Math.max(CALLOUT_MIN_BOX_WIDTH - 16, bx.width - 16);
       wrapCalloutText(markup.text || '', maxTextWidth, fontSize).forEach((line, i) => {
-        textVis(line, { x: bx.x + 6, y: bx.y + 14 + i * (fontSize + 3) }, fontSize, DARK_TEXT);
+        textVis(line, { x: bx.x + 6, y: bx.y + 14 + i * (fontSize + 3) }, fontSize, cb.color, 'left', false, cb.font);
       });
       break;
     }
@@ -899,19 +914,20 @@ export function emitMarkupOperators(
         sub
       );
       const color = strokeParsed ?? { r: 0.08, g: 0.5, b: 0.24 };
-      const rectPdf = (r: { x: number; y: number; w: number; h: number }) => [
-        visToPdf({ x: r.x, y: r.y }),
-        visToPdf({ x: r.x + r.w, y: r.y }),
-        visToPdf({ x: r.x + r.w, y: r.y + r.h }),
-        visToPdf({ x: r.x, y: r.y + r.h }),
-      ];
-      lines.push(`${f2(L.outerStroke)} w`, rgbOp(color, 'RG'), '1 1 1 rg');
-      pathPdf(rectPdf(L.outer), true);
-      lines.push('B', `${f2(L.innerStroke)} w`);
-      pathPdf(rectPdf(L.inner), true);
+      const { x, y, w, h } = L.outer;
+      const r = L.radius;
+      // Marco único redondeado sin relleno (ADR-0040), con la misma forma que en pantalla
+      lines.push(`${f2(L.outerStroke)} w`, rgbOp(color, 'RG'));
+      svgQuadPathToPdf(
+        `M ${x + r} ${y} L ${x + w - r} ${y} Q ${x + w} ${y} ${x + w} ${y + r} L ${x + w} ${y + h - r} ` +
+          `Q ${x + w} ${y + h} ${x + w - r} ${y + h} L ${x + r} ${y + h} Q ${x} ${y + h} ${x} ${y + h - r} ` +
+          `L ${x} ${y + r} Q ${x} ${y} ${x + r} ${y} Z`
+      );
       lines.push('S');
       textVis(label, L.titleBaseline, L.titleSize, color, 'center', true);
-      if (L.subBaseline && sub) textVis(sub, L.subBaseline, L.subSize, color, 'center');
+      if (L.subBaseline && sub) {
+        textVis(sub, L.subBaseline, L.subSize, color, 'center', false, { family: 'Helvetica', size: L.subSize, color: '#000000', bold: false, italic: true });
+      }
       break;
     }
 

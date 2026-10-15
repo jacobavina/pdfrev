@@ -237,7 +237,7 @@ describe('Cota, puntos de control y zoom con doble clic (ADR-0020/0021)', () => 
     expect(m.type).toBe('stamp');
     expect(m.text).toBe('FOR CONSTRUCTION');
     expect(m.style.strokeColor).toBe('#15803d');
-    expect(String(m.customFields?.stampSubtitle)).toMatch(/^Ana · \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+    expect(String(m.customFields?.stampSubtitle)).toMatch(/^By Ana at \d{1,2}:\d{2} (am|pm), [A-Z][a-z]{2} \d{1,2}, \d{4}$/);
     const cx = (m.points[0].x + m.points[1].x) / 2;
     const cy = (m.points[0].y + m.points[1].y) / 2;
     expect(cx).toBeCloseTo(0.5, 6);

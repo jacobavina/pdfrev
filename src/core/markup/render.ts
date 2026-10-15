@@ -23,6 +23,9 @@ import {
   captionFontOf,
   captionTextWidth,
   captionCssFamily,
+  markupFontOf,
+  BOX_TEXT_COLOR,
+  CaptionFont,
   distanceGeometry,
   MEASURE_LEADER_EXTENSION_PT,
   MEASURE_END_TICK_PT,
@@ -582,6 +585,16 @@ function withLineEndings(
   return { tag: 'g', attrs: { opacity }, children };
 }
 
+/** Atributos SVG de una tipografía: color, familia, negrita y cursiva (ADR-0040). */
+function fontAttrs(font: CaptionFont): Record<string, string> {
+  return {
+    fill: font.color,
+    fontFamily: captionCssFamily(font.family),
+    ...(font.bold ? { fontWeight: 'bold' } : {}),
+    ...(font.italic ? { fontStyle: 'italic' } : {}),
+  };
+}
+
 /** Tamaño en px del texto de las mediciones: 10 pt de página con el zoom del visor (ADR-0032). */
 function captionPx(transform: ViewportTransform, markup?: Markup): number {
   const size = markup ? captionFontOf(markup).size : MEASURE_CAPTION_PT;
@@ -878,11 +891,7 @@ export function getMarkupSvgDescriptor(
       const children: SvgRenderDescriptor[] = [
         {
           tag: 'rect',
-          attrs: { x: L.outer.x, y: L.outer.y, width: L.outer.w, height: L.outer.h, rx: L.outer.h * 0.12, fill: '#ffffff', fillOpacity: 0.85, stroke: color, strokeWidth: L.outerStroke, opacity },
-        },
-        {
-          tag: 'rect',
-          attrs: { x: L.inner.x, y: L.inner.y, width: L.inner.w, height: L.inner.h, rx: L.inner.h * 0.1, fill: 'none', stroke: color, strokeWidth: L.innerStroke, opacity },
+          attrs: { x: L.outer.x, y: L.outer.y, width: L.outer.w, height: L.outer.h, rx: L.radius, ry: L.radius, fill: 'none', stroke: color, strokeWidth: L.outerStroke, opacity },
         },
         {
           tag: 'text',
@@ -893,7 +902,7 @@ export function getMarkupSvgDescriptor(
       if (L.subBaseline && sub) {
         children.push({
           tag: 'text',
-          attrs: { x: L.subBaseline.x, y: L.subBaseline.y, fontSize: L.subSize, fontFamily: 'Helvetica, Arial, sans-serif', textAnchor: 'middle', fill: color, opacity },
+          attrs: { x: L.subBaseline.x, y: L.subBaseline.y, fontSize: L.subSize, fontFamily: 'Helvetica, Arial, sans-serif', fontStyle: 'italic', textAnchor: 'middle', fill: color, opacity },
           textNode: sub,
         });
       }
@@ -1260,8 +1269,9 @@ export function getMarkupSvgDescriptor(
         },
       });
 
-      // 3. Texto de la llamada (capa superior dentro de la caja, multilínea unificada)
-      const fontSize = style.fontSize || 12;
+      // 3. Texto de la llamada (capa superior dentro de la caja, multilínea unificada) con su tipografía (ADR-0040)
+      const calloutFont = markupFontOf(markup, 12, BOX_TEXT_COLOR);
+      const fontSize = calloutFont.size;
       const lineHeight = fontSize + 3;
       const maxTextWidth = Math.max(CALLOUT_MIN_BOX_WIDTH - 16, geom.box.width - 16);
       const calloutLines = wrapCalloutText(markup.text || '', maxTextWidth, fontSize);
@@ -1273,9 +1283,8 @@ export function getMarkupSvgDescriptor(
             x: geom.box.x + 6,
             y: geom.box.y + 16 + i * lineHeight,
             fontSize,
-            fill: '#1f2937',
-            fontFamily: style.fontFamily || 'sans-serif',
-            className: 'font-medium pointer-events-none',
+            ...fontAttrs(calloutFont),
+            className: 'pointer-events-none',
           },
           textNode: calloutLines[i],
         });
@@ -1315,10 +1324,9 @@ export function getMarkupSvgDescriptor(
             attrs: {
               x: rect.x + 6,
               y: rect.y + 16,
-              fontSize: style.fontSize || 12,
-              fill: '#1f2937',
-              fontFamily: style.fontFamily || 'sans-serif',
-              className: 'font-medium pointer-events-none',
+              fontSize: markupFontOf(markup, 12, BOX_TEXT_COLOR).size,
+              ...fontAttrs(markupFontOf(markup, 12, BOX_TEXT_COLOR)),
+              className: 'pointer-events-none',
             },
             textNode: markup.text || 'Note',
           },

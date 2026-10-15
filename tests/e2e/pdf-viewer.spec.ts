@@ -2252,4 +2252,46 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(page.locator('[data-testid="overlay-bar"]')).toHaveCount(0);
     await expect(page.locator('[data-testid="overlay-canvas"]')).toHaveCount(0);
   });
+  test('Nube de forma libre, tiradores de Revu y fuente en la barra de propiedades (ADR-0039/0040)', async ({ page }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
+    const box = (await overlaySvg.boundingBox())!;
+    const at = (nx: number, ny: number) => ({ x: box.x + box.width * nx, y: box.y + box.height * ny });
+
+    // Nube de forma libre: clic en cada vértice y Enter
+    await page.locator('header').click();
+    await page.keyboard.press('c');
+    for (const [nx, ny] of [
+      [0.6, 0.15],
+      [0.85, 0.18],
+      [0.9, 0.4],
+      [0.62, 0.36],
+    ]) {
+      const p = at(nx, ny);
+      await page.mouse.click(p.x, p.y);
+    }
+    await page.keyboard.press('Enter');
+    const row = page.locator('[data-testid="markups-list-panel"] tbody tr').filter({ hasText: 'Cloud' });
+    await expect(row).toHaveCount(1);
+
+    // Seleccionarla: tiradores de vértice, de esquina y de rotación
+    await page.keyboard.press('v');
+    await row.click();
+    await expect(overlaySvg.locator('[data-testid^="control-point-"]')).toHaveCount(4);
+    await expect(overlaySvg.locator('[data-testid^="scale-handle-"]')).toHaveCount(4);
+    const rot = (await overlaySvg.locator('[data-testid="rotate-handle"]').boundingBox())!;
+    const before = await overlaySvg.locator('[data-testid="control-point-0"]').boundingBox();
+    await page.mouse.move(rot.x + rot.width / 2, rot.y + rot.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(rot.x + 80, rot.y + 40, { steps: 6 });
+    await page.mouse.up();
+    const after = await overlaySvg.locator('[data-testid="control-point-0"]').boundingBox();
+    expect(Math.abs(after!.x - before!.x) + Math.abs(after!.y - before!.y)).toBeGreaterThan(5); // giró
+
+    // Barra de propiedades: con la nube seleccionada, edita la selección
+    await expect(page.locator('[data-testid="ribbon-group-style"]')).toContainText('1 selected');
+    await expect(page.locator('[data-testid="ribbon-font-bold"]')).toBeEnabled();
+  });
 });

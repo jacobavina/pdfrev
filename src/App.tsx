@@ -8,6 +8,7 @@ import { StatusBar } from './components/shell/StatusBar';
 import { ToastHost } from './components/shell/ToastHost';
 import { useDocumentStore } from './store/useDocumentStore';
 import { useMarkupStore } from './store/useMarkupStore';
+import { watchSelectionPanels } from './services/selectionPanelService';
 import { useSearchStore } from './store/useSearchStore';
 import { useUiStore } from './store/useUiStore';
 import { useOverlayStore } from './store/useOverlayStore';
@@ -64,6 +65,9 @@ export const App: React.FC = () => {
   const viewerHostRef = useRef<HTMLDivElement>(null);
   const { addMarkup } = useMarkupStore();
   const { saveNow } = useAutoSave();
+
+  // Al seleccionar marcas se abre su panel: Measure o Properties (ADR-0043)
+  useEffect(() => watchSelectionPanels(), []);
 
   // Atajos globales: Ctrl+S (guardar), Ctrl+Shift+S (guardar como), Ctrl+O (abrir), Ctrl+F (buscar), F1 (atajos)
   useEffect(() => {

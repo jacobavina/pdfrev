@@ -45,6 +45,15 @@ function readStoredSnap(): SnapSettings {
 const THEME_STORAGE_KEY = 'rea-theme';
 const VIEW_MODE_STORAGE_KEY = 'rea-view-mode';
 const RULERS_STORAGE_KEY = 'rea-rulers';
+const AUTO_PANELS_STORAGE_KEY = 'rea-auto-panels';
+
+export function readStoredAutoPanels(): boolean {
+  try {
+    return localStorage.getItem(AUTO_PANELS_STORAGE_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
 
 export function readStoredRulers(): boolean {
   try {
@@ -136,6 +145,8 @@ interface UiState {
   showMeasureLabels: boolean;
   /** Reglas superior e izquierda en las unidades de la escala (View ▸ Rulers, Ctrl+R; ADR-0029). */
   showRulers: boolean;
+  /** Abrir solo el panel de la marca seleccionada: Properties o Measure (View ▸ Open Panel on Selection, ADR-0043). */
+  autoOpenPanels: boolean;
 
   setTheme: (theme: Theme) => void;
   /** Olvida la elección del usuario y vuelve a seguir el tema del sistema. */
@@ -155,6 +166,7 @@ interface UiState {
   setSnap: (update: Partial<SnapSettings>) => void;
   setShowMeasureLabels: (show: boolean) => void;
   setShowRulers: (show: boolean) => void;
+  setAutoOpenPanels: (on: boolean) => void;
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
@@ -173,6 +185,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   snap: readStoredSnap(),
   showMeasureLabels: true,
   showRulers: readStoredRulers(),
+  autoOpenPanels: readStoredAutoPanels(),
 
   setTheme: (theme) => {
     applyTheme(theme);
@@ -235,5 +248,13 @@ export const useUiStore = create<UiState>((set, get) => ({
       // Preferencia no persistible: se aplica solo en esta sesión
     }
     set({ showRulers });
+  },
+  setAutoOpenPanels: (autoOpenPanels) => {
+    try {
+      localStorage.setItem(AUTO_PANELS_STORAGE_KEY, autoOpenPanels ? '1' : '0');
+    } catch {
+      // Preferencia no persistible: se aplica solo en esta sesión
+    }
+    set({ autoOpenPanels });
   },
 }));

@@ -1,6 +1,14 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
+  // Estas pruebas hacen clic por coordenadas con el ancho del visor fijo: sin abrir paneles al seleccionar
+  // (ADR-0043). La apertura automática tiene su propia prueba, que la activa desde View.
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      if (!localStorage.getItem('rea-auto-panels')) localStorage.setItem('rea-auto-panels', '0');
+    });
+  });
+
   test('Verifica que el PDF renderiza pixels reales en el canvas y no solo carga', async ({
     page,
   }) => {
@@ -2381,5 +2389,42 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     expect(t1.x - t0.x).toBeGreaterThan(40);
     const tip1 = (await tipHandle.boundingBox())!;
     expect(Math.abs(tip1.x - tip0.x) + Math.abs(tip1.y - tip0.y)).toBeLessThan(1);
+  });
+
+  test('Al seleccionar una marca se abre su panel de propiedades, y se puede apagar en View (ADR-0043)', async ({ page }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    const props = page.locator('[data-testid="properties-inspector-panel"]');
+    await expect(props).toHaveAttribute('data-collapsed', 'true');
+    // Clic en una zona vacía del plano con la herramienta de selección: nada seleccionado
+    const deselect = async () => {
+      await page.locator('header').click();
+      await page.keyboard.press('v');
+      const box = (await overlaySvg.boundingBox())!;
+      await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.06);
+      await expect(page.locator('[data-testid="markup-g-calibration-markup-1"] [data-testid="selection-bbox"]')).toHaveCount(0);
+    };
+
+    // Activar View ▸ Open Panel on Selection
+    await page.locator('[data-testid="menu-ver"]').click();
+    await page.locator('[data-testid="menu-view-auto-panels"]').click();
+
+    // Seleccionar el rectángulo de control: se abre Properties sin pedirlo
+    await deselect();
+    // Clic en la columna Type de la fila (el centro cae en el desplegable de estado)
+    await page.locator('[data-testid="markup-row-calibration-markup-1"]').click({ position: { x: 70, y: 12 } });
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"] [data-testid="selection-bbox"]')).toHaveCount(1);
+    await expect(props).not.toHaveAttribute('data-collapsed', 'true');
+
+    // Apagado: plegar el panel y volver a seleccionar no lo abre
+    await page.locator('[data-testid="menu-ver"]').click();
+    await page.locator('[data-testid="menu-view-auto-panels"]').click();
+    await page.locator('[data-testid="collapse-properties-btn"]').click();
+    await expect(props).toHaveAttribute('data-collapsed', 'true');
+    await deselect();
+    await page.locator('[data-testid="markup-row-calibration-markup-1"]').click({ position: { x: 70, y: 12 } });
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"] [data-testid="selection-bbox"]')).toHaveCount(1);
+    await expect(props).toHaveAttribute('data-collapsed', 'true');
   });
 });

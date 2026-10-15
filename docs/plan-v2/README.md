@@ -195,4 +195,5 @@ plan y `AGENTS.md`, **gana `AGENTS.md`**.
 | 2026-10-15 | Claude (Opus 5.5) | ADR-0039/0040: nube de forma libre, tiradores de Revu, barra de propiedades con fuentes y sellos estilo Revu. |
 | 2026-10-15 | Claude (Opus 5.5) | ADR-0041: nube como la de Revu, tipos de línea con patrón (Dashed 1-6, Fenceline, Gas, Hot Water, Zig Zag, Insulation, Double, Tracks, Road) y Size/Invert de la nube en la barra. |
 | 2026-10-15 | Claude (Opus 5.5) | ADR-0042: callout como el de Revu y Foxit (punta fija al mover la caja, codo, flecha abierta, tiradores y /FreeTextCallout en el PDF). |
+| 2026-10-15 | Claude (Opus 5.5) | ADR-0043: al seleccionar una marca se abre su panel (Properties o Measure); interruptor en View. |
 

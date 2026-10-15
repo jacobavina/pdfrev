@@ -122,6 +122,8 @@ export const MenuBar: React.FC = () => {
     requestFit,
     showRulers,
     setShowRulers,
+    autoOpenPanels,
+    setAutoOpenPanels,
   } = useUiStore();
   const { saveNow } = useAutoSave(0);
 
@@ -242,6 +244,13 @@ export const MenuBar: React.FC = () => {
         { icon: <Layers size={15} />, label: 'Layers Panel', onSelect: () => setLeftTab('layers') },
         { icon: <SlidersHorizontal size={15} />, label: 'Properties Panel', onSelect: requestPropertiesPanel },
         { icon: <Ruler size={15} />, label: 'Measurements Panel', onSelect: requestMeasurementsPanel },
+        {
+          icon: <SlidersHorizontal size={15} />,
+          label: 'Open Panel on Selection',
+          checked: autoOpenPanels,
+          onSelect: () => setAutoOpenPanels(!autoOpenPanels),
+          testId: 'menu-view-auto-panels',
+        },
         'separator',
         {
           icon: <Contrast size={15} />,

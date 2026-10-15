@@ -1,17 +1,12 @@
 import React from 'react';
-import { FolderOpen, Save, SaveAll, Download, Undo2, Redo2, Stamp as StampIcon, Link2, Paperclip } from 'lucide-react';
-import { saveDocumentAs } from '../../services/documentSaveService';
+import { Stamp as StampIcon, Link2, Paperclip } from 'lucide-react';
 import { STAMPS, stampById } from '../../core/markup/stamps';
 import { FIELD_TYPES, fieldTypeDef } from '../../core/markup/formFields';
 import { fieldTypeIcon } from './fieldIcons';
 import { useDocumentStore } from '../../store/useDocumentStore';
-import { useMarkupStore } from '../../store/useMarkupStore';
 import { useToolStore } from '../../store/useToolStore';
-import { openPdfDialog } from '../../services/fileDialogService';
 import { showToast } from '../../services/toastService';
-import { useAutoSave } from '../../hooks/useAutoSave';
 import { TOOL_GROUPS, TEXT_LAYER_TOOLS, STROKE_COLORS, ToolDefinition } from './toolDefinitions';
-import { exportFlattenedPdf } from './appActions';
 import { dashArrayFor, lineStyleOf } from '../../core/markup/lineStyles';
 import {
   IconPicker,
@@ -26,6 +21,12 @@ import {
 import { translucentFill } from '../../core/markup/typeLabels';
 
 const STROKE_WIDTHS = [0.5, 1, 1.5, 2, 3, 5, 8];
+
+/** Estilo de un botón de herramienta: activo con el acento en suave y un borde fino (ADR-0034). */
+const TOOL_BUTTON = (active: boolean) =>
+  active
+    ? 'bg-cad-accent/15 text-cad-accent ring-1 ring-inset ring-cad-accent/50'
+    : 'text-gray-300 hover:text-cad-strong hover:bg-cad-hover';
 const OPACITIES = [1, 0.75, 0.5, 0.25];
 
 /** Grupo de la cinta: contenido arriba y rótulo abajo, separado por una línea vertical. */
@@ -34,35 +35,14 @@ const RibbonGroup: React.FC<{ label: string; children: React.ReactNode; testId?:
   children,
   testId,
 }) => (
-  <div data-testid={testId} className="flex flex-col items-stretch px-2 border-r border-cad-border shrink-0">
+  <div data-testid={testId} className="relative flex flex-col items-stretch px-3 shrink-0">
     <div className="flex-1 flex items-center">{children}</div>
-    <div className="text-[10px] text-gray-500 text-center leading-none pb-1 pt-0.5 whitespace-nowrap">{label}</div>
+    <div className="text-[9.5px] uppercase tracking-[0.08em] font-medium text-gray-500 text-center leading-none pb-1 pt-0.5 whitespace-nowrap">
+      {label}
+    </div>
+    {/* Separador suave entre grupos */}
+    <span className="absolute right-0 top-2 bottom-2 w-px bg-cad-border/70" aria-hidden="true" />
   </div>
-);
-
-/** Botón grande con icono y texto (acciones de archivo). */
-const LargeButton: React.FC<{
-  icon: React.ReactNode;
-  label: string;
-  title: string;
-  onClick: () => void;
-  disabled?: boolean;
-  testId?: string;
-  highlight?: boolean;
-}> = ({ icon, label, title, onClick, disabled, testId, highlight }) => (
-  <button
-    type="button"
-    data-testid={testId}
-    onClick={onClick}
-    disabled={disabled}
-    title={title}
-    className={`flex flex-col items-center justify-center w-[58px] h-[46px] rounded gap-0.5 text-[11px] transition-colors disabled:opacity-40 ${
-      highlight ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/50' : 'text-gray-200 hover:bg-cad-hover'
-    }`}
-  >
-    {icon}
-    <span className="leading-none">{label}</span>
-  </button>
 );
 
 /**
@@ -71,8 +51,7 @@ const LargeButton: React.FC<{
  * sin ensanchar el diseño (ver test E2E de regresión de desborde).
  */
 export const Ribbon: React.FC = () => {
-  const { filePath, pdfBytes, pageHasText, currentPageIndex } = useDocumentStore();
-  const { canUndo, canRedo, undo, redo, isDirty } = useMarkupStore();
+  const { pdfBytes, pageHasText, currentPageIndex } = useDocumentStore();
   const {
     activeTool,
     setActiveTool,
@@ -83,7 +62,6 @@ export const Ribbon: React.FC = () => {
     activeFieldType,
     setActiveFieldType,
   } = useToolStore();
-  const { saveNow } = useAutoSave(0);
 
   const lineStyle = lineStyleOf(currentStyle.dashArray);
   const hasFill = Boolean(currentStyle.fillColor && currentStyle.fillColor !== 'transparent');
@@ -101,70 +79,8 @@ export const Ribbon: React.FC = () => {
   return (
     <div
       data-testid="ribbon"
-      className="h-[66px] min-w-0 bg-cad-ribbon border-b border-cad-border flex items-stretch overflow-x-auto overflow-y-hidden select-none z-20"
+      className="h-[70px] min-w-0 bg-cad-ribbon border-b border-cad-border flex items-stretch overflow-x-auto overflow-y-hidden thin-scroll select-none z-20 px-1 shadow-[inset_0_-1px_0_rgba(0,0,0,0.04)]"
     >
-      <RibbonGroup label="File">
-        <LargeButton
-          icon={<FolderOpen size={20} className="text-cad-accent" />}
-          label="Open"
-          title="Open a PDF file from disk"
-          onClick={openPdfDialog}
-        />
-        <LargeButton
-          testId="save-button"
-          icon={<Save size={20} />}
-          label="Save"
-          title={
-            !filePath
-              ? 'Save the document as a PDF with its markups (Ctrl+S / Ctrl+Shift+S)'
-              : isDirty
-              ? 'Save markups to the PDF (Ctrl+S). Autosave every 30 s only writes the .bbx.json recovery copy'
-              : 'Save (no pending changes) · Save As: Ctrl+Shift+S'
-          }
-          onClick={() => saveNow()}
-          disabled={!pdfBytes}
-          highlight={isDirty}
-        />
-        <LargeButton
-          testId="save-as-button"
-          icon={<SaveAll size={20} />}
-          label="Save As"
-          title="Save a copy of the document with its markups as a new PDF (Ctrl+Shift+S)"
-          onClick={() => void saveDocumentAs()}
-          disabled={!pdfBytes}
-        />
-        <LargeButton
-          icon={<Download size={20} className="text-emerald-600 dark:text-emerald-400" />}
-          label="Export"
-          title="Export a vector PDF with flattened markups"
-          onClick={exportFlattenedPdf}
-          disabled={!pdfBytes}
-        />
-      </RibbonGroup>
-
-      <RibbonGroup label="History">
-        <div className="flex flex-col gap-0.5">
-          <button
-            type="button"
-            onClick={undo}
-            disabled={!canUndo}
-            title="Undo (Ctrl+Z)"
-            className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] text-gray-200 hover:bg-cad-hover disabled:opacity-35"
-          >
-            <Undo2 size={15} /> Undo
-          </button>
-          <button
-            type="button"
-            onClick={redo}
-            disabled={!canRedo}
-            title="Redo (Ctrl+Y)"
-            className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] text-gray-200 hover:bg-cad-hover disabled:opacity-35"
-          >
-            <Redo2 size={15} /> Redo
-          </button>
-        </div>
-      </RibbonGroup>
-
       {TOOL_GROUPS.map((group) => (
         <RibbonGroup key={group.id} label={group.label} testId={`ribbon-group-${group.id}`}>
           <div className="grid grid-rows-2 grid-flow-col gap-0.5">
@@ -178,11 +94,7 @@ export const Ribbon: React.FC = () => {
                   onClick={() => selectTool(tool)}
                   title={tool.label}
                   aria-pressed={isActive}
-                  className={`w-[26px] h-[24px] rounded flex items-center justify-center transition-colors shrink-0 ${
-                    isActive
-                      ? 'bg-cad-accent text-white shadow-sm'
-                      : 'text-gray-300 hover:text-cad-strong hover:bg-cad-hover'
-                  }`}
+                  className={`w-[30px] h-[26px] rounded-md flex items-center justify-center transition-colors shrink-0 ${TOOL_BUTTON(isActive)}`}
                 >
                   {tool.icon}
                 </button>
@@ -201,9 +113,7 @@ export const Ribbon: React.FC = () => {
             disabled={!pdfBytes}
             onClick={() => setActiveTool('stamp')}
             title={`Stamp: ${stampById(activeStampId).label} (click on the drawing to place it, drag to size it)`}
-            className={`h-[24px] px-1.5 rounded flex items-center gap-1 transition-colors disabled:opacity-40 ${
-              activeTool === 'stamp' ? 'bg-cad-accent text-white' : 'text-gray-300 hover:text-cad-strong hover:bg-cad-hover'
-            }`}
+            className={`h-[26px] px-2 rounded-md flex items-center gap-1 transition-colors disabled:opacity-40 ${TOOL_BUTTON(activeTool === 'stamp')}`}
           >
             <StampIcon size={16} />
           </button>
@@ -239,9 +149,7 @@ export const Ribbon: React.FC = () => {
                 disabled={!pdfBytes}
                 onClick={() => setActiveTool(tool)}
                 title={title}
-                className={`w-[26px] h-[24px] rounded flex items-center justify-center transition-colors disabled:opacity-40 ${
-                  activeTool === tool ? 'bg-cad-accent text-white' : 'text-gray-300 hover:text-cad-strong hover:bg-cad-hover'
-                }`}
+                className={`w-[30px] h-[26px] rounded-md flex items-center justify-center transition-colors disabled:opacity-40 ${TOOL_BUTTON(activeTool === tool)}`}
               >
                 {icon}
               </button>
@@ -253,9 +161,7 @@ export const Ribbon: React.FC = () => {
               disabled={!pdfBytes}
               onClick={() => setActiveTool('formField')}
               title={`Form field: ${fieldTypeDef(activeFieldType).label}`}
-              className={`w-[26px] h-[24px] rounded flex items-center justify-center transition-colors disabled:opacity-40 ${
-                activeTool === 'formField' ? 'bg-cad-accent text-white' : 'text-gray-300 hover:text-cad-strong hover:bg-cad-hover'
-              }`}
+              className={`w-[30px] h-[26px] rounded-md flex items-center justify-center transition-colors disabled:opacity-40 ${TOOL_BUTTON(activeTool === 'formField')}`}
             >
               {fieldTypeIcon(activeFieldType, 16)}
             </button>

@@ -2166,7 +2166,9 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.mouse.click(b.x, b.y);
     const length = overlaySvg.locator('g[data-testid^="markup-length-"]');
     await expect(length).toHaveCount(1);
-    await expect(length.locator('line')).toHaveCount(2);
+    // Dos tramos y las dos guías de los extremos (ADR-0034)
+    await expect(length.locator('line:not([data-testid="distance-leader"])')).toHaveCount(2);
+    await expect(length.locator('[data-testid="distance-leader"]')).toHaveCount(2);
     await expect(length.locator('polygon')).toHaveCount(2);
     await expect(length.locator('rect')).toHaveCount(0);
     await expect(length.locator('text')).toHaveAttribute('fill', '#000000');
@@ -2179,7 +2181,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(page.locator('[data-testid="markups-list-panel"] tbody tr').filter({ hasText: 'Length' })).toHaveCount(1);
     await page.locator('[data-testid="expand-measurements-btn"]').click();
     await page.locator('[data-testid="measure-caption"]').selectOption('top');
-    await expect(length.locator('line')).toHaveCount(1);
+    await expect(length.locator('line:not([data-testid="distance-leader"])')).toHaveCount(1);
   });
   test('Distancia de Acrobat con líneas de referencia (ADR-0033): tercer clic, flechas cerradas angostas', async ({ page }) => {
     await page.goto('/');

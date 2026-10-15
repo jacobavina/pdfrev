@@ -11,8 +11,8 @@ import { dimensionGeometry } from './dimension';
 
 export type CaptionStyle = 'inline' | 'top';
 
-/** Tamaño del texto en pt de página. */
-export const MEASURE_CAPTION_PT = 10;
+/** Tamaño del texto en pt de página: 8 pt guarda la proporción texto/flecha de Acrobat (ADR-0034). */
+export const MEASURE_CAPTION_PT = 8;
 /** Color del texto (Acrobat lo escribe en negro). */
 export const MEASURE_CAPTION_COLOR = '#000000';
 
@@ -117,15 +117,33 @@ export function measureLineEndings(style: Markup['style']): Markup['style'] {
 /** Lo que las líneas de referencia sobresalen más allá de la línea de medida, en pt (/LLE de Acrobat). */
 export const MEASURE_LEADER_EXTENSION_PT = 5;
 
+/** Media longitud de las guías de los extremos de una distancia sin desplazamiento, en pt (ADR-0034). */
+export const MEASURE_END_TICK_PT = 6;
+
 /**
  * Distancia de Acrobat (ADR-0033): con un tercer punto, la línea de medida se desplaza en paralelo y unas líneas de
  * referencia la unen a los puntos medidos (sobresalen `extension`). Sin él, la línea va de punto a punto.
  * Unidades libres (pt o px), espacio visual con y hacia abajo.
  */
-export function distanceGeometry(points: Pt[], extension: number): { a: Pt; b: Pt; leaders: [Pt, Pt][] } | null {
+export function distanceGeometry(
+  points: Pt[],
+  extension: number,
+  /** Sin tercer punto: media longitud de las guías perpendiculares de cada extremo (0 = sin guías). */
+  endTick = 0
+): { a: Pt; b: Pt; leaders: [Pt, Pt][] } | null {
   if (points.length < 2) return null;
   const [p1, p2, p3] = points;
-  if (!p3) return { a: p1, b: p2, leaders: [] };
+  if (!p3) {
+    // Guías de los extremos (ADR-0034): marcas perpendiculares centradas en cada punta, como Acrobat
+    const len = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    if (!(endTick > 0) || !(len > 0)) return { a: p1, b: p2, leaders: [] };
+    const n = { x: -(p2.y - p1.y) / len, y: (p2.x - p1.x) / len };
+    const tick = (p: Pt): [Pt, Pt] => [
+      { x: p.x - n.x * endTick, y: p.y - n.y * endTick },
+      { x: p.x + n.x * endTick, y: p.y + n.y * endTick },
+    ];
+    return { a: p1, b: p2, leaders: [tick(p1), tick(p2)] };
+  }
   const g = dimensionGeometry(p1, p2, p3, { gap: 0, overshoot: extension });
   if (!g) return { a: p1, b: p2, leaders: [] };
   return { a: g.dimStart, b: g.dimEnd, leaders: g.extensions };

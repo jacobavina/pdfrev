@@ -60,6 +60,7 @@ import { useMarkupStore } from '../../store/useMarkupStore';
 import { useToolStore, ToolType } from '../../store/useToolStore';
 import { useSearchStore } from '../../store/useSearchStore';
 import { useUiStore } from '../../store/useUiStore';
+import { QuickAccessToolbar } from './QuickAccessToolbar';
 import { useCalibrationStore } from '../../store/useCalibrationStore';
 import { openPdfDialog } from '../../services/fileDialogService';
 import { useAutoSave } from '../../hooks/useAutoSave';
@@ -368,8 +369,8 @@ export const MenuBar: React.FC = () => {
       ref={barRef as React.RefObject<HTMLElement>}
       className="h-8 min-w-0 bg-cad-panel border-b border-cad-border flex items-center px-2 text-[13px] text-gray-200 select-none z-30 relative"
     >
-      <div className="flex items-center gap-1.5 pr-3 mr-1 border-r border-cad-border shrink-0">
-        <span className="w-5 h-5 rounded-sm bg-cad-accent text-white text-[10px] font-bold flex items-center justify-center">
+      <div className="flex items-center gap-2 pr-3 mr-1 border-r border-cad-border shrink-0">
+        <span className="w-[22px] h-[22px] rounded-md bg-gradient-to-br from-cad-accent to-sky-400 text-white text-[11px] font-bold flex items-center justify-center shadow-sm">
           R
         </span>
         <span className="font-semibold text-cad-strong tracking-wide">REA</span>
@@ -386,7 +387,7 @@ export const MenuBar: React.FC = () => {
               data-testid={`menu-${menu.id}`}
               onClick={() => setOpenMenu(openMenu === menu.id ? null : menu.id)}
               onMouseEnter={() => openMenu && setOpenMenu(menu.id)}
-              className={`px-2.5 py-1 rounded-sm transition-colors ${
+              className={`px-2.5 py-1 rounded-md transition-colors ${
                 openMenu === menu.id ? 'bg-cad-accent text-white' : 'hover:bg-cad-hover text-gray-200'
               }`}
             >
@@ -499,6 +500,8 @@ export const MenuBar: React.FC = () => {
           </div>
         ))}
       </nav>
+
+      <QuickAccessToolbar />
 
       {/* Centro: título del documento (zona neutra) */}
       <div className="flex-1 min-w-0 flex items-center justify-center gap-1.5 text-gray-400 text-xs px-3">

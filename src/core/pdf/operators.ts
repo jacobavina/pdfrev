@@ -27,6 +27,7 @@ import {
   verticesCenter,
   distanceGeometry,
   MEASURE_LEADER_EXTENSION_PT,
+  MEASURE_END_TICK_PT,
 } from '../markup/measureCaption';
 
 /** Nombre del recurso de fuente que usan los /AP con texto (Helvetica estándar, WinAnsiEncoding). */
@@ -470,7 +471,7 @@ export function emitMarkupOperators(
     case 'length': {
       // Distancia de Acrobat (ADR-0032): la línea se interrumpe donde va el valor, con flechas abiertas
       if (markup.points.length < 2) break;
-      const geom = distanceGeometry(markup.points.map(toVis), MEASURE_LEADER_EXTENSION_PT)!;
+      const geom = distanceGeometry(markup.points.map(toVis), MEASURE_LEADER_EXTENSION_PT, MEASURE_END_TICK_PT)!;
       const { a, b } = geom;
       const ends = measureLineEndings(markup.style);
       // Líneas de referencia (Acrobat, ADR-0033): continuas aunque la medida sea discontinua

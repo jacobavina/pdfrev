@@ -92,7 +92,9 @@ describe('Texto de medición al estilo de Acrobat (ADR-0032)', () => {
       measurement: { value: 10.6, unit: 'm', formatted: '10.6 m' },
     });
     const nodes = flatten(getMarkupSvgDescriptor(len, screen()));
-    expect(nodes.filter((n) => n.tag === 'line')).toHaveLength(2);
+    // Dos tramos de la línea + las dos guías de los extremos (ADR-0034)
+    expect(nodes.filter((n) => n.tag === 'line')).toHaveLength(4);
+    expect(nodes.filter((n) => n.attrs['data-testid'] === 'distance-leader')).toHaveLength(2);
     expect(nodes.filter((n) => n.tag === 'polygon')).toHaveLength(2); // dos flechas cerradas (ADR-0033)
     expect(nodes.filter((n) => n.tag === 'rect')).toHaveLength(0);
     const text = nodes.find((n) => n.tag === 'text')!;
@@ -101,7 +103,7 @@ describe('Texto de medición al estilo de Acrobat (ADR-0032)', () => {
     expect(text.attrs.fontSize).toBe(MEASURE_CAPTION_PT);
     // "On Top": una sola línea y el texto encima; el tamaño del texto sigue al zoom
     const top = flatten(getMarkupSvgDescriptor({ ...len, customFields: { captionStyle: 'top' } }, screen(2)));
-    expect(top.filter((n) => n.tag === 'line')).toHaveLength(1);
+    expect(top.filter((n) => n.tag === 'line')).toHaveLength(1 + 2);
     expect(top.find((n) => n.tag === 'text')!.attrs.fontSize).toBe(MEASURE_CAPTION_PT * 2);
   });
 
@@ -122,7 +124,7 @@ describe('Texto de medición al estilo de Acrobat (ADR-0032)', () => {
       measurement: { value: 10.6, unit: 'm', formatted: '10.6 m' },
     });
     const ops = emitMarkupOperators(len, pdfT).operators.split('\n');
-    expect(ops.filter((l) => l === 'S').length).toBe(2); // dos tramos
+    expect(ops.filter((l) => l === 'S').length).toBe(2 + 2); // dos tramos + dos guías de los extremos (ADR-0034)
     expect(ops.filter((l) => l === 'b').length).toBe(2); // dos flechas cerradas y rellenas (ADR-0033)
     expect(ops).toContain('(10.6 m) Tj');
     expect(ops).toContain('0.000 0.000 0.000 rg');

@@ -22,6 +22,7 @@ import {
   measureLineEndings,
   distanceGeometry,
   MEASURE_LEADER_EXTENSION_PT,
+  MEASURE_END_TICK_PT,
 } from './measureCaption';
 export { measureLabelText, measureLineEndings } from './measureCaption';
 import { dimensionGeometry, dimensionTextBaseline, defaultDimensionLinePoint } from './dimension';
@@ -1027,7 +1028,8 @@ export function getMarkupSvgDescriptor(
       const inset = lineEndingSize(style.strokeWidth || 1) * pxPerPt;
       const geom = distanceGeometry(
         markup.points.map((p) => normalizedToScreen(p, transform)),
-        MEASURE_LEADER_EXTENSION_PT * pxPerPt
+        MEASURE_LEADER_EXTENSION_PT * pxPerPt,
+        MEASURE_END_TICK_PT * pxPerPt
       ) ?? { a: p1Screen, b: p2Screen, leaders: [] };
       const layout =
         !transform.hideMeasureLabels && label

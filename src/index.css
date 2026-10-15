@@ -5,16 +5,17 @@
 @layer base {
   /* Tema claro (por defecto): espacio de trabajo técnico neutro, lienzo gris medio y hoja blanca (ADR-0017) */
   :root {
-    --cad-dark: 226 229 233;
-    --cad-panel: 243 244 246;
-    --cad-subtle: 233 235 239;
-    --cad-border: 200 205 212;
-    --cad-accent: 0 102 204;
-    --cad-hover: 220 226 233;
-    --cad-canvas: 128 134 142;
-    --cad-strong: 17 20 24;
-    --cad-ribbon: 250 250 251;
-    --cad-status: 232 235 239;
+    /* Paleta afinada (ADR-0034): zonas con contraste suave, bordes discretos y acento azul más limpio */
+    --cad-dark: 231 234 239;
+    --cad-panel: 246 247 249;
+    --cad-subtle: 237 239 243;
+    --cad-border: 214 218 225;
+    --cad-accent: 37 99 235;
+    --cad-hover: 229 234 242;
+    --cad-canvas: 142 148 157;
+    --cad-strong: 15 18 24;
+    --cad-ribbon: 252 252 253;
+    --cad-status: 238 240 244;
 
     /* Escala gray invertida: el "texto claro" de los componentes pasa a texto oscuro legible */
     --gray-50: 10 12 15;
@@ -32,16 +33,17 @@
 
   /* Tema oscuro: paleta original de REA */
   [data-theme='dark'] {
-    --cad-dark: 30 32 36;
-    --cad-panel: 40 44 52;
-    --cad-subtle: 50 54 62;
-    --cad-border: 60 64 72;
-    --cad-accent: 0 122 204;
-    --cad-hover: 58 63 75;
-    --cad-canvas: 22 24 27;
+    /* Grafito con un toque azul (ADR-0034): paneles un escalón sobre el fondo y lienzo más profundo */
+    --cad-dark: 26 28 33;
+    --cad-panel: 33 36 42;
+    --cad-subtle: 44 48 56;
+    --cad-border: 52 57 66;
+    --cad-accent: 64 140 255;
+    --cad-hover: 50 55 65;
+    --cad-canvas: 18 20 24;
     --cad-strong: 255 255 255;
-    --cad-ribbon: 36 39 46;
-    --cad-status: 30 32 36;
+    --cad-ribbon: 38 41 48;
+    --cad-status: 28 30 36;
 
     --gray-50: 249 250 251;
     --gray-100: 243 244 246;
@@ -70,8 +72,8 @@
 
 /* Barras de desplazamiento acordes al tema */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
 }
 
 ::-webkit-scrollbar-track {
@@ -120,3 +122,12 @@
   color: transparent;
 }
 
+
+/* Desplazamiento horizontal de la cinta (ADR-0034): barra fina que no tapa los rótulos de los grupos */
+.thin-scroll::-webkit-scrollbar {
+  height: 3px;
+}
+.thin-scroll::-webkit-scrollbar-thumb {
+  border: 0;
+  border-radius: 2px;
+}

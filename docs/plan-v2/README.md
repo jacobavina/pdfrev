@@ -187,4 +187,5 @@ plan y `AGENTS.md`, **gana `AGENTS.md`**.
 | 2026-10-12 | Claude (Opus 5.5) | ADR-0031: snap al dibujo del PDF e intersecciones, medir con clic-clic y calibración por dos puntos con recálculo. |
 | 2026-10-14 | Claude (Opus 5.5) | ADR-0032: flechas y mediciones al estilo de Acrobat (puntas de 60°, flechas invertidas, valor dentro o encima de la línea y dentro del /AP). |
 | 2026-10-14 | Claude (Opus 5.5) | ADR-0033: distancia de Acrobat con líneas de referencia (tercer clic), flechas cerradas angostas y separador de miles. |
+| 2026-10-14 | Claude (Opus 5.5) | ADR-0034: barra de acceso rápido, cinta y paleta más limpias, guías en los extremos de las distancias y texto a 8 pt. |
 

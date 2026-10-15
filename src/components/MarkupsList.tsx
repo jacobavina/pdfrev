@@ -531,7 +531,8 @@ export const MarkupsList: React.FC = () => {
     <section
       data-testid="markups-list-panel"
       className="bg-cad-panel border-t border-cad-border flex flex-col select-none z-10 relative shrink-0"
-      style={{ height: isExpanded ? `${listHeight}px` : '32px' }}
+      // En ventanas bajas la lista no pasa del 38 % de la altura: el plano conserva el espacio (ADR-0034)
+      style={{ height: isExpanded ? `${listHeight}px` : '32px', maxHeight: isExpanded ? '38vh' : undefined }}
     >
       {/* Separador arrastrable para redimensionar la lista (ADR-0017) */}
       {isExpanded && (

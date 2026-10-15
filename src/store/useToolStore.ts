@@ -19,6 +19,8 @@ interface ToolState {
   activeFieldType: FieldType;
   /** Texto de las distancias nuevas: dentro de la línea o encima ("Caption Style" de Acrobat, ADR-0032). */
   measureCaption: CaptionStyle;
+  /** Distancia con líneas de referencia: tras el segundo clic, un tercero fija el desplazamiento (Acrobat, ADR-0033). */
+  measureLeaders: boolean;
   /** Profundidad por defecto de la herramienta Volume, en la unidad de la escala (ADR-0029). */
   volumeDepth: number;
 
@@ -32,6 +34,7 @@ interface ToolState {
   setActiveFieldType: (type: FieldType) => void;
   setVolumeDepth: (depth: number) => void;
   setMeasureCaption: (style: CaptionStyle) => void;
+  setMeasureLeaders: (on: boolean) => void;
 }
 
 export const useToolStore = create<ToolState>((set) => ({
@@ -49,6 +52,7 @@ export const useToolStore = create<ToolState>((set) => ({
   activeFieldType: 'text',
   volumeDepth: 1,
   measureCaption: 'inline',
+  measureLeaders: false,
 
   setActiveTool: (activeTool) => set({ activeTool }),
   setCurrentStyle: (styleUpdate) =>
@@ -61,5 +65,6 @@ export const useToolStore = create<ToolState>((set) => ({
   setActiveStampId: (activeStampId) => set({ activeStampId }),
   setActiveFieldType: (activeFieldType) => set({ activeFieldType }),
   setMeasureCaption: (measureCaption) => set({ measureCaption }),
+  setMeasureLeaders: (measureLeaders) => set({ measureLeaders }),
   setVolumeDepth: (volumeDepth) => set({ volumeDepth: Number.isFinite(volumeDepth) && volumeDepth > 0 ? volumeDepth : 1 }),
 }));

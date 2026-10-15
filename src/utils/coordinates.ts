@@ -226,7 +226,7 @@ export function getMarkupBounds(
   }
 
   // La línea de cota puede quedar fuera de los puntos acotados
-  if (markup.type === 'dimension') {
+  if (markup.type === 'dimension' || (markup.type === 'length' && markup.points.length >= 3)) {
     for (const [a, b] of dimensionSegmentsNormalized(markup.points, pageDimensions)) {
       for (const pt of [a, b]) {
         if (pt.x < minX) minX = pt.x;
@@ -664,7 +664,7 @@ export function hitTestMarkup(
   }
 
   // Cota: línea de cota y líneas de referencia (ADR-0020)
-  if (markup.type === 'dimension' && markup.points.length >= 2) {
+  if ((markup.type === 'dimension' && markup.points.length >= 2) || (markup.type === 'length' && markup.points.length >= 3)) {
     return dimensionSegmentsNormalized(markup.points, pageDimensions).some(
       ([a, b]) => distanceToSegment(point, a, b) <= tolerance
     );

@@ -31,14 +31,15 @@ const mk = (id: string, type: MarkupType, points: { x: number; y: number }[], ex
 const flatten = (d: SvgRenderDescriptor): SvgRenderDescriptor[] => [d, ...(d.children ?? []).flatMap(flatten)];
 
 describe('Flechas al estilo de Acrobat (ADR-0032)', () => {
-  it('punta de 60° (30° por lado) y 9 pt de largo con una línea de 1 pt', () => {
+  it('punta angosta de las mediciones de Acrobat (~20° por lado) y 9 pt de largo con una línea de 1 pt', () => {
     const s = lineEndingShape({ x: 0, y: 0 }, 0, 'openArrow', lineEndingSize(1))!;
     expect(s.kind).toBe('polyline');
     const [a1, tip, a2] = (s as { points: { x: number; y: number }[] }).points;
     expect(tip).toEqual({ x: 0, y: 0 });
     expect(Math.hypot(a1.x, a1.y)).toBeCloseTo(9, 9);
     const angle = Math.abs(Math.atan2(a1.y, a1.x) - Math.atan2(a2.y, a2.x));
-    expect((2 * Math.PI - angle) * (180 / Math.PI)).toBeCloseTo(60, 6);
+    // ADR-0033: proporción medida en una captura de Acrobat (16 px de largo por 12 px de base)
+    expect((2 * Math.PI - angle) * (180 / Math.PI)).toBeCloseTo(41.25, 1);
   });
 
   it('flechas invertidas: el vértice en el extremo y las alas hacia fuera de la línea', () => {
@@ -86,13 +87,13 @@ describe('Texto de medición al estilo de Acrobat (ADR-0032)', () => {
     expect(pointCaption({ x: 5, y: 5 }, 'x', 10).angle).toBe(0);
   });
 
-  it('en pantalla: Distance con flechas abiertas, línea interrumpida y texto negro sin recuadro', () => {
+  it('en pantalla: Distance con flechas cerradas, línea interrumpida y texto negro sin recuadro', () => {
     const len = mk('d1', 'length', [{ x: 0.1, y: 0.5 }, { x: 0.5, y: 0.5 }], {
       measurement: { value: 10.6, unit: 'm', formatted: '10.6 m' },
     });
     const nodes = flatten(getMarkupSvgDescriptor(len, screen()));
     expect(nodes.filter((n) => n.tag === 'line')).toHaveLength(2);
-    expect(nodes.filter((n) => n.tag === 'polyline')).toHaveLength(2); // dos flechas abiertas
+    expect(nodes.filter((n) => n.tag === 'polygon')).toHaveLength(2); // dos flechas cerradas (ADR-0033)
     expect(nodes.filter((n) => n.tag === 'rect')).toHaveLength(0);
     const text = nodes.find((n) => n.tag === 'text')!;
     expect(text.textNode).toBe('10.6 m');
@@ -121,7 +122,8 @@ describe('Texto de medición al estilo de Acrobat (ADR-0032)', () => {
       measurement: { value: 10.6, unit: 'm', formatted: '10.6 m' },
     });
     const ops = emitMarkupOperators(len, pdfT).operators.split('\n');
-    expect(ops.filter((l) => l === 'S').length).toBe(2 + 2); // dos tramos + dos flechas abiertas
+    expect(ops.filter((l) => l === 'S').length).toBe(2); // dos tramos
+    expect(ops.filter((l) => l === 'b').length).toBe(2); // dos flechas cerradas y rellenas (ADR-0033)
     expect(ops).toContain('(10.6 m) Tj');
     expect(ops).toContain('0.000 0.000 0.000 rg');
     const area = mk('a2', 'area', [{ x: 0.1, y: 0.1 }, { x: 0.3, y: 0.1 }, { x: 0.3, y: 0.3 }], {
@@ -130,7 +132,7 @@ describe('Texto de medición al estilo de Acrobat (ADR-0032)', () => {
     expect(emitMarkupOperators(area, pdfT).operators).toContain('(1.00 m\\262) Tj');
   });
 
-  it('el PDF lleva /Cap y /CP de la distancia y sus flechas abiertas; un /CP /Top ajeno se respeta', async () => {
+  it('el PDF lleva /Cap y /CP de la distancia y sus flechas cerradas; un /CP /Top ajeno se respeta', async () => {
     const len = mk('d3', 'length', [{ x: 0.1, y: 0.5 }, { x: 0.5, y: 0.5 }], {
       measurement: { value: 10.6, unit: 'm', formatted: '10.6 m' },
       customFields: { captionStyle: 'top' },
@@ -144,7 +146,7 @@ describe('Texto de medición al estilo de Acrobat (ADR-0032)', () => {
       .find((d) => d.get(PDFName.of('IT'))?.toString() === '/LineDimension')!;
     expect(line.get(PDFName.of('Cap'))?.toString()).toBe('true');
     expect(line.get(PDFName.of('CP'))?.toString()).toBe('/Top');
-    expect(line.lookup(PDFName.of('LE'), PDFArray).asArray().map(String)).toEqual(['/OpenArrow', '/OpenArrow']);
+    expect(line.lookup(PDFName.of('LE'), PDFArray).asArray().map(String)).toEqual(['/ClosedArrow', '/ClosedArrow']);
 
     // Distancia ajena con el texto encima
     const foreign = await PDFDocument.load(blueprint);

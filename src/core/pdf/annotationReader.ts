@@ -296,11 +296,12 @@ export async function importPdfAnnotations(
         const llObj = annotDict.get(PDFName.of('LL'));
         const ll = llObj instanceof PDFNumber ? llObj.asNumber() : 0;
         if (!isRea) {
+          // Con /Measure es una medición de Acrobat/Revu (con o sin líneas de referencia, ADR-0033)
           markupType =
-            Math.abs(ll) > 1e-6
-              ? 'dimension'
-              : intent === 'LineDimension' && measureObj instanceof PDFDict
-                ? 'length'
+            intent === 'LineDimension' && measureObj instanceof PDFDict
+              ? 'length'
+              : Math.abs(ll) > 1e-6
+                ? 'dimension'
                 : 'line';
           // Dónde pone el valor el otro programa (/CP): dentro (por defecto) o encima de la línea (ADR-0032)
           const cp = annotDict.get(PDFName.of('CP'));
@@ -323,8 +324,8 @@ export async function importPdfAnnotations(
               pdfToNormalizedCoordinates({ x: lx1.asNumber(), y: ly1.asNumber() }, transform),
               pdfToNormalizedCoordinates({ x: lx2.asNumber(), y: ly2.asNumber() }, transform)
             );
-            if (markupType === 'dimension') {
-              // Punto de la línea de cota a partir de /LL (positivo = sentido horario recorriendo /L)
+            if (markupType === 'dimension' || (markupType === 'length' && Math.abs(ll) > 1e-6)) {
+              // Punto de la línea de cota (o de medida desplazada) a partir de /LL (positivo = sentido horario recorriendo /L)
               const ax = lx1.asNumber();
               const ay = ly1.asNumber();
               const bx = lx2.asNumber();

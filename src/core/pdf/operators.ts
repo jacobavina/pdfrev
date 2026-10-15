@@ -22,8 +22,11 @@ import {
   captionStyleOf,
   lineCaptionLayout,
   measureLabelText,
+  measureLineEndings,
   pointCaption,
   verticesCenter,
+  distanceGeometry,
+  MEASURE_LEADER_EXTENSION_PT,
 } from '../markup/measureCaption';
 
 /** Nombre del recurso de fuente que usan los /AP con texto (Helvetica estándar, WinAnsiEncoding). */
@@ -467,12 +470,20 @@ export function emitMarkupOperators(
     case 'length': {
       // Distancia de Acrobat (ADR-0032): la línea se interrumpe donde va el valor, con flechas abiertas
       if (markup.points.length < 2) break;
-      const a = toVis(markup.points[0]);
-      const b = toVis(markup.points[1]);
-      const ends = {
-        lineEndingStart: markup.style.lineEndingStart ?? ('openArrow' as const),
-        lineEndingEnd: markup.style.lineEndingEnd ?? ('openArrow' as const),
-      };
+      const geom = distanceGeometry(markup.points.map(toVis), MEASURE_LEADER_EXTENSION_PT)!;
+      const { a, b } = geom;
+      const ends = measureLineEndings(markup.style);
+      // Líneas de referencia (Acrobat, ADR-0033): continuas aunque la medida sea discontinua
+      if (geom.leaders.length > 0) {
+        if (markup.style.dashArray && markup.style.dashArray.length > 0) lines.push('[] 0 d');
+        for (const [u, w] of geom.leaders) {
+          pathPdf([visToPdf(u), visToPdf(w)], false);
+          lines.push('S');
+        }
+        if (markup.style.dashArray && markup.style.dashArray.length > 0) {
+          lines.push(`[${markup.style.dashArray.map((d) => d.toFixed(1)).join(' ')}] 0 d`);
+        }
+      }
       const label = measureCaptionLabel();
       const layout = label
         ? lineCaptionLayout(a, b, label, MEASURE_CAPTION_PT, captionStyleOf(markup.customFields?.captionStyle), lineEndingSize(strokeWidth))

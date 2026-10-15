@@ -107,23 +107,36 @@ export function formatFeetInches(feetValue: number, denominator = 16): string {
   const units = Math.round(totalInches * den);
   const feet = Math.floor(units / (12 * den));
   const restInches = (units - feet * 12 * den) / den;
-  return `${feet}'-${inchesWithFraction(restInches, den).text}"`;
+  return `${groupThousands(String(feet))}'-${inchesWithFraction(restInches, den).text}"`;
 }
 
 /**
  * Texto de una medida con la presentación de la calibración: decimales, pies-pulgadas o pulgadas fraccionarias.
  * Las áreas siempre en decimales (ft² cuando la presentación es pies-pulgadas).
  */
+/** Agrupa los miles con coma, como Acrobat (1,551.89): "1551.89" → "1,551.89" (ADR-0033). */
+export function groupThousands(fixed: string): string {
+  const neg = fixed.startsWith('-');
+  const [int, dec] = (neg ? fixed.slice(1) : fixed).split('.');
+  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `${neg ? '-' : ''}${grouped}${dec !== undefined ? `.${dec}` : ''}`;
+}
+
+/** Número con `precision` decimales y miles agrupados. */
+export function formatNumber(value: number, precision: number): string {
+  return groupThousands(value.toFixed(precision));
+}
+
 export function formatWithCalibration(value: number, calibration: PageCalibration, isArea = false): string {
   const v = Number.isFinite(value) ? Math.max(0, value) : 0;
   const unit = calibration.unit;
   const precision = calibration.precision ?? 2;
-  if (isArea) return `${v.toFixed(precision)} ${unit}²`;
+  if (isArea) return `${formatNumber(v, precision)} ${unit}²`;
   if (calibration.format === 'ftin' && unit === 'ft') return formatFeetInches(v, calibration.fractionDenominator ?? 16);
   if (calibration.format === 'fraction' && unit === 'in') {
     return `${inchesWithFraction(v, calibration.fractionDenominator ?? 16).text}"`;
   }
-  return `${v.toFixed(precision)} ${unit}`;
+  return `${formatNumber(v, precision)} ${unit}`;
 }
 
 export interface ScalePreset {

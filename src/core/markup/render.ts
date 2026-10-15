@@ -20,6 +20,8 @@ import {
   verticesCenter,
   measureLabelText,
   measureLineEndings,
+  distanceGeometry,
+  MEASURE_LEADER_EXTENSION_PT,
 } from './measureCaption';
 export { measureLabelText, measureLineEndings } from './measureCaption';
 import { dimensionGeometry, dimensionTextBaseline, defaultDimensionLinePoint } from './dimension';
@@ -1021,25 +1023,33 @@ export function getMarkupSvgDescriptor(
     case 'length': {
       const label = measureLabelText(markup, markup.measurement?.formatted || markup.text || '');
       const ends = measureLineEndings(style);
-      const inset = lineEndingSize(style.strokeWidth || 1) * (transform.zoom ?? transform.scale ?? 1);
+      const pxPerPt = transform.zoom ?? transform.scale ?? 1;
+      const inset = lineEndingSize(style.strokeWidth || 1) * pxPerPt;
+      const geom = distanceGeometry(
+        markup.points.map((p) => normalizedToScreen(p, transform)),
+        MEASURE_LEADER_EXTENSION_PT * pxPerPt
+      ) ?? { a: p1Screen, b: p2Screen, leaders: [] };
       const layout =
         !transform.hideMeasureLabels && label
-          ? lineCaptionLayout(p1Screen, p2Screen, label, captionPx(transform), captionStyleOf(markup.customFields?.captionStyle), inset)
+          ? lineCaptionLayout(geom.a, geom.b, label, captionPx(transform), captionStyleOf(markup.customFields?.captionStyle), inset)
           : null;
-      const pieces = layout ? layout.pieces : [[p1Screen, p2Screen] as [{ x: number; y: number }, { x: number; y: number }]];
-      const lineGroup: SvgRenderDescriptor = {
-        tag: 'g',
-        attrs: {},
-        children: pieces.map(([u, w]) => ({
-          tag: 'line',
-          attrs: { ...baseAttrs, fill: 'none', x1: u.x, y1: u.y, x2: w.x, y2: w.y },
-        })),
-      };
-      const withEnds = withLineEndings(lineGroup, [p1Screen, p2Screen], ends, transform, baseAttrs.opacity);
+      const pieces = layout ? layout.pieces : [[geom.a, geom.b] as [{ x: number; y: number }, { x: number; y: number }]];
+      const segment = ([u, w]: [{ x: number; y: number }, { x: number; y: number }], testId?: string): SvgRenderDescriptor => ({
+        tag: 'line',
+        attrs: { ...baseAttrs, fill: 'none', x1: u.x, y1: u.y, x2: w.x, y2: w.y, ...(testId ? { 'data-testid': testId } : {}) },
+      });
+      const lineGroup: SvgRenderDescriptor = { tag: 'g', attrs: {}, children: pieces.map((p) => segment(p)) };
+      const withEnds = withLineEndings(lineGroup, [geom.a, geom.b], ends, transform, baseAttrs.opacity);
+      // Líneas de referencia continuas aunque la medida sea discontinua
+      const leaders = geom.leaders.map((p) => {
+        const d = segment(p, 'distance-leader');
+        delete d.attrs.strokeDasharray;
+        return d;
+      });
       return {
         tag: 'g',
         attrs: { 'data-testid': `markup-length-${markup.id}` },
-        children: layout ? [withEnds, captionDescriptor(layout.caption, baseAttrs.opacity)] : [withEnds],
+        children: [...leaders, withEnds, ...(layout ? [captionDescriptor(layout.caption, baseAttrs.opacity)] : [])],
       };
     }
 

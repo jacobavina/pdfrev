@@ -4,7 +4,7 @@ import {
   MarkupMeasurement,
   MeasurementUnit,
 } from '../../types/markup';
-import { formatWithCalibration } from './scale';
+import { formatNumber, formatWithCalibration } from './scale';
 
 export interface PageDimensionsPt {
   width: number;
@@ -33,7 +33,7 @@ export function formatMeasurement(
 ): string {
   const safeVal = Number.isFinite(value) ? Math.max(0, value) : 0;
   const unitStr = isArea ? `${unit}²` : unit;
-  return `${safeVal.toFixed(precision)} ${unitStr}`;
+  return `${formatNumber(safeVal, precision)} ${unitStr}`;
 }
 
 /** Escalas por eje (unidades reales por pt); Y igual a X salvo "Separate Y Scale". */
@@ -219,7 +219,7 @@ export function calculateVolume(
   return {
     value,
     unit: calibration.unit,
-    formatted: `${value.toFixed(precision)} ${calibration.unit}³`,
+    formatted: `${formatNumber(value, precision)} ${calibration.unit}³`,
     perimeter: area.perimeter,
   };
 }
@@ -236,7 +236,7 @@ export function rescaleVolumeDepth(
 ): MarkupMeasurement | null {
   if (!(oldDepth > 0) || !(newDepth > 0) || !Number.isFinite(newDepth)) return null;
   const value = (measurement.value / oldDepth) * newDepth;
-  return { ...measurement, value, formatted: `${value.toFixed(precision)} ${measurement.unit}³` };
+  return { ...measurement, value, formatted: `${formatNumber(value, precision)} ${measurement.unit}³` };
 }
 
 /**

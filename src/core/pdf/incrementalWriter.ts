@@ -13,7 +13,7 @@ import { DIMENSION_EXTENSION_GAP, DIMENSION_EXTENSION_OVERSHOOT } from '../marku
 import { viewportArrayFor, measureDictFor, readPageCalibration } from './pdfScale';
 import { DEFAULT_PAGE_CALIBRATION } from '../measurements/calculate';
 import { stampById } from '../markup/stamps';
-import { measureLineEndings } from '../markup/measureCaption';
+import { measureLineEndings, MEASURE_LEADER_EXTENSION_PT } from '../markup/measureCaption';
 import {
   FieldType,
   fieldOptions,
@@ -592,6 +592,10 @@ ${apLine}  /REA ${reaDict}
         if (markup.type === 'dimension') {
           annotDict += `  ${dimensionLineEntries(markup, transform)}\n`;
         } else if (markup.type === 'length') {
+          // Líneas de referencia de Acrobat (ADR-0033): /LL con signo, /LLE lo que sobresalen, /LLO 0
+          if (markup.points[2]) {
+            annotDict += `  /LL ${leaderLengthOf(markup, transform).toFixed(2)} /LLE ${MEASURE_LEADER_EXTENSION_PT} /LLO 0\n`;
+          }
           // Texto dentro o encima de la línea, como "Caption Style" de Acrobat (ADR-0032)
           annotDict += `  /Cap true /CP /${markup.customFields?.captionStyle === 'top' ? 'Top' : 'Inline'}\n`;
         }
@@ -883,6 +887,18 @@ export function toPdfLineEnding(ending: LineEndingStyle | undefined): string {
  * cota (positivo = sentido horario recorriendo /L), /LLE lo que sobresalen las líneas de referencia y /LLO su
  * separación del punto acotado; el texto va en /Contents con /Cap.
  */
+/** /LL con signo de una línea con tercer punto (positivo = sentido horario recorriendo /L), en pt. */
+export function leaderLengthOf(markup: Markup, transform: PageTransformInfo): number {
+  const p1 = normalizedToPdfCoordinates(markup.points[0], transform);
+  const p2 = normalizedToPdfCoordinates(markup.points[1], transform);
+  const len = Math.hypot(p2.x - p1.x, p2.y - p1.y) || 1;
+  const ux = (p2.x - p1.x) / len;
+  const uy = (p2.y - p1.y) / len;
+  if (!markup.points[2]) return 0;
+  const p3 = normalizedToPdfCoordinates(markup.points[2], transform);
+  return (p3.x - p1.x) * uy + (p3.y - p1.y) * -ux;
+}
+
 export function dimensionLineEntries(markup: Markup, transform: PageTransformInfo): string {
   const p1 = normalizedToPdfCoordinates(markup.points[0], transform);
   const p2 = normalizedToPdfCoordinates(markup.points[1], transform);

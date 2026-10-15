@@ -2146,7 +2146,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(length.locator('text')).toHaveText(`140'-0"`);
     await expect(page.locator('[data-testid="calibrate-hint"]')).toHaveCount(0);
   });
-  test('Estilo de Acrobat en las mediciones (ADR-0032): flechas abiertas, valor dentro de la línea o encima', async ({
+  test('Estilo de Acrobat en las mediciones (ADR-0032/0033): flechas cerradas, valor dentro de la línea o encima', async ({
     page,
   }) => {
     await page.goto('/');
@@ -2156,7 +2156,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const box = (await overlaySvg.boundingBox())!;
     const at = (nx: number, ny: number) => ({ x: box.x + box.width * nx, y: box.y + box.height * ny });
 
-    // Distancia con dos clics: línea interrumpida por el valor, una flecha abierta en cada extremo y sin recuadro
+    // Distancia con dos clics: línea interrumpida por el valor, una flecha cerrada en cada extremo (ADR-0033) y sin recuadro
     await page.locator('header').click();
     await page.keyboard.press('Shift+Alt+L');
     const a = at(0.55, 0.3);
@@ -2167,7 +2167,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const length = overlaySvg.locator('g[data-testid^="markup-length-"]');
     await expect(length).toHaveCount(1);
     await expect(length.locator('line')).toHaveCount(2);
-    await expect(length.locator('polyline')).toHaveCount(2);
+    await expect(length.locator('polygon')).toHaveCount(2);
     await expect(length.locator('rect')).toHaveCount(0);
     await expect(length.locator('text')).toHaveAttribute('fill', '#000000');
     await expect(length.locator('text')).toHaveAttribute('transform', /rotate\(/);
@@ -2180,5 +2180,34 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.locator('[data-testid="expand-measurements-btn"]').click();
     await page.locator('[data-testid="measure-caption"]').selectOption('top');
     await expect(length.locator('line')).toHaveCount(1);
+  });
+  test('Distancia de Acrobat con líneas de referencia (ADR-0033): tercer clic, flechas cerradas angostas', async ({ page }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
+
+    // Panel Measure ▸ Distance Properties ▸ Leader lines
+    await page.locator('[data-testid="expand-measurements-btn"]').click();
+    await page.locator('[data-testid="measure-leaders"]').check();
+    const box = (await overlaySvg.boundingBox())!;
+    const at = (nx: number, ny: number) => ({ x: box.x + box.width * nx, y: box.y + box.height * ny });
+
+    await page.locator('header').click();
+    await page.keyboard.press('Shift+Alt+L');
+    const a = at(0.55, 0.35);
+    const b = at(0.85, 0.35);
+    const c = at(0.7, 0.25);
+    await page.mouse.click(a.x, a.y);
+    await page.mouse.move(b.x, b.y, { steps: 3 });
+    await page.mouse.click(b.x, b.y);
+    await page.mouse.move(c.x, c.y, { steps: 3 });
+    await page.mouse.click(c.x, c.y);
+
+    const length = overlaySvg.locator('g[data-testid^="markup-length-"]').filter({ hasNot: page.locator('[data-testid="markup-length-preview-length"]') });
+    await expect(length).toHaveCount(1);
+    await expect(length.locator('[data-testid="distance-leader"]')).toHaveCount(2);
+    await expect(length.locator('polygon')).toHaveCount(2); // flechas cerradas
+    await expect(page.locator('[data-testid="markups-list-panel"] tbody tr').filter({ hasText: 'Length' })).toHaveCount(1);
   });
 });

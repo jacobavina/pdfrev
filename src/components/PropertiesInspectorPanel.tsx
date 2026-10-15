@@ -155,10 +155,14 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
   };
 
   const hasLineMarkup = selectedMarkups.some(
-    (m) => m.type === 'line' || m.type === 'polyLine' || m.type === 'dimension'
+    (m) => m.type === 'line' || m.type === 'polyLine' || m.type === 'dimension' || m.type === 'length'
   );
-  const lineEndingStart = getUnifiedValue((m) => m.style.lineEndingStart || 'none');
-  const lineEndingEnd = getUnifiedValue((m) => m.style.lineEndingEnd || 'none');
+  // Una distancia sin extremos guardados se dibuja con flechas cerradas (Acrobat, ADR-0033)
+  const lineEndingStart = getUnifiedValue((m) => m.style.lineEndingStart || (m.type === 'length' ? 'closedArrow' : 'none'));
+  const lineEndingEnd = getUnifiedValue((m) => m.style.lineEndingEnd || (m.type === 'length' ? 'closedArrow' : 'none'));
+  // Posición del valor de las distancias ("Caption Style" de Acrobat)
+  const allLengths = selectedMarkups.length > 0 && selectedMarkups.every((m) => m.type === 'length');
+  const captionStyle = getUnifiedValue((m) => (m.customFields?.captionStyle === 'top' ? 'top' : 'inline'));
 
   // Manejadores atómicos de actualización
   const handleLineEndingStartChange = (val: string) => {
@@ -470,6 +474,25 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
               />
             </div>
           </>
+        )}
+
+        {/* Valor de la distancia: dentro de la línea o encima (Acrobat, ADR-0033) */}
+        {allLengths && (
+          <div className="flex flex-col gap-1">
+            <label className="text-gray-400 font-medium">Value position</label>
+            <select
+              data-testid="prop-caption"
+              value={captionStyle === MIXED_VALUE ? '' : (captionStyle as string)}
+              onChange={(e) =>
+                applyPropertiesToMarkups(selectedMarkupIds, { customFields: { captionStyle: e.target.value } }, 'Set value position')
+              }
+              className="px-2 py-1 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent"
+            >
+              {captionStyle === MIXED_VALUE && <option value="">{MIXED_VALUE}</option>}
+              <option value="inline">Inside the line</option>
+              <option value="top">On top of the line</option>
+            </select>
+          </div>
         )}
 
         {/* Tamaño de fuente */}

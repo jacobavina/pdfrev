@@ -729,6 +729,7 @@ export const PdfViewer: React.FC = () => {
         if (polygonPoints.length > 0 || freehandPoints.length > 0 || drawingStart) {
           e.preventDefault();
           twoClickRef.current = false;
+          leaderStageRef.current = null;
           setPolygonPoints([]);
           setFreehandPoints([]);
           setDrawingStart(null);
@@ -1292,8 +1293,9 @@ export const PdfViewer: React.FC = () => {
       return;
     }
 
-    // Clic-clic (ADR-0031): con el punto 1 fijado, este clic da el punto 2 (se cierra en mouseUp)
-    if (TWO_CLICK_TOOLS.has(activeTool) && twoClickRef.current && drawingStart) {
+    // Clic-clic (ADR-0031): con el punto 1 fijado, este clic da el punto 2 (se cierra en mouseUp); en una distancia
+    // con líneas de referencia, el tercer clic fija el desplazamiento (ADR-0033)
+    if (TWO_CLICK_TOOLS.has(activeTool) && (twoClickRef.current || leaderStageRef.current) && drawingStart) {
       setCurrentDrawPoint(pt);
       return;
     }
@@ -1515,9 +1517,11 @@ export const PdfViewer: React.FC = () => {
 
   // Cambiar de herramienta abandona un trazo clic-clic a medias
   const twoClickRef = useRef(false);
+  const leaderStageRef = useRef<{ a: MarkupPoint; b: MarkupPoint } | null>(null);
   useEffect(() => {
-    if (!twoClickRef.current) return;
+    if (!twoClickRef.current && !leaderStageRef.current) return;
     twoClickRef.current = false;
+    leaderStageRef.current = null;
     setDrawingStart(null);
     setCurrentDrawPoint(null);
   }, [activeTool]);
@@ -1544,11 +1548,45 @@ export const PdfViewer: React.FC = () => {
     ];
   };
 
+  /** Distancia de Acrobat con líneas de referencia (ADR-0033): la medida es a→b; `c` fija el desplazamiento. */
+  const createLengthMarkup = (a: MarkupPoint, b: MarkupPoint, c: MarkupPoint) => {
+    const dims = { width: pageViewport.width / (scale || 1), height: pageViewport.height / (scale || 1) };
+    const measurement = calculateLength([a, b], dims, useCalibrationStore.getState().getPageCalibration(currentPageIndex));
+    const { measureLabel, measureCaption } = useToolStore.getState();
+    const now = new Date().toISOString();
+    const m: Markup = {
+      id: uuidv4(),
+      type: 'length',
+      pageIndex: currentPageIndex,
+      points: [a, b, c],
+      style: { ...currentStyle, lineEndingStart: 'closedArrow', lineEndingEnd: 'closedArrow' },
+      text: measurement.formatted,
+      author: author || 'Reviewer',
+      createdAt: now,
+      updatedAt: now,
+      status: 'pending',
+      layer: activeLayer,
+      customFields: { captionStyle: measureCaption, ...(measureLabel.trim() ? { measureLabel: measureLabel.trim() } : {}) },
+      measurement,
+    };
+    addMarkup(m);
+    useToolChestStore.getState().recordRecent(m);
+  };
+
   const latestDrawPoint = currentDrawPoint;
   const handleMouseUp = (e: React.MouseEvent<SVGSVGElement>) => {
     // Herramientas de dos puntos: el punto final es el del propio evento (con snap), sin esperar al render
     const upPoint = TWO_CLICK_TOOLS.has(activeTool) && drawingStart ? getEventPoint(e) : null;
     const currentDrawPoint = upPoint ?? latestDrawPoint;
+    // Tercer clic de una distancia con líneas de referencia: la crea con el desplazamiento elegido
+    if (upPoint && leaderStageRef.current && activeTool === 'length') {
+      const { a, b } = leaderStageRef.current;
+      leaderStageRef.current = null;
+      createLengthMarkup(a, b, upPoint);
+      setDrawingStart(null);
+      setCurrentDrawPoint(null);
+      return;
+    }
     if (upPoint && drawingStart) {
       const moved = exceedsScreenThreshold(drawingStart, upPoint, viewportTransform, 4);
       if (!twoClickRef.current && !moved) {
@@ -1562,6 +1600,12 @@ export const PdfViewer: React.FC = () => {
         // Segundo clic en el mismo punto: nada que medir
         setDrawingStart(null);
         setCurrentDrawPoint(null);
+        return;
+      }
+      if (activeTool === 'length' && useToolStore.getState().measureLeaders) {
+        // Distancia de Acrobat con líneas de referencia: falta el tercer clic (el desplazamiento)
+        leaderStageRef.current = { a: drawingStart, b: upPoint };
+        setCurrentDrawPoint(upPoint);
         return;
       }
       setCurrentDrawPoint(upPoint);
@@ -1873,8 +1917,8 @@ export const PdfViewer: React.FC = () => {
                 opacity: HIGHLIGHT_STYLE.opacity,
               }
             : activeTool === 'length'
-            ? // Distancia de Acrobat (ADR-0032): flecha abierta en ambos extremos (editable después)
-              { ...currentStyle, lineEndingStart: 'openArrow' as const, lineEndingEnd: 'openArrow' as const }
+            ? // Distancia de Acrobat (ADR-0033): flecha cerrada en ambos extremos (editable después)
+              { ...currentStyle, lineEndingStart: 'closedArrow' as const, lineEndingEnd: 'closedArrow' as const }
             : activeTool === 'dimension'
             ? {
                 // Cota: flechas cerradas en ambos extremos salvo que la cinta indique otros
@@ -3007,16 +3051,17 @@ export const PdfViewer: React.FC = () => {
                     // Vista previa idéntica al resultado (ADR-0032): flechas abiertas y el valor en vivo
                     const dimsPt = { width: pageViewport.width / (scale || 1), height: pageViewport.height / (scale || 1) };
                     const live = calculateLength(
-                      [drawingStart, currentDrawPoint],
+                      leaderStageRef.current ? [leaderStageRef.current.a, leaderStageRef.current.b] : [drawingStart, currentDrawPoint],
                       dimsPt,
                       useCalibrationStore.getState().getPageCalibration(currentPageIndex)
                     );
+                    const stage = leaderStageRef.current;
                     const previewMarkup: Markup = {
                       id: 'preview-length',
                       type: 'length',
                       pageIndex: currentPageIndex,
-                      points: [drawingStart, currentDrawPoint],
-                      style: { ...currentStyle, lineEndingStart: 'openArrow', lineEndingEnd: 'openArrow' },
+                      points: stage ? [stage.a, stage.b, currentDrawPoint] : [drawingStart, currentDrawPoint],
+                      style: { ...currentStyle, lineEndingStart: 'closedArrow', lineEndingEnd: 'closedArrow' },
                       measurement: live,
                       customFields: { captionStyle: useToolStore.getState().measureCaption },
                       author: '',

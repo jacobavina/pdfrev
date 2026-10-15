@@ -1,5 +1,6 @@
 import { getHelveticaTextWidth } from './helveticaMetrics';
 import type { Markup } from '../../types/markup';
+import { dimensionGeometry } from './dimension';
 
 /**
  * Texto de las mediciones al estilo de Acrobat (ADR-0032): Helvetica negra sin recuadro, dentro de la línea
@@ -104,11 +105,28 @@ export function measureLabelText(markup: Markup, formatted: string): string {
   return label ? `${label}: ${formatted}` : formatted;
 }
 
-/** Extremos de una distancia: flecha abierta en ambos lados salvo que el usuario elija otros (Acrobat). */
+/** Extremos de una distancia: flecha cerrada en ambos lados salvo que el usuario elija otros (Acrobat, ADR-0033). */
 export function measureLineEndings(style: Markup['style']): Markup['style'] {
   return {
     ...style,
-    lineEndingStart: style.lineEndingStart ?? 'openArrow',
-    lineEndingEnd: style.lineEndingEnd ?? 'openArrow',
+    lineEndingStart: style.lineEndingStart ?? 'closedArrow',
+    lineEndingEnd: style.lineEndingEnd ?? 'closedArrow',
   };
+}
+
+/** Lo que las líneas de referencia sobresalen más allá de la línea de medida, en pt (/LLE de Acrobat). */
+export const MEASURE_LEADER_EXTENSION_PT = 5;
+
+/**
+ * Distancia de Acrobat (ADR-0033): con un tercer punto, la línea de medida se desplaza en paralelo y unas líneas de
+ * referencia la unen a los puntos medidos (sobresalen `extension`). Sin él, la línea va de punto a punto.
+ * Unidades libres (pt o px), espacio visual con y hacia abajo.
+ */
+export function distanceGeometry(points: Pt[], extension: number): { a: Pt; b: Pt; leaders: [Pt, Pt][] } | null {
+  if (points.length < 2) return null;
+  const [p1, p2, p3] = points;
+  if (!p3) return { a: p1, b: p2, leaders: [] };
+  const g = dimensionGeometry(p1, p2, p3, { gap: 0, overshoot: extension });
+  if (!g) return { a: p1, b: p2, leaders: [] };
+  return { a: g.dimStart, b: g.dimEnd, leaders: g.extensions };
 }

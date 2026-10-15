@@ -110,8 +110,17 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
   const { markups, selectedMarkupIds, setSelectedMarkupIds } = useMarkupStore();
   const { currentPageIndex, setCurrentPage, pdfBytes, numPages } = useDocumentStore();
   const { calibrations, getPageCalibration, setPageCalibration, applyCalibrationToPages } = useCalibrationStore();
-  const { setActiveTool, measureLabel, setMeasureLabel, volumeDepth, setVolumeDepth, measureCaption, setMeasureCaption } =
-    useToolStore();
+  const {
+    setActiveTool,
+    measureLabel,
+    setMeasureLabel,
+    volumeDepth,
+    setVolumeDepth,
+    measureCaption,
+    setMeasureCaption,
+    measureLeaders,
+    setMeasureLeaders,
+  } = useToolStore();
   const showRulers = useUiStore((s) => s.showRulers);
   const setShowRulers = useUiStore((s) => s.setShowRulers);
   const updateMarkup = useMarkupStore((s) => s.updateMarkup);
@@ -549,11 +558,8 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
               ))}
             </select>
           </label>
-        </Section>
-
-        <Section title="Caption">
           <label className="flex items-center gap-2">
-            <span className="text-gray-400 w-16">Value:</span>
+            <span className="text-gray-400 w-16">Caption:</span>
             <select
               data-testid="measure-caption"
               value={selectedLength ? captionStyleOf(selectedLength.customFields?.captionStyle) : measureCaption}
@@ -571,6 +577,16 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
               <option value="inline">Inside the line</option>
               <option value="top">On top of the line</option>
             </select>
+          </label>
+          <label className="flex items-center gap-1.5 text-gray-300 cursor-pointer" title="Like Acrobat: after the second click, a third click sets how far the line sits from the measured points">
+            <input
+              type="checkbox"
+              data-testid="measure-leaders"
+              checked={measureLeaders}
+              onChange={(e) => setMeasureLeaders(e.target.checked)}
+              className="accent-cad-accent"
+            />
+            Leader lines (third click sets the offset)
           </label>
         </Section>
 

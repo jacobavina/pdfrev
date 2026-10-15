@@ -2,7 +2,7 @@ import React, { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState, us
 import { v4 as uuidv4 } from 'uuid';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
-import { useToolStore, ToolType } from '../store/useToolStore';
+import { useToolStore, ToolType, cloudCreationFields } from '../store/useToolStore';
 import type { RenderResult } from '../services/pdfService';
 import { PageCanvas } from './viewer/PageCanvas';
 import {
@@ -29,7 +29,6 @@ import {
   pointsToFreehandPathD,
   getMarkupSvgDescriptor,
   renderSvgDescriptor,
-  DEFAULT_ARC_STEP,
   estimateCalloutBoxNormalizedSize,
 } from '../core/markup/render';
 import {
@@ -52,7 +51,17 @@ import { controlPointsOf, applyControlPointDrag } from '../core/markup/controlPo
 import { revisionCloudPathNormalized } from '../core/markup/revisionCloud';
 import { snapPoint, SnapResult } from '../core/markup/snap';
 import { remeasureMarkup, SCALED_MEASURE_TYPES } from '../core/measurements/remeasure';
-import { markupBounds, boundsCorners, canScale, canRotate, scaleMarkup, rotateMarkup, snapAngle } from '../core/markup/transformHandles';
+import {
+  markupBounds,
+  boundsCorners,
+  canScale,
+  canRotate,
+  scaleMarkup,
+  rotateMarkup,
+  snapAngle,
+  visualOverhangPt,
+  SELECTION_GAP_PX,
+} from '../core/markup/transformHandles';
 import type { ContentSnapIndex } from '../core/markup/contentSnap';
 import type { loadContentSnapIndex } from '../services/contentSnapService';
 import { showToast } from '../services/toastService';
@@ -188,7 +197,7 @@ export const PdfViewer: React.FC = () => {
     canRedo,
   } = useMarkupStore();
 
-  const { activeTool, currentStyle, author, activeLayer } = useToolStore();
+  const { activeTool, currentStyle, author, activeLayer, cloudSize, cloudInvert } = useToolStore();
   const { setCalibrationModalOpen, setPendingCalibrationPoints, isCalibrationModalOpen } = useCalibrationStore();
   const { matches: searchMatches, activeMatchIndex } = useSearchStore();
 
@@ -242,7 +251,7 @@ export const PdfViewer: React.FC = () => {
     hasMoved: boolean;
     latest: Markup;
     /** Tiradores de la caja (ADR-0039): escalar desde una esquina o rotar alrededor del centro. */
-    transform?: { mode: 'scale' | 'rotate'; corner: number; startAngle: number };
+    transform?: { mode: 'scale' | 'rotate'; corner: number; startAngle: number; grab: MarkupPoint };
   } | null>(null);
   // Control de zoom del doble clic (ADR-0021): posición en pantalla
   const [zoomWidget, setZoomWidget] = useState<{ x: number; y: number } | null>(null);
@@ -687,15 +696,18 @@ export const PdfViewer: React.FC = () => {
     e.preventDefault();
     if (markup.locked) return;
     let startAngle = 0;
+    const b = markupBounds(markup)!;
+    const rect = (e.currentTarget as SVGElement).ownerSVGElement!.getBoundingClientRect();
+    const pt = screenToNormalized(e.clientX - rect.left, e.clientY - rect.top, viewportTransform);
     if (mode === 'rotate') {
-      const b = markupBounds(markup)!;
       const w = pageViewport.width / (scale || 1);
       const h = pageViewport.height / (scale || 1);
-      const rect = (e.currentTarget as SVGElement).ownerSVGElement!.getBoundingClientRect();
-      const pt = screenToNormalized(e.clientX - rect.left, e.clientY - rect.top, viewportTransform);
       startAngle = Math.atan2((pt.y - (b.minY + b.maxY) / 2) * h, (pt.x - (b.minX + b.maxX) / 2) * w);
     }
-    vertexDragRef.current = { original: markup, index: -1, hasMoved: false, latest: markup, transform: { mode, corner, startAngle } };
+    // El cuadro queda separado del dibujo (ADR-0041): se arrastra la esquina de los puntos con el mismo desfase
+    const c0 = boundsCorners(b)[corner];
+    const grab = { x: pt.x - c0.x, y: pt.y - c0.y };
+    vertexDragRef.current = { original: markup, index: -1, hasMoved: false, latest: markup, transform: { mode, corner, startAngle, grab } };
   };
 
   const finishVertexDrag = () => {
@@ -1184,7 +1196,7 @@ export const PdfViewer: React.FC = () => {
       status: 'pending',
       layer: activeLayer,
       groupId,
-      customFields: { arcStep: DEFAULT_ARC_STEP },
+      customFields: cloudCreationFields(),
     };
     const calloutMarkup: Markup = {
       id: calloutId,
@@ -1229,7 +1241,7 @@ export const PdfViewer: React.FC = () => {
       updatedAt: now,
       status: 'pending',
       layer: activeLayer,
-      customFields: { arcStep: DEFAULT_ARC_STEP },
+      customFields: cloudCreationFields(),
     };
     addMarkup(cloud);
     useToolChestStore.getState().recordRecent(cloud);
@@ -1297,6 +1309,8 @@ export const PdfViewer: React.FC = () => {
             },
           }
         : {}),
+      // Polígono o polilínea con tipo de línea Cloud (ADR-0041): tamaño e inversión de la barra de propiedades
+      ...(!measurement && style.lineStyle === 'cloud' ? { customFields: cloudCreationFields() } : {}),
     };
     addMarkup(newMarkup);
     useToolChestStore.getState().recordRecent(newMarkup);
@@ -1490,7 +1504,8 @@ export const PdfViewer: React.FC = () => {
         const dims = { width: pageViewport.width / (scale || 1), height: pageViewport.height / (scale || 1) };
         let res: { points: MarkupPoint[]; leaders?: MarkupPoint[][] };
         if (drag.transform.mode === 'scale') {
-          res = scaleMarkup(drag.original, drag.transform.corner, pt, e.shiftKey);
+          const g = drag.transform.grab;
+          res = scaleMarkup(drag.original, drag.transform.corner, { x: pt.x - g.x, y: pt.y - g.y }, e.shiftKey);
         } else {
           const b = markupBounds(drag.original)!;
           const now = Math.atan2((pt.y - (b.minY + b.maxY) / 2) * dims.height, (pt.x - (b.minX + b.maxX) / 2) * dims.width);
@@ -1994,7 +2009,7 @@ export const PdfViewer: React.FC = () => {
         });
       } else {
         const newId = uuidv4();
-        const customFields = activeTool === 'cloud' ? { arcStep: DEFAULT_ARC_STEP } : undefined;
+        const customFields = activeTool === 'cloud' || currentStyle.lineStyle === 'cloud' ? cloudCreationFields() : undefined;
 
         // Convención canónica min/max para highlightVector (points[0] esquina superior izq, points[1] inferior der)
         const minX = Math.min(drawingStart.x, currentDrawPoint.x);
@@ -2808,13 +2823,15 @@ export const PdfViewer: React.FC = () => {
                     }
 
                     if (b.minX !== Infinity) {
+                      // La caja rodea todo el dibujo (lóbulos de nube, patrones) con margen, como en Revu (ADR-0041)
+                      const pad = markup.type === 'stickyNote' ? 4 : SELECTION_GAP_PX + visualOverhangPt(markup) * (scale || 1);
                       return (
                         <rect
                           data-testid="selection-bbox"
-                          x={b.minX - 4}
-                          y={b.minY - 4}
-                          width={Math.max(8, b.maxX - b.minX + 8)}
-                          height={Math.max(8, b.maxY - b.minY + 8)}
+                          x={b.minX - pad}
+                          y={b.minY - pad}
+                          width={Math.max(8, b.maxX - b.minX + pad * 2)}
+                          height={Math.max(8, b.maxY - b.minY + pad * 2)}
                           fill="none"
                           stroke={markup.locked ? '#f59e0b' : '#3b82f6'}
                           strokeWidth={1}
@@ -2924,7 +2941,7 @@ export const PdfViewer: React.FC = () => {
                 if (!markup || markup.locked || !canScale(markup)) return null;
                 const bounds = markupBounds(markup);
                 if (!bounds) return null;
-                const pad = 4;
+                const pad = SELECTION_GAP_PX + visualOverhangPt(markup) * (scale || 1);
                 const tl = normalizedToScreen({ x: bounds.minX, y: bounds.minY }, viewportTransform);
                 const br = normalizedToScreen({ x: bounds.maxX, y: bounds.maxY }, viewportTransform);
                 const box = { x0: tl.x - pad, y0: tl.y - pad, x1: br.x + pad, y1: br.y + pad };
@@ -3317,7 +3334,8 @@ export const PdfViewer: React.FC = () => {
                         d={revisionCloudPathNormalized(
                           [drawingStart, currentDrawPoint],
                           { width: viewportTransform.width, height: viewportTransform.height },
-                          DEFAULT_ARC_STEP * (scale || 1.0)
+                          cloudSize * 10 * (scale || 1.0),
+                          cloudInvert
                         )}
                         stroke={currentStyle.strokeColor}
                         strokeWidth={currentStyle.strokeWidth}

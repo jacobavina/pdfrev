@@ -6,7 +6,7 @@ import {
   dimensionSegmentsNormalized,
 } from './dimension';
 import { controlPointsOf, applyControlPointDrag } from './controlPoints';
-import { revisionCloudPath, cloudOutline, cloudParams } from './revisionCloud';
+import { revisionCloudPath, cloudOutline, cloudParams, cloudCenters, cloudRadius } from './revisionCloud';
 import { lineEndingShape } from './lineEndings';
 import { Markup, MarkupType } from '../../types/markup';
 
@@ -103,11 +103,16 @@ describe('Puntos de control (ADR-0021)', () => {
 describe('Nube de revisión estilo Revu (ADR-0021)', () => {
   const square = cloudOutline([{ x: 0, y: 0 }, { x: 100, y: 100 }]);
 
-  it('un lóbulo por cada paso de cuerda, cada uno de 3 cúbicas, y trazado cerrado', () => {
+  it('un lóbulo centrado en cada vértice y cada paso de cada lado, y trazado cerrado (ADR-0041)', () => {
+    const centers = cloudCenters(square, true, 20);
+    expect(centers).toHaveLength(4 * 5);
+    expect(centers).toContainEqual({ x: 0, y: 0 });
+    expect(centers).toContainEqual({ x: 100, y: 100 });
     const d = revisionCloudPath(square, 20);
-    expect(d.startsWith('M 0.00 0.00')).toBe(true);
     expect(d.endsWith('Z')).toBe(true);
-    expect(d.match(/C /g)).toHaveLength(4 * 5 * 3);
+    // Empieza sobre el lóbulo de la primera esquina (a un radio de su centro)
+    const [x0, y0] = (d.match(/^M (-?[\d.]+) (-?[\d.]+)/) ?? []).slice(1).map(Number);
+    expect(Math.hypot(x0, y0)).toBeCloseTo(cloudRadius(20), 1);
   });
 
   it('los lóbulos salen hacia fuera; con Invertir, hacia dentro', () => {

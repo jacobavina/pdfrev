@@ -7,7 +7,10 @@ import { useDocumentStore } from '../../store/useDocumentStore';
 import { useToolStore } from '../../store/useToolStore';
 import { showToast } from '../../services/toastService';
 import { TOOL_GROUPS, TEXT_LAYER_TOOLS, STROKE_COLORS, ToolDefinition } from './toolDefinitions';
-import { dashArrayFor, lineStyleOf } from '../../core/markup/lineStyles';
+import { dashArrayFor, lineStyleOfMarkup, LineStyleId } from '../../core/markup/lineStyles';
+import { isPatternLineStyle } from '../../core/markup/linePatterns';
+import { cloudParams, CLOUD_SIZE_FACTOR, DEFAULT_CLOUD_STEP } from '../../core/markup/revisionCloud';
+import { CloudStylePicker } from './CloudStylePicker';
 import {
   IconPicker,
   LineStylePreview,
@@ -64,11 +67,14 @@ export const Ribbon: React.FC = () => {
     setActiveStampId,
     activeFieldType,
     setActiveFieldType,
+    cloudSize,
+    cloudInvert,
+    setCloudOptions,
   } = useToolStore();
 
   // Barra de propiedades contextual (ADR-0040), como la de Revu: con marcas seleccionadas edita la selección; sin
   // selección, el estilo de las marcas nuevas
-  const { markups, selectedMarkupIds, applyPropertiesToMarkups } = useMarkupStore();
+  const { markups, selectedMarkupIds, applyPropertiesToMarkups, applyLineStyle } = useMarkupStore();
   const selection = markups.filter((m) => selectedMarkupIds.includes(m.id) && !m.locked);
   // Con una herramienta de dibujo activa, la barra define el estilo de lo que se va a dibujar (como Revu)
   const editingSelection = selection.length > 0 && (activeTool === 'select' || activeTool === 'pan');
@@ -84,7 +90,37 @@ export const Ribbon: React.FC = () => {
     applyPropertiesToMarkups(selection.map((m) => m.id), { textFormat: next }, key === 'bold' ? 'Bold' : 'Italic');
   };
 
-  const lineStyle = lineStyleOf(style.dashArray);
+  // Tipo de línea (ADR-0041): el de la marca seleccionada; sin selección, el de las marcas nuevas (Cloud con la
+  // herramienta de nube)
+  const lineStyle: LineStyleId = editingSelection
+    ? lineStyleOfMarkup(selection[0])
+    : activeTool === 'cloud' || activeTool === 'cloudPlus'
+    ? 'cloud'
+    : lineStyleOfMarkup({ type: 'line', style: currentStyle });
+  const pickLineStyle = (id: LineStyleId) => {
+    if (editingSelection) {
+      applyLineStyle(selection.map((m) => m.id), id);
+      return;
+    }
+    const pattern = isPatternLineStyle(id);
+    setCurrentStyle({ lineStyle: pattern ? id : undefined, dashArray: pattern ? undefined : dashArrayFor(id, style.strokeWidth ?? 1) });
+  };
+  // Tamaño e inversión de la nube: de la selección o de las nubes nuevas
+  const selCloud = editingSelection ? cloudParams(selection[0].customFields, DEFAULT_CLOUD_STEP) : null;
+  const cloudOpts = selCloud ? { size: selCloud.step / CLOUD_SIZE_FACTOR, invert: selCloud.invert } : { size: cloudSize, invert: cloudInvert };
+  const changeCloud = (opts: { size?: number; invert?: boolean }) => {
+    if (!editingSelection) {
+      setCloudOptions(opts);
+      return;
+    }
+    const ids = selection.map((m) => m.id);
+    if (opts.size !== undefined) {
+      applyPropertiesToMarkups(ids, { customFields: { arcStep: Math.round(opts.size * CLOUD_SIZE_FACTOR * 100) / 100 } }, `Set cloud size to ${opts.size}`);
+    }
+    if (opts.invert !== undefined) {
+      applyPropertiesToMarkups(ids, { customFields: { cloudInvert: opts.invert ? 1 : undefined } }, opts.invert ? 'Invert cloud' : 'Cloud not inverted');
+    }
+  };
   const hasFill = Boolean(style.fillColor && style.fillColor !== 'transparent');
   // El patrón discontinuo es proporcional al grosor: se recalcula al cambiar de grosor
   const changeWidth = (w: number) => applyStyle({ strokeWidth: w, dashArray: dashArrayFor(lineStyle, w) });
@@ -276,8 +312,15 @@ export const Ribbon: React.FC = () => {
               title="Line style"
               value={lineStyle}
               options={LINE_STYLE_OPTIONS}
-              renderIcon={(id) => <LineStylePreview id={id} />}
-              onChange={(id) => applyStyle({ dashArray: dashArrayFor(id, style.strokeWidth ?? 2) })}
+              withLabels
+              renderIcon={(id) => <LineStylePreview id={id} width={52} />}
+              onChange={pickLineStyle}
+            />
+            <CloudStylePicker
+              size={cloudOpts.size}
+              invert={cloudOpts.invert}
+              disabled={lineStyle !== 'cloud'}
+              onChange={changeCloud}
             />
             <IconPicker
               compact

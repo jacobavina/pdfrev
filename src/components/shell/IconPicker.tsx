@@ -1,9 +1,10 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import { LineEndingStyle } from '../../types/markup';
 import { dashArrayFor, LineStyleId, LINE_STYLE_LABELS, LINE_ENDING_LABELS } from '../../core/markup/lineStyles';
 import { lineEndingShape } from '../../core/markup/lineEndings';
+import { isPatternLineStyle, linePatternPrimitives } from '../../core/markup/linePatterns';
 import { stampById } from '../../core/markup/stamps';
 
 /**
@@ -14,6 +15,8 @@ import { stampById } from '../../core/markup/stamps';
 export interface IconPickerOption<T extends string | number> {
   value: T;
   label: string;
+  /** Línea separadora antes de esta opción (p. ej. entre discontinuos y patrones). */
+  divider?: boolean;
 }
 
 interface IconPickerProps<T extends string | number> {
@@ -25,6 +28,8 @@ interface IconPickerProps<T extends string | number> {
   title: string;
   /** Variante compacta para la cinta. */
   compact?: boolean;
+  /** Lista con marca de selección, nombre y dibujo de cada opción, como el menú de tipos de línea de Revu. */
+  withLabels?: boolean;
 }
 
 export function IconPicker<T extends string | number>({
@@ -35,6 +40,7 @@ export function IconPicker<T extends string | number>({
   testId,
   title,
   compact,
+  withLabels,
 }: IconPickerProps<T>) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ left: number; top: number; minWidth: number } | null>(null);
@@ -95,11 +101,12 @@ export function IconPicker<T extends string | number>({
             aria-label={title}
             data-testid={`${testId}-list`}
             style={{ position: 'fixed', left: pos.left, top: pos.top, minWidth: pos.minWidth, zIndex: 1000 }}
-            className="bg-cad-panel border border-cad-border rounded shadow-lg py-1"
+            className="bg-cad-panel border border-cad-border rounded shadow-lg py-1 max-h-[70vh] overflow-y-auto thin-scroll"
           >
             {options.map((o) => (
+              <React.Fragment key={String(o.value)}>
+              {o.divider && <div className="my-1 h-px bg-cad-border" role="separator" />}
               <button
-                key={String(o.value)}
                 type="button"
                 role="option"
                 aria-selected={o.value === value}
@@ -111,11 +118,20 @@ export function IconPicker<T extends string | number>({
                   setOpen(false);
                 }}
                 className={`w-full flex items-center px-2 py-1 text-gray-200 hover:bg-cad-hover ${
-                  o.value === value ? 'bg-cad-hover ring-1 ring-inset ring-cad-accent' : ''
+                  withLabels ? 'gap-2' : o.value === value ? 'bg-cad-hover ring-1 ring-inset ring-cad-accent' : ''
                 }`}
               >
-                {renderIcon(o.value)}
+                {withLabels ? (
+                  <>
+                    <span className="w-3.5 shrink-0 text-cad-accent">{o.value === value && <Check size={13} />}</span>
+                    <span className="w-[112px] shrink-0 text-left text-[11.5px] whitespace-nowrap">{o.label}</span>
+                    {renderIcon(o.value)}
+                  </>
+                ) : (
+                  renderIcon(o.value)
+                )}
               </button>
+              </React.Fragment>
             ))}
           </div>,
           document.body
@@ -126,29 +142,33 @@ export function IconPicker<T extends string | number>({
 
 // ── Dibujos de los valores ──────────────────────────────────────────────────────────────────
 
-/** Tramo de línea con el patrón real (mismas proporciones que en el PDF). */
-export const LineStylePreview: React.FC<{ id: LineStyleId | 'cloud'; width?: number }> = ({ id, width = 46 }) => {
-  if (id === 'cloud') {
-    // Festón de nube (tipo de línea "Nube", ADR-0021)
-    const n = Math.max(3, Math.floor((width - 6) / 8));
-    let d = `M 3 9`;
-    for (let i = 0; i < n; i++) d += ` a 4 4 0 0 1 8 0`;
+/** Tramo de línea con el patrón real (misma geometría que la pantalla y el PDF, ADR-0041). */
+export const LineStylePreview: React.FC<{ id: LineStyleId; width?: number }> = ({ id, width = 46 }) => {
+  if (isPatternLineStyle(id)) {
+    const y = id === 'cloud' ? 10 : 7;
+    const res = linePatternPrimitives([{ x: 3, y }, { x: width - 3, y }], false, id, {
+      strokeWidth: 1,
+      unitsPerPt: id === 'gas' || id === 'hotWater' ? 1.2 : 1,
+      cloudStep: 9,
+    });
     return (
-      <svg width={width} height={12} aria-hidden="true">
-        <path d={d} fill="none" stroke="currentColor" strokeWidth={1.5} />
+      <svg width={width} height={14} aria-hidden="true" data-pattern={id}>
+        {res.strokes.map((st, i) => (
+          <path key={i} d={st.d} fill="none" stroke="currentColor" strokeWidth={st.width ? Math.max(0.9, st.width) : 1.2} />
+        ))}
       </svg>
     );
   }
   const dash = dashArrayFor(id, 1.5);
   return (
-    <svg width={width} height={12} aria-hidden="true">
+    <svg width={width} height={14} aria-hidden="true">
       <line
         x1={3}
-        y1={6}
+        y1={7}
         x2={width - 3}
-        y2={6}
+        y2={7}
         stroke="currentColor"
-        strokeWidth={1.8}
+        strokeWidth={1.5}
         strokeDasharray={dash && dash.length ? dash.map((d) => d * 1.2).join(' ') : undefined}
       />
     </svg>
@@ -194,8 +214,9 @@ export const StrokeWidthPreview: React.FC<{ width: number }> = ({ width }) => (
   </span>
 );
 
+/** Tipos de línea en el orden del menú de Revu: continua, discontinuas y patrones (ADR-0041). */
 export const LINE_STYLE_OPTIONS: IconPickerOption<LineStyleId>[] = (Object.keys(LINE_STYLE_LABELS) as LineStyleId[]).map(
-  (id) => ({ value: id, label: LINE_STYLE_LABELS[id] })
+  (id) => ({ value: id, label: LINE_STYLE_LABELS[id], ...(id === 'cloud' ? { divider: true } : {}) })
 );
 
 export const LINE_ENDING_OPTIONS: IconPickerOption<LineEndingStyle>[] = (

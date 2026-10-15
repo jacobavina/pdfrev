@@ -270,7 +270,9 @@ describe('PDF Export Service (Sub-entregable 0.3 - H1 Vector Export)', () => {
     // Al componer: Y_final = 600 + (-1)*150 = 450 en PDF.
     expect(streamB).toContain('1 0 0 1 0 600 cm');
     expect(streamB).toContain('1 0 0 -1 0 0 cm');
-    expect(streamB).toContain('100 150 m');
+    // La nube empieza sobre el lóbulo centrado en la esquina (100, 150), a un radio de ella (ADR-0041)
+    const start = /(-?[\d.]+) (-?[\d.]+) m/.exec(streamB.slice(streamB.indexOf('1 0 0 -1 0 0 cm')))!;
+    expect(Math.hypot(Number(start[1]) - 100, Number(start[2]) - 150)).toBeCloseTo(12.4, 0);
   });
 
   // --------------------------------------------------------------------------------

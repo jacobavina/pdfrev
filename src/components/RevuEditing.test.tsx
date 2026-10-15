@@ -101,13 +101,14 @@ describe('Tiradores de Revu: escalar y rotar (ADR-0039)', () => {
     // Los tiradores de vértice son pequeños (radio 3.5 px)
     expect(screen.getByTestId('control-point-0').getAttribute('r')).toBe('3.5');
     act(() => {
-      fireEvent.mouseDown(screen.getByTestId('scale-handle-2'), { button: 0, clientX: 404, clientY: 304 });
+      // El cuadro está separado del dibujo (ADR-0041): se arrastra con el mismo desfase
+      fireEvent.mouseDown(screen.getByTestId('scale-handle-2'), { button: 0, clientX: 408.5, clientY: 308.5 });
     });
     act(() => {
-      fireEvent.mouseMove(svg, { clientX: 600, clientY: 300 });
+      fireEvent.mouseMove(svg, { clientX: 608.5, clientY: 308.5 });
     });
     act(() => {
-      fireEvent.mouseUp(svg, { button: 0, clientX: 600, clientY: 300 });
+      fireEvent.mouseUp(svg, { button: 0, clientX: 608.5, clientY: 308.5 });
     });
     expect(useMarkupStore.getState().markups[0].points[1]).toEqual({ x: 0.75, y: 0.25 });
     act(() => useMarkupStore.getState().undo());

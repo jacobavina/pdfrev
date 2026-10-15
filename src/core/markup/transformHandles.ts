@@ -1,4 +1,6 @@
 import { Markup, MarkupPoint } from '../../types/markup';
+import { cloudOverhang, cloudParams, DEFAULT_CLOUD_STEP } from './revisionCloud';
+import { markupLinePattern, patternOverhang } from './linePatterns';
 
 /**
  * Tiradores de transformación (ADR-0039), como los de Revu: cuadros en las esquinas de la caja para escalar y un
@@ -124,4 +126,21 @@ export function snapAngle(angle: number, snap: boolean): number {
   if (!snap) return angle;
   const step = Math.PI / 12;
   return Math.round(angle / step) * step;
+}
+
+/** Separación (px de pantalla) entre el dibujo de la marca y su caja de selección, como en Revu (ADR-0041). */
+export const SELECTION_GAP_PX = 8;
+
+/**
+ * Cuánto sobresale el dibujo de una marca de sus puntos (pt de página): los lóbulos de una nube, el ancho de un
+ * patrón (vías, camino...) o medio grosor de línea. La caja de selección lo rodea para no tapar los vértices.
+ */
+export function visualOverhangPt(markup: Pick<Markup, 'type' | 'style' | 'customFields'>): number {
+  const half = (markup.style.strokeWidth ?? 1) / 2;
+  const { step, invert } = cloudParams(markup.customFields, DEFAULT_CLOUD_STEP);
+  if (markup.type === 'cloud' || markup.type === 'cloudPlus') return cloudOverhang(step, invert) + half;
+  const pattern = markupLinePattern(markup);
+  if (pattern === 'cloud') return cloudOverhang(step, invert) + half;
+  if (pattern) return patternOverhang(pattern, markup.style.strokeWidth ?? 1, step) + half;
+  return half;
 }

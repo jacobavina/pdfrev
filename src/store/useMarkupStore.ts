@@ -3,6 +3,8 @@ import { create } from 'zustand';
 import { Markup, MarkupPoint, MarkupStatus, MarkupStyle, MarkupTextFormat } from '../types/markup';
 import { Command, HistoryManager } from './history/command';
 import { DEFAULT_CLOUD_STEP } from '../core/markup/revisionCloud';
+import { dashArrayFor, LineStyleId } from '../core/markup/lineStyles';
+import { isPatternLineStyle, PATTERN_MARKUP_TYPES } from '../core/markup/linePatterns';
 import { UpdateMarkupStatusCommand, MarkupStatusTarget } from './history/UpdateMarkupStatusCommand';
 import { UpdateMarkupCustomFieldCommand } from './history/UpdateMarkupCustomFieldCommand';
 
@@ -62,6 +64,11 @@ interface MarkupState {
   reshapeMarkup: (id: string, before: ReshapePatch, after: ReshapePatch, description?: string) => void;
   /** Tipo de línea "Nube" (ADR-0021): rectángulo/polígono ↔ nube, en un solo paso deshacible. */
   setCloudLineStyle: (ids: string[], cloud: boolean) => void;
+  /**
+   * Tipo de línea de Revu (ADR-0041) en un solo paso deshacible: discontinuo o con patrón. Cloud convierte
+   * rectángulos y polígonos en nubes (ADR-0021) y cualquier otro tipo quita la nube.
+   */
+  applyLineStyle: (ids: string[], id: LineStyleId) => void;
   copySelectedMarkups: () => void;
   pasteMarkups: (targetPageIndex?: number, offset?: { x: number; y: number }) => void;
   duplicateSelectedMarkups: () => void;
@@ -597,6 +604,53 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
         undo: () => apply(before),
       };
       markupHistory.execute(command);
+      syncHistoryFlags();
+    },
+
+    applyLineStyle: (ids, id) => {
+      const targets = get().markups.filter((m) => ids.includes(m.id) && !m.locked);
+      if (targets.length === 0) return;
+      const now = new Date().toISOString();
+      const pattern = isPatternLineStyle(id);
+      const dashed = (m: Markup) => (pattern ? undefined : dashArrayFor(id, m.style.strokeWidth ?? 1));
+      const after = new Map<string, Markup>();
+      for (const m of targets) {
+        let next: Markup | null = null;
+        if (m.type === 'cloudPlus') {
+          // La Cloud+ siempre es nube: solo admite el discontinuo
+          if (!pattern || id === 'cloud') next = { ...m, style: { ...m.style, dashArray: dashed(m) } };
+        } else if (m.type === 'cloud') {
+          if (id === 'cloud') next = { ...m, style: { ...m.style, dashArray: undefined, lineStyle: undefined } };
+          else {
+            next = {
+              ...m,
+              type: m.points.length === 2 ? 'rectangle' : 'polygon',
+              style: { ...m.style, dashArray: dashed(m), lineStyle: pattern ? id : undefined },
+            };
+          }
+        } else if (id === 'cloud' && (m.type === 'rectangle' || m.type === 'polygon')) {
+          next = {
+            ...m,
+            type: 'cloud',
+            style: { ...m.style, dashArray: undefined, lineStyle: undefined },
+            customFields: { ...(m.customFields ?? {}), arcStep: m.customFields?.arcStep ?? DEFAULT_CLOUD_STEP },
+          };
+        } else if (pattern) {
+          if (PATTERN_MARKUP_TYPES.has(m.type)) next = { ...m, style: { ...m.style, dashArray: undefined, lineStyle: id } };
+        } else {
+          next = { ...m, style: { ...m.style, dashArray: dashed(m), lineStyle: undefined } };
+        }
+        if (next) after.set(m.id, { ...next, updatedAt: now });
+      }
+      if (after.size === 0) return;
+      const before = new Map(targets.filter((m) => after.has(m.id)).map((m) => [m.id, m]));
+      const apply = (map: Map<string, Markup>) =>
+        set((state) => ({ markups: state.markups.map((m) => map.get(m.id) ?? m), isDirty: true }));
+      markupHistory.execute({
+        description: `Line style: ${id}`,
+        execute: () => apply(after),
+        undo: () => apply(before),
+      });
       syncHistoryFlags();
     },
 

@@ -151,6 +151,8 @@ export interface MarkupStyle {
   strokeWidth: number;
   opacity: number;
   dashArray?: number[];
+  /** Tipo de línea con patrón (nube, valla, gas, vías...), ADR-0041; sin él, continua o discontinua. */
+  lineStyle?: string;
   fontFamily?: string;
   fontSize?: number;
   /** Color del texto (valor de las mediciones, ADR-0035); por defecto negro. */

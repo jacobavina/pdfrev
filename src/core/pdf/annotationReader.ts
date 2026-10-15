@@ -418,6 +418,7 @@ export async function importPdfAnnotations(
       let leaders: MarkupPoint[][] | undefined;
       let groupId: string | undefined;
       let layer: string | undefined;
+      let lineStyle: string | undefined;
       let exactGeometry = false;
       if (isRea && reaObj instanceof PDFDict) {
         const readPts = (arr: unknown): MarkupPoint[] | null => {
@@ -469,6 +470,8 @@ export async function importPdfAnnotations(
         }
         groupId = extractPdfStringValue(reaObj.get(PDFName.of('groupId'))) || undefined;
         layer = extractPdfStringValue(reaObj.get(PDFName.of('layer'))) || undefined;
+        // Tipo de línea con patrón (ADR-0041)
+        lineStyle = extractPdfStringValue(reaObj.get(PDFName.of('lineStyle'))) || undefined;
       }
 
       // Medición ajena, o de REA movida en otra aplicación: el valor sale de su geometría y de su /Measure (o de la
@@ -542,6 +545,7 @@ export async function importPdfAnnotations(
           lineEndingStart,
           lineEndingEnd,
           dashArray,
+          ...(lineStyle ? { lineStyle } : {}),
         },
         text: text || undefined,
         author,

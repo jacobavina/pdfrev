@@ -3,7 +3,7 @@ import { CAPTIONED_MEASURES, CAPTION_FAMILIES, captionCssFamily, captionFontOf }
 import { SlidersHorizontal, ChevronRight, Lock, LockOpen } from 'lucide-react';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useUiStore } from '../store/useUiStore';
-import { dashArrayFor, lineStyleOf, LINE_STYLE_LABELS, LineStyleId } from '../core/markup/lineStyles';
+import { dashArrayFor, lineStyleOf, lineStyleOfMarkup, LineStyleId } from '../core/markup/lineStyles';
 import {
   IconPicker,
   LineStylePreview,
@@ -45,7 +45,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
   defaultCollapsed = false,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
-  const { markups, selectedMarkupIds, applyPropertiesToMarkups, toggleLockSelectedMarkups, setCloudLineStyle } =
+  const { markups, selectedMarkupIds, applyPropertiesToMarkups, toggleLockSelectedMarkups, applyLineStyle } =
     useMarkupStore();
 
   // Menú contextual del plano o menú Ver → Panel de propiedades: abrir el panel (ADR-0017)
@@ -137,11 +137,9 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
   const isAllLocked =
     selectedMarkups.length > 0 && selectedMarkups.every((m) => Boolean(m.locked));
   // Nube (ADR-0021): "Nube" como tipo de línea para rectángulos y polígonos, tamaño de arco e invertir
-  const cloudConvertible =
-    selectedMarkups.length > 0 &&
-    selectedMarkups.every((m) => m.type === 'rectangle' || m.type === 'polygon' || m.type === 'cloud');
-  const allCloud =
-    selectedMarkups.length > 0 && selectedMarkups.every((m) => m.type === 'cloud' || m.type === 'cloudPlus');
+  const allCloud = selectedMarkups.length > 0 && selectedMarkups.every((m) => lineStyleOfMarkup(m) === 'cloud');
+  // Tipo de línea de cada marca (ADR-0041): nube, patrón o discontinuo
+  const markupLineStyle = getUnifiedValue((m) => lineStyleOfMarkup(m));
   const cloudSize = getUnifiedValue((m) =>
     typeof m.customFields?.arcStep === 'number' ? m.customFields.arcStep / CLOUD_SIZE_FACTOR : DEFAULT_CLOUD_STEP / CLOUD_SIZE_FACTOR
   );
@@ -163,14 +161,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
       checked ? 'Invert cloud' : 'Cloud not inverted'
     );
   };
-  const handleLineStylePick = (id: LineStyleId | 'cloud') => {
-    if (id === 'cloud') {
-      setCloudLineStyle(selectedMarkupIds, true);
-      return;
-    }
-    if (selectedMarkups.some((m) => m.type === 'cloud')) setCloudLineStyle(selectedMarkupIds, false);
-    handleStrokeDashChange(id);
-  };
+  const handleLineStylePick = (id: LineStyleId) => applyLineStyle(selectedMarkupIds, id);
 
   const hasLineMarkup = selectedMarkups.some(
     (m) => m.type === 'line' || m.type === 'polyLine' || m.type === 'dimension' || m.type === 'length'
@@ -239,16 +230,6 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
       selectedMarkupIds,
       { style: { opacity: clamped } },
       `Set opacity to ${Math.round(clamped * 100)}%`
-    );
-  };
-
-  const handleStrokeDashChange = (styleType: string) => {
-    const width = strokeWidth === MIXED_VALUE ? 2 : (strokeWidth as number);
-    const dashArray = dashArrayFor(styleType as LineStyleId, width);
-    applyPropertiesToMarkups(
-      selectedMarkupIds,
-      { style: { dashArray } },
-      `Set line style to ${LINE_STYLE_LABELS[styleType as LineStyleId] ?? styleType}`
     );
   };
 
@@ -407,18 +388,13 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
         {/* Estilo de trazo */}
         <div className="ui-row">
           <label className="ui-label">Style</label>
-          <IconPicker<LineStyleId | 'cloud'>
+          <IconPicker<LineStyleId>
             testId="prop-stroke-style"
             title="Line style"
-            value={
-              cloudConvertible && selectedMarkups.every((m) => m.type === 'cloud')
-                ? 'cloud'
-                : strokeDash === MIXED_VALUE
-                ? null
-                : (strokeDash as LineStyleId)
-            }
-            options={cloudConvertible ? [...LINE_STYLE_OPTIONS, { value: 'cloud', label: 'Cloud' }] : LINE_STYLE_OPTIONS}
-            renderIcon={(id) => <LineStylePreview id={id} width={120} />}
+            value={markupLineStyle === MIXED_VALUE ? null : (markupLineStyle as LineStyleId)}
+            options={LINE_STYLE_OPTIONS}
+            withLabels
+            renderIcon={(id) => <LineStylePreview id={id} width={64} />}
             onChange={handleLineStylePick}
           />
         </div>

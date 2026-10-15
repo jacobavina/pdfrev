@@ -33,6 +33,7 @@ import {
 export { measureLabelText, measureLineEndings } from './measureCaption';
 import { dimensionGeometry, dimensionTextBaseline, defaultDimensionLinePoint } from './dimension';
 import { revisionCloudPathNormalized, cloudParams } from './revisionCloud';
+import { linePatternPrimitives, markupLinePattern, patternOutlineOf, PatternLineStyleId } from './linePatterns';
 import { stampLayout } from './stamps';
 import { fieldTypeOf, fieldDisplayText, isFieldChecked } from './formFields';
 import {
@@ -585,6 +586,54 @@ function withLineEndings(
   return { tag: 'g', attrs: { opacity }, children };
 }
 
+/**
+ * Marca con tipo de línea con patrón (ADR-0041): relleno del contorno y trazos del patrón, con la misma geometría
+ * que el /AP. Los tamaños del patrón van en pt de página y crecen con el zoom, como las puntas de flecha.
+ */
+function patternDescriptor(
+  markup: Markup,
+  pattern: PatternLineStyleId,
+  transform: ViewportTransform,
+  baseAttrs: Record<string, string | number>
+): SvgRenderDescriptor | null {
+  const screenPts = markup.points.map((p) => normalizedToScreen(p, transform));
+  const outline = patternOutlineOf(markup.type, screenPts, { width: 1, height: 1 });
+  if (!outline) return null;
+  const pxPerPt = transform.zoom ?? transform.scale ?? 1;
+  const { step, invert } = cloudParams(markup.customFields, DEFAULT_ARC_STEP);
+  const res = linePatternPrimitives(outline.pts, outline.closed, pattern, {
+    strokeWidth: markup.style.strokeWidth || 1,
+    unitsPerPt: pxPerPt,
+    cloudStep: step,
+    cloudInvert: invert,
+  });
+  const style = markup.style;
+  const children: SvgRenderDescriptor[] = [];
+  if (res.fill && style.fillColor && style.fillColor !== 'transparent') {
+    children.push({ tag: 'path', attrs: { d: res.fill, fill: style.fillColor, stroke: 'none' } });
+  }
+  for (const st of res.strokes) {
+    children.push({
+      tag: 'path',
+      attrs: {
+        d: st.d,
+        fill: 'none',
+        stroke: style.strokeColor,
+        strokeWidth: st.width ?? baseAttrs.strokeWidth,
+        strokeLinejoin: 'round',
+        strokeLinecap: 'butt',
+      },
+    });
+  }
+  const opacity = baseAttrs.opacity ?? 1;
+  const main: SvgRenderDescriptor = { tag: 'g', attrs: {}, children };
+  if (markup.type === 'line' || markup.type === 'polyLine') {
+    const withEnds = withLineEndings(main, markup.type === 'line' ? screenPts.slice(0, 2) : screenPts, style, transform, opacity);
+    if (withEnds !== main) return withEnds;
+  }
+  return { tag: 'g', attrs: { opacity }, children };
+}
+
 /** Atributos SVG de una tipografía: color, familia, negrita y cursiva (ADR-0040). */
 function fontAttrs(font: CaptionFont): Record<string, string> {
   return {
@@ -644,6 +693,13 @@ export function getMarkupSvgDescriptor(
 
   if (style.dashArray && style.dashArray.length > 0) {
     baseAttrs.strokeDasharray = style.dashArray.map((d) => d * (transform.scale || 1)).join(' ');
+  }
+
+  // Tipo de línea con patrón (ADR-0041): nube, valla, gas, vías... sobre líneas, polígonos, rectángulos y elipses
+  const pattern = markupLinePattern(markup);
+  if (pattern) {
+    const desc = patternDescriptor(markup, pattern, transform, baseAttrs);
+    if (desc) return desc;
   }
 
   const p1Screen = markup.points[0]

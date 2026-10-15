@@ -16,6 +16,7 @@ import { getHelveticaTextWidth } from '../markup/helveticaMetrics';
 import { stampLayout } from '../markup/stamps';
 import { fieldTypeOf, fieldDisplayText, isFieldChecked } from '../markup/formFields';
 import { revisionCloudPathNormalized, cloudParams } from '../markup/revisionCloud';
+import { linePatternPrimitives, markupLinePattern, patternOutlineOf } from '../markup/linePatterns';
 import {
   CaptionText,
   captionStyleOf,
@@ -443,7 +444,39 @@ export function emitMarkupOperators(
     }
   };
 
-  switch (markup.type) {
+  // Tipo de línea con patrón (ADR-0041): el mismo dibujo que la pantalla, en el espacio visual de la página
+  const pattern = markupLinePattern(markup);
+  let patternDrawn = false;
+  if (pattern) {
+    const outline = patternOutlineOf(markup.type, markup.points.map(toVis), { width: 1, height: 1 });
+    if (outline) {
+      const { step, invert } = cloudParams(markup.customFields, DEFAULT_ARC_STEP);
+      const res = linePatternPrimitives(outline.pts, outline.closed, pattern, {
+        strokeWidth,
+        unitsPerPt: 1,
+        cloudStep: step,
+        cloudInvert: invert,
+      });
+      lines.push('[] 0 d', '1 j');
+      if (res.fill && fillParsed) {
+        svgQuadPathToPdf(res.fill);
+        lines.push('f');
+      }
+      for (const st of res.strokes) {
+        if (st.width !== undefined) lines.push(`${f2(st.width)} w`);
+        svgQuadPathToPdf(st.d);
+        lines.push('S');
+        if (st.width !== undefined) lines.push(`${f2(strokeWidth)} w`);
+      }
+      if (markup.type === 'line' || markup.type === 'polyLine') {
+        const ends = markup.type === 'line' ? markup.points.slice(0, 2) : markup.points;
+        emitLineEndings(ends.map((p) => normalizedToPdfCoordinates(p, transform)));
+      }
+      patternDrawn = true;
+    }
+  }
+
+  if (!patternDrawn) switch (markup.type) {
     case 'rectangle': {
       if (markup.points.length >= 2) {
         const p1 = normalizedToPdfCoordinates(markup.points[0], transform);

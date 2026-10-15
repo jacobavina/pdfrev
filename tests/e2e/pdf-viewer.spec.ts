@@ -2294,4 +2294,45 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(page.locator('[data-testid="ribbon-group-style"]')).toContainText('1 selected');
     await expect(page.locator('[data-testid="ribbon-font-bold"]')).toBeEnabled();
   });
+
+  test('Nube de Revu, tipos de línea con patrón y tamaño de nube en la barra (ADR-0041)', async ({ page }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
+    const box = (await overlaySvg.boundingBox())!;
+    const at = (nx: number, ny: number) => ({ x: box.x + box.width * nx, y: box.y + box.height * ny });
+
+    // Herramienta Nube: Size 3 e Invert desde la barra, como en Revu
+    await page.locator('header').click();
+    await page.keyboard.press('c');
+    await expect(page.locator('[data-testid="ribbon-line-style"]')).toHaveAttribute('data-value', 'cloud');
+    await page.locator('[data-testid="ribbon-cloud-style"]').click();
+    await page.locator('[data-testid="ribbon-cloud-size"]').fill('3');
+    await page.locator('[data-testid="ribbon-cloud-size"]').press('Enter');
+    await page.locator('header').click(); // cierra el desplegable sin cambiar de herramienta
+    const a = at(0.6, 0.15);
+    const b = at(0.85, 0.35);
+    await page.mouse.move(a.x, a.y);
+    await page.mouse.down();
+    await page.mouse.move(b.x, b.y, { steps: 6 });
+    await page.mouse.up();
+    const row = page.locator('[data-testid="markups-list-panel"] tbody tr').filter({ hasText: 'Cloud' });
+    await expect(row).toHaveCount(1);
+
+    // Seleccionada: la caja azul rodea los lóbulos, separada de los vértices amarillos
+    await page.keyboard.press('v');
+    await row.click();
+    const corner = (await overlaySvg.locator('[data-testid="scale-handle-0"]').boundingBox())!;
+    const vertex = (await overlaySvg.locator('[data-testid="control-point-0"]').boundingBox())!;
+    expect(vertex.x - corner.x).toBeGreaterThan(20);
+    expect(vertex.y - corner.y).toBeGreaterThan(20);
+
+    // Tipo de línea Tracks a la nube seleccionada: deja de ser nube y se dibuja con carriles y traviesas
+    await page.locator('[data-testid="ribbon-line-style"]').click();
+    await expect(page.locator('[data-testid="ribbon-line-style-list"]')).toContainText('Fenceline Square');
+    await page.locator('[data-testid="ribbon-line-style-option-tracks"]').click();
+    await expect(page.locator('[data-testid="markups-list-panel"] tbody tr').filter({ hasText: 'Rectangle' })).toHaveCount(2);
+    await expect(page.locator('[data-testid="ribbon-line-style"]')).toHaveAttribute('data-value', 'tracks');
+  });
 });

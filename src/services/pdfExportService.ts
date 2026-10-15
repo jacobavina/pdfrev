@@ -1,4 +1,5 @@
 import { revisionCloudPathNormalized, cloudParams } from '../core/markup/revisionCloud';
+import { markupLinePattern } from '../core/markup/linePatterns';
 import {
   PDFDocument,
   PDFPage,
@@ -464,6 +465,12 @@ export async function exportMarkupsToPdf(
       const dashArray = parseDashArray(markup.style.dashArray);
       const strokeWidth = markup.style.strokeWidth ?? 1;
       const opacity = markup.style.opacity ?? 1;
+
+      // Tipo de línea con patrón (ADR-0041): el mismo dibujo que el /AP (y la pantalla)
+      if (markupLinePattern(markup)) {
+        drawViaAppearanceOperators(pdfDoc, page, markup, transform);
+        continue;
+      }
 
       switch (markup.type) {
         // 1. Rectángulo

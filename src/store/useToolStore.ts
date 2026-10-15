@@ -32,6 +32,9 @@ interface ToolState {
   measureLeaders: boolean;
   /** Profundidad por defecto de la herramienta Volume, en la unidad de la escala (ADR-0029). */
   volumeDepth: number;
+  /** Tamaño (Size de Revu: paso / 10) e inversión de las nubes nuevas (ADR-0041). */
+  cloudSize: number;
+  cloudInvert: boolean;
 
   // Actions
   setActiveTool: (tool: ToolType) => void;
@@ -44,6 +47,7 @@ interface ToolState {
   setVolumeDepth: (depth: number) => void;
   setMeasureCaption: (style: CaptionStyle) => void;
   setMeasureLeaders: (on: boolean) => void;
+  setCloudOptions: (opts: { size?: number; invert?: boolean }) => void;
 }
 
 export const useToolStore = create<ToolState>((set) => ({
@@ -61,6 +65,8 @@ export const useToolStore = create<ToolState>((set) => ({
   activeStampId: 'approved',
   activeFieldType: 'text',
   volumeDepth: 1,
+  cloudSize: 2,
+  cloudInvert: false,
   measureCaption: 'inline',
   // Flujo de Acrobat por defecto (ADR-0035): clic, clic y un tercer clic para desplazar la línea
   measureLeaders: readStoredLeaders(),
@@ -84,5 +90,16 @@ export const useToolStore = create<ToolState>((set) => ({
     }
     set({ measureLeaders });
   },
+  setCloudOptions: ({ size, invert }) =>
+    set((state) => ({
+      cloudSize: size !== undefined && Number.isFinite(size) && size > 0 ? Math.max(0.25, Math.min(10, size)) : state.cloudSize,
+      cloudInvert: invert ?? state.cloudInvert,
+    })),
   setVolumeDepth: (volumeDepth) => set({ volumeDepth: Number.isFinite(volumeDepth) && volumeDepth > 0 ? volumeDepth : 1 }),
 }));
+
+/** Campos de una nube nueva con el tamaño y la inversión elegidos en la barra de propiedades (ADR-0041). */
+export function cloudCreationFields(): Record<string, number> {
+  const { cloudSize, cloudInvert } = useToolStore.getState();
+  return { arcStep: Math.round(cloudSize * 10 * 100) / 100, ...(cloudInvert ? { cloudInvert: 1 } : {}) };
+}

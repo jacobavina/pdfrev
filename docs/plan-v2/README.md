@@ -193,4 +193,5 @@ plan y `AGENTS.md`, **gana `AGENTS.md`**.
 | 2026-10-14 | Claude (Opus 5.5) | ADR-0037: sistema visual en Tool Chest, panel izquierdo y miniaturas. |
 | 2026-10-14 | Claude (Opus 5.5) | ADR-0038: Overlay Pages para comparar revisiones (rojo/azul, alineación por desplazamiento). |
 | 2026-10-15 | Claude (Opus 5.5) | ADR-0039/0040: nube de forma libre, tiradores de Revu, barra de propiedades con fuentes y sellos estilo Revu. |
+| 2026-10-15 | Claude (Opus 5.5) | ADR-0041: nube como la de Revu, tipos de línea con patrón (Dashed 1-6, Fenceline, Gas, Hot Water, Zig Zag, Insulation, Double, Tracks, Road) y Size/Invert de la nube en la barra. |
 

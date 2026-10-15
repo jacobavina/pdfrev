@@ -474,6 +474,12 @@ export async function importPdfAnnotations(
         lineStyle = extractPdfStringValue(reaObj.get(PDFName.of('lineStyle'))) || undefined;
       }
 
+      // Capa de una anotación ajena (o de REA sin capa): el /Name de su /OCG (ADR-0046)
+      if (!layer) {
+        const ocObj = annotDict.lookup(PDFName.of('OC'));
+        if (ocObj instanceof PDFDict) layer = extractPdfStringValue(ocObj.get(PDFName.of('Name'))) || undefined;
+      }
+
       // Medición ajena, o de REA movida en otra aplicación: el valor sale de su geometría y de su /Measure (o de la
       // escala de la página), como lo calcularía Revu/Acrobat (ADR-0030)
       if (RECOMPUTED_MEASURES.has(markupType) && !exactGeometry && points.length >= 2) {

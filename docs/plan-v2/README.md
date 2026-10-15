@@ -198,4 +198,5 @@ plan y `AGENTS.md`, **gana `AGENTS.md`**.
 | 2026-10-15 | Claude (Opus 5.5) | ADR-0043: al seleccionar una marca se abre su panel (Properties o Measure); interruptor en View. |
 | 2026-10-15 | Claude (Opus 5.5) | ADR-0044: reestructura visual: cinta con pestañas, barra de propiedades, riel de paneles y paleta "sala de planos". |
 | 2026-10-15 | Claude (Opus 5.5) | ADR-0045: sellos de Revu y Foxit (catálogo por secciones, dibujo común, texto dinámico y selector con miniaturas). |
+| 2026-10-15 | Claude (Opus 5.5) | ADR-0046: capas de marcas como capas del PDF (/OCG y /OC), visibles en Revu y Acrobat. |
 

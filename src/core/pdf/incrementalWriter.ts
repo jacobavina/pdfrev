@@ -48,6 +48,8 @@ export interface IncrementalSaveOptions {
    * Las páginas sin entrada conservan su /VP original (p. ej. calibrado en Revu).
    */
   calibrations?: Record<number, PageCalibration>;
+  /** Capas de marcas ocultas en REA: su /OCG se escribe apagado (ADR-0046). */
+  hiddenLayers?: string[];
   /** Bytes de los adjuntos por clave (`customFields.attachmentKey`), para embeberlos (ADR-0027). */
   attachments?: Record<string, { name: string; mime: string; bytes: Uint8Array }>;
 }
@@ -335,6 +337,16 @@ export async function saveIncrementalMarkups(
   const pdfDoc = await PDFDocument.load(originalBytes);
   const pages = pdfDoc.getPages();
 
+  // Capas de marcas como contenido opcional (ADR-0046): un /OCG por capa, que Revu y Acrobat listan en su panel
+  // de capas y con el que muestran u ocultan las anotaciones
+  const layerOcg = new Map<string, number>();
+  for (const m of markups) {
+    if (m.layer && !layerOcg.has(m.layer)) layerOcg.set(m.layer, writer.allocateObjectNumber());
+  }
+  for (const [name, num] of layerOcg) {
+    writer.addObject(num, `<< /Type /OCG /Name ${escapePdfString(name)} /REA << /v 1 /layer ${escapePdfString(name)} >> >>`);
+  }
+
   // Ids que el modelo reescribe en este guardado y que el usuario borró desde la importación
   const replacedIds = new Set<string>([...markups.map((m) => m.id), ...(options.importedIds ?? [])]);
 
@@ -575,7 +587,7 @@ ${titleLine}  /Contents ${escapePdfString(markup.text || '')}
   /CreationDate ${formatPdfDate(markup.createdAt)}
   /F ${markup.locked ? 132 : 4}
   /BS ${borderStyleEntry(strokeWidth, markup.style.dashArray)}
-${apLine}  /REA ${reaDict}
+${markup.layer && layerOcg.has(markup.layer) ? `  /OC ${layerOcg.get(markup.layer)} 0 R\n` : ''}${apLine}  /REA ${reaDict}
 `;
 
       if (markup.locked) {
@@ -791,7 +803,16 @@ ${apLine}  /REA ${reaDict}
     );
     newFieldRefs.push(`${g.objNum} 0 R`);
   }
-  updateAcroForm(pdfDoc, writer, newFieldRefs);
+  const formChanged = updateAcroForm(pdfDoc, writer, newFieldRefs);
+  const layersChanged = updateOCProperties(
+    pdfDoc,
+    [...layerOcg].map(([name, num]) => ({ name, ref: PDFRef.of(num, 0) })),
+    options.hiddenLayers ?? []
+  );
+  if (formChanged || layersChanged) {
+    const rootRef = pdfDoc.context.trailerInfo.Root;
+    if (rootRef instanceof PDFRef) writer.addObject(rootRef.objectNumber, pdfDoc.catalog.toString());
+  }
 
   return writer.build();
 }
@@ -825,9 +846,9 @@ function widgetFieldEntries(
 
 /**
  * /AcroForm del catálogo (ADR-0027): conserva los campos ajenos, retira los de REA escritos antes y añade los
- * actuales. Solo reescribe el catálogo si hay campos de REA nuevos o anteriores.
+ * actuales. Solo cambia el catálogo si hay campos de REA nuevos o anteriores; devuelve si lo cambió.
  */
-function updateAcroForm(pdfDoc: PDFDocument, writer: IncrementalWriter, newFieldRefs: string[]): void {
+function updateAcroForm(pdfDoc: PDFDocument, writer: IncrementalWriter, newFieldRefs: string[]): boolean {
   const catalog = pdfDoc.catalog;
   const existing = catalog.lookup(PDFName.of('AcroForm'));
   const kept: PDFObject[] = [];
@@ -846,7 +867,7 @@ function updateAcroForm(pdfDoc: PDFDocument, writer: IncrementalWriter, newField
       }
     }
   }
-  if (newFieldRefs.length === 0 && !hadRea) return;
+  if (newFieldRefs.length === 0 && !hadRea) return false;
   const ctx = pdfDoc.context;
   const acro = existing instanceof PDFDict ? existing : ctx.obj({});
   const refs = newFieldRefs.map((r) => PDFRef.of(parseInt(r, 10), 0));
@@ -867,8 +888,53 @@ function updateAcroForm(pdfDoc: PDFDocument, writer: IncrementalWriter, newField
   const acroNum = writer.allocateObjectNumber();
   writer.addObject(acroNum, acro.toString());
   catalog.set(PDFName.of('AcroForm'), PDFRef.of(acroNum, 0));
-  const rootRef = pdfDoc.context.trailerInfo.Root;
-  if (rootRef instanceof PDFRef) writer.addObject(rootRef.objectNumber, catalog.toString());
+  return true;
+}
+
+/**
+ * /OCProperties del catálogo (ADR-0046): conserva las capas propias del plano, retira las capas de marcas que REA
+ * escribió antes y añade las actuales a /OCGs, a /Order y a /ON u /OFF según su visibilidad en REA. Devuelve si
+ * cambió el catálogo.
+ */
+function updateOCProperties(pdfDoc: PDFDocument, layers: { name: string; ref: PDFRef }[], hidden: string[]): boolean {
+  const ctx = pdfDoc.context;
+  const catalog = pdfDoc.catalog;
+  const isRea = (item: PDFObject): boolean => {
+    const d = item instanceof PDFRef ? ctx.lookup(item) : item;
+    return d instanceof PDFDict && Boolean(d.get(PDFName.of('REA')));
+  };
+  const strip = (arr: PDFObject | undefined): PDFObject[] => {
+    if (!(arr instanceof PDFArray)) return [];
+    const out: PDFObject[] = [];
+    for (const item of arr.asArray()) {
+      if (item instanceof PDFArray) out.push(ctx.obj(strip(item)));
+      else if (!isRea(item)) out.push(item);
+    }
+    return out;
+  };
+  const existing = catalog.lookup(PDFName.of('OCProperties'));
+  const oc = existing instanceof PDFDict ? existing : null;
+  const ocgs = oc?.lookup(PDFName.of('OCGs'));
+  const keptOcgs = strip(ocgs);
+  const hadRea = ocgs instanceof PDFArray && keptOcgs.length !== ocgs.size();
+  if (layers.length === 0 && !hadRea) return false;
+  if (layers.length === 0 && keptOcgs.length === 0) {
+    catalog.delete(PDFName.of('OCProperties'));
+    return true;
+  }
+  const refs = layers.map((l) => l.ref);
+  const d0 = oc?.lookup(PDFName.of('D'));
+  const d = d0 instanceof PDFDict ? d0 : ctx.obj({ Name: PDFString.of('Default') });
+  d.set(PDFName.of('Order'), ctx.obj([...strip(d.lookup(PDFName.of('Order'))), ...refs]));
+  const off = layers.filter((l) => hidden.includes(l.name)).map((l) => l.ref);
+  const on = layers.filter((l) => !hidden.includes(l.name)).map((l) => l.ref);
+  const keptOn = strip(d.lookup(PDFName.of('ON')));
+  const keptOff = strip(d.lookup(PDFName.of('OFF')));
+  if (keptOn.length + on.length > 0) d.set(PDFName.of('ON'), ctx.obj([...keptOn, ...on]));
+  if (keptOff.length + off.length > 0) d.set(PDFName.of('OFF'), ctx.obj([...keptOff, ...off]));
+  else d.delete(PDFName.of('OFF'));
+  catalog.set(PDFName.of('OCProperties'), ctx.obj({ OCGs: ctx.obj([...keptOcgs, ...refs]), D: d }));
+  return true;
 }
 
 /** Nombre PDF de un extremo de línea (ISO 32000-1 tabla 176), con los seis estilos de REA. */

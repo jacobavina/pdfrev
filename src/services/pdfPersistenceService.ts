@@ -3,6 +3,7 @@ import { useAttachmentStore } from '../store/useAttachmentStore';
 import { PDFDocument, PDFArray, PDFDict, PDFName, PDFString, PDFHexString } from 'pdf-lib';
 import { isTauriEnvironment } from './bbxPersistenceService';
 import { saveIncrementalMarkups } from '../core/pdf/incrementalWriter';
+import { useUiStore } from '../store/useUiStore';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { Markup } from '../types/markup';
 import { showToast } from './toastService';
@@ -76,6 +77,7 @@ export async function savePdfIncremental(
       importedIds,
       calibrations,
       attachments,
+      hiddenLayers: useUiStore.getState().hiddenLayers,
     });
 
     // Validación ANTES de escribir en disco: si falla, el archivo del usuario no se toca

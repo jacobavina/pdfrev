@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Files, Bookmark, Layers, Eye, EyeOff, ChevronRight, ChevronDown } from 'lucide-react';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { listPdfLayers, OptionalContentConfigLike } from '../../core/pdf/pdfLayers';
@@ -122,7 +122,10 @@ const PdfLayersSection: React.FC = () => {
   const ocConfig = useDocumentStore((s) => s.ocConfig);
   useDocumentStore((s) => s.ocVersion); // re-render al cambiar la visibilidad
   const { setPdfLayerVisible, setAllPdfLayersVisible } = useDocumentStore();
-  const rows = listPdfLayers(ocConfig as OptionalContentConfigLike | null);
+  // Las capas de marcas que REA escribe como /OCG (ADR-0046) se gestionan abajo, en Markup Layers
+  const markups = useMarkupStore((s) => s.markups);
+  const markupLayers = useMemo(() => new Set(markups.map((m) => m.layer).filter(Boolean)), [markups]);
+  const rows = listPdfLayers(ocConfig as OptionalContentConfigLike | null).filter((r) => !r.id || !markupLayers.has(r.name));
 
   return (
     <section data-testid="pdf-layers-section" className="border-b border-cad-border">

@@ -46,7 +46,7 @@ import {
 } from 'lucide-react';
 import { FIELD_TYPES, FieldType } from '../../core/markup/formFields';
 import { fieldTypeIcon } from './fieldIcons';
-import { STAMPS } from '../../core/markup/stamps';
+import { STAMPS, STAMP_GROUPS } from '../../core/markup/stamps';
 import {
   FitPageIcon,
   FitWidthIcon,
@@ -323,17 +323,21 @@ export const MenuBar: React.FC = () => {
           icon: <StampIcon size={15} />,
           label: 'Stamp',
           testId: 'menu-tools-stamp',
-          submenu: STAMPS.map((st) => ({
-            icon: <span className="w-3 h-3 rounded-sm border-2" style={{ borderColor: st.color }} />,
-            label: st.label,
-            checked: activeTool === 'stamp' && activeStampId === st.id,
-            testId: `menu-stamp-${st.id}`,
-            disabled: !hasDoc,
-            onSelect: () => {
-              setActiveStampId(st.id);
-              setActiveTool('stamp');
-            },
-          })),
+          // Por secciones, como el selector de la cinta (ADR-0045)
+          submenu: STAMP_GROUPS.flatMap((group, gi) => [
+            ...(gi > 0 ? (['separator'] as MenuEntry[]) : []),
+            ...STAMPS.filter((st) => st.group === group).map((st) => ({
+              icon: <span className="w-3 h-3 rounded-sm border-2" style={{ borderColor: st.color }} />,
+              label: group === 'Construction' ? st.label : `${st.label} · ${group}`,
+              checked: activeTool === 'stamp' && activeStampId === st.id,
+              testId: `menu-stamp-${st.id}`,
+              disabled: !hasDoc,
+              onSelect: () => {
+                setActiveStampId(st.id);
+                setActiveTool('stamp');
+              },
+            })),
+          ]),
         },
         {
           icon: <LengthMeasureIcon size={15} />,

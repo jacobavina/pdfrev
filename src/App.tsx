@@ -3,7 +3,6 @@ import { FileText } from 'lucide-react';
 import { PdfViewer } from './components/PdfViewer';
 import { MenuBar } from './components/shell/MenuBar';
 import { Ribbon } from './components/shell/Ribbon';
-import { LeftDock } from './components/shell/LeftDock';
 import { StatusBar } from './components/shell/StatusBar';
 import { ToastHost } from './components/shell/ToastHost';
 import { useDocumentStore } from './store/useDocumentStore';
@@ -32,6 +31,8 @@ const ShortcutsDialog = lazy(() =>
 );
 /** Hueco de la barra lateral plegada mientras carga el panel. */
 const SidePanelFallback: React.FC = () => null;
+// Panel izquierdo (miniaturas, marcadores y capas) en su propio fragmento: presupuesto del bundle (ADR-0045)
+const LeftDock = lazy(() => import('./components/shell/LeftDock').then((m) => ({ default: m.LeftDock })));
 import { RULER_SIZE } from './core/measurements/rulers';
 import { CalibrateHint } from './components/viewer/CalibrateHint';
 const Rulers = lazy(() => import('./components/viewer/Rulers'));
@@ -163,7 +164,9 @@ export const App: React.FC = () => {
 
       {/* 2. Espacio de trabajo: panel izquierdo con pestañas · documento · paneles derechos */}
       <div className="flex-1 flex overflow-hidden relative min-h-0">
-        <LeftDock />
+        <Suspense fallback={<div className="w-11 shrink-0 bg-cad-panel border-r border-cad-border" />}>
+          <LeftDock />
+        </Suspense>
         <div className="flex-1 min-w-0 flex flex-col">
           <DocumentTab />
           <div

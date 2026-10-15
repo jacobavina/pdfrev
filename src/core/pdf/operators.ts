@@ -13,7 +13,8 @@ import {
 import { lineEndingShape, lineEndingSize, endpointAngles, shapeExtent, Pt, CALLOUT_ARROW_HALF_ANGLE } from '../markup/lineEndings';
 import { dimensionGeometry, dimensionTextBaseline, defaultDimensionLinePoint } from '../markup/dimension';
 import { getHelveticaTextWidth } from '../markup/helveticaMetrics';
-import { stampLayout } from '../markup/stamps';
+import { stampById, stampTextOf } from '../markup/stamps';
+import { stampArt } from '../markup/stampArt';
 import { fieldTypeOf, fieldDisplayText, isFieldChecked } from '../markup/formFields';
 import { revisionCloudPathNormalized, cloudParams } from '../markup/revisionCloud';
 import { linePatternPrimitives, markupLinePattern, patternOutlineOf } from '../markup/linePatterns';
@@ -955,29 +956,34 @@ export function emitMarkupOperators(
 
     case 'stamp': {
       if (markup.points.length < 2) break;
+      // Sellos de Revu y Foxit (ADR-0045): mismo dibujo que la pantalla
       const a = toVis(markup.points[0]);
       const b = toVis(markup.points[1]);
-      const label = (markup.text || 'APPROVED').toUpperCase();
-      const sub = typeof markup.customFields?.stampSubtitle === 'string' ? markup.customFields.stampSubtitle : '';
-      const L = stampLayout(
+      const def = stampById(typeof markup.customFields?.stampId === 'string' ? markup.customFields.stampId : undefined);
+      const { title, subtitle } = stampTextOf(markup, def);
+      const prims = stampArt(
+        def,
         { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(b.x - a.x), h: Math.abs(b.y - a.y) },
-        label,
-        sub
+        title,
+        subtitle,
+        markup.style.strokeColor || def.color
       );
-      const color = strokeParsed ?? { r: 0.08, g: 0.5, b: 0.24 };
-      const { x, y, w, h } = L.outer;
-      const r = L.radius;
-      // Marco único redondeado sin relleno (ADR-0040), con la misma forma que en pantalla
-      lines.push(`${f2(L.outerStroke)} w`, rgbOp(color, 'RG'));
-      svgQuadPathToPdf(
-        `M ${x + r} ${y} L ${x + w - r} ${y} Q ${x + w} ${y} ${x + w} ${y + r} L ${x + w} ${y + h - r} ` +
-          `Q ${x + w} ${y + h} ${x + w - r} ${y + h} L ${x + r} ${y + h} Q ${x} ${y + h} ${x} ${y + h - r} ` +
-          `L ${x} ${y + r} Q ${x} ${y} ${x + r} ${y} Z`
-      );
-      lines.push('S');
-      textVis(label, L.titleBaseline, L.titleSize, color, 'center', true);
-      if (L.subBaseline && sub) {
-        textVis(sub, L.subBaseline, L.subSize, color, 'center', false, { family: 'Helvetica', size: L.subSize, color: '#000000', bold: false, italic: true });
+      const rgb = (c: string) => parseCssColorRgb(c) ?? { r: 0, g: 0, b: 0 };
+      for (const p of prims) {
+        if (p.t === 'path') {
+          if (p.fill) lines.push(rgbOp(rgb(p.fill), 'rg'));
+          if (p.stroke) lines.push(rgbOp(rgb(p.stroke), 'RG'), `${f2(p.width ?? 1)} w`, '1 j', '1 J');
+          svgQuadPathToPdf(p.d);
+          lines.push(p.fill && p.stroke ? 'B' : p.fill ? 'f' : 'S');
+        } else {
+          textVis(p.text, { x: p.x, y: p.y }, p.size, rgb(p.color), p.align, Boolean(p.bold), {
+            family: 'Helvetica',
+            size: p.size,
+            color: p.color,
+            bold: Boolean(p.bold),
+            italic: Boolean(p.italic),
+          });
+        }
       }
       break;
     }

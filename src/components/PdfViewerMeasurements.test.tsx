@@ -202,7 +202,8 @@ describe('PdfViewer - Área por polígono, capas ocultas y menú contextual (ADR
       fireEvent.contextMenu(svg, { clientX: 80, clientY: 180 });
     });
     expect(useMarkupStore.getState().selectedMarkupIds).toEqual(['m-ctx']);
-    expect(screen.getByTestId('canvas-context-menu')).toHaveTextContent('Rectangle');
+    // El menú se carga al primer clic derecho (ADR-0045)
+    expect(await screen.findByTestId('canvas-context-menu')).toHaveTextContent('Rectangle');
 
     act(() => {
       fireEvent.click(screen.getByTestId('canvas-menu-status-accepted'));

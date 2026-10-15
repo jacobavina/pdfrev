@@ -2430,4 +2430,34 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(page.locator('[data-testid="markup-g-calibration-markup-1"] [data-testid="selection-bbox"]')).toHaveCount(1);
     await expect(props).toHaveAttribute('data-collapsed', 'true');
   });
+
+  test('Sellos de Revu y Foxit desde el selector de la pestaña Insert (ADR-0045)', async ({ page }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    const box = (await overlaySvg.boundingBox())!;
+    const at = (nx: number, ny: number) => ({ x: box.x + box.width * nx, y: box.y + box.height * ny });
+    const stamps = overlaySvg.locator('g[data-testid^="markup-stamp-"]');
+
+    // Foxit estándar: caja azul con icono y texto blanco
+    await page.locator('[data-testid="ribbon-tab-insert"]').click();
+    await page.locator('[data-testid="ribbon-stamp-picker"]').click();
+    await expect(page.locator('[data-testid="ribbon-stamp-picker-group-sign-here"]')).toContainText('Sign Here');
+    await page.locator('[data-testid="ribbon-stamp-picker-option-std-approved"]').click();
+    await expect(page.locator('[data-testid="tool-stamp"]')).toHaveAttribute('aria-pressed', 'true');
+    const a = at(0.75, 0.12);
+    await page.mouse.click(a.x, a.y);
+    await expect(stamps).toHaveCount(1);
+    await expect(stamps.first()).toContainText('APPROVED');
+    await expect(stamps.first().locator('path').first()).toHaveAttribute('fill', '#2a69ad');
+
+    // Revu For Review: texto verde y línea de fecha
+    await page.locator('[data-testid="ribbon-stamp-picker"]').click();
+    await page.locator('[data-testid="ribbon-stamp-picker-option-rv-for-review"]').click();
+    const b = at(0.75, 0.2);
+    await page.mouse.click(b.x, b.y);
+    await expect(stamps).toHaveCount(2);
+    await expect(stamps.nth(1)).toContainText('For Review');
+    await expect(stamps.nth(1)).toContainText(/\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2} (am|pm)/);
+  });
 });

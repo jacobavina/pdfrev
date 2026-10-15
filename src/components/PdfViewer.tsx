@@ -44,7 +44,8 @@ import { extractTextForLineRect, mergeLineRects } from '../utils/textLayerUtils'
 import { useCalibrationStore } from '../store/useCalibrationStore';
 import { useSearchStore } from '../store/useSearchStore';
 import { useUiStore, NO_LAYER } from '../store/useUiStore';
-import { CanvasContextMenu } from './shell/CanvasContextMenu';
+// Menú contextual del plano: se carga al primer clic derecho (presupuesto del bundle, ADR-0045)
+const CanvasContextMenu = React.lazy(() => import('./shell/CanvasContextMenu').then((m) => ({ default: m.CanvasContextMenu })));
 import { runPageOperation } from './shell/appActions';
 import { translucentFill } from '../core/markup/typeLabels';
 import { defaultDimensionLinePoint } from '../core/markup/dimension';
@@ -67,7 +68,8 @@ import {
 import type { ContentSnapIndex } from '../core/markup/contentSnap';
 import type { loadContentSnapIndex } from '../services/contentSnapService';
 import { showToast } from '../services/toastService';
-import { stampById, stampSubtitle, defaultStampSizePt } from '../core/markup/stamps';
+import { stampById } from '../core/markup/stamps';
+import { stampTexts, stampDefaultSize } from '../core/markup/stampArt';
 import { fieldTypeDef, fieldTypeOf, nextFieldName } from '../core/markup/formFields';
 import { useAttachmentStore } from '../store/useAttachmentStore';
 import { useOverlayStore } from '../store/useOverlayStore';
@@ -1717,7 +1719,8 @@ export const PdfViewer: React.FC = () => {
       ];
     }
     const def = stampById(useToolStore.getState().activeStampId);
-    const size = defaultStampSizePt(def.label, stampSubtitle(author || 'Reviewer', new Date().toISOString()));
+    const texts = stampTexts(def, author || 'Reviewer', new Date().toISOString());
+    const size = stampDefaultSize(def, texts.title, texts.subtitle);
     const pw = pageViewport.width / (scale || 1.0);
     const ph = pageViewport.height / (scale || 1.0);
     const w = Math.min(1, size.width / pw);
@@ -1909,20 +1912,21 @@ export const PdfViewer: React.FC = () => {
         const box = stampBoxFor(drawingStart, currentDrawPoint);
         const def = stampById(useToolStore.getState().activeStampId);
         const now = new Date().toISOString();
+        const texts = stampTexts(def, author || 'Reviewer', now);
         const id = uuidv4();
         const stamp: Markup = {
           id,
           type: 'stamp',
           pageIndex: currentPageIndex,
           points: box,
-          text: def.label,
+          text: texts.title,
           style: { strokeColor: def.color, fillColor: '#ffffff', strokeWidth: 2, opacity: 1 },
           author: author || 'Reviewer',
           createdAt: now,
           updatedAt: now,
           status: 'pending',
           layer: activeLayer,
-          customFields: { stampId: def.id, stampSubtitle: stampSubtitle(author || 'Reviewer', now) },
+          customFields: { stampId: def.id, stampSubtitle: texts.subtitle },
         };
         addMarkup(stamp);
         useToolChestStore.getState().recordRecent(stamp);
@@ -3188,14 +3192,15 @@ export const PdfViewer: React.FC = () => {
 
                   if (activeTool === 'stamp') {
                     const def = stampById(useToolStore.getState().activeStampId);
+                    const texts = stampTexts(def, author || 'Reviewer', new Date().toISOString());
                     const previewStamp: Markup = {
                       id: 'preview-stamp',
                       type: 'stamp',
                       pageIndex: currentPageIndex,
                       points: stampBoxFor(drawingStart, currentDrawPoint),
-                      text: def.label,
+                      text: texts.title,
                       style: { strokeColor: def.color, strokeWidth: 2, opacity: 1 },
-                      customFields: { stampSubtitle: stampSubtitle(author || 'Reviewer', new Date().toISOString()) },
+                      customFields: { stampId: def.id, stampSubtitle: texts.subtitle },
                       author: '',
                       createdAt: '',
                       updatedAt: '',
@@ -3687,7 +3692,9 @@ export const PdfViewer: React.FC = () => {
       )}
 
       {contextMenu && (
-        <CanvasContextMenu x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} />
+        <React.Suspense fallback={null}>
+          <CanvasContextMenu x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} />
+        </React.Suspense>
       )}
     </div>
   );

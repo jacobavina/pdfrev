@@ -35,7 +35,8 @@ import { dimensionGeometry, dimensionTextBaseline, defaultDimensionLinePoint } f
 import { revisionCloudPathNormalized, cloudParams } from './revisionCloud';
 import { calloutLeaderLayout, calloutBoxPaint, CALLOUT_LANDING_PT } from './calloutLayout';
 import { linePatternPrimitives, markupLinePattern, patternOutlineOf, PatternLineStyleId } from './linePatterns';
-import { stampLayout } from './stamps';
+import { stampById, stampTextOf } from './stamps';
+import { stampArt } from './stampArt';
 import { fieldTypeOf, fieldDisplayText, isFieldChecked } from './formFields';
 import {
   getHelveticaTextWidth,
@@ -925,31 +926,31 @@ export function getMarkupSvgDescriptor(
 
     // Sello (ADR-0026): doble marco, título en negrita y autor/fecha; misma distribución que el /AP
     case 'stamp': {
+      // Sellos de Revu y Foxit (ADR-0045): mismo dibujo que el /AP
       const r = getRectGeometry(p1Screen, p2Screen);
-      const label = (markup.text || 'APPROVED').toUpperCase();
-      const sub = typeof markup.customFields?.stampSubtitle === 'string' ? markup.customFields.stampSubtitle : '';
-      const L = stampLayout({ x: r.x, y: r.y, w: Math.max(1, r.width), h: Math.max(1, r.height) }, label, sub);
-      const color = style.strokeColor || '#15803d';
-      const opacity = style.opacity ?? 1;
-      const children: SvgRenderDescriptor[] = [
-        {
-          tag: 'rect',
-          attrs: { x: L.outer.x, y: L.outer.y, width: L.outer.w, height: L.outer.h, rx: L.radius, ry: L.radius, fill: 'none', stroke: color, strokeWidth: L.outerStroke, opacity },
-        },
-        {
-          tag: 'text',
-          attrs: { x: L.titleBaseline.x, y: L.titleBaseline.y, fontSize: L.titleSize, fontWeight: 'bold', fontFamily: 'Helvetica, Arial, sans-serif', textAnchor: 'middle', fill: color, opacity },
-          textNode: label,
-        },
-      ];
-      if (L.subBaseline && sub) {
-        children.push({
-          tag: 'text',
-          attrs: { x: L.subBaseline.x, y: L.subBaseline.y, fontSize: L.subSize, fontFamily: 'Helvetica, Arial, sans-serif', fontStyle: 'italic', textAnchor: 'middle', fill: color, opacity },
-          textNode: sub,
-        });
-      }
-      return { tag: 'g', attrs: { 'data-testid': `markup-stamp-${markup.id}` }, children };
+      const def = stampById(typeof markup.customFields?.stampId === 'string' ? markup.customFields.stampId : undefined);
+      const { title, subtitle } = stampTextOf(markup, def);
+      const prims = stampArt(def, { x: r.x, y: r.y, w: Math.max(1, r.width), h: Math.max(1, r.height) }, title, subtitle, style.strokeColor || def.color);
+      const family = 'Helvetica, Arial, sans-serif';
+      const children: SvgRenderDescriptor[] = prims.map((p): SvgRenderDescriptor =>
+        p.t === 'path'
+          ? { tag: 'path', attrs: { d: p.d, fill: p.fill ?? 'none', stroke: p.stroke ?? 'none', strokeWidth: p.width ?? 0, strokeLinejoin: 'round', strokeLinecap: 'round' } }
+          : {
+              tag: 'text',
+              attrs: {
+                x: p.x,
+                y: p.y,
+                fontSize: p.size,
+                fontFamily: family,
+                textAnchor: p.align === 'center' ? 'middle' : 'start',
+                fill: p.color,
+                ...(p.bold ? { fontWeight: 'bold' } : {}),
+                ...(p.italic ? { fontStyle: 'italic' } : {}),
+              },
+              textNode: p.text,
+            }
+      );
+      return { tag: 'g', attrs: { 'data-testid': `markup-stamp-${markup.id}`, opacity: style.opacity ?? 1 }, children };
     }
 
     // Cota con texto propio (ADR-0020): misma geometría que el /AP

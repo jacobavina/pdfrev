@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { Stamp as StampIcon, Link2, Paperclip } from 'lucide-react';
-import { STAMPS, stampById } from '../../core/markup/stamps';
+import { stampById } from '../../core/markup/stamps';
 import { FIELD_TYPES, fieldTypeDef } from '../../core/markup/formFields';
 import { fieldTypeIcon } from './fieldIcons';
 import { useDocumentStore } from '../../store/useDocumentStore';
@@ -18,7 +18,6 @@ import {
   LineEndingPreview,
   StrokeWidthPreview,
   OpacityPreview,
-  StampPreview,
   LINE_STYLE_OPTIONS,
   LINE_ENDING_OPTIONS,
 } from './IconPicker';
@@ -30,6 +29,9 @@ import type { MarkupStyle } from '../../types/markup';
 const STROKE_WIDTHS = [0.5, 1, 1.5, 2, 3, 5, 8];
 
 const OPACITIES = [1, 0.75, 0.5, 0.25];
+
+// Selector de sellos con sus miniaturas: solo se carga al abrir la pestaña Insert (presupuesto del bundle, ADR-0045)
+const StampPicker = lazy(() => import('./StampPicker').then((m) => ({ default: m.StampPicker })));
 
 /** Pestañas de la cinta (ADR-0044), como las de Revu: cada una agrupa las herramientas de una tarea. */
 type RibbonTabId = 'markup' | 'measure' | 'insert';
@@ -263,18 +265,16 @@ export const Ribbon: React.FC = () => {
                 onClick={() => setActiveTool('stamp')}
               />
               <div className="pl-1">
-                <IconPicker
-                  compact
-                  testId="ribbon-stamp-picker"
-                  title="Stamp"
-                  value={activeStampId}
-                  options={STAMPS.map((st) => ({ value: st.id, label: st.label }))}
-                  renderIcon={(id) => <StampPreview id={id} />}
-                  onChange={(id) => {
-                    setActiveStampId(id);
-                    setActiveTool('stamp');
-                  }}
-                />
+                <Suspense fallback={<span className="block w-[88px] h-[30px] rounded-md border border-cad-border" />}>
+                  <StampPicker
+                    testId="ribbon-stamp-picker"
+                    value={activeStampId}
+                    onChange={(id) => {
+                      setActiveStampId(id);
+                      setActiveTool('stamp');
+                    }}
+                  />
+                </Suspense>
               </div>
             </RibbonGroup>
             <RibbonGroup label="Link & Form" testId="ribbon-group-insert">

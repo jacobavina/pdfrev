@@ -42,6 +42,7 @@ import {
   Link2,
   Paperclip,
   Layers2,
+  Columns2,
   FileStack,
 } from 'lucide-react';
 import { FIELD_TYPES, FieldType } from '../../core/markup/formFields';
@@ -301,6 +302,26 @@ export const MenuBar: React.FC = () => {
               testId: 'menu-overlay-self',
               onSelect: () => void import('../../services/overlayService').then((m) => m.startOverlayWithThisDocument()),
               disabled: !hasDoc || numPages < 2,
+            },
+          ],
+        },
+        {
+          icon: <Columns2 size={15} />,
+          label: 'Side by Side',
+          testId: 'menu-side-by-side',
+          disabled: !hasDoc,
+          submenu: [
+            {
+              icon: <FileText size={15} />,
+              label: 'Compare with Another PDF…',
+              testId: 'menu-split-file',
+              onSelect: () => void import('../../services/splitService').then((m) => m.startSplitFromFile()),
+            },
+            {
+              icon: <Columns2 size={15} />,
+              label: 'Compare with a Page of This Document',
+              testId: 'menu-split-this',
+              onSelect: () => void import('../../services/splitService').then((m) => m.startSplitWithThisDocument()),
             },
           ],
         },

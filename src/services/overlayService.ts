@@ -9,13 +9,13 @@ import { showToast } from './toastService';
 const isTauri = () => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
 /** Pide un PDF al usuario y devuelve su nombre y bytes, o null si cancela. */
-async function pickPdf(): Promise<{ name: string; bytes: Uint8Array } | null> {
+export async function pickPdf(title = 'Overlay with another PDF'): Promise<{ name: string; bytes: Uint8Array } | null> {
   if (isTauri()) {
     const { open } = await import('@tauri-apps/plugin-dialog');
     const selected = await open({
       multiple: false,
       directory: false,
-      title: 'Overlay with another PDF',
+      title,
       filters: [{ name: 'PDF', extensions: ['pdf'] }],
     });
     if (!selected || Array.isArray(selected)) return null;

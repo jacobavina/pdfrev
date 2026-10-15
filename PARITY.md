@@ -128,6 +128,8 @@ Este documento registra la paridad funcional real implementada en REA, vinculand
 | **Trazo recto con Shift: horizontal o vertical (ADR-0047)** | `shipped` | `src/components/OrthoShift.test.tsx` | `con Shift la línea queda horizontal y la polilínea sigue en vertical; sin Shift sigue al cursor` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Shift a 45° y cajas cuadradas o circulares (ADR-0048)** | `shipped` | `src/components/OrthoShift.test.tsx` | `también ajusta a 45° (diagonal) en unidades de página, y las cajas forman un cuadrado (ADR-0048)` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Cursores oscuros con halo, visibles sobre la hoja** | `shipped` | `src/components/OrthoShift.test.tsx` | `con Shift el rectángulo arrastrado es un cuadrado; el cursor del plano es la cruz oscura con halo` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **Vista lado a lado (Split View) con otra página u otro PDF (ADR-0049)** | `shipped` | `src/components/viewer/SplitPane.test.tsx` | `muestra otra página del documento con sus marcas, navega entre páginas y se cierra` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **Sync de la vista lado a lado: misma zona del plano y misma página** | `shipped` | `src/components/viewer/SplitPane.test.tsx` | `con otro PDF y Sync, sigue la página del visor principal` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Automatización nativa con tauri-driver (Hito P2-X)** | `shipped` | `scripts/native-smoke.mjs` | `Hito P2-X (ADR-0008): Smoke Test de Ventana Nativa con tauri-driver` | Verificado por el usuario en ventana nativa, 2026-10-10 (`npm run test:native:build` sobre HEAD bf7be61: arranque, canvas, IPC Rust y dibujo W3C) |
 
 

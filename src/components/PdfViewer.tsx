@@ -3,6 +3,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useToolStore, ToolType, cloudCreationFields } from '../store/useToolStore';
+import { useSplitStore } from '../store/useSplitStore';
+import { viewCenterOnPage } from '../core/compare/splitSync';
 import type { RenderResult } from '../services/pdfService';
 import { PageCanvas } from './viewer/PageCanvas';
 import {
@@ -229,6 +231,17 @@ export const PdfViewer: React.FC = () => {
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const pageContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Vista lado a lado (ADR-0049): el panel se centra en el mismo punto del plano que el visor
+  const splitActive = useSplitStore((s) => s.active);
+  const publishSplitView = useCallback(() => {
+    if (!useSplitStore.getState().active) return;
+    const el = containerRef.current;
+    const pageEl = pageContainerRef.current;
+    if (!el || !pageEl) return;
+    const c = viewCenterOnPage(el.getBoundingClientRect(), pageEl.getBoundingClientRect());
+    if (c) useSplitStore.getState().setMainView({ pageIndex: useDocumentStore.getState().currentPageIndex, ...c });
+  }, []);
   const textLayerRef = useRef<HTMLDivElement | null>(null);
   // Nodo de la capa de texto como estado: en la vista continua cambia de hoja al activar otra página
   const [textLayerNode, setTextLayerNode] = useState<HTMLDivElement | null>(null);
@@ -543,6 +556,7 @@ export const PdfViewer: React.FC = () => {
 
   const handleContainerScroll = () => {
     updateViewCenter();
+    publishSplitView();
     const el = containerRef.current;
     if (!isContinuous || !el) return;
     const prog = programmaticScrollRef.current;
@@ -553,6 +567,13 @@ export const PdfViewer: React.FC = () => {
     const i = pageIndexAtClientY(probeY);
     if (i !== null) activatePage(i);
   };
+
+  // Al abrir el panel lado a lado, al cambiar de zoom o de página: el panel sigue al visor
+  useEffect(() => {
+    if (!splitActive) return;
+    const id = requestAnimationFrame(publishSplitView);
+    return () => cancelAnimationFrame(id);
+  }, [splitActive, scale, currentPageIndex, publishSplitView]);
 
   // Navegación externa (miniaturas, barra de estado, búsqueda): llevar la página a la vista
   useLayoutEffect(() => {

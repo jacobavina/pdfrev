@@ -27,6 +27,8 @@ export interface RenderOptions {
   textLayerContainer?: HTMLDivElement | null;
   /** Capas del PDF (OptionalContentConfig de PDF.js) con la visibilidad elegida en el panel Layers. */
   optionalContentConfig?: unknown;
+  /** Dibujar las anotaciones del PDF (1) o no (0, por defecto: REA dibuja las suyas). Lado a lado, ADR-0049. */
+  annotationMode?: number;
 }
 
 export interface RenderResult {
@@ -105,7 +107,8 @@ export async function renderPageToCanvas(
   const renderContext = {
     canvasContext: offscreenCtx,
     viewport: viewport,
-    annotationMode: 0, // AnnotationMode.DISABLE: render dual, REA dibuja las marcas interactivas
+    // AnnotationMode.DISABLE por defecto: render dual, REA dibuja las marcas interactivas
+    annotationMode: options.annotationMode ?? 0,
     ...(options.optionalContentConfig
       ? { optionalContentConfigPromise: Promise.resolve(options.optionalContentConfig as never) }
       : {}),

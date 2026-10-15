@@ -7,6 +7,7 @@ import { StatusBar } from './components/shell/StatusBar';
 import { ToastHost } from './components/shell/ToastHost';
 import { useDocumentStore } from './store/useDocumentStore';
 import { useMarkupStore } from './store/useMarkupStore';
+import { useSplitStore } from './store/useSplitStore';
 import { RightRail } from './components/shell/RightRail';
 import { watchSelectionPanels } from './services/selectionPanelService';
 import { useSearchStore } from './store/useSearchStore';
@@ -37,6 +38,8 @@ import { RULER_SIZE } from './core/measurements/rulers';
 import { CalibrateHint } from './components/viewer/CalibrateHint';
 const Rulers = lazy(() => import('./components/viewer/Rulers'));
 const OverlayBar = lazy(() => import('./components/viewer/OverlayBar'));
+// Vista lado a lado (ADR-0049): fragmento aparte, solo se carga al abrirla
+const SplitPane = lazy(() => import('./components/viewer/SplitPane'));
 // Lista de marcas bajo demanda (ADR-0035): libera presupuesto del bundle principal; mientras carga se reserva su barra
 const MarkupsList = lazy(() => import('./components/MarkupsList').then((m) => ({ default: m.MarkupsList })));
 import fixtureMeta from '../fixtures/test-blueprint.meta.json';
@@ -64,6 +67,7 @@ export const App: React.FC = () => {
   const { pdfBytes, setLoading } = useDocumentStore();
   const showRulers = useUiStore((s) => s.showRulers);
   const overlayActive = useOverlayStore((s) => s.active);
+  const splitActive = useSplitStore((s) => s.active);
   const viewerHostRef = useRef<HTMLDivElement>(null);
   const { addMarkup } = useMarkupStore();
   const { saveNow } = useAutoSave();
@@ -169,10 +173,11 @@ export const App: React.FC = () => {
         </Suspense>
         <div className="flex-1 min-w-0 flex flex-col">
           <DocumentTab />
+          <div className="flex-1 min-h-0 flex">
           <div
             ref={viewerHostRef}
             data-testid="viewer-host"
-            className="flex-1 min-h-0 flex relative"
+            className="flex-1 min-w-0 min-h-0 flex relative"
             style={showRulers ? { paddingLeft: RULER_SIZE, paddingTop: RULER_SIZE } : undefined}
           >
             {showRulers && (
@@ -187,6 +192,12 @@ export const App: React.FC = () => {
                 <OverlayBar />
               </Suspense>
             )}
+          </div>
+          {splitActive && (
+            <Suspense fallback={<div className="w-1/2 border-l border-cad-border bg-cad-canvas" />}>
+              <SplitPane />
+            </Suspense>
+          )}
           </div>
         </div>
         <Suspense fallback={<SidePanelFallback />}>

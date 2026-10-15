@@ -2482,4 +2482,24 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const y2 = Number(await line.getAttribute('y2'));
     expect(Math.abs(y1 - y2)).toBeLessThan(0.5);
   });
+
+  test('Vista lado a lado: otra página del documento al mismo zoom, con navegación y Sync (ADR-0049)', async ({ page }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await page.locator('[data-testid="menu-documento"]').click();
+    await page.locator('[data-testid="menu-side-by-side"]').hover();
+    await page.locator('[data-testid="menu-split-this"]').click();
+    const pane = page.locator('[data-testid="split-pane"]');
+    await expect(pane).toBeVisible();
+    await expect(page.locator('[data-testid="split-page"]')).toHaveText('2 / 3');
+    // La página del panel tiene el mismo tamaño en pantalla que la del visor (mismo zoom)
+    const main = (await page.locator('[data-testid="pdf-page-container"]').boundingBox())!;
+    await expect(page.locator('[data-testid="split-canvas"]')).toHaveCSS('width', `${Math.floor(main.width)}px`);
+    await page.locator('[data-testid="split-next"]').click();
+    await expect(page.locator('[data-testid="split-page"]')).toHaveText('3 / 3');
+    await expect(page.locator('[data-testid="split-sync"]')).toHaveAttribute('aria-pressed', 'true');
+    await page.locator('[data-testid="split-close"]').click();
+    await expect(pane).toHaveCount(0);
+  });
 });

@@ -403,7 +403,7 @@ export const MenuBar: React.FC = () => {
       className="h-8 min-w-0 bg-cad-panel border-b border-cad-border flex items-center px-2 text-[13px] text-gray-200 select-none z-30 relative"
     >
       <div className="flex items-center gap-2 pr-3 mr-1 border-r border-cad-border shrink-0">
-        <span className="w-[22px] h-[22px] rounded-md bg-gradient-to-br from-cad-accent to-sky-400 text-white text-[11px] font-bold flex items-center justify-center shadow-sm">
+        <span className="w-[22px] h-[22px] rounded-md bg-cad-accent text-white text-[11px] font-bold flex items-center justify-center">
           R
         </span>
         <span className="font-semibold text-cad-strong tracking-wide">REA</span>
@@ -421,7 +421,7 @@ export const MenuBar: React.FC = () => {
               onClick={() => setOpenMenu(openMenu === menu.id ? null : menu.id)}
               onMouseEnter={() => openMenu && setOpenMenu(menu.id)}
               className={`px-2.5 py-1 rounded-md transition-colors ${
-                openMenu === menu.id ? 'bg-cad-accent text-white' : 'hover:bg-cad-hover text-gray-200'
+                openMenu === menu.id ? 'bg-cad-hover text-cad-strong' : 'hover:bg-cad-hover text-gray-200'
               }`}
             >
               {menu.label}

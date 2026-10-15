@@ -253,6 +253,7 @@ describe('Reglas, menú View ▸ Rulers y cinta (ADR-0029)', () => {
 
   it('la cinta ofrece las cinco mediciones nuevas con su atajo en el título', () => {
     render(<Ribbon />);
+    fireEvent.click(screen.getByTestId('ribbon-tab-measure'));
     for (const [id, tool, title] of [
       ['perimeter', 'perimeter', /Perimeter \(Shift\+Alt\+P\)/],
       ['volume', 'volume', /Volume \(Shift\+Alt\+V\)/],

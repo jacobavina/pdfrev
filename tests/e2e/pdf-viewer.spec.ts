@@ -775,7 +775,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
 
     // 1. Atajo N para activar la herramienta Nota Adhesiva
     await page.keyboard.press('n');
-    await expect(stickyBtn).toHaveClass(/bg-cad-accent/);
+    await expect(stickyBtn).toHaveAttribute('aria-pressed', 'true');
 
     // 2. Clic en lienzo abre editor contra ancla pendiente con 4 colores y vista previa (Condición 4 y 5)
     await page.mouse.click(svgBox.x + 220, svgBox.y + 160);
@@ -791,7 +791,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     // 3. Guarda del atajo N: al escribir 'n' dentro del editor, no cambia de herramienta ni rompe el input (Condición 6)
     await page.keyboard.press('n');
     expect(await editorInput.inputValue()).toBe('n');
-    await expect(stickyBtn).toHaveClass(/bg-cad-accent/);
+    await expect(stickyBtn).toHaveAttribute('aria-pressed', 'true');
 
     // 4. Cancelar con Escape: descarta la nota sin dejar paso en historial (Condición 4: cancelada = 0 comandos)
     await page.keyboard.press('Escape');
@@ -893,14 +893,14 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
       await textInput.focus();
       await page.keyboard.press('h');
       const hlBtn = page.locator('button[title="Highlight (H)"]');
-      await expect(hlBtn).not.toHaveClass(/bg-cad-accent/);
+      await expect(hlBtn).toHaveAttribute('aria-pressed', 'false');
       await page.locator('header').click(); // Quitar foco
     }
 
     // 2. Atajo H activa la herramienta highlightVector
     await page.keyboard.press('h');
     const hlBtn = page.locator('button[title="Highlight (H)"]');
-    await expect(hlBtn).toHaveClass(/bg-cad-accent/);
+    await expect(hlBtn).toHaveAttribute('aria-pressed', 'true');
 
     const svgBox = (await svgOverlay.boundingBox())!;
 
@@ -1006,21 +1006,21 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const commentInput = markupsPanel.locator('input[type="text"]').first();
     await commentInput.focus();
     await page.keyboard.press('Shift+H');
-    await expect(textBtn).not.toHaveClass(/bg-cad-accent/);
+    await expect(textBtn).toHaveAttribute('aria-pressed', 'false');
     await page.keyboard.press('h');
-    await expect(vectorBtn).not.toHaveClass(/bg-cad-accent/);
+    await expect(vectorBtn).toHaveAttribute('aria-pressed', 'false');
 
     // Quitar foco haciendo clic en header
     await page.locator('header').click();
 
     // 2. Distinción de atajos sin foco: H activa resaltador vectorial, Shift+H activa resaltador de texto
     await page.keyboard.press('h');
-    await expect(vectorBtn).toHaveClass(/bg-cad-accent/);
-    await expect(textBtn).not.toHaveClass(/bg-cad-accent/);
+    await expect(vectorBtn).toHaveAttribute('aria-pressed', 'true');
+    await expect(textBtn).toHaveAttribute('aria-pressed', 'false');
 
     await page.keyboard.press('Shift+H');
-    await expect(textBtn).toHaveClass(/bg-cad-accent/);
-    await expect(vectorBtn).not.toHaveClass(/bg-cad-accent/);
+    await expect(textBtn).toHaveAttribute('aria-pressed', 'true');
+    await expect(vectorBtn).toHaveAttribute('aria-pressed', 'false');
 
     // Colapsar panel inferior para dar espacio vertical completo al lienzo
     const collapsePanelBtn = markupsPanel.locator('button').first();
@@ -1049,7 +1049,8 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
 
     // Condición 8: Aserción fuerte de contenido en MarkupsList (reabrir panel)
     await collapsePanelBtn.click();
-    await expect(markupsPanel).toHaveCSS('height', '200px');
+    // Alto por defecto de la lista (ADR-0044)
+    await expect(markupsPanel).toHaveCSS('height', '168px');
     const newRow = markupsPanel.locator('tbody tr').last();
     await expect(newRow).toBeVisible();
     await expect(newRow.locator('td').nth(1)).toContainText('Text Highlight');
@@ -1212,7 +1213,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
 
     // Guiar al usuario al resaltador vectorial (H)
     await page.keyboard.press('h');
-    await expect(vectorBtn).toHaveClass(/bg-cad-accent/);
+    await expect(vectorBtn).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('Sub-entregable B.4 / B.5: Tool Chest (panel lateral, paletas, miniaturas vectoriales, drag & drop al canvas con tolerancia <= 5px, modo propiedad sobre K marcas y contexto en lista de marcas)', async ({
@@ -1225,7 +1226,8 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
 
     const toolChestPanel = page.locator('[data-testid="tool-chest-panel"]');
-    await expect(toolChestPanel).toBeVisible();
+    // Plegado no se ve: se abre desde el riel derecho (ADR-0044)
+    await expect(toolChestPanel).toHaveCount(1);
 
     // 2. Expandir el panel de Tool Chest si está colapsado
     const expandBtn = page.locator('[data-testid="expand-tool-chest-btn"]');
@@ -1632,7 +1634,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(markupsPanel).toBeVisible();
 
     const inspectorPanel = page.locator('[data-testid="properties-inspector-panel"]');
-    await expect(inspectorPanel).toBeVisible();
+    await expect(inspectorPanel).toHaveCount(1);
 
     // Expandir panel si inicia colapsado
     const expandBtn = page.locator('[data-testid="expand-properties-btn"]');
@@ -1936,8 +1938,9 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.locator('header').click();
     await page.keyboard.press('Shift+Alt+L');
     await expect(page.locator('[data-testid="tool-measure-length"]')).toHaveAttribute('aria-pressed', 'true');
-    const a = at(0.125, 0.85);
-    const b = at(0.5, 0.85);
+    // A 0.79 de alto: bajo la retícula del plano (sin enganches de contenido) y visible sobre la lista de marcas
+    const a = at(0.125, 0.79);
+    const b = at(0.5, 0.79);
     await page.mouse.move(a.x, a.y);
     await page.mouse.down();
     await page.mouse.move(b.x, b.y, { steps: 6 });
@@ -2069,8 +2072,8 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
 
     // 3. Radio: del centro al borde, etiqueta con prefijo R
     await page.keyboard.press('Shift+Alt+R');
-    const c = at(0.55, 0.8);
-    const e = at(0.6, 0.8);
+    const c = at(0.55, 0.66);
+    const e = at(0.6, 0.66);
     await page.mouse.move(c.x, c.y);
     await page.mouse.down();
     await page.mouse.move(e.x, e.y, { steps: 5 });

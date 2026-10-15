@@ -3,62 +3,65 @@
 @tailwind utilities;
 
 @layer base {
-  /* Tema claro (por defecto): espacio de trabajo técnico neutro, lienzo gris medio y hoja blanca (ADR-0017) */
+  /*
+   * Sistema visual "sala de planos" (ADR-0044). La hoja es lo más luminoso de la pantalla: la rodea un pozo más
+   * oscuro que el cromo, y el cromo usa neutros grafito con un leve tinte azul de plano (nunca gris puro). Un único
+   * acento, azul cianotipo, marca selección, foco y herramienta activa; el rojo queda para las marcas del dibujo.
+   */
   :root {
-    /* Sistema visual de herramienta de diseño (ADR-0036): neutros sin tinte, superficies blancas, líneas finas */
-    --cad-dark: 241 241 243;
-    --cad-panel: 255 255 255;
-    --cad-subtle: 246 246 248;
-    --cad-border: 228 228 232;
-    --cad-accent: 13 153 255;
-    --cad-hover: 241 241 244;
-    --cad-canvas: 229 229 232;
-    --cad-strong: 17 17 19;
-    --cad-ribbon: 255 255 255;
-    --cad-status: 250 250 251;
-    --cad-field: 245 245 247;
-    --cad-field-hover: 238 238 241;
+    --cad-dark: 233 236 241;
+    --cad-panel: 248 249 251;
+    --cad-subtle: 241 243 247;
+    --cad-border: 220 225 232;
+    --cad-accent: 29 108 208;
+    --cad-hover: 233 237 243;
+    --cad-canvas: 196 203 213;
+    --cad-strong: 15 19 26;
+    --cad-ribbon: 248 249 251;
+    --cad-status: 238 241 245;
+    --cad-field: 237 240 245;
+    --cad-field-hover: 229 233 240;
+    --cad-sheet-shadow: 15 23 42;
 
     /* Escala gray invertida: el "texto claro" de los componentes pasa a texto oscuro legible */
-    --gray-50: 10 12 15;
-    --gray-100: 22 26 31;
-    --gray-200: 33 38 44;
-    --gray-300: 52 58 66;
-    --gray-400: 86 94 104;
-    --gray-500: 112 120 130;
-    --gray-600: 150 157 166;
-    --gray-700: 190 196 203;
-    --gray-800: 216 220 226;
-    --gray-900: 236 238 241;
+    --gray-50: 9 12 17;
+    --gray-100: 18 23 30;
+    --gray-200: 29 35 44;
+    --gray-300: 48 56 67;
+    --gray-400: 82 92 106;
+    --gray-500: 112 122 136;
+    --gray-600: 148 157 170;
+    --gray-700: 188 195 206;
+    --gray-800: 214 219 227;
+    --gray-900: 234 237 242;
     color-scheme: light;
   }
 
-  /* Tema oscuro: paleta original de REA */
   [data-theme='dark'] {
-    /* Oscuro neutro de herramienta de diseño (ADR-0036): paneles grafito, lienzo profundo y acento único */
-    --cad-dark: 30 30 32;
-    --cad-panel: 44 44 47;
-    --cad-subtle: 52 52 56;
-    --cad-border: 62 62 67;
-    --cad-accent: 13 153 255;
-    --cad-hover: 56 56 61;
-    --cad-canvas: 24 24 26;
-    --cad-strong: 255 255 255;
-    --cad-ribbon: 44 44 47;
-    --cad-status: 38 38 41;
-    --cad-field: 56 56 60;
-    --cad-field-hover: 64 64 69;
+    --cad-dark: 22 25 30;
+    --cad-panel: 29 33 39;
+    --cad-subtle: 35 40 47;
+    --cad-border: 45 51 60;
+    --cad-accent: 74 152 245;
+    --cad-hover: 39 45 53;
+    --cad-canvas: 13 15 19;
+    --cad-strong: 243 245 248;
+    --cad-ribbon: 29 33 39;
+    --cad-status: 24 27 32;
+    --cad-field: 38 43 51;
+    --cad-field-hover: 46 52 61;
+    --cad-sheet-shadow: 0 0 0;
 
-    --gray-50: 249 250 251;
-    --gray-100: 243 244 246;
-    --gray-200: 229 231 235;
-    --gray-300: 209 213 219;
-    --gray-400: 156 163 175;
-    --gray-500: 107 114 128;
-    --gray-600: 75 85 99;
-    --gray-700: 55 65 81;
-    --gray-800: 31 41 55;
-    --gray-900: 17 24 39;
+    --gray-50: 248 250 252;
+    --gray-100: 240 243 247;
+    --gray-200: 224 228 234;
+    --gray-300: 200 206 215;
+    --gray-400: 150 159 172;
+    --gray-500: 108 117 131;
+    --gray-600: 76 85 98;
+    --gray-700: 56 64 76;
+    --gray-800: 34 41 51;
+    --gray-900: 18 23 30;
     color-scheme: dark;
   }
 
@@ -73,7 +76,7 @@
     color: rgb(var(--gray-200));
     /* Tipografía de interfaz (ADR-0036): la variable de Windows 11, con Inter y el sistema como respaldo */
     font-family: 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', Inter, system-ui, -apple-system, sans-serif;
-    font-size: 12px;
+    font-size: 12.5px;
     -webkit-font-smoothing: antialiased;
     font-feature-settings: 'tnum' 0;
   }
@@ -276,5 +279,192 @@
   input[type='range'].ui-range {
     accent-color: rgb(var(--cad-accent));
     height: 4px;
+  }
+}
+
+/* ===== Cinta con pestañas, barra de propiedades y rieles (ADR-0044) ===== */
+@layer components {
+  /* Pestañas de la cinta: texto con subrayado del acento en la activa */
+  .ribbon-tab {
+    position: relative;
+    height: 28px;
+    padding: 0 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: rgb(var(--gray-400));
+    transition: color 0.12s;
+  }
+  .ribbon-tab:hover {
+    color: rgb(var(--cad-strong));
+  }
+  .ribbon-tab[aria-selected='true'] {
+    color: rgb(var(--cad-strong));
+    font-weight: 600;
+  }
+  .ribbon-tab[aria-selected='true']::after {
+    content: '';
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    background: rgb(var(--cad-accent));
+  }
+
+  /* Grupo de la cinta: herramientas arriba, rótulo abajo, separador fino */
+  .ribbon-group {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 4px 8px 3px;
+    flex-shrink: 0;
+  }
+  .ribbon-group + .ribbon-group::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 1px;
+    background: rgb(var(--cad-border));
+  }
+  .ribbon-group-label {
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgb(var(--gray-500));
+    text-align: center;
+    line-height: 1;
+    padding-top: 2px;
+    white-space: nowrap;
+  }
+
+  /* Herramienta: icono sobre su nombre; activa con fondo y texto del acento */
+  .ribbon-tool {
+    min-width: 46px;
+    padding: 0 5px;
+    height: 42px;
+    border-radius: 7px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: rgb(var(--gray-300));
+    transition: background-color 0.12s, color 0.12s;
+    flex-shrink: 0;
+  }
+  .ribbon-tool:hover:not(:disabled) {
+    background: rgb(var(--cad-hover));
+    color: rgb(var(--cad-strong));
+  }
+  .ribbon-tool:disabled {
+    opacity: 0.4;
+  }
+  .ribbon-tool[aria-pressed='true'] {
+    background: rgb(var(--cad-accent) / 0.14);
+    color: rgb(var(--cad-accent));
+  }
+  .ribbon-tool svg {
+    width: 20px;
+    height: 20px;
+  }
+  .ribbon-tool-label {
+    font-size: 10.5px;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .ribbon-tool[aria-pressed='true'] .ribbon-tool-label {
+    font-weight: 600;
+  }
+
+  /* Barra de propiedades: secciones con rótulo corto en versalitas */
+  .prop-section {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 10px;
+    height: 100%;
+    flex-shrink: 0;
+  }
+  .prop-section + .prop-section {
+    border-left: 1px solid rgb(var(--cad-border));
+  }
+  .prop-label {
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgb(var(--gray-500));
+  }
+  .prop-swatch {
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    border: 1px solid rgb(var(--cad-strong) / 0.18);
+    transition: transform 0.1s;
+  }
+  .prop-swatch:hover {
+    transform: scale(1.12);
+  }
+  .prop-swatch[aria-pressed='true'] {
+    box-shadow: 0 0 0 2px rgb(var(--cad-ribbon)), 0 0 0 3.5px rgb(var(--cad-accent));
+  }
+
+  /* Riel de paneles (izquierdo y derecho): iconos con indicador lateral del acento */
+  .rail-btn {
+    position: relative;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgb(var(--gray-400));
+    transition: background-color 0.12s, color 0.12s;
+  }
+  .rail-btn:hover {
+    background: rgb(var(--cad-hover));
+    color: rgb(var(--cad-strong));
+  }
+  .rail-btn[aria-pressed='true'] {
+    background: rgb(var(--cad-accent) / 0.14);
+    color: rgb(var(--cad-accent));
+  }
+  .rail-btn[aria-pressed='true']::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    bottom: 8px;
+    width: 2px;
+    border-radius: 2px;
+    background: rgb(var(--cad-accent));
+  }
+  .rail-left .rail-btn[aria-pressed='true']::before {
+    left: -5px;
+  }
+  .rail-right .rail-btn[aria-pressed='true']::before {
+    right: -5px;
+  }
+
+  /* Hoja sobre el pozo: sombra de papel apoyado en la mesa */
+  .sheet-shadow {
+    box-shadow: 0 1px 2px rgb(var(--cad-sheet-shadow) / 0.18), 0 8px 28px rgb(var(--cad-sheet-shadow) / 0.22);
+  }
+
+  /* Píldora de estado (lista de marcas, barra de estado) */
+  .ui-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 20px;
+    padding: 0 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+    background: rgb(var(--cad-field));
+    color: rgb(var(--gray-300));
   }
 }

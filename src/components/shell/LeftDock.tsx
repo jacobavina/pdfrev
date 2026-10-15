@@ -256,7 +256,7 @@ export const LeftDock: React.FC = () => {
 
   return (
     <div className="flex min-h-0" data-testid="left-dock">
-      <div className="w-10 bg-cad-panel border-r border-cad-border flex flex-col items-center py-2 gap-1 shrink-0">
+      <nav aria-label="Document panels" className="rail-left w-11 bg-cad-panel border-r border-cad-border flex flex-col items-center py-2 gap-1 shrink-0">
         {TABS.map((tab) => {
           const active = leftOpen && leftTab === tab.id;
           return (
@@ -267,17 +267,13 @@ export const LeftDock: React.FC = () => {
               onClick={() => setLeftTab(tab.id)}
               title={tab.label}
               aria-pressed={active}
-              className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${
-                active
-                  ? 'bg-cad-accent/15 text-cad-accent ring-1 ring-inset ring-cad-accent/50'
-                  : 'text-gray-400 hover:bg-cad-hover hover:text-cad-strong'
-              }`}
+              className="rail-btn"
             >
               {tab.icon}
             </button>
           );
         })}
-      </div>
+      </nav>
       {leftOpen && pdfDoc && leftTab === 'pages' && <ThumbnailsSidebar />}
       {leftOpen && pdfDoc && leftTab === 'bookmarks' && <BookmarksPanel />}
       {leftOpen && leftTab === 'layers' && <LayersPanel />}

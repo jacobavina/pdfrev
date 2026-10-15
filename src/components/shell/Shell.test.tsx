@@ -223,6 +223,7 @@ describe('Espacio de trabajo (ADR-0017)', () => {
     });
 
     it('se abre al pedirlo desde el menú (Ver → Panel de mediciones)', () => {
+      useUiStore.setState({ rightPanel: null });
       render(<MeasurementsPanel />);
       expect(screen.getByTestId('measurements-panel')).toHaveAttribute('data-collapsed', 'true');
       act(() => useUiStore.getState().requestMeasurementsPanel());

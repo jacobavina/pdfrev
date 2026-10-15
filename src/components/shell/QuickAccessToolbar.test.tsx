@@ -58,6 +58,7 @@ describe('Interfaz más limpia (ADR-0034)', () => {
     expect(ribbon).not.toHaveTextContent('Save As');
     expect(ribbon).not.toHaveTextContent('History');
     expect(ribbon.querySelector('[data-testid="save-button"]')).toBeNull();
+    fireEvent.click(screen.getByTestId('ribbon-tab-measure'));
     expect(screen.getByTestId('ribbon-group-measure')).toHaveTextContent('Measure');
   });
 

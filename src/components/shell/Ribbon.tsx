@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Stamp as StampIcon, Link2, Paperclip } from 'lucide-react';
 import { STAMPS, stampById } from '../../core/markup/stamps';
 import { FIELD_TYPES, fieldTypeDef } from '../../core/markup/formFields';
 import { fieldTypeIcon } from './fieldIcons';
 import { useDocumentStore } from '../../store/useDocumentStore';
-import { useToolStore } from '../../store/useToolStore';
+import { useToolStore, ToolType } from '../../store/useToolStore';
 import { showToast } from '../../services/toastService';
 import { TOOL_GROUPS, TEXT_LAYER_TOOLS, STROKE_COLORS, ToolDefinition } from './toolDefinitions';
 import { dashArrayFor, lineStyleOfMarkup, LineStyleId } from '../../core/markup/lineStyles';
@@ -29,27 +29,59 @@ import type { MarkupStyle } from '../../types/markup';
 
 const STROKE_WIDTHS = [0.5, 1, 1.5, 2, 3, 5, 8];
 
-/** Estilo de un botón de herramienta: activo con el acento en suave y un borde fino (ADR-0034). */
-const TOOL_BUTTON = (active: boolean) =>
-  active
-    ? 'bg-cad-accent/15 text-cad-accent ring-1 ring-inset ring-cad-accent/50'
-    : 'text-gray-300 hover:text-cad-strong hover:bg-cad-hover';
 const OPACITIES = [1, 0.75, 0.5, 0.25];
 
-/** Grupo de la cinta: contenido arriba y rótulo abajo, separado por una línea vertical. */
+/** Pestañas de la cinta (ADR-0044), como las de Revu: cada una agrupa las herramientas de una tarea. */
+type RibbonTabId = 'markup' | 'measure' | 'insert';
+const RIBBON_TABS: { id: RibbonTabId; label: string }[] = [
+  { id: 'markup', label: 'Markup' },
+  { id: 'measure', label: 'Measure' },
+  { id: 'insert', label: 'Insert' },
+];
+const INSERT_TOOLS: ToolType[] = ['stamp', 'link', 'fileAttachment', 'formField'];
+
+/** Pestaña en la que está una herramienta (Select y Pan están siempre a la vista). */
+function tabOfTool(tool: ToolType): RibbonTabId | null {
+  if (INSERT_TOOLS.includes(tool)) return 'insert';
+  const group = TOOL_GROUPS.find((g) => g.tools.some((t) => t.type === tool));
+  if (!group || group.id === 'select') return null;
+  return group.id === 'measure' ? 'measure' : 'markup';
+}
+
+/** Grupo de la cinta: herramientas arriba y rótulo abajo (ADR-0044). */
 const RibbonGroup: React.FC<{ label: string; children: React.ReactNode; testId?: string }> = ({
   label,
   children,
   testId,
 }) => (
-  <div data-testid={testId} className="relative flex flex-col items-stretch px-3 shrink-0">
-    <div className="flex-1 flex items-center">{children}</div>
-    <div className="text-[9.5px] uppercase tracking-[0.08em] font-medium text-gray-500 text-center leading-none pb-1 pt-0.5 whitespace-nowrap">
-      {label}
-    </div>
-    {/* Separador suave entre grupos */}
-    <span className="absolute right-0 top-2 bottom-2 w-px bg-cad-border/70" aria-hidden="true" />
-  </div>
+  <section data-testid={testId} className="ribbon-group">
+    <div className="flex-1 flex items-center gap-0.5">{children}</div>
+    <div className="ribbon-group-label">{label}</div>
+  </section>
+);
+
+/** Herramienta: icono sobre su nombre, como en Revu (ADR-0044). */
+const ToolButton: React.FC<{
+  testId: string;
+  title: string;
+  label: string;
+  icon: React.ReactNode;
+  active: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}> = ({ testId, title, label, icon, active, disabled, onClick }) => (
+  <button
+    type="button"
+    data-testid={testId}
+    onClick={onClick}
+    title={title}
+    aria-pressed={active}
+    disabled={disabled}
+    className="ribbon-tool"
+  >
+    {icon}
+    <span className="ribbon-tool-label">{label}</span>
+  </button>
 );
 
 /**
@@ -142,6 +174,14 @@ export const Ribbon: React.FC = () => {
   // El patrón discontinuo es proporcional al grosor: se recalcula al cambiar de grosor
   const changeWidth = (w: number) => applyStyle({ strokeWidth: w, dashArray: dashArrayFor(lineStyle, w) });
 
+  // Pestaña visible: la de la herramienta activa (un atajo de teclado cambia de pestaña, como en Revu)
+  const [tab, setTab] = useState<RibbonTabId>(() => tabOfTool(activeTool) ?? 'markup');
+  useEffect(() => {
+    const t = tabOfTool(activeTool);
+    if (t) setTab(t);
+  }, [activeTool]);
+  const activeDef = TOOL_GROUPS.flatMap((g) => g.tools).find((t) => t.type === activeTool);
+
   const selectTool = (tool: ToolDefinition) => {
     if (TEXT_LAYER_TOOLS.includes(tool.type) && pageHasText[currentPageIndex] === false) {
       showToast('This page has no selectable text layer. You can draw the markup manually.');
@@ -149,189 +189,174 @@ export const Ribbon: React.FC = () => {
     setActiveTool(tool.type);
   };
 
+  const toolsOf = (groupId: string) => TOOL_GROUPS.find((g) => g.id === groupId)!;
+  const renderGroup = (groupId: string) => {
+    const group = toolsOf(groupId);
+    return (
+      <RibbonGroup key={group.id} label={group.label} testId={`ribbon-group-${group.id}`}>
+        {group.tools.map((tool) => (
+          <ToolButton
+            key={tool.type}
+            testId={tool.testId || `tool-${tool.type}`}
+            title={tool.label}
+            label={tool.short}
+            icon={tool.icon}
+            active={activeTool === tool.type}
+            onClick={() => selectTool(tool)}
+          />
+        ))}
+      </RibbonGroup>
+    );
+  };
+
   return (
-    <div
-      data-testid="ribbon"
-      className="h-[70px] min-w-0 bg-cad-ribbon border-b border-cad-border flex items-stretch overflow-x-auto overflow-y-hidden thin-scroll select-none z-20 px-1 shadow-[inset_0_-1px_0_rgba(0,0,0,0.04)]"
-    >
-      {TOOL_GROUPS.map((group) => (
-        <RibbonGroup key={group.id} label={group.label} testId={`ribbon-group-${group.id}`}>
-          <div className="grid grid-rows-2 grid-flow-col gap-0.5">
-            {group.tools.map((tool) => {
-              const isActive = activeTool === tool.type;
-              return (
-                <button
-                  key={tool.type}
-                  type="button"
-                  data-testid={tool.testId || `tool-${tool.type}`}
-                  onClick={() => selectTool(tool)}
-                  title={tool.label}
-                  aria-pressed={isActive}
-                  className={`w-[30px] h-[26px] rounded-md flex items-center justify-center transition-colors shrink-0 ${TOOL_BUTTON(isActive)}`}
-                >
-                  {tool.icon}
-                </button>
-              );
-            })}
-          </div>
-        </RibbonGroup>
-      ))}
-
-      <RibbonGroup label="Stamp" testId="ribbon-group-stamp">
-        <div className="flex flex-col items-center gap-1">
-          <button
-            type="button"
-            data-testid="tool-stamp"
-            aria-pressed={activeTool === 'stamp'}
-            disabled={!pdfBytes}
-            onClick={() => setActiveTool('stamp')}
-            title={`Stamp: ${stampById(activeStampId).label} (click on the drawing to place it, drag to size it)`}
-            className={`h-[26px] px-2 rounded-md flex items-center gap-1 transition-colors disabled:opacity-40 ${TOOL_BUTTON(activeTool === 'stamp')}`}
-          >
-            <StampIcon size={16} />
-          </button>
-          <IconPicker
-            compact
-            testId="ribbon-stamp-picker"
-            title="Stamp"
-            value={activeStampId}
-            options={STAMPS.map((st) => ({ value: st.id, label: st.label }))}
-            renderIcon={(id) => <StampPreview id={id} />}
-            onChange={(id) => {
-              setActiveStampId(id);
-              setActiveTool('stamp');
-            }}
-          />
-        </div>
-      </RibbonGroup>
-
-      <RibbonGroup label="Link & Form" testId="ribbon-group-insert">
-        <div className="flex flex-col gap-1">
-          <div className="flex gap-0.5">
-            {(
-              [
-                ['link', 'Hyperlink: drag the link area, then choose a web address or page', <Link2 key="l" size={16} />],
-                ['fileAttachment', 'File Attachment: click to attach a file', <Paperclip key="p" size={16} />],
-              ] as const
-            ).map(([tool, title, icon]) => (
-              <button
-                key={tool}
-                type="button"
-                data-testid={`tool-${tool}`}
-                aria-pressed={activeTool === tool}
-                disabled={!pdfBytes}
-                onClick={() => setActiveTool(tool)}
-                title={title}
-                className={`w-[30px] h-[26px] rounded-md flex items-center justify-center transition-colors disabled:opacity-40 ${TOOL_BUTTON(activeTool === tool)}`}
-              >
-                {icon}
-              </button>
-            ))}
+    <div data-testid="ribbon" className="shrink-0 min-w-0 bg-cad-ribbon border-b border-cad-border select-none z-20">
+      {/* Pestañas y herramienta activa */}
+      <div className="h-[28px] flex items-stretch px-2 border-b border-cad-border">
+        <div role="tablist" aria-label="Ribbon" className="flex items-stretch">
+          {RIBBON_TABS.map((t) => (
             <button
+              key={t.id}
               type="button"
-              data-testid="tool-formField"
-              aria-pressed={activeTool === 'formField'}
-              disabled={!pdfBytes}
-              onClick={() => setActiveTool('formField')}
-              title={`Form field: ${fieldTypeDef(activeFieldType).label}`}
-              className={`w-[30px] h-[26px] rounded-md flex items-center justify-center transition-colors disabled:opacity-40 ${TOOL_BUTTON(activeTool === 'formField')}`}
+              role="tab"
+              data-testid={`ribbon-tab-${t.id}`}
+              aria-selected={tab === t.id}
+              onClick={() => setTab(t.id)}
+              className="ribbon-tab"
             >
-              {fieldTypeIcon(activeFieldType, 16)}
+              {t.label}
             </button>
-          </div>
-          <IconPicker
-            compact
-            testId="ribbon-field-type"
-            title="Form field type"
-            value={activeFieldType}
-            options={FIELD_TYPES.map((f) => ({ value: f.id, label: f.label }))}
-            renderIcon={(id) => (
-              <span className="flex items-center gap-1 text-[10px]">
-                {fieldTypeIcon(id, 13)}
-                <span className="whitespace-nowrap">{fieldTypeDef(id).label}</span>
-              </span>
-            )}
-            onChange={(id) => {
-              setActiveFieldType(id);
-              setActiveTool('formField');
-            }}
-          />
+          ))}
         </div>
-      </RibbonGroup>
+        <div className="flex-1" />
+        {activeDef && activeDef.type !== 'select' && (
+          <div className="flex items-center gap-1.5 text-[11px] text-gray-400 pr-1" data-testid="ribbon-active-tool">
+            <span className="w-1.5 h-1.5 rounded-full bg-cad-accent" aria-hidden="true" />
+            <span className="text-gray-300">{activeDef.short}</span>
+            {activeDef.shortcut && (
+              <kbd className="px-1 rounded border border-cad-border text-[10px] font-sans text-gray-400">{activeDef.shortcut}</kbd>
+            )}
+          </div>
+        )}
+      </div>
 
-      <RibbonGroup
-        label={editingSelection ? `Properties · ${selection.length} selected` : 'Style (new markups)'}
-        testId="ribbon-group-style"
+      {/* Herramientas: Select y Pan siempre a la vista; el resto según la pestaña */}
+      <div className="h-[58px] flex items-stretch overflow-x-auto overflow-y-hidden thin-scroll px-1">
+        {renderGroup('select')}
+        {tab === 'markup' && (
+          <>
+            {renderGroup('text')}
+            {renderGroup('draw')}
+          </>
+        )}
+        {tab === 'measure' && renderGroup('measure')}
+        {tab === 'insert' && (
+          <>
+            <RibbonGroup label="Stamp" testId="ribbon-group-stamp">
+              <ToolButton
+                testId="tool-stamp"
+                title={`Stamp: ${stampById(activeStampId).label} (click on the drawing to place it, drag to size it)`}
+                label="Stamp"
+                icon={<StampIcon />}
+                active={activeTool === 'stamp'}
+                disabled={!pdfBytes}
+                onClick={() => setActiveTool('stamp')}
+              />
+              <div className="pl-1">
+                <IconPicker
+                  compact
+                  testId="ribbon-stamp-picker"
+                  title="Stamp"
+                  value={activeStampId}
+                  options={STAMPS.map((st) => ({ value: st.id, label: st.label }))}
+                  renderIcon={(id) => <StampPreview id={id} />}
+                  onChange={(id) => {
+                    setActiveStampId(id);
+                    setActiveTool('stamp');
+                  }}
+                />
+              </div>
+            </RibbonGroup>
+            <RibbonGroup label="Link & Form" testId="ribbon-group-insert">
+              <ToolButton
+                testId="tool-link"
+                title="Hyperlink: drag the link area, then choose a web address or page"
+                label="Link"
+                icon={<Link2 />}
+                active={activeTool === 'link'}
+                disabled={!pdfBytes}
+                onClick={() => setActiveTool('link')}
+              />
+              <ToolButton
+                testId="tool-fileAttachment"
+                title="File Attachment: click to attach a file"
+                label="Attach"
+                icon={<Paperclip />}
+                active={activeTool === 'fileAttachment'}
+                disabled={!pdfBytes}
+                onClick={() => setActiveTool('fileAttachment')}
+              />
+              <ToolButton
+                testId="tool-formField"
+                title={`Form field: ${fieldTypeDef(activeFieldType).label}`}
+                label="Field"
+                icon={fieldTypeIcon(activeFieldType, 20)}
+                active={activeTool === 'formField'}
+                disabled={!pdfBytes}
+                onClick={() => setActiveTool('formField')}
+              />
+              <div className="pl-1">
+                <IconPicker
+                  compact
+                  testId="ribbon-field-type"
+                  title="Form field type"
+                  value={activeFieldType}
+                  options={FIELD_TYPES.map((f) => ({ value: f.id, label: f.label }))}
+                  renderIcon={(id) => (
+                    <span className="flex items-center gap-1 text-[10.5px]">
+                      {fieldTypeIcon(id, 13)}
+                      <span className="whitespace-nowrap">{fieldTypeDef(id).label}</span>
+                    </span>
+                  )}
+                  onChange={(id) => {
+                    setActiveFieldType(id);
+                    setActiveTool('formField');
+                  }}
+                />
+              </div>
+            </RibbonGroup>
+          </>
+        )}
+      </div>
+
+      {/* Barra de propiedades (ADR-0040/0044): con selección edita la marca; sin ella, el estilo de lo nuevo */}
+      <div
+        data-testid="properties-bar"
+        className="h-[34px] flex items-stretch border-t border-cad-border bg-cad-subtle overflow-x-auto overflow-y-hidden thin-scroll"
       >
-        <div className="grid grid-cols-[auto_auto] gap-x-3 gap-y-1 items-center">
-          {/* Fila 1: color de trazo y relleno */}
-          <div className="flex items-center gap-1" title="Line color">
-            <span className="text-[10px] text-gray-500 w-9">Line</span>
+        <div data-testid="ribbon-group-style" className="flex items-stretch">
+          <div className="prop-section">
+            <span
+              className={`ui-pill whitespace-nowrap ${editingSelection ? '!bg-cad-accent/15 !text-cad-accent' : ''}`}
+              title={editingSelection ? 'Changes apply to the selected markups' : 'Changes apply to the next markups you draw'}
+            >
+              {editingSelection ? `Properties · ${selection.length} selected` : 'Style (new markups)'}
+            </span>
+          </div>
+
+          <div className="prop-section" title="Line color">
+            <span className="prop-label">Line</span>
             {STROKE_COLORS.map((c) => (
               <button
                 key={c}
                 type="button"
                 onClick={() => applyStyle({ strokeColor: c })}
                 style={{ backgroundColor: c }}
-                className={`w-4 h-4 rounded-full border ${
-                  style.strokeColor === c
-                    ? 'ring-2 ring-cad-accent ring-offset-1 ring-offset-cad-ribbon'
-                    : 'border-gray-600'
-                }`}
+                aria-pressed={style.strokeColor === c}
+                className="prop-swatch"
                 title={`Color: ${c}`}
               />
             ))}
-          </div>
-          <div className="flex items-center gap-1" title="Fill for closed shapes">
-            <span className="text-[10px] text-gray-500 w-9">Fill</span>
-            {calloutContext && (
-              <button
-                type="button"
-                data-testid="ribbon-callout-border"
-                aria-pressed={boxBorder}
-                onClick={toggleBoxBorder}
-                title={boxBorder ? 'Text box border: on' : 'Text box border: off'}
-                className={`w-4 h-4 rounded-[3px] flex items-center justify-center ${
-                  boxBorder ? 'ring-2 ring-cad-accent ring-offset-1 ring-offset-cad-ribbon' : ''
-                }`}
-              >
-                <span
-                  className="block w-3 h-2.5 rounded-[1px]"
-                  style={{ border: `1.5px ${boxBorder ? 'solid' : 'dashed'} ${boxBorder ? style.strokeColor : '#6b7280'}` }}
-                />
-              </button>
-            )}
-            {calloutContext && <span className="w-px h-3.5 bg-cad-border mx-0.5" aria-hidden="true" />}
-            <button
-              type="button"
-              data-testid="ribbon-fill-none"
-              onClick={() => applyStyle({ fillColor: 'transparent' })}
-              title="No fill"
-              className={`w-4 h-4 rounded-full border border-gray-500 bg-cad-ribbon relative overflow-hidden ${
-                !hasFill ? 'ring-2 ring-cad-accent ring-offset-1 ring-offset-cad-ribbon' : ''
-              }`}
-            >
-              <span className="absolute inset-0 m-auto w-[140%] h-px bg-rose-500 rotate-45 -translate-x-[15%]" />
-            </button>
-            {STROKE_COLORS.map((c) => {
-              const fill = translucentFill(c, 0.25);
-              return (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => applyStyle({ fillColor: fill })}
-                  style={{ backgroundColor: fill, borderColor: c }}
-                  className={`w-4 h-4 rounded-full border ${
-                    style.fillColor === fill ? 'ring-2 ring-cad-accent ring-offset-1 ring-offset-cad-ribbon' : ''
-                  }`}
-                  title={`Translucent fill: ${c}`}
-                />
-              );
-            })}
-          </div>
-
-          {/* Fila 2: grosor, tipo de línea, extremos y opacidad */}
-          <div className="flex items-center gap-1.5 text-[11px] text-gray-400 col-span-2">
             <IconPicker
               compact
               testId="ribbon-stroke-width"
@@ -357,6 +382,56 @@ export const Ribbon: React.FC = () => {
               disabled={lineStyle !== 'cloud'}
               onChange={changeCloud}
             />
+          </div>
+
+          <div className="prop-section" title="Fill for closed shapes">
+            <span className="prop-label">Fill</span>
+            <button
+              type="button"
+              data-testid="ribbon-fill-none"
+              onClick={() => applyStyle({ fillColor: 'transparent' })}
+              title="No fill"
+              aria-pressed={!hasFill}
+              className="prop-swatch bg-cad-panel relative overflow-hidden"
+            >
+              <span className="absolute inset-0 m-auto w-[140%] h-px bg-rose-500 rotate-45 -translate-x-[15%]" />
+            </button>
+            {STROKE_COLORS.map((c) => {
+              const fill = translucentFill(c, 0.25);
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => applyStyle({ fillColor: fill })}
+                  style={{ backgroundColor: fill, borderColor: c }}
+                  aria-pressed={style.fillColor === fill}
+                  className="prop-swatch"
+                  title={`Translucent fill: ${c}`}
+                />
+              );
+            })}
+            {calloutContext && (
+              <button
+                type="button"
+                data-testid="ribbon-callout-border"
+                aria-pressed={boxBorder}
+                onClick={toggleBoxBorder}
+                title={boxBorder ? 'Text box border: on' : 'Text box border: off'}
+                className={`ml-1 h-6 px-1.5 rounded-md flex items-center gap-1 text-[11px] ${
+                  boxBorder ? 'bg-cad-accent/15 text-cad-accent' : 'text-gray-400 hover:bg-cad-hover'
+                }`}
+              >
+                <span
+                  className="block w-3 h-2.5 rounded-[1px]"
+                  style={{ border: `1.5px ${boxBorder ? 'solid' : 'dashed'} currentColor` }}
+                />
+                Border
+              </button>
+            )}
+          </div>
+
+          <div className="prop-section">
+            <span className="prop-label">Ends</span>
             <IconPicker
               compact
               testId="ribbon-line-start"
@@ -377,6 +452,10 @@ export const Ribbon: React.FC = () => {
               renderIcon={(id) => <LineEndingPreview ending={id} side="end" />}
               onChange={(id) => applyStyle({ lineEndingEnd: id })}
             />
+          </div>
+
+          <div className="prop-section">
+            <span className="prop-label">Opacity</span>
             <IconPicker
               compact
               testId="ribbon-opacity"
@@ -388,74 +467,69 @@ export const Ribbon: React.FC = () => {
             />
           </div>
         </div>
-      </RibbonGroup>
 
-      {/* Texto (ADR-0040): fuente, tamaño, negrita, cursiva y color, como en la barra de propiedades de Revu */}
-      <RibbonGroup label="Text" testId="ribbon-group-font">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-1">
-            <select
-              data-testid="ribbon-font-family"
-              value={font.family}
-              onChange={(e) => applyStyle({ fontFamily: e.target.value })}
-              className="ui-input !h-6 w-[96px] !text-[11px]"
-              title="Font"
-            >
-              {CAPTION_FAMILIES.map((f) => (
-                <option key={f} value={f}>
-                  {f}
-                </option>
-              ))}
-            </select>
-            <input
-              type="number"
-              data-testid="ribbon-font-size"
-              min={6}
-              max={72}
-              value={font.size}
-              onChange={(e) => {
-                const v = Number(e.target.value);
-                if (v >= 6 && v <= 72) applyStyle({ fontSize: v });
-              }}
-              className="ui-input !h-6 w-[46px] !px-1.5 !text-[11px]"
-              title="Font size (pt)"
-            />
-          </div>
-          <div className="flex items-center gap-1">
-            {(
-              [
-                ['bold', 'B', 'Bold', 'font-bold'],
-                ['italic', 'I', 'Italic', 'italic font-serif'],
-              ] as const
-            ).map(([key, glyph, title, cls]) => (
-              <button
-                key={key}
-                type="button"
-                data-testid={`ribbon-font-${key}`}
-                aria-pressed={font[key]}
-                disabled={!editingSelection}
-                onClick={() => toggleFormat(key)}
-                title={editingSelection ? title : `${title} (select a markup first)`}
-                className={`w-6 h-6 rounded-md text-[12px] ${cls} disabled:opacity-35 ${
-                  font[key] ? 'bg-cad-accent/15 text-cad-accent ring-1 ring-inset ring-cad-accent/50' : 'text-gray-300 hover:bg-cad-hover'
-                }`}
-              >
-                {glyph}
-              </button>
+        {/* Texto (ADR-0040): fuente, tamaño, negrita, cursiva y color */}
+        <div data-testid="ribbon-group-font" className="prop-section border-l border-cad-border">
+          <span className="prop-label">Text</span>
+          <select
+            data-testid="ribbon-font-family"
+            value={font.family}
+            onChange={(e) => applyStyle({ fontFamily: e.target.value })}
+            className="ui-input !h-6 w-[92px] !text-[11.5px]"
+            title="Font"
+          >
+            {CAPTION_FAMILIES.map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
             ))}
-            <label className="flex items-center gap-1 text-[10px] text-gray-500" title="Text color">
-              <span>A</span>
-              <input
-                type="color"
-                data-testid="ribbon-text-color"
-                value={font.color}
-                onChange={(e) => applyStyle({ textColor: e.target.value })}
-                className="ui-swatch !w-5 !h-5"
-              />
-            </label>
-          </div>
+          </select>
+          <input
+            type="number"
+            data-testid="ribbon-font-size"
+            min={6}
+            max={72}
+            value={font.size}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              if (v >= 6 && v <= 72) applyStyle({ fontSize: v });
+            }}
+            className="ui-input !h-6 w-[46px] !px-1.5 !text-[11.5px]"
+            title="Font size (pt)"
+          />
+          {(
+            [
+              ['bold', 'B', 'Bold', 'font-bold'],
+              ['italic', 'I', 'Italic', 'italic font-serif'],
+            ] as const
+          ).map(([key, glyph, title, cls]) => (
+            <button
+              key={key}
+              type="button"
+              data-testid={`ribbon-font-${key}`}
+              aria-pressed={font[key]}
+              disabled={!editingSelection}
+              onClick={() => toggleFormat(key)}
+              title={editingSelection ? title : `${title} (select a markup first)`}
+              className={`w-6 h-6 rounded-md text-[12.5px] ${cls} disabled:opacity-35 ${
+                font[key] ? 'bg-cad-accent/15 text-cad-accent' : 'text-gray-300 hover:bg-cad-hover'
+              }`}
+            >
+              {glyph}
+            </button>
+          ))}
+          <label className="flex items-center gap-1 text-[11px] text-gray-400" title="Text color">
+            <span className="font-semibold">A</span>
+            <input
+              type="color"
+              data-testid="ribbon-text-color"
+              value={font.color}
+              onChange={(e) => applyStyle({ textColor: e.target.value })}
+              className="ui-swatch !w-5 !h-5"
+            />
+          </label>
         </div>
-      </RibbonGroup>
+      </div>
     </div>
   );
 };

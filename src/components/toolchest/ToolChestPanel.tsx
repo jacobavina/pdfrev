@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
   Briefcase,
-  ChevronLeft,
   ChevronRight,
   Plus,
   Trash2,
@@ -11,6 +10,7 @@ import {
   X,
 } from 'lucide-react';
 import { useToolChestStore } from '../../store/useToolChestStore';
+import { useRightPanel } from '../../store/useUiStore';
 import { ToolVectorThumbnail } from '../markup/ToolVectorThumbnail';
 import { ToolChestTool, RecentTool } from '../../types/toolChest';
 
@@ -38,7 +38,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
     clearRecent,
   } = useToolChestStore();
 
-  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+  const [isCollapsed, setIsCollapsed] = useRightPanel('toolchest', defaultCollapsed);
   const [isCreatingPalette, setIsCreatingPalette] = useState(false);
   const [newPaletteName, setNewPaletteName] = useState('');
 
@@ -72,33 +72,8 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
   };
 
   if (isCollapsed) {
-    return (
-      <aside
-        data-testid="tool-chest-panel"
-        data-collapsed="true"
-        className="w-10 bg-cad-panel border-l border-cad-border flex flex-col items-center py-2 select-none z-10 transition-all duration-200"
-      >
-        <button
-          onClick={() => setIsCollapsed(false)}
-          className="p-1.5 text-gray-400 hover:text-cad-strong hover:bg-cad-hover rounded mb-3 transition-colors"
-          title="Expand Tool Chest"
-          data-testid="expand-tool-chest-btn"
-        >
-          <ChevronLeft size={16} />
-        </button>
-        <div className="flex flex-col items-center space-y-4">
-          <Briefcase size={16} className="text-gray-400" />
-          <span className="text-[11px] text-gray-400 font-medium rotate-90 whitespace-nowrap tracking-wide mt-4">
-            Tool Chest
-          </span>
-          {tools.length > 0 && (
-            <span className="bg-cad-accent/30 text-cad-accent text-[9px] font-bold px-1 rounded-full">
-              {tools.length}
-            </span>
-          )}
-        </div>
-      </aside>
-    );
+    // Plegado: lo abre el riel derecho (ADR-0044)
+    return <aside data-testid="tool-chest-panel" data-collapsed="true" hidden />;
   }
 
   return (

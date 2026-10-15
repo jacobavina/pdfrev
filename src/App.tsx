@@ -8,6 +8,7 @@ import { StatusBar } from './components/shell/StatusBar';
 import { ToastHost } from './components/shell/ToastHost';
 import { useDocumentStore } from './store/useDocumentStore';
 import { useMarkupStore } from './store/useMarkupStore';
+import { RightRail } from './components/shell/RightRail';
 import { watchSelectionPanels } from './services/selectionPanelService';
 import { useSearchStore } from './store/useSearchStore';
 import { useUiStore } from './store/useUiStore';
@@ -30,7 +31,7 @@ const ShortcutsDialog = lazy(() =>
   import('./components/shell/ShortcutsDialog').then((m) => ({ default: m.ShortcutsDialog }))
 );
 /** Hueco de la barra lateral plegada mientras carga el panel. */
-const SidePanelFallback: React.FC = () => <aside className="w-10 bg-cad-panel border-l border-cad-border" />;
+const SidePanelFallback: React.FC = () => null;
 import { RULER_SIZE } from './core/measurements/rulers';
 import { CalibrateHint } from './components/viewer/CalibrateHint';
 const Rulers = lazy(() => import('./components/viewer/Rulers'));
@@ -194,6 +195,7 @@ export const App: React.FC = () => {
         <Suspense fallback={<SidePanelFallback />}>
           <ToolChestPanel />
         </Suspense>
+        <RightRail />
       </div>
 
       {/* 3. Lista de marcas y barra de estado */}

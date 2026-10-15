@@ -144,7 +144,8 @@ describe('MarkupsList Context Menu (Añadir a Tool Chest B.4)', () => {
 
       // Re-expandir
       fireEvent.click(firstButton);
-      expect(panel).toHaveStyle({ height: '200px' });
+      // Alto por defecto (ADR-0044)
+      expect(panel).toHaveStyle({ height: '168px' });
 
       // 2. El primer input[type="text"] dentro del panel es el campo de comentario de la fila (guarda de foco A.6)
       const firstTextInput = panel.querySelector('input[type="text"]') as HTMLInputElement;

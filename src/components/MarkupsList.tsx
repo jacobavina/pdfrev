@@ -70,7 +70,8 @@ import {
 } from '../core/columns';
 
 const LIST_HEIGHT_KEY = 'rea-markups-list-height';
-const DEFAULT_LIST_HEIGHT = 200;
+// Más baja por defecto (ADR-0044): la cinta con pestañas y la barra de propiedades ocupan más alto
+const DEFAULT_LIST_HEIGHT = 168;
 const MIN_LIST_HEIGHT = 120;
 
 const STATUS_CONFIG: Record<
@@ -544,8 +545,10 @@ export const MarkupsList: React.FC = () => {
         />
       )}
       {/* Barra de cabecera del panel de marcas */}
-      <div className="h-9 bg-cad-panel px-3 flex items-center justify-between text-[12px] border-b border-cad-border">
-        <div className="flex items-center space-x-3">
+      <div
+        className={`${isExpanded ? 'h-10 border-b border-cad-border' : 'h-8'} shrink-0 bg-cad-panel px-3 flex items-center justify-between gap-3 text-[12px]`}
+      >
+        <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="flex items-center space-x-1.5 text-gray-300 hover:text-cad-strong"
@@ -555,6 +558,87 @@ export const MarkupsList: React.FC = () => {
               Markups List ({displayedMarkups.length})
             </span>
           </button>
+
+          {isExpanded && (
+          <div
+            data-testid="markups-toolbar"
+            className="flex items-center gap-1.5 min-w-0 text-[12px]"
+          >
+            {/* Búsqueda rápida por texto o autor */}
+            <input
+              type="search"
+              data-testid="markups-search-input"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search markups..."
+              className="ui-input !h-7 w-40"
+            />
+
+            {/* Filtro por tipo */}
+            <select
+              data-testid="markups-filter-type"
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value as MarkupType | 'all')}
+              className="ui-input"
+            >
+              <option value="all">All types</option>
+              {(Object.keys(MARKUP_TYPE_LABELS) as MarkupType[])
+                .filter((t) => t !== 'highlight')
+                .map((t) => (
+                  <option key={t} value={t}>
+                    {MARKUP_TYPE_LABELS[t]}
+                  </option>
+                ))}
+            </select>
+
+            {/* Filtro por autor */}
+            <select
+              data-testid="markups-filter-author"
+              value={filterAuthor}
+              onChange={(e) => setFilterAuthor(e.target.value)}
+              className="ui-input max-w-[130px] truncate"
+            >
+              <option value="all">All authors</option>
+              {uniqueAuthors.map((auth) => (
+                <option key={auth} value={auth}>
+                  {auth}
+                </option>
+              ))}
+            </select>
+
+            {/* Filtro por estado */}
+            <select
+              data-testid="markups-filter-status"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value as MarkupStatus | 'all')}
+              className="ui-input"
+            >
+              <option value="all">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="accepted">Accepted</option>
+              <option value="rejected">Rejected</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+
+            {/* Botón reset de filtros */}
+            {hasActiveFilters && (
+              <button
+                onClick={resetFilters}
+                data-testid="markups-reset-filters-btn"
+                className="px-2 py-0.5 bg-cad-hover/70 hover:bg-cad-hover text-gray-300 hover:text-cad-strong rounded text-xs transition-colors"
+                title="Reset all filters"
+              >
+                Reset
+              </button>
+            )}
+
+            {/* Indicador de orden actual */}
+            <span className="text-gray-500 text-[11px] whitespace-nowrap pl-1">
+              Sort: <span className="text-gray-300 capitalize">{sortField ?? 'natural'}</span> {sortField ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+            </span>
+          </div>
+          )}
 
           {isExpanded && (
             <label className="flex items-center space-x-1.5 text-gray-400 hover:text-gray-200 cursor-pointer ml-3">
@@ -621,88 +705,6 @@ export const MarkupsList: React.FC = () => {
         )}
       </div>
 
-      {/* Barra de herramientas de filtros y ordenación */}
-      {isExpanded && (
-        <div
-          data-testid="markups-toolbar"
-          className="bg-cad-panel px-3 py-1.5 flex flex-wrap items-center gap-2 border-b border-cad-border text-[12px]"
-        >
-          {/* Búsqueda rápida por texto o autor */}
-          <input
-            type="search"
-            data-testid="markups-search-input"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search markups..."
-            className="ui-input w-36"
-          />
-
-          {/* Filtro por tipo */}
-          <select
-            data-testid="markups-filter-type"
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value as MarkupType | 'all')}
-            className="ui-input"
-          >
-            <option value="all">All types</option>
-            {(Object.keys(MARKUP_TYPE_LABELS) as MarkupType[])
-              .filter((t) => t !== 'highlight')
-              .map((t) => (
-                <option key={t} value={t}>
-                  {MARKUP_TYPE_LABELS[t]}
-                </option>
-              ))}
-          </select>
-
-          {/* Filtro por autor */}
-          <select
-            data-testid="markups-filter-author"
-            value={filterAuthor}
-            onChange={(e) => setFilterAuthor(e.target.value)}
-            className="ui-input max-w-[130px] truncate"
-          >
-            <option value="all">All authors</option>
-            {uniqueAuthors.map((auth) => (
-              <option key={auth} value={auth}>
-                {auth}
-              </option>
-            ))}
-          </select>
-
-          {/* Filtro por estado */}
-          <select
-            data-testid="markups-filter-status"
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as MarkupStatus | 'all')}
-            className="ui-input"
-          >
-            <option value="all">All statuses</option>
-            <option value="pending">Pending</option>
-            <option value="accepted">Accepted</option>
-            <option value="rejected">Rejected</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-
-          {/* Botón reset de filtros */}
-          {hasActiveFilters && (
-            <button
-              onClick={resetFilters}
-              data-testid="markups-reset-filters-btn"
-              className="px-2 py-0.5 bg-cad-hover/70 hover:bg-cad-hover text-gray-300 hover:text-cad-strong rounded text-xs transition-colors"
-              title="Reset all filters"
-            >
-              Reset
-            </button>
-          )}
-
-          {/* Indicador de orden actual */}
-          <span className="text-gray-500 ml-auto text-[11px] font-mono">
-            Sort: <span className="text-gray-300 capitalize">{sortField ?? 'natural'}</span> {sortField ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
-          </span>
-        </div>
-      )}
-
       {/* Contenedor de la Tabla */}
       {isExpanded && (
         <div className="flex-1 overflow-auto bg-cad-panel">
@@ -712,7 +714,7 @@ export const MarkupsList: React.FC = () => {
             </div>
           ) : (
             <table className="w-full text-left border-collapse text-[12px]">
-              <thead className="bg-cad-panel text-gray-500 text-[11px] sticky top-0 shadow-[inset_0_-1px_0_rgb(var(--cad-border))] z-10">
+              <thead className="bg-cad-panel text-gray-500 text-[10px] uppercase tracking-[0.06em] sticky top-0 shadow-[inset_0_-1px_0_rgb(var(--cad-border))] z-10">
                 <tr>
                   <th className="py-1.5 px-2.5 w-8 font-medium"></th>
                   <th

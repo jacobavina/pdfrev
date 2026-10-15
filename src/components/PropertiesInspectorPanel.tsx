@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo } from 'react';
 import { CAPTIONED_MEASURES, CAPTION_FAMILIES, captionCssFamily, captionFontOf } from '../core/markup/measureCaption';
-import { SlidersHorizontal, ChevronRight, Lock, LockOpen } from 'lucide-react';
+import { ChevronRight, Lock, LockOpen } from 'lucide-react';
 import { useMarkupStore } from '../store/useMarkupStore';
-import { useUiStore } from '../store/useUiStore';
+import { useRightPanel } from '../store/useUiStore';
 import { dashArrayFor, lineStyleOf, lineStyleOfMarkup, LineStyleId } from '../core/markup/lineStyles';
 import {
   IconPicker,
@@ -45,41 +45,18 @@ function colorLabel(c: string): string {
 export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> = ({
   defaultCollapsed = false,
 }) => {
-  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+  const [isCollapsed, setIsCollapsed] = useRightPanel('properties', defaultCollapsed);
   const { markups, selectedMarkupIds, applyPropertiesToMarkups, toggleLockSelectedMarkups, applyLineStyle } =
     useMarkupStore();
 
-  // Menú contextual del plano o menú Ver → Panel de propiedades: abrir el panel (ADR-0017)
-  const propertiesOpenRequest = useUiStore((s) => s.propertiesOpenRequest);
-  const initialRequest = useRef(propertiesOpenRequest);
-  useEffect(() => {
-    if (propertiesOpenRequest !== initialRequest.current) setIsCollapsed(false);
-  }, [propertiesOpenRequest]);
 
   const selectedMarkups = useMemo(() => {
     return markups.filter((m) => selectedMarkupIds.includes(m.id));
   }, [markups, selectedMarkupIds]);
 
   if (isCollapsed) {
-    return (
-      <aside
-        data-testid="properties-inspector-panel"
-        data-collapsed="true"
-        className="w-10 bg-cad-panel border-l border-cad-border flex flex-col items-center py-3 select-none z-10 transition-all duration-200"
-      >
-        <button
-          onClick={() => setIsCollapsed(false)}
-          className="p-1.5 text-gray-400 hover:text-cad-strong hover:bg-cad-hover rounded mb-3 transition-colors"
-          title="Expand properties"
-          data-testid="expand-properties-btn"
-        >
-          <SlidersHorizontal size={16} />
-        </button>
-        <span className="text-[11px] text-gray-400 font-medium rotate-90 whitespace-nowrap tracking-wide mt-4">
-          Properties
-        </span>
-      </aside>
-    );
+    // Plegado: lo abre el riel derecho (ADR-0044)
+    return <aside data-testid="properties-inspector-panel" data-collapsed="true" hidden />;
   }
 
   if (selectedMarkups.length === 0) {

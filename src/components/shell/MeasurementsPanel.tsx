@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Ruler, ChevronRight, ChevronDown, FileSpreadsheet } from 'lucide-react';
+import { ChevronRight, ChevronDown, FileSpreadsheet } from 'lucide-react';
 import { useMarkupStore } from '../../store/useMarkupStore';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useCalibrationStore } from '../../store/useCalibrationStore';
 import { useToolStore } from '../../store/useToolStore';
-import { useUiStore } from '../../store/useUiStore';
+import { useUiStore, useRightPanel } from '../../store/useUiStore';
 import { computeMeasureTotals, measureCategoryOf, MeasureTotal } from '../../core/measurements/totals';
 import { markupTypeLabel } from '../../core/markup/typeLabels';
 import { PageCalibration } from '../../types/markup';
@@ -104,7 +104,7 @@ const SnapIcon: React.FC<{ kind: 'endpoint' | 'midpoint' | 'nearest' | 'intersec
  * relación personalizada, escala Y separada, precisión), Distance Properties, Snap, Settings, totales y exportación.
  */
 export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ defaultCollapsed = true }) => {
-  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+  const [isCollapsed, setIsCollapsed] = useRightPanel('measure', defaultCollapsed);
   const [scope, setScope] = useState<'page' | 'document'>('page');
   const { markups, selectedMarkupIds, setSelectedMarkupIds } = useMarkupStore();
   const { currentPageIndex, setCurrentPage, pdfBytes, numPages } = useDocumentStore();
@@ -128,11 +128,6 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
   const showMeasureLabels = useUiStore((s) => s.showMeasureLabels);
   const setShowMeasureLabels = useUiStore((s) => s.setShowMeasureLabels);
 
-  const openRequest = useUiStore((s) => s.measurementsOpenRequest);
-  const initialRequest = useRef(openRequest);
-  useEffect(() => {
-    if (openRequest !== initialRequest.current) setIsCollapsed(false);
-  }, [openRequest]);
 
   const calib = getPageCalibration(currentPageIndex);
 
@@ -281,23 +276,8 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
   );
 
   if (isCollapsed) {
-    return (
-      <aside
-        data-testid="measurements-panel"
-        data-collapsed="true"
-        className="w-10 bg-cad-panel border-l border-cad-border flex flex-col items-center py-3 select-none z-10"
-      >
-        <button
-          onClick={() => setIsCollapsed(false)}
-          className="p-1.5 text-gray-400 hover:text-cad-strong hover:bg-cad-hover rounded mb-3 transition-colors"
-          title="Expand measurements"
-          data-testid="expand-measurements-btn"
-        >
-          <Ruler size={16} />
-        </button>
-        <span className="text-[11px] text-gray-400 font-medium rotate-90 whitespace-nowrap tracking-wide mt-6">Measure</span>
-      </aside>
-    );
+    // Plegado: lo abre el riel derecho (ADR-0044)
+    return <aside data-testid="measurements-panel" data-collapsed="true" hidden />;
   }
 
   const selectedPreset = calib.presetId ? allPresets.find((p) => p.id === calib.presetId) : undefined;

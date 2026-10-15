@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { ToolChestPanel } from './ToolChestPanel';
+import { RightRail } from '../shell/RightRail';
 import { useToolChestStore } from '../../store/useToolChestStore';
 import { useMarkupStore } from '../../store/useMarkupStore';
 import { useToolStore } from '../../store/useToolStore';
@@ -50,7 +51,13 @@ describe('ToolChestPanel (Panel Lateral de Tool Chest B.4)', () => {
   });
 
   it('permite colapsar y expandir el panel lateral', async () => {
-    render(<ToolChestPanel defaultCollapsed={false} />);
+    // Plegado, el panel se abre desde el riel derecho (ADR-0044)
+    render(
+      <>
+        <ToolChestPanel defaultCollapsed={false} />
+        <RightRail />
+      </>
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId('collapse-tool-chest-btn')).toBeInTheDocument();

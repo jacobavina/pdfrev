@@ -1,4 +1,8 @@
+import { useEffect } from 'react';
 import { create } from 'zustand';
+
+/** Paneles del lado derecho (ADR-0044). */
+export type RightPanelId = 'properties' | 'measure' | 'toolchest';
 
 /**
  * Estado de la interfaz del espacio de trabajo (ADR-0017): tema, panel izquierdo activo, visibilidad de
@@ -131,6 +135,8 @@ interface UiState {
   /** Posición del cursor en puntos PDF desde la esquina superior izquierda de la página, o null fuera de ella. */
   cursorPt: { x: number; y: number } | null;
   /** Se incrementa cada vez que algo pide abrir el panel de propiedades (menú contextual, menú Ver). */
+  /** Panel derecho abierto (ADR-0044): uno a la vez, como los paneles de Revu; null = todos plegados. */
+  rightPanel: RightPanelId | null;
   propertiesOpenRequest: number;
   measurementsOpenRequest: number;
   /** Petición de exportación de la lista de marcas (la ejecuta la lista, respetando sus filtros y columnas). */
@@ -158,6 +164,7 @@ interface UiState {
   toggleLayerVisibility: (layer: string) => void;
   setCursorPt: (pt: { x: number; y: number } | null) => void;
   requestPropertiesPanel: () => void;
+  setRightPanel: (panel: RightPanelId | null) => void;
   requestMeasurementsPanel: () => void;
   requestExport: (kind: 'csv' | 'report') => void;
   setShortcutsOpen: (open: boolean) => void;
@@ -176,6 +183,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   leftOpen: true,
   hiddenLayers: [],
   cursorPt: null,
+  rightPanel: null,
   propertiesOpenRequest: 0,
   measurementsOpenRequest: 0,
   exportRequest: null,
@@ -217,8 +225,10 @@ export const useUiStore = create<UiState>((set, get) => ({
         : [...state.hiddenLayers, layer],
     })),
   setCursorPt: (cursorPt) => set({ cursorPt }),
-  requestPropertiesPanel: () => set((s) => ({ propertiesOpenRequest: s.propertiesOpenRequest + 1 })),
-  requestMeasurementsPanel: () => set((s) => ({ measurementsOpenRequest: s.measurementsOpenRequest + 1 })),
+  requestPropertiesPanel: () => set((s) => ({ rightPanel: 'properties', propertiesOpenRequest: s.propertiesOpenRequest + 1 })),
+  requestMeasurementsPanel: () =>
+    set((s) => ({ rightPanel: 'measure', measurementsOpenRequest: s.measurementsOpenRequest + 1 })),
+  setRightPanel: (rightPanel) => set({ rightPanel }),
   requestExport: (kind) => set((s) => ({ exportRequest: { kind, seq: (s.exportRequest?.seq ?? 0) + 1 } })),
   setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
   setViewMode: (viewMode) => {
@@ -258,3 +268,22 @@ export const useUiStore = create<UiState>((set, get) => ({
     set({ autoOpenPanels });
   },
 }));
+
+/**
+ * Plegado de un panel derecho (ADR-0044): abrir uno pliega los demás. Con `defaultCollapsed = false` el panel se abre
+ * al montarse. Devuelve [plegado, fijarPlegado].
+ */
+export function useRightPanel(id: RightPanelId, defaultCollapsed: boolean): [boolean, (collapsed: boolean) => void] {
+  const open = useUiStore((s) => s.rightPanel === id);
+  useEffect(() => {
+    if (!defaultCollapsed) useUiStore.getState().setRightPanel(id);
+    // Solo al montarse
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const setCollapsed = (collapsed: boolean) => {
+    const { rightPanel, setRightPanel } = useUiStore.getState();
+    if (!collapsed) setRightPanel(id);
+    else if (rightPanel === id) setRightPanel(null);
+  };
+  return [!open, setCollapsed];
+}

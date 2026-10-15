@@ -19,6 +19,8 @@ describe('Cinta de herramientas - Medición y calibración (Paquete 4)', () => {
 
   it('renderiza todos los botones de medición y calibración con sus data-testid correspondientes', () => {
     render(<Ribbon />);
+    // Pestaña Measure de la cinta (ADR-0044)
+    fireEvent.click(screen.getByTestId('ribbon-tab-measure'));
 
     expect(screen.getByTestId('tool-calibrate')).toBeInTheDocument();
     expect(screen.getByTestId('tool-measure-length')).toBeInTheDocument();
@@ -29,6 +31,7 @@ describe('Cinta de herramientas - Medición y calibración (Paquete 4)', () => {
 
   it('permite seleccionar cada herramienta de medición actualizando el store', () => {
     render(<Ribbon />);
+    fireEvent.click(screen.getByTestId('ribbon-tab-measure'));
 
     fireEvent.click(screen.getByTestId('tool-calibrate'));
     expect(useToolStore.getState().activeTool).toBe('calibrate');
@@ -48,12 +51,19 @@ describe('Cinta de herramientas - Medición y calibración (Paquete 4)', () => {
 
   it('agrupa las herramientas por tarea con rótulo visible (Selección, Texto y revisión, Dibujo, Medición)', () => {
     render(<Ribbon />);
-    for (const id of ['select', 'text', 'draw', 'measure']) {
+    // Pestaña Markup (ADR-0044): Selección siempre a la vista, Texto y revisión, Dibujo
+    expect(screen.getByTestId('ribbon-tab-markup')).toHaveAttribute('aria-selected', 'true');
+    for (const id of ['select', 'text', 'draw']) {
       expect(screen.getByTestId(`ribbon-group-${id}`)).toBeInTheDocument();
     }
-    expect(screen.getByTestId('ribbon-group-measure')).toHaveTextContent('Measure');
-    // La herramienta activa se marca con aria-pressed
+    // La herramienta activa se marca con aria-pressed y muestra su nombre bajo el icono
     fireEvent.click(screen.getByTestId('tool-rectangle'));
     expect(screen.getByTestId('tool-rectangle')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('tool-rectangle')).toHaveTextContent('Rectangle');
+    // Pestaña Measure: Selección sigue a la vista
+    fireEvent.click(screen.getByTestId('ribbon-tab-measure'));
+    expect(screen.getByTestId('ribbon-group-select')).toBeInTheDocument();
+    expect(screen.getByTestId('ribbon-group-measure')).toHaveTextContent('Measure');
+    expect(screen.queryByTestId('ribbon-group-draw')).toBeNull();
   });
 });

@@ -3596,7 +3596,7 @@ export const PdfViewer: React.FC = () => {
                 data-testid={isActive ? 'pdf-page-container' : `pdf-page-slot-${i}`}
                 data-rendered-page={isActive ? currentPageIndex : undefined}
                 data-has-text={isActive ? String(pageHasText[currentPageIndex] ?? 'loading') : undefined}
-                className={`relative shrink-0 shadow-[0_2px_14px_rgba(0,0,0,0.35)] bg-white ${isActive ? 'select-text' : ''}`}
+                className={`relative shrink-0 sheet-shadow bg-white ${isActive ? 'select-text' : ''}`}
                 style={{ width: `${slotW}px`, height: `${slotH}px` }}
                 onDragOver={isActive ? handleDragOver : undefined}
                 onDrop={isActive ? handleDrop : undefined}

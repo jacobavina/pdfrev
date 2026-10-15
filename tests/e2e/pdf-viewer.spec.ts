@@ -2215,4 +2215,41 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(length.locator('polygon')).toHaveCount(2); // flechas cerradas
     await expect(page.locator('[data-testid="markups-list-panel"] tbody tr').filter({ hasText: 'Length' })).toHaveCount(1);
   });
+  test('Overlay Pages (ADR-0038): comparar con otra página, colores rojo/azul, alinear y cerrar', async ({ page }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
+
+    // Document ▸ Overlay Pages ▸ Overlay with a Page of This Document (página 1 contra la 2)
+    await page.locator('[data-testid="menu-documento"]').click();
+    await page.locator('[data-testid="menu-overlay"]').hover();
+    await page.locator('[data-testid="menu-overlay-self"]').click();
+    await expect(page.locator('[data-testid="overlay-bar"]')).toBeVisible();
+    await expect(page.locator('[data-testid="overlay-page-select"]')).toHaveValue('1');
+
+    // La mezcla tiene tinta solo de la actual (rojo) y solo de la comparada (azul)
+    const colors = async () =>
+      page.evaluate(() => {
+        const c = document.querySelector('[data-testid="overlay-canvas"]') as HTMLCanvasElement | null;
+        if (!c || c.width <= 300) return { red: 0, blue: 0 };
+        const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+        let red = 0;
+        let blue = 0;
+        for (let i = 0; i < d.length; i += 16) {
+          if (d[i] > 150 && d[i + 1] < 110 && d[i + 2] < 110) red++;
+          else if (d[i + 2] > 150 && d[i] < 110) blue++;
+        }
+        return { red, blue };
+      });
+    await expect.poll(async () => (await colors()).red, { timeout: 10000 }).toBeGreaterThan(50);
+    expect((await colors()).blue).toBeGreaterThan(50);
+
+    // Alinear 10 pt con Mayús y cerrar
+    await page.locator('[data-testid="overlay-nudge-right"]').click({ modifiers: ['Shift'] });
+    await expect(page.locator('[data-testid="overlay-offset"]')).toHaveText('10, 0 pt');
+    await page.locator('[data-testid="overlay-close"]').click();
+    await expect(page.locator('[data-testid="overlay-bar"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid="overlay-canvas"]')).toHaveCount(0);
+  });
 });

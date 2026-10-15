@@ -41,6 +41,8 @@ import {
   Signature,
   Link2,
   Paperclip,
+  Layers2,
+  FileStack,
 } from 'lucide-react';
 import { FIELD_TYPES, FieldType } from '../../core/markup/formFields';
 import { fieldTypeIcon } from './fieldIcons';
@@ -271,6 +273,28 @@ export const MenuBar: React.FC = () => {
         { icon: <FileX2 size={15} />, label: 'Delete Page', onSelect: () => runPageOperation('delete'), disabled: !hasDoc || numPages <= 1 },
         'separator',
         { icon: <Search size={15} />, label: 'Find Text…', shortcut: 'Ctrl+F', onSelect: () => useSearchStore.getState().setIsOpen(true), disabled: !hasDoc },
+        'separator',
+        {
+          icon: <Layers2 size={15} />,
+          label: 'Overlay Pages',
+          testId: 'menu-overlay',
+          submenu: [
+            {
+              icon: <FileStack size={15} />,
+              label: 'Overlay with Another PDF…',
+              testId: 'menu-overlay-file',
+              onSelect: () => void import('../../services/overlayService').then((m) => m.startOverlayFromFile()),
+              disabled: !hasDoc,
+            },
+            {
+              icon: <Copy size={15} />,
+              label: 'Overlay with a Page of This Document',
+              testId: 'menu-overlay-self',
+              onSelect: () => void import('../../services/overlayService').then((m) => m.startOverlayWithThisDocument()),
+              disabled: !hasDoc || numPages < 2,
+            },
+          ],
+        },
       ],
     },
     {

@@ -10,6 +10,7 @@ import { useDocumentStore } from './store/useDocumentStore';
 import { useMarkupStore } from './store/useMarkupStore';
 import { useSearchStore } from './store/useSearchStore';
 import { useUiStore } from './store/useUiStore';
+import { useOverlayStore } from './store/useOverlayStore';
 import { useAutoSave } from './hooks/useAutoSave';
 import { loadPdfData, openPdfDialog } from './services/fileDialogService';
 
@@ -32,6 +33,7 @@ const SidePanelFallback: React.FC = () => <aside className="w-10 bg-cad-panel bo
 import { RULER_SIZE } from './core/measurements/rulers';
 import { CalibrateHint } from './components/viewer/CalibrateHint';
 const Rulers = lazy(() => import('./components/viewer/Rulers'));
+const OverlayBar = lazy(() => import('./components/viewer/OverlayBar'));
 // Lista de marcas bajo demanda (ADR-0035): libera presupuesto del bundle principal; mientras carga se reserva su barra
 const MarkupsList = lazy(() => import('./components/MarkupsList').then((m) => ({ default: m.MarkupsList })));
 import fixtureMeta from '../fixtures/test-blueprint.meta.json';
@@ -58,6 +60,7 @@ const DocumentTab: React.FC = () => {
 export const App: React.FC = () => {
   const { pdfBytes, setLoading } = useDocumentStore();
   const showRulers = useUiStore((s) => s.showRulers);
+  const overlayActive = useOverlayStore((s) => s.active);
   const viewerHostRef = useRef<HTMLDivElement>(null);
   const { addMarkup } = useMarkupStore();
   const { saveNow } = useAutoSave();
@@ -171,6 +174,11 @@ export const App: React.FC = () => {
             )}
             <PdfViewer />
             <CalibrateHint />
+            {overlayActive && (
+              <Suspense fallback={null}>
+                <OverlayBar />
+              </Suspense>
+            )}
           </div>
         </div>
         <Suspense fallback={<SidePanelFallback />}>

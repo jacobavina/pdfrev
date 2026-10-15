@@ -58,6 +58,7 @@ import { showToast } from '../services/toastService';
 import { stampById, stampSubtitle, defaultStampSizePt } from '../core/markup/stamps';
 import { fieldTypeDef, fieldTypeOf, nextFieldName } from '../core/markup/formFields';
 import { useAttachmentStore } from '../store/useAttachmentStore';
+import { useOverlayStore } from '../store/useOverlayStore';
 import { openExternalUrl, goToPageNumber, pickAttachmentFile, saveAttachment } from '../services/linkService';
 import { Plus, Minus, Crosshair } from 'lucide-react';
 import {
@@ -85,6 +86,8 @@ interface PdfLinkArea {
 
 // El modal de calibración solo se descarga al abrirlo (bundle principal ≤ 800 kB)
 const CalibrationModal = lazy(() => import('./CalibrationModal').then((m) => ({ default: m.CalibrationModal })));
+// Overlay Pages (ADR-0038): solo se descarga al comparar
+const OverlayCanvas = lazy(() => import('./viewer/OverlayCanvas'));
 
 /** Herramientas que usan snap al dibujar o medir (ADR-0025). */
 /**
@@ -262,6 +265,7 @@ export const PdfViewer: React.FC = () => {
 
   // Tamaño sin escalar (pt, con la rotación aplicada) de todas las páginas (ADR-0019): permite maquetar la vista
   // continua sin saltos antes de renderizar y calcular "Ajustar a página". Vacío si el documento no lo ofrece.
+  const overlayActive = useOverlayStore((s) => s.active);
   const [pageSizes, setPageSizes] = useState<{ w: number; h: number }[]>([]);
   const pageSizesRef = useRef(pageSizes);
   pageSizesRef.current = pageSizes;
@@ -3398,6 +3402,11 @@ export const PdfViewer: React.FC = () => {
                     ocVersion={ocVersion}
                     onRendered={handlePageRendered}
                   />
+                )}
+                {isActive && overlayActive && pdfDoc && (
+                  <Suspense fallback={null}>
+                    <OverlayCanvas pdfDoc={pdfDoc} pageIndex={i} scale={scale} rotation={rotation} width={slotW} height={slotH} />
+                  </Suspense>
                 )}
                 {isActive ? activeOverlay : renderPassiveOverlay(i, slotW, slotH)}
               </div>

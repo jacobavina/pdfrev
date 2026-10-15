@@ -160,6 +160,41 @@ describe('Tipo de flecha del callout configurable (ADR-0042)', () => {
   });
 });
 
+describe('Borde de la caja del callout (ADR-0042)', () => {
+  beforeEach(() => {
+    useToolStore.setState({ activeTool: 'select', calloutBorder: undefined, currentStyle: { strokeColor: '#e02424', fillColor: 'transparent', strokeWidth: 1, opacity: 1 } });
+  });
+
+  it('el borde se elige aparte del relleno: borde sin relleno, relleno sin borde, en pantalla y en el PDF', () => {
+    useMarkupStore.setState({ markups: [callout], selectedMarkupIds: ['co'] });
+    render(<Ribbon />);
+    const btn = screen.getByTestId('ribbon-callout-border');
+    expect(btn).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(btn);
+    const m = useMarkupStore.getState().markups[0];
+    expect(m.customFields?.calloutBorder).toBe(1);
+    const t = { width: 800, height: 600, scale: 1, offsetX: 0, offsetY: 0, zoom: 1 };
+    const rect = getMarkupSvgDescriptor(m, t).children!.find((c) => c.tag === 'rect')!;
+    expect(rect.attrs).toMatchObject({ stroke: '#e02424', fill: 'transparent' });
+    const tr: PageTransformInfo = { rotation: 0, widthPt: 800, heightPt: 600, originX: 0, originY: 0 };
+    // Solo borde: el /AP traza la caja sin rellenarla
+    expect(emitMarkupOperators(m, tr).operators.split('\n').filter((l) => l === 'S').length).toBeGreaterThanOrEqual(3);
+    // Relleno sin borde
+    const filledNoBorder = { ...m, style: { ...m.style, fillColor: '#ffffff' }, customFields: { calloutBorder: 0 } };
+    expect(getMarkupSvgDescriptor(filledNoBorder, t).children!.find((c) => c.tag === 'rect')!.attrs).toMatchObject({ stroke: 'none', fill: '#ffffff' });
+    expect(emitMarkupOperators(filledNoBorder, tr).operators).toMatch(/^f$/m);
+    act(() => useMarkupStore.getState().undo());
+    expect(useMarkupStore.getState().markups[0].customFields?.calloutBorder).toBeUndefined();
+  });
+
+  it('con la herramienta Callout, el botón define el borde de los callouts nuevos', () => {
+    useToolStore.setState({ activeTool: 'callout' });
+    render(<Ribbon />);
+    fireEvent.click(screen.getByTestId('ribbon-callout-border'));
+    expect(useToolStore.getState().calloutBorder).toBe(true);
+  });
+});
+
 describe('Callout en el visor (ADR-0042)', () => {
   beforeEach(() => {
     useMarkupStore.setState({ markups: [], selectedMarkupIds: [] });

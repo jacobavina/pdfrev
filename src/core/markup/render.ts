@@ -33,7 +33,7 @@ import {
 export { measureLabelText, measureLineEndings } from './measureCaption';
 import { dimensionGeometry, dimensionTextBaseline, defaultDimensionLinePoint } from './dimension';
 import { revisionCloudPathNormalized, cloudParams } from './revisionCloud';
-import { calloutLeaderLayout, CALLOUT_LANDING_PT } from './calloutLayout';
+import { calloutLeaderLayout, calloutBoxPaint, CALLOUT_LANDING_PT } from './calloutLayout';
 import { linePatternPrimitives, markupLinePattern, patternOutlineOf, PatternLineStyleId } from './linePatterns';
 import { stampLayout } from './stamps';
 import { fieldTypeOf, fieldDisplayText, isFieldChecked } from './formFields';
@@ -1301,7 +1301,8 @@ export function getMarkupSvgDescriptor(
         }
       }
 
-      const boxed = Boolean(style.fillColor && style.fillColor !== 'transparent');
+      // Relleno y borde de la caja se eligen por separado (ADR-0042)
+      const paint = calloutBoxPaint(markup);
       children.push({
         tag: 'rect',
         attrs: {
@@ -1309,8 +1310,8 @@ export function getMarkupSvgDescriptor(
           y: geom.box.y,
           width: geom.box.width,
           height: geom.box.height,
-          fill: boxed ? style.fillColor! : 'transparent',
-          stroke: boxed ? style.strokeColor : 'none',
+          fill: paint.fill ? style.fillColor! : 'transparent',
+          stroke: paint.border ? style.strokeColor : 'none',
           strokeWidth: lineW,
         },
       });

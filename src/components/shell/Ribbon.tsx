@@ -11,6 +11,7 @@ import { dashArrayFor, lineStyleOfMarkup, LineStyleId } from '../../core/markup/
 import { isPatternLineStyle } from '../../core/markup/linePatterns';
 import { cloudParams, CLOUD_SIZE_FACTOR, DEFAULT_CLOUD_STEP } from '../../core/markup/revisionCloud';
 import { CloudStylePicker } from './CloudStylePicker';
+import { calloutBoxPaint } from '../../core/markup/calloutLayout';
 import {
   IconPicker,
   LineStylePreview,
@@ -70,6 +71,8 @@ export const Ribbon: React.FC = () => {
     cloudSize,
     cloudInvert,
     setCloudOptions,
+    calloutBorder,
+    setCalloutBorder,
   } = useToolStore();
 
   // Barra de propiedades contextual (ADR-0040), como la de Revu: con marcas seleccionadas edita la selección; sin
@@ -94,6 +97,18 @@ export const Ribbon: React.FC = () => {
   // herramienta de nube)
   // El callout dibuja flecha abierta si no se eligió otra (ADR-0042): la barra lo muestra así
   const calloutContext = editingSelection ? selection[0].type === 'callout' : activeTool === 'callout';
+  // Borde de la caja del callout, aparte del relleno (ADR-0042)
+  const boxBorder = editingSelection
+    ? calloutBoxPaint(selection[0]).border
+    : calloutBorder ?? Boolean(style.fillColor && style.fillColor !== 'transparent');
+  const toggleBoxBorder = () => {
+    if (!editingSelection) {
+      setCalloutBorder(!boxBorder);
+      return;
+    }
+    const ids = selection.filter((m) => m.type === 'callout').map((m) => m.id);
+    applyPropertiesToMarkups(ids, { customFields: { calloutBorder: boxBorder ? 0 : 1 } }, boxBorder ? 'Remove text box border' : 'Add text box border');
+  };
   const lineStyle: LineStyleId = editingSelection
     ? lineStyleOfMarkup(selection[0])
     : activeTool === 'cloud' || activeTool === 'cloudPlus'
@@ -269,6 +284,24 @@ export const Ribbon: React.FC = () => {
           </div>
           <div className="flex items-center gap-1" title="Fill for closed shapes">
             <span className="text-[10px] text-gray-500 w-9">Fill</span>
+            {calloutContext && (
+              <button
+                type="button"
+                data-testid="ribbon-callout-border"
+                aria-pressed={boxBorder}
+                onClick={toggleBoxBorder}
+                title={boxBorder ? 'Text box border: on' : 'Text box border: off'}
+                className={`w-4 h-4 rounded-[3px] flex items-center justify-center ${
+                  boxBorder ? 'ring-2 ring-cad-accent ring-offset-1 ring-offset-cad-ribbon' : ''
+                }`}
+              >
+                <span
+                  className="block w-3 h-2.5 rounded-[1px]"
+                  style={{ border: `1.5px ${boxBorder ? 'solid' : 'dashed'} ${boxBorder ? style.strokeColor : '#6b7280'}` }}
+                />
+              </button>
+            )}
+            {calloutContext && <span className="w-px h-3.5 bg-cad-border mx-0.5" aria-hidden="true" />}
             <button
               type="button"
               data-testid="ribbon-fill-none"

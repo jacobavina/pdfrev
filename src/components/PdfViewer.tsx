@@ -1211,6 +1211,7 @@ export const PdfViewer: React.FC = () => {
       // Nota de Revu (ADR-0042): texto con directriz, sin caja
       style: { ...currentStyle },
       text: 'Cloud+ note',
+      ...calloutBorderFields(),
       author: author || 'Reviewer',
       createdAt: now,
       updatedAt: now,
@@ -1220,6 +1221,12 @@ export const PdfViewer: React.FC = () => {
     };
     addMarkups([cloudMarkup, calloutMarkup], 'Create Cloud+');
     useToolChestStore.getState().recordRecent(cloudMarkup);
+  };
+
+  /** Borde elegido en la barra para los callouts nuevos (ADR-0042). */
+  const calloutBorderFields = () => {
+    const b = useToolStore.getState().calloutBorder;
+    return b === undefined ? {} : { customFields: { calloutBorder: b ? 1 : 0 } };
   };
 
   /** Cierra una nube de forma libre (ADR-0039): nube poligonal o Cloud+. */
@@ -1990,6 +1997,7 @@ export const PdfViewer: React.FC = () => {
           updatedAt: now,
           status: 'pending',
           layer: activeLayer,
+          ...calloutBorderFields(),
         };
 
         addMarkup(calloutMarkup);

@@ -17,6 +17,7 @@ import { stampLayout } from '../markup/stamps';
 import { fieldTypeOf, fieldDisplayText, isFieldChecked } from '../markup/formFields';
 import { revisionCloudPathNormalized, cloudParams } from '../markup/revisionCloud';
 import { linePatternPrimitives, markupLinePattern, patternOutlineOf } from '../markup/linePatterns';
+import { calloutBoxPaint } from '../markup/calloutLayout';
 import {
   CaptionText,
   captionStyleOf,
@@ -817,8 +818,11 @@ export function emitMarkupOperators(
         1
       );
       const bx = geom.box;
-      if (fillParsed) {
-        lines.push(rgbOp(fillParsed, 'rg'));
+      const paint = calloutBoxPaint(markup);
+      const boxFill = paint.fill && fillParsed;
+      const boxBorder = paint.border && strokeParsed;
+      if (boxFill || boxBorder) {
+        if (boxFill) lines.push(rgbOp(fillParsed!, 'rg'));
         pathPdf(
           [
             visToPdf({ x: bx.x, y: bx.y }),
@@ -828,7 +832,7 @@ export function emitMarkupOperators(
           ],
           true
         );
-        lines.push(strokeParsed ? 'B' : 'f');
+        lines.push(boxFill && boxBorder ? 'B' : boxFill ? 'f' : 'S');
       } else {
         // Caja sin dibujo: la caja envolvente la incluye igualmente (Revu y Acrobat la editan con /RD)
         updateBBox(visToPdf({ x: bx.x, y: bx.y }).x, visToPdf({ x: bx.x, y: bx.y }).y);

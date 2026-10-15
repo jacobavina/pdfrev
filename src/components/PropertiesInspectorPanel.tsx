@@ -12,6 +12,7 @@ import {
   LINE_ENDING_OPTIONS,
 } from './shell/IconPicker';
 import { CLOUD_SIZE_FACTOR, DEFAULT_CLOUD_STEP } from '../core/markup/revisionCloud';
+import { calloutBoxPaint } from '../core/markup/calloutLayout';
 import { InteractiveProperties } from './markup/InteractiveProperties';
 import { Markup, MarkupStatus, VALID_MARKUP_STATUSES, LineEndingStyle } from '../types/markup';
 
@@ -137,6 +138,8 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
   const isAllLocked =
     selectedMarkups.length > 0 && selectedMarkups.every((m) => Boolean(m.locked));
   // Nube (ADR-0021): "Nube" como tipo de línea para rectángulos y polígonos, tamaño de arco e invertir
+  const allCallouts = selectedMarkups.length > 0 && selectedMarkups.every((m) => m.type === 'callout');
+  const calloutBorder = allCallouts && selectedMarkups.every((m) => calloutBoxPaint(m).border);
   const allCloud = selectedMarkups.length > 0 && selectedMarkups.every((m) => lineStyleOfMarkup(m) === 'cloud');
   // Tipo de línea de cada marca (ADR-0041): nube, patrón o discontinuo
   const markupLineStyle = getUnifiedValue((m) => lineStyleOfMarkup(m));
@@ -401,6 +404,29 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
             onChange={handleLineStylePick}
           />
         </div>
+
+        {/* Borde de la caja del callout, aparte del relleno (ADR-0042) */}
+        {allCallouts && (
+          <div className="ui-row">
+            <label className="ui-label">Text box</label>
+            <label className="flex items-center gap-1.5 text-gray-300 cursor-pointer">
+              <input
+                type="checkbox"
+                data-testid="prop-callout-border"
+                checked={calloutBorder}
+                onChange={(e) =>
+                  applyPropertiesToMarkups(
+                    selectedMarkupIds,
+                    { customFields: { calloutBorder: e.target.checked ? 1 : 0 } },
+                    e.target.checked ? 'Add text box border' : 'Remove text box border'
+                  )
+                }
+                className="accent-cad-accent"
+              />
+              Border
+            </label>
+          </div>
+        )}
 
         {/* Estilo de nube: tamaño de arco e invertir (como en Revu) */}
         {allCloud && (

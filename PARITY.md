@@ -113,6 +113,7 @@ Este documento registra la paridad funcional real implementada en REA, vinculand
 | **Callout estándar en el PDF (/IT /FreeTextCallout, /CL, /LE, /RD)** | `shipped` | `src/components/RevuCallout.test.tsx` | `en el PDF es un callout estándar: /IT /FreeTextCallout con /CL, /LE y /RD, y vuelve igual al abrirlo` | PENDIENTE DE VERIFICAR por el usuario en Revu/Acrobat |
 | **Tiradores del callout como Revu: codo, esquinas y lados de la caja** | `shipped` | `src/components/RevuCallout.test.tsx` | `tiradores de Revu: círculos en las esquinas, cuadros en los lados; un lado mueve solo ese lado` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Flecha del callout abierta como Revu/Foxit y tipo de flecha configurable** | `shipped` | `src/components/RevuCallout.test.tsx` | `la barra muestra la flecha abierta del callout y permite cambiarla por cerrada, círculo o ninguna` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **Borde de la caja del callout independiente del relleno** | `shipped` | `src/components/RevuCallout.test.tsx` | `el borde se elige aparte del relleno: borde sin relleno, relleno sin borde, en pantalla y en el PDF` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Automatización nativa con tauri-driver (Hito P2-X)** | `shipped` | `scripts/native-smoke.mjs` | `Hito P2-X (ADR-0008): Smoke Test de Ventana Nativa con tauri-driver` | Verificado por el usuario en ventana nativa, 2026-10-10 (`npm run test:native:build` sobre HEAD bf7be61: arranque, canvas, IPC Rust y dibujo W3C) |
 
 

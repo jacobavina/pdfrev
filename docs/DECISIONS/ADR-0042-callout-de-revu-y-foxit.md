@@ -36,6 +36,9 @@ En Revu y Foxit:
    - Texto del color de la línea, en pt de página, que crece con el zoom.
    - Sin relleno no hay caja (como Revu); con relleno, caja con borde (como Foxit). Las llamadas nuevas y las notas
      de Cloud+ se crean sin caja.
+   - El borde de la caja se elige aparte del relleno (`customFields.calloutBorder`): botón junto a Fill en la barra
+     (con un callout seleccionado o la herramienta Callout) y casilla Border en Properties. Sin elegirlo, el borde
+     sigue al relleno.
 5. **Tiradores de Revu**:
    - Punta y codo: círculos amarillos. Arrastrar el codo alarga o acorta el tramo horizontal.
    - Caja: círculos en las esquinas y cuadros en el centro de cada lado; un cuadro mueve solo su lado.

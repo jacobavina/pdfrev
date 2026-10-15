@@ -66,3 +66,18 @@ export function calloutBoxFromDrag(
     { x: x0 + size.width, y: y0 + size.height },
   ];
 }
+
+/**
+ * Qué se pinta de la caja del callout (ADR-0042). El borde se elige aparte del relleno (`customFields.calloutBorder`:
+ * 1 con borde, 0 sin borde); sin elegirlo, la caja con relleno lleva borde (Foxit) y la que no tiene relleno no
+ * (Revu).
+ */
+export function calloutBoxPaint(markup: {
+  style: { fillColor?: string };
+  customFields?: Record<string, string | number>;
+}): { fill: boolean; border: boolean } {
+  const fill = Boolean(markup.style.fillColor && markup.style.fillColor !== 'transparent');
+  const b = markup.customFields?.calloutBorder;
+  const border = b === undefined ? fill : b === 1 || b === '1';
+  return { fill, border };
+}

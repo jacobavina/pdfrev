@@ -1,5 +1,6 @@
 import { revisionCloudPathNormalized, cloudParams } from '../core/markup/revisionCloud';
 import { markupLinePattern } from '../core/markup/linePatterns';
+import { calloutBoxPaint } from '../core/markup/calloutLayout';
 import {
   PDFDocument,
   PDFPage,
@@ -868,12 +869,13 @@ export async function exportMarkupsToPdf(
 
           const boxD = `M ${pdfTL.x.toFixed(2)} ${(-pdfTL.y).toFixed(2)} L ${pdfTR.x.toFixed(2)} ${(-pdfTR.y).toFixed(2)} L ${pdfBR.x.toFixed(2)} ${(-pdfBR.y).toFixed(2)} L ${pdfBL.x.toFixed(2)} ${(-pdfBL.y).toFixed(2)} Z`;
           // Caja solo si tiene relleno: sin él, el callout es texto suelto como en Revu (ADR-0042)
-          if (fillColorParsed.color) page.drawSvgPath(boxD, {
+          const boxPaint = calloutBoxPaint(markup);
+          if ((boxPaint.fill && fillColorParsed.color) || boxPaint.border) page.drawSvgPath(boxD, {
             x: 0,
             y: 0,
-            color: fillColorParsed.color,
-            borderColor: strokeColorParsed.color,
-            borderWidth: strokeWidth,
+            color: boxPaint.fill ? fillColorParsed.color : undefined,
+            borderColor: boxPaint.border ? strokeColorParsed.color : undefined,
+            borderWidth: boxPaint.border ? strokeWidth : 0,
             borderOpacity: strokeColorParsed.opacity ?? opacity,
             opacity: opacity,
           });

@@ -35,6 +35,8 @@ interface ToolState {
   /** Tamaño (Size de Revu: paso / 10) e inversión de las nubes nuevas (ADR-0041). */
   cloudSize: number;
   cloudInvert: boolean;
+  /** Borde de la caja de los callouts nuevos (ADR-0042); sin elegir, sigue al relleno. */
+  calloutBorder?: boolean;
 
   // Actions
   setActiveTool: (tool: ToolType) => void;
@@ -48,6 +50,7 @@ interface ToolState {
   setMeasureCaption: (style: CaptionStyle) => void;
   setMeasureLeaders: (on: boolean) => void;
   setCloudOptions: (opts: { size?: number; invert?: boolean }) => void;
+  setCalloutBorder: (on: boolean) => void;
 }
 
 export const useToolStore = create<ToolState>((set) => ({
@@ -90,6 +93,7 @@ export const useToolStore = create<ToolState>((set) => ({
     }
     set({ measureLeaders });
   },
+  setCalloutBorder: (calloutBorder) => set({ calloutBorder }),
   setCloudOptions: ({ size, invert }) =>
     set((state) => ({
       cloudSize: size !== undefined && Number.isFinite(size) && size > 0 ? Math.max(0.25, Math.min(10, size)) : state.cloudSize,

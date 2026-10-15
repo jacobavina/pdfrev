@@ -200,4 +200,5 @@ plan y `AGENTS.md`, **gana `AGENTS.md`**.
 | 2026-10-15 | Claude (Opus 5.5) | ADR-0045: sellos de Revu y Foxit (catálogo por secciones, dibujo común, texto dinámico y selector con miniaturas). |
 | 2026-10-15 | Claude (Opus 5.5) | ADR-0046: capas de marcas como capas del PDF (/OCG y /OC), visibles en Revu y Acrobat. |
 | 2026-10-15 | Claude (Opus 5.5) | ADR-0047: trazo recto (horizontal o vertical) con Shift. |
+| 2026-10-15 | Claude (Opus 5.5) | ADR-0048: Shift a 45° y cajas cuadradas; cursores visibles sobre la hoja. |
 

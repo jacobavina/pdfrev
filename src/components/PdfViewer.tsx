@@ -68,7 +68,7 @@ import {
 import type { ContentSnapIndex } from '../core/markup/contentSnap';
 import type { loadContentSnapIndex } from '../services/contentSnapService';
 import { showToast } from '../services/toastService';
-import { ORTHO_TOOLS, orthoConstrain } from '../core/markup/ortho';
+import { ORTHO_TOOLS, SQUARE_TOOLS, orthoConstrain, squareConstrain } from '../core/markup/ortho';
 import { stampById } from '../core/markup/stamps';
 import { stampTexts, stampDefaultSize } from '../core/markup/stampArt';
 import { fieldTypeDef, fieldTypeOf, nextFieldName } from '../core/markup/formFields';
@@ -1141,10 +1141,16 @@ export const PdfViewer: React.FC = () => {
   );
 
   // Punto anterior del trazo en curso: con Shift el siguiente se endereza respecto a él (ADR-0047)
-  const orthoAnchorRef = useRef<{ anchor: MarkupPoint | null; first: MarkupPoint | null }>({ anchor: null, first: null });
+  const orthoAnchorRef = useRef<{ anchor: MarkupPoint | null; first: MarkupPoint | null; box: boolean }>({
+    anchor: null,
+    first: null,
+    box: false,
+  });
   orthoAnchorRef.current = {
     anchor: polygonPoints.length > 0 ? polygonPoints[polygonPoints.length - 1] : drawingStart,
     first: polygonPoints.length > 0 ? polygonPoints[0] : null,
+    // Arrastre de una caja (no hay vértices): Shift dibuja un cuadrado o un círculo (ADR-0048)
+    box: polygonPoints.length === 0 && drawingStart !== null,
   };
 
   const getEventPoint = useCallback(
@@ -1154,10 +1160,14 @@ export const PdfViewer: React.FC = () => {
       const screenY = e.clientY - rect.top;
       const raw = screenToNormalized(screenX, screenY, viewportTransform);
       const pt = snapAt(raw)?.point ?? raw;
-      // Shift: trazo horizontal o vertical, como en Revu (salvo al cerrar el contorno sobre su primer vértice)
-      const { anchor, first } = orthoAnchorRef.current;
-      if (!e.shiftKey || !anchor || !ORTHO_TOOLS.has(useToolStore.getState().activeTool) || leaderStageRef.current) return pt;
+      // Shift (ADR-0047/0048): cajas cuadradas o circulares; trazos a 0°, 45° o 90° (salvo al cerrar el contorno
+      // sobre su primer vértice)
+      const { anchor, first, box } = orthoAnchorRef.current;
+      const tool = useToolStore.getState().activeTool;
+      if (!e.shiftKey || !anchor || leaderStageRef.current) return pt;
       const dims = { width: viewportTransform.width, height: viewportTransform.height };
+      if (box && SQUARE_TOOLS.has(tool)) return squareConstrain(anchor, pt, dims);
+      if (!ORTHO_TOOLS.has(tool)) return pt;
       if (first && Math.hypot((pt.x - first.x) * dims.width, (pt.y - first.y) * dims.height) < 8) return pt;
       return orthoConstrain(anchor, pt, dims);
     },
@@ -2750,8 +2760,10 @@ export const PdfViewer: React.FC = () => {
               activeTool === 'strikeOut'
                 ? 'pointer-events-none'
                 : activeTool === 'select'
-                ? 'cursor-default'
-                : 'cursor-crosshair'
+                ? 'cursor-rea-select'
+                : activeTool === 'pan'
+                ? 'cursor-grab'
+                : 'cursor-rea-draw'
             }`}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}

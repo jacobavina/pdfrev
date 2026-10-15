@@ -68,6 +68,7 @@ import {
 import type { ContentSnapIndex } from '../core/markup/contentSnap';
 import type { loadContentSnapIndex } from '../services/contentSnapService';
 import { showToast } from '../services/toastService';
+import { ORTHO_TOOLS, orthoConstrain } from '../core/markup/ortho';
 import { stampById } from '../core/markup/stamps';
 import { stampTexts, stampDefaultSize } from '../core/markup/stampArt';
 import { fieldTypeDef, fieldTypeOf, nextFieldName } from '../core/markup/formFields';
@@ -1139,13 +1140,26 @@ export const PdfViewer: React.FC = () => {
     [viewportTransform]
   );
 
+  // Punto anterior del trazo en curso: con Shift el siguiente se endereza respecto a él (ADR-0047)
+  const orthoAnchorRef = useRef<{ anchor: MarkupPoint | null; first: MarkupPoint | null }>({ anchor: null, first: null });
+  orthoAnchorRef.current = {
+    anchor: polygonPoints.length > 0 ? polygonPoints[polygonPoints.length - 1] : drawingStart,
+    first: polygonPoints.length > 0 ? polygonPoints[0] : null,
+  };
+
   const getEventPoint = useCallback(
     (e: React.MouseEvent<SVGSVGElement>): MarkupPoint => {
       const rect = e.currentTarget.getBoundingClientRect();
       const screenX = e.clientX - rect.left;
       const screenY = e.clientY - rect.top;
       const raw = screenToNormalized(screenX, screenY, viewportTransform);
-      return snapAt(raw)?.point ?? raw;
+      const pt = snapAt(raw)?.point ?? raw;
+      // Shift: trazo horizontal o vertical, como en Revu (salvo al cerrar el contorno sobre su primer vértice)
+      const { anchor, first } = orthoAnchorRef.current;
+      if (!e.shiftKey || !anchor || !ORTHO_TOOLS.has(useToolStore.getState().activeTool) || leaderStageRef.current) return pt;
+      const dims = { width: viewportTransform.width, height: viewportTransform.height };
+      if (first && Math.hypot((pt.x - first.x) * dims.width, (pt.y - first.y) * dims.height) < 8) return pt;
+      return orthoConstrain(anchor, pt, dims);
     },
     [viewportTransform, snapAt]
   );

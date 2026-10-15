@@ -2460,4 +2460,26 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(stamps.nth(1)).toContainText('For Review');
     await expect(stamps.nth(1)).toContainText(/\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2} (am|pm)/);
   });
+
+  test('Shift endereza el trazo: línea horizontal aunque el cursor se desvíe (ADR-0047)', async ({ page }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    const box = (await overlaySvg.boundingBox())!;
+    const at = (nx: number, ny: number) => ({ x: box.x + box.width * nx, y: box.y + box.height * ny });
+    await page.locator('header').click();
+    await page.keyboard.press('l');
+    const a = at(0.6, 0.12);
+    const b = at(0.85, 0.2);
+    await page.mouse.click(a.x, a.y);
+    await page.keyboard.down('Shift');
+    await page.mouse.move(b.x, b.y, { steps: 4 });
+    await page.mouse.click(b.x, b.y);
+    await page.keyboard.up('Shift');
+    const line = overlaySvg.locator('g[data-testid^="markup-g-"] line').last();
+    await expect(line).toHaveCount(1);
+    const y1 = Number(await line.getAttribute('y1'));
+    const y2 = Number(await line.getAttribute('y2'));
+    expect(Math.abs(y1 - y2)).toBeLessThan(0.5);
+  });
 });

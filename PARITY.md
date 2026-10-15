@@ -125,6 +125,7 @@ Este documento registra la paridad funcional real implementada en REA, vinculand
 | **Selector de sellos por secciones con miniaturas reales** | `shipped` | `src/components/shell/StampPicker.test.tsx` | `muestra las secciones de Revu y Foxit con la miniatura real de cada sello y elige el sello` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Capas del plano conservadas y capas de REA reemplazadas al volver a guardar** | `shipped` | `src/core/pdf/markupLayersOcg.test.ts` | `al volver a guardar se reemplazan las capas de REA y se conservan las capas propias del plano` | PENDIENTE DE VERIFICAR por el usuario en Revu/Acrobat |
 | **Capa de anotaciones ajenas leída de su /OC** | `shipped` | `src/core/pdf/markupLayersOcg.test.ts` | `una anotación de otra aplicación con /OC toma como capa el nombre de su /OCG al abrir el PDF` | PENDIENTE DE VERIFICAR por el usuario con un PDF de Revu/Acrobat |
+| **Trazo recto con Shift: horizontal o vertical (ADR-0047)** | `shipped` | `src/components/OrthoShift.test.tsx` | `con Shift la línea queda horizontal y la polilínea sigue en vertical; sin Shift sigue al cursor` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Automatización nativa con tauri-driver (Hito P2-X)** | `shipped` | `scripts/native-smoke.mjs` | `Hito P2-X (ADR-0008): Smoke Test de Ventana Nativa con tauri-driver` | Verificado por el usuario en ventana nativa, 2026-10-10 (`npm run test:native:build` sobre HEAD bf7be61: arranque, canvas, IPC Rust y dibujo W3C) |
 
 

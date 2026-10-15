@@ -46,6 +46,7 @@ describe('Estilo de Acrobat en la interfaz (ADR-0032)', () => {
       activeTool: 'select',
       measureLabel: '',
       measureCaption: 'inline',
+      measureLeaders: false,
       currentStyle: { strokeColor: '#e02424', fillColor: 'transparent', strokeWidth: 1, opacity: 1 },
     });
   });

@@ -50,7 +50,8 @@ export function lineCaptionLayout(
   text: string,
   fontSize: number,
   style: CaptionStyle,
-  endInset = 0
+  endInset = 0,
+  widthOf: (text: string, size: number) => number = getHelveticaTextWidth
 ): LineCaptionLayout {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
@@ -63,7 +64,7 @@ export function lineCaptionLayout(
   // "Arriba" del texto en un sistema con y hacia abajo
   const up = { x: Math.sin(angle), y: -Math.cos(angle) };
   const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-  const width = getHelveticaTextWidth(text, fontSize);
+  const width = widthOf(text, fontSize);
   const gap = width + fontSize * 0.8;
   const fitsInline = len >= gap + 2 * endInset;
   const used: CaptionStyle = style === 'inline' && fitsInline && text.trim() ? 'inline' : 'top';
@@ -146,5 +147,72 @@ export function distanceGeometry(
   }
   const g = dimensionGeometry(p1, p2, p3, { gap: 0, overshoot: extension });
   if (!g) return { a: p1, b: p2, leaders: [] };
+  // Tercer clic sobre la propia línea (sin desplazamiento): se conservan las guías cortas de los extremos
+  if (Math.abs(g.offset) < 0.5) return distanceGeometry([p1, p2], extension, endTick);
   return { a: g.dimStart, b: g.dimEnd, leaders: g.extensions };
+}
+
+/** Familias de las 14 fuentes estándar de PDF que admite el texto de medición (sin incrustar, ADR-0035). */
+export type CaptionFamily = 'Helvetica' | 'Times' | 'Courier';
+export const CAPTION_FAMILIES: CaptionFamily[] = ['Helvetica', 'Times', 'Courier'];
+
+export interface CaptionFont {
+  family: CaptionFamily;
+  size: number;
+  color: string;
+  bold: boolean;
+  italic: boolean;
+}
+
+/** Tipos cuyo valor se dibuja con el texto de medición. */
+export const CAPTIONED_MEASURES = new Set([
+  'length',
+  'polylineMeasure',
+  'area',
+  'perimeter',
+  'volume',
+  'angle',
+  'radius',
+  'diameter',
+]);
+
+export function captionFontOf(markup: Pick<Markup, 'style' | 'textFormat'>): CaptionFont {
+  const f = markup.style.fontFamily;
+  return {
+    family: f === 'Times' || f === 'Courier' ? f : 'Helvetica',
+    size: markup.style.fontSize && markup.style.fontSize > 0 ? markup.style.fontSize : MEASURE_CAPTION_PT,
+    color: markup.style.textColor || MEASURE_CAPTION_COLOR,
+    bold: Boolean(markup.textFormat?.bold),
+    italic: Boolean(markup.textFormat?.italic),
+  };
+}
+
+/** Ancho del texto en las mismas unidades que `size` (métricas de Helvetica; Courier exacta; Times aproximada). */
+export function captionTextWidth(text: string, size: number, font: Pick<CaptionFont, 'family' | 'bold'>): number {
+  if (font.family === 'Courier') return text.length * 0.6 * size;
+  const w = getHelveticaTextWidth(text, size) * (font.bold ? 1.07 : 1);
+  return font.family === 'Times' ? w * 0.9 : w;
+}
+
+/** Familia CSS equivalente para la pantalla. */
+export function captionCssFamily(family: CaptionFamily): string {
+  if (family === 'Times') return '"Times New Roman", Times, serif';
+  if (family === 'Courier') return '"Courier New", Courier, monospace';
+  return 'Helvetica, Arial, sans-serif';
+}
+
+/** Recurso de fuente estándar del /AP (nombre del recurso y /BaseFont). */
+export function captionPdfFont(font: Pick<CaptionFont, 'family' | 'bold' | 'italic'>): { name: string; base: string } {
+  const table: Record<CaptionFamily, [string, string, string, string]> = {
+    Helvetica: ['Helvetica', 'Helvetica-Bold', 'Helvetica-Oblique', 'Helvetica-BoldOblique'],
+    Times: ['Times-Roman', 'Times-Bold', 'Times-Italic', 'Times-BoldItalic'],
+    Courier: ['Courier', 'Courier-Bold', 'Courier-Oblique', 'Courier-BoldOblique'],
+  };
+  const names: Record<CaptionFamily, [string, string, string, string]> = {
+    Helvetica: ['Helv', 'HeBo', 'HeOb', 'HeBO'],
+    Times: ['TiRo', 'TiBo', 'TiIt', 'TiBI'],
+    Courier: ['Cour', 'CoBo', 'CoOb', 'CoBO'],
+  };
+  const i = (font.bold ? 1 : 0) + (font.italic ? 2 : 0);
+  return { name: names[font.family][i], base: table[font.family][i] };
 }

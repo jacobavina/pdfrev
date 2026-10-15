@@ -43,8 +43,8 @@ describe('Flechas y tipos de línea en el PDF (ADR-0018)', () => {
     // Patrón discontinuo de la línea, y anulado ("[] 0 d") antes de las puntas
     expect(withArrow.operators).toContain('[8.0 6.0] 0 d');
     expect(withArrow.operators).toContain('[] 0 d');
-    // Formas cerradas de extremo rellenas y trazadas ("b"), en color de trazo ("rg")
-    expect(withArrow.operators.match(/^b$/gm)?.length).toBe(2);
+    // Formas cerradas de extremo solo rellenas ("f", sin contorno que redondee la punta, ADR-0035), en color de trazo
+    expect(withArrow.operators.match(/^f$/gm)?.length).toBe(2);
     expect(withArrow.operators).toMatch(/0\.878 0\.141 0\.141 rg/);
     // La punta (x = 400 pt) sobresale de la línea y amplía la caja verticalmente
     expect(withArrow.bbox[3] - withArrow.bbox[1]).toBeGreaterThan(plain.bbox[3] - plain.bbox[1]);
@@ -103,7 +103,7 @@ describe('Flechas y tipos de línea en el PDF (ADR-0018)', () => {
       .filter((s): s is PDFRawStream => s instanceof PDFStream);
     expect(streams.length).toBeGreaterThanOrEqual(2);
     const contents = streams.map((s) => new TextDecoder('latin1').decode((s as PDFRawStream).getContents()));
-    expect(contents.some((c) => c.includes('b'))).toBe(true); // punta de flecha rellena de la polilínea
+    expect(contents.some((c) => /\nf\n/.test(c))).toBe(true); // punta de flecha rellena de la polilínea
   });
 });
 

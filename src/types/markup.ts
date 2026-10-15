@@ -153,6 +153,8 @@ export interface MarkupStyle {
   dashArray?: number[];
   fontFamily?: string;
   fontSize?: number;
+  /** Color del texto (valor de las mediciones, ADR-0035); por defecto negro. */
+  textColor?: string;
   lineEndingStart?: LineEndingStyle;
   lineEndingEnd?: LineEndingStyle;
 }

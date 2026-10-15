@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { CAPTIONED_MEASURES, CAPTION_FAMILIES, captionCssFamily, captionFontOf } from '../core/markup/measureCaption';
 import { SlidersHorizontal, ChevronRight, Lock, LockOpen } from 'lucide-react';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useUiStore } from '../store/useUiStore';
@@ -112,7 +113,14 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
   const opacity = getUnifiedValue((m) => m.style.opacity ?? 1);
   const strokeDash = getUnifiedValue((m) => lineStyleOf(m.style.dashArray));
   const textContent = getUnifiedValue((m) => m.text || '');
-  const fontSize = getUnifiedValue((m) => m.style.fontSize ?? 12);
+  // Las mediciones escriben su valor a 8 pt por defecto (ADR-0034/0035)
+  const fontSize = getUnifiedValue((m) => m.style.fontSize ?? (CAPTIONED_MEASURES.has(m.type) ? 8 : 12));
+  // Texto del valor de las mediciones (ADR-0035): fuente, color, negrita y cursiva
+  const allMeasures = selectedMarkups.length > 0 && selectedMarkups.every((m) => CAPTIONED_MEASURES.has(m.type));
+  const textFamily = getUnifiedValue((m) => captionFontOf(m).family);
+  const textColor = getUnifiedValue((m) => captionFontOf(m).color);
+  const textBold = selectedMarkups.length > 0 && selectedMarkups.every((m) => Boolean(m.textFormat?.bold));
+  const textItalic = selectedMarkups.length > 0 && selectedMarkups.every((m) => Boolean(m.textFormat?.italic));
   const status = getUnifiedValue((m) => m.status || 'pending');
   const author = getUnifiedValue((m) => m.author || '');
 
@@ -492,6 +500,67 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
               <option value="inline">Inside the line</option>
               <option value="top">On top of the line</option>
             </select>
+          </div>
+        )}
+
+        {/* Texto del valor de las mediciones: fuente, color, negrita y cursiva (ADR-0035) */}
+        {allMeasures && (
+          <div className="flex flex-col gap-1" data-testid="prop-measure-text">
+            <label className="text-gray-400 font-medium">Text</label>
+            <div className="flex items-center gap-1.5">
+              <select
+                data-testid="prop-font-family"
+                value={textFamily === MIXED_VALUE ? '' : (textFamily as string)}
+                onChange={(e) =>
+                  applyPropertiesToMarkups(selectedMarkupIds, { style: { fontFamily: e.target.value } }, 'Set font')
+                }
+                className="flex-1 px-2 py-1 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent"
+              >
+                {textFamily === MIXED_VALUE && <option value="">{MIXED_VALUE}</option>}
+                {CAPTION_FAMILIES.map((f) => (
+                  <option key={f} value={f} style={{ fontFamily: captionCssFamily(f) }}>
+                    {f}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="color"
+                data-testid="prop-text-color"
+                title="Text color"
+                value={textColor === MIXED_VALUE ? '#000000' : (textColor as string)}
+                onChange={(e) =>
+                  applyPropertiesToMarkups(selectedMarkupIds, { style: { textColor: e.target.value } }, 'Set text color')
+                }
+                className="w-7 h-7 p-0.5 rounded border border-cad-border bg-cad-dark cursor-pointer"
+              />
+              {(
+                [
+                  ['bold', textBold, 'B', 'Bold', 'font-bold'],
+                  ['italic', textItalic, 'I', 'Italic', 'italic font-serif'],
+                ] as const
+              ).map(([key, on, glyph, title, cls]) => (
+                <button
+                  key={key}
+                  type="button"
+                  data-testid={`prop-text-${key}`}
+                  aria-pressed={on}
+                  title={title}
+                  // textFormat se sustituye entero: se envía también el otro estilo para no perderlo
+                  onClick={() =>
+                    applyPropertiesToMarkups(
+                      selectedMarkupIds,
+                      { textFormat: key === 'bold' ? { bold: !on, italic: textItalic } : { bold: textBold, italic: !on } },
+                      title
+                    )
+                  }
+                  className={`w-7 h-7 rounded border text-xs ${cls} ${
+                    on ? 'border-cad-accent bg-cad-accent/15 text-cad-accent' : 'border-cad-border text-gray-300 hover:bg-cad-hover'
+                  }`}
+                >
+                  {glyph}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 

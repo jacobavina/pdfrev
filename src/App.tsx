@@ -1,7 +1,6 @@
 import React, { Suspense, lazy, useEffect, useRef } from 'react';
 import { FileText } from 'lucide-react';
 import { PdfViewer } from './components/PdfViewer';
-import { MarkupsList } from './components/MarkupsList';
 import { MenuBar } from './components/shell/MenuBar';
 import { Ribbon } from './components/shell/Ribbon';
 import { LeftDock } from './components/shell/LeftDock';
@@ -33,6 +32,8 @@ const SidePanelFallback: React.FC = () => <aside className="w-10 bg-cad-panel bo
 import { RULER_SIZE } from './core/measurements/rulers';
 import { CalibrateHint } from './components/viewer/CalibrateHint';
 const Rulers = lazy(() => import('./components/viewer/Rulers'));
+// Lista de marcas bajo demanda (ADR-0035): libera presupuesto del bundle principal; mientras carga se reserva su barra
+const MarkupsList = lazy(() => import('./components/MarkupsList').then((m) => ({ default: m.MarkupsList })));
 import fixtureMeta from '../fixtures/test-blueprint.meta.json';
 
 /** Pestaña del documento abierto sobre el área de trabajo. */
@@ -184,7 +185,9 @@ export const App: React.FC = () => {
       </div>
 
       {/* 3. Lista de marcas y barra de estado */}
-      <MarkupsList />
+      <Suspense fallback={<div className="h-8 shrink-0 bg-cad-panel border-t border-cad-border" />}>
+        <MarkupsList />
+      </Suspense>
       <StatusBar />
 
       <ToastHost />

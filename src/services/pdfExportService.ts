@@ -120,8 +120,11 @@ function drawViaAppearanceOperators(
       })
     );
   }
-  if (emitted.fontName || emitted.boldFontName) {
+  if (emitted.fontName || emitted.boldFontName || emitted.extraFonts) {
     const fonts: Record<string, unknown> = {};
+    for (const [name, base] of Object.entries(emitted.extraFonts ?? {})) {
+      fonts[name] = { Type: 'Font', Subtype: 'Type1', BaseFont: base, Encoding: 'WinAnsiEncoding' };
+    }
     if (emitted.fontName) {
       fonts[emitted.fontName] = { Type: 'Font', Subtype: 'Type1', BaseFont: 'Helvetica', Encoding: 'WinAnsiEncoding' };
     }

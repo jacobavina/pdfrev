@@ -18,13 +18,16 @@ import { fieldTypeOf, fieldDisplayText, isFieldChecked } from '../markup/formFie
 import { revisionCloudPathNormalized, cloudParams } from '../markup/revisionCloud';
 import {
   CaptionText,
-  MEASURE_CAPTION_PT,
   captionStyleOf,
   lineCaptionLayout,
   measureLabelText,
   measureLineEndings,
   pointCaption,
   verticesCenter,
+  captionFontOf,
+  captionTextWidth,
+  captionPdfFont,
+  CaptionFont,
   distanceGeometry,
   MEASURE_LEADER_EXTENSION_PT,
   MEASURE_END_TICK_PT,
@@ -78,6 +81,8 @@ export interface EmittedOperatorsResult {
   fontSize?: number;
   /** Recurso de Helvetica-Bold si el /AP lo usa (sellos). */
   boldFontName?: string;
+  /** Otras fuentes estándar del /AP (texto de medición en Times o Courier, cursivas), nombre → /BaseFont. */
+  extraFonts?: Record<string, string>;
 }
 
 /**
@@ -313,6 +318,8 @@ export function emitMarkupOperators(
 
   let usesFont = false;
   let usesBold = false;
+  /** Fuentes estándar adicionales que usa el /AP (nombre del recurso → /BaseFont), ADR-0035. */
+  const extraFonts: Record<string, string> = {};
   /** Una línea de texto Helvetica con origen y ángulo en coordenadas PDF (amplía la caja envolvente). */
   const textPdf = (
     text: string,
@@ -321,15 +328,18 @@ export function emitMarkupOperators(
     fontSize: number,
     color: { r: number; g: number; b: number },
     align: 'left' | 'center',
-    bold = false
+    bold = false,
+    fontRes?: { name: string; base: string },
+    metrics?: Pick<CaptionFont, 'family' | 'bold'>
   ) => {
     if (!text.trim()) return;
-    const width = getHelveticaTextWidth(text, fontSize) * (bold ? 1.07 : 1);
+    const width = metrics ? captionTextWidth(text, fontSize, metrics) : getHelveticaTextWidth(text, fontSize) * (bold ? 1.07 : 1);
     const cos = Math.cos(angle);
     const sin = Math.sin(angle);
     const x0 = align === 'center' ? origin.x - (cos * width) / 2 : origin.x;
     const y0 = align === 'center' ? origin.y - (sin * width) / 2 : origin.y;
-    lines.push('q', 'BT', `/${bold ? AP_BOLD_FONT_NAME : AP_FONT_NAME} ${f2(fontSize)} Tf`, rgbOp(color, 'rg'));
+    const resName = fontRes?.name ?? (bold ? AP_BOLD_FONT_NAME : AP_FONT_NAME);
+    lines.push('q', 'BT', `/${resName} ${f2(fontSize)} Tf`, rgbOp(color, 'rg'));
     lines.push(`${cos.toFixed(4)} ${sin.toFixed(4)} ${(-sin).toFixed(4)} ${cos.toFixed(4)} ${f2(x0)} ${f2(y0)} Tm`);
     lines.push(`${toWinAnsiPdfLiteral(text)} Tj`, 'ET', 'Q');
     for (const [dx, dy] of [
@@ -340,8 +350,9 @@ export function emitMarkupOperators(
     ]) {
       updateBBox(x0 + cos * dx - sin * dy * fontSize, y0 + sin * dx + cos * dy * fontSize);
     }
-    if (bold) usesBold = true;
-    else usesFont = true;
+    if (resName === AP_BOLD_FONT_NAME) usesBold = true;
+    else if (resName === AP_FONT_NAME) usesFont = true;
+    else if (fontRes) extraFonts[fontRes.name] = fontRes.base;
   };
   /** Texto horizontal en el espacio visual (sigue la rotación de la página). */
   const textVis = (
@@ -365,11 +376,16 @@ export function emitMarkupOperators(
     const text = measureLabelText(markup, formatted);
     return markup.type === 'radius' ? `R ${text}` : markup.type === 'diameter' ? `Ø ${text}` : text;
   };
-  /** Texto de medición de Acrobat (ADR-0032): Helvetica negra, geometría del espacio visual de la página. */
+  /**
+   * Texto de medición (ADR-0032/0035): fuente estándar, tamaño y color elegidos (Helvetica negra por defecto), con la
+   * geometría del espacio visual de la página.
+   */
+  const capFont = captionFontOf(markup);
   const captionPdf = (c: CaptionText) => {
     const o = visToPdf(c.origin);
     const o2 = visToPdf({ x: c.origin.x + Math.cos(c.angle), y: c.origin.y + Math.sin(c.angle) });
-    textPdf(c.text, o, Math.atan2(o2.y - o.y, o2.x - o.x), c.fontSize, { r: 0, g: 0, b: 0 }, 'center');
+    const color = parseCssColorRgb(capFont.color) ?? { r: 0, g: 0, b: 0 };
+    textPdf(c.text, o, Math.atan2(o2.y - o.y, o2.x - o.x), c.fontSize, color, 'center', false, captionPdfFont(capFont), capFont);
   };
 
   /**
@@ -389,7 +405,7 @@ export function emitMarkupOperators(
       const shape = lineEndingShape(tip, angle, ending, size, true);
       if (!shape) continue;
       if (!prepared) {
-        lines.push('[] 0 d');
+        lines.push('[] 0 d', '0 j', '0 J');
         if (strokeParsed) {
           lines.push(`${strokeParsed.r.toFixed(3)} ${strokeParsed.g.toFixed(3)} ${strokeParsed.b.toFixed(3)} rg`);
         }
@@ -404,11 +420,12 @@ export function emitMarkupOperators(
         lines.push(`${(cx - k).toFixed(2)} ${(cy + r).toFixed(2)} ${(cx - r).toFixed(2)} ${(cy + k).toFixed(2)} ${(cx - r).toFixed(2)} ${cy.toFixed(2)} c`);
         lines.push(`${(cx - r).toFixed(2)} ${(cy - k).toFixed(2)} ${(cx - k).toFixed(2)} ${(cy - r).toFixed(2)} ${cx.toFixed(2)} ${(cy - r).toFixed(2)} c`);
         lines.push(`${(cx + k).toFixed(2)} ${(cy - r).toFixed(2)} ${(cx + r).toFixed(2)} ${(cy - k).toFixed(2)} ${(cx + r).toFixed(2)} ${cy.toFixed(2)} c`);
-        lines.push(shape.filled ? 'b' : 's');
+        lines.push(shape.filled ? 'f' : 's');
       } else {
         lines.push(`${shape.points[0].x.toFixed(2)} ${shape.points[0].y.toFixed(2)} m`);
         for (const p of shape.points.slice(1)) lines.push(`${p.x.toFixed(2)} ${p.y.toFixed(2)} l`);
-        lines.push(shape.kind === 'polygon' ? (shape.filled ? 'b' : 's') : 'S');
+        // Rellenas sin contorno y abiertas con unión en ángulo (ADR-0035): puntas afiladas como en Acrobat
+        lines.push(shape.kind === 'polygon' ? (shape.filled ? 'f' : 's') : 'S');
       }
     }
   };
@@ -487,7 +504,15 @@ export function emitMarkupOperators(
       }
       const label = measureCaptionLabel();
       const layout = label
-        ? lineCaptionLayout(a, b, label, MEASURE_CAPTION_PT, captionStyleOf(markup.customFields?.captionStyle), lineEndingSize(strokeWidth))
+        ? lineCaptionLayout(
+            a,
+            b,
+            label,
+            capFont.size,
+            captionStyleOf(markup.customFields?.captionStyle),
+            lineEndingSize(strokeWidth),
+            (t, size) => captionTextWidth(t, size, capFont)
+          )
         : null;
       for (const [u, w] of layout ? layout.pieces : [[a, b] as [Pt, Pt]]) {
         pathPdf([visToPdf(u), visToPdf(w)], false);
@@ -1017,11 +1042,11 @@ export function emitMarkupOperators(
     const vis = markup.points.map(toVis);
     if (label && vis.length >= 1) {
       if (markup.type === 'area' || markup.type === 'perimeter' || markup.type === 'volume') {
-        captionPdf(pointCaption(verticesCenter(vis), label, MEASURE_CAPTION_PT));
+        captionPdf(pointCaption(verticesCenter(vis), label, capFont.size));
       } else if (markup.type === 'polylineMeasure' && vis.length >= 2) {
-        captionPdf(lineCaptionLayout(vis[vis.length - 2], vis[vis.length - 1], label, MEASURE_CAPTION_PT, 'top').caption);
+        captionPdf(lineCaptionLayout(vis[vis.length - 2], vis[vis.length - 1], label, capFont.size, 'top').caption);
       } else if ((markup.type === 'radius' || markup.type === 'diameter') && vis.length >= 2) {
-        captionPdf(lineCaptionLayout(vis[0], vis[1], label, MEASURE_CAPTION_PT, 'top').caption);
+        captionPdf(lineCaptionLayout(vis[0], vis[1], label, capFont.size, 'top').caption);
       } else if (markup.type === 'angle' && vis.length >= 3) {
         const [p, v, q] = vis;
         const r = Math.max(12, Math.min(28, Math.hypot(p.x - v.x, p.y - v.y) / 3, Math.hypot(q.x - v.x, q.y - v.y) / 3));
@@ -1030,7 +1055,7 @@ export function emitMarkupOperators(
         while (d > Math.PI) d -= 2 * Math.PI;
         while (d < -Math.PI) d += 2 * Math.PI;
         const mid = t1 + d / 2;
-        const fs = MEASURE_CAPTION_PT;
+        const fs = capFont.size;
         captionPdf(pointCaption({ x: v.x + (r + fs * 1.6) * Math.cos(mid), y: v.y + (r + fs * 1.1) * Math.sin(mid) }, label, fs));
       }
     }
@@ -1059,5 +1084,6 @@ export function emitMarkupOperators(
     extGState,
     ...(usesFont ? { fontName: AP_FONT_NAME } : {}),
     ...(usesBold ? { boldFontName: AP_BOLD_FONT_NAME } : {}),
+    ...(Object.keys(extraFonts).length > 0 ? { extraFonts } : {}),
   };
 }

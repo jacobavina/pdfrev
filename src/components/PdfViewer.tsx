@@ -1595,6 +1595,7 @@ export const PdfViewer: React.FC = () => {
         setCurrentDrawPoint(upPoint);
         return;
       }
+      const wasSecondClick = twoClickRef.current;
       twoClickRef.current = false;
       if (!moved) {
         // Segundo clic en el mismo punto: nada que medir
@@ -1602,7 +1603,8 @@ export const PdfViewer: React.FC = () => {
         setCurrentDrawPoint(null);
         return;
       }
-      if (activeTool === 'length' && useToolStore.getState().measureLeaders) {
+      // Arrastrar crea una distancia rápida de dos puntos; el clic-clic sigue el flujo de Acrobat (ADR-0035)
+      if (activeTool === 'length' && wasSecondClick && useToolStore.getState().measureLeaders) {
         // Distancia de Acrobat con líneas de referencia: falta el tercer clic (el desplazamiento)
         leaderStageRef.current = { a: drawingStart, b: upPoint };
         setCurrentDrawPoint(upPoint);
@@ -3061,9 +3063,10 @@ export const PdfViewer: React.FC = () => {
                       type: 'length',
                       pageIndex: currentPageIndex,
                       points: stage ? [stage.a, stage.b, currentDrawPoint] : [drawingStart, currentDrawPoint],
-                      style: { ...currentStyle, lineEndingStart: 'closedArrow', lineEndingEnd: 'closedArrow' },
+                      // Mientras se mide, como Acrobat (ADR-0035): guías sin flechas y el valor junto a la línea
+                      style: { ...currentStyle, lineEndingStart: 'none', lineEndingEnd: 'none' },
                       measurement: live,
-                      customFields: { captionStyle: useToolStore.getState().measureCaption },
+                      customFields: { captionStyle: 'top' },
                       author: '',
                       createdAt: '',
                       updatedAt: '',

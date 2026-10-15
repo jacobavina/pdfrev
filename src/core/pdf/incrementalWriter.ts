@@ -436,10 +436,13 @@ export async function saveIncrementalMarkups(
         resourcesDict += `    /ExtGState << /GS_HL << /Type /ExtGState /BM ${emitted.extGState.bm || '/Normal'} /ca ${emitted.extGState.ca ?? 1} /CA ${emitted.extGState.CA ?? 1} >> >>\n`;
       }
       // Texto del /AP (cotas, cuadros de texto, llamadas): Helvetica estándar, sin incrustar
-      if (emitted.fontName || emitted.boldFontName) {
+      if (emitted.fontName || emitted.boldFontName || emitted.extraFonts) {
         resourcesDict += '    /Font <<';
         if (emitted.fontName) {
           resourcesDict += ` /${emitted.fontName} << /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>`;
+        }
+        for (const [name, base] of Object.entries(emitted.extraFonts ?? {})) {
+          resourcesDict += ` /${name} << /Type /Font /Subtype /Type1 /BaseFont /${base} /Encoding /WinAnsiEncoding >>`;
         }
         if (emitted.boldFontName) {
           resourcesDict += ` /${emitted.boldFontName} << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>`;

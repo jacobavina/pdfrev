@@ -2126,6 +2126,8 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.mouse.move(b.x, b.y, { steps: 4 });
     await expect(overlaySvg.locator('[data-testid="snap-indicator-intersection"]')).toHaveCount(1);
     await page.mouse.click(b.x, b.y);
+    // Tercer clic del flujo de Acrobat (ADR-0035): sobre la misma línea, sin desplazarla
+    await page.mouse.click(b.x, b.y);
     const length = overlaySvg.locator('g[data-testid^="markup-length-"]');
     await expect(length).toHaveCount(1);
     await expect(length.locator('text')).toHaveText('70.6 mm'); // 200 pt exactos
@@ -2164,6 +2166,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.mouse.click(a.x, a.y);
     await page.mouse.move(b.x, b.y, { steps: 4 });
     await page.mouse.click(b.x, b.y);
+    await page.mouse.click(b.x, b.y); // tercer clic sin desplazar (ADR-0035)
     const length = overlaySvg.locator('g[data-testid^="markup-length-"]');
     await expect(length).toHaveCount(1);
     // Dos tramos y las dos guías de los extremos (ADR-0034)

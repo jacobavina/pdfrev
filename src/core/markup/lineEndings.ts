@@ -25,10 +25,10 @@ export function lineEndingSize(strokeWidthPt: number): number {
 }
 
 /**
- * Media apertura de las flechas: ~20° (punta de ~41°), la proporción de las flechas de medición de Acrobat
- * (ADR-0033, medida sobre una captura del usuario: 16 px de largo por 12 px de base).
+ * Media apertura de las flechas: ~16° (punta de ~32°), la de las flechas de medición terminadas de Acrobat
+ * (ADR-0035, medida sobre la captura del usuario: ~9 pt de largo por ~5 pt de base con una línea de 1 pt).
  */
-export const ARROW_HALF_ANGLE = 0.36;
+export const ARROW_HALF_ANGLE = 0.28;
 
 /**
  * Forma del extremo en `tip`. `angle` es la dirección con la que la línea llega a la punta

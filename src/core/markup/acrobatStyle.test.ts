@@ -31,15 +31,15 @@ const mk = (id: string, type: MarkupType, points: { x: number; y: number }[], ex
 const flatten = (d: SvgRenderDescriptor): SvgRenderDescriptor[] => [d, ...(d.children ?? []).flatMap(flatten)];
 
 describe('Flechas al estilo de Acrobat (ADR-0032)', () => {
-  it('punta angosta de las mediciones de Acrobat (~20° por lado) y 9 pt de largo con una línea de 1 pt', () => {
+  it('punta afilada de las mediciones de Acrobat (~16° por lado) y 9 pt de largo con una línea de 1 pt', () => {
     const s = lineEndingShape({ x: 0, y: 0 }, 0, 'openArrow', lineEndingSize(1))!;
     expect(s.kind).toBe('polyline');
     const [a1, tip, a2] = (s as { points: { x: number; y: number }[] }).points;
     expect(tip).toEqual({ x: 0, y: 0 });
     expect(Math.hypot(a1.x, a1.y)).toBeCloseTo(9, 9);
     const angle = Math.abs(Math.atan2(a1.y, a1.x) - Math.atan2(a2.y, a2.x));
-    // ADR-0033: proporción medida en una captura de Acrobat (16 px de largo por 12 px de base)
-    expect((2 * Math.PI - angle) * (180 / Math.PI)).toBeCloseTo(41.25, 1);
+    // ADR-0035: proporción medida en la captura final de Acrobat (~9 pt de largo por ~5 pt de base)
+    expect((2 * Math.PI - angle) * (180 / Math.PI)).toBeCloseTo(32.09, 1);
   });
 
   it('flechas invertidas: el vértice en el extremo y las alas hacia fuera de la línea', () => {
@@ -125,7 +125,7 @@ describe('Texto de medición al estilo de Acrobat (ADR-0032)', () => {
     });
     const ops = emitMarkupOperators(len, pdfT).operators.split('\n');
     expect(ops.filter((l) => l === 'S').length).toBe(2 + 2); // dos tramos + dos guías de los extremos (ADR-0034)
-    expect(ops.filter((l) => l === 'b').length).toBe(2); // dos flechas cerradas y rellenas (ADR-0033)
+    expect(ops.filter((l) => l === 'f').length).toBe(2); // dos flechas cerradas, solo rellenas (ADR-0035)
     expect(ops).toContain('(10.6 m) Tj');
     expect(ops).toContain('0.000 0.000 0.000 rg');
     const area = mk('a2', 'area', [{ x: 0.1, y: 0.1 }, { x: 0.3, y: 0.1 }, { x: 0.3, y: 0.3 }], {

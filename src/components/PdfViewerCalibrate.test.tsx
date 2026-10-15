@@ -67,6 +67,7 @@ describe('Clic-clic y calibración por dos puntos (ADR-0031)', () => {
     useToolStore.setState({
       activeTool: 'select',
       measureLabel: '',
+      measureLeaders: false, // distancias de dos clics (el flujo de 3 pasos se prueba aparte, ADR-0035)
       currentStyle: { strokeColor: '#e02424', fillColor: 'transparent', strokeWidth: 1, opacity: 1 },
     });
   });

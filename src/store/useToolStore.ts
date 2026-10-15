@@ -3,6 +3,15 @@ import type { CaptionStyle } from '../core/markup/measureCaption';
 import { MarkupStyle, MarkupType } from '../types/markup';
 import type { FieldType } from '../core/markup/formFields';
 
+const LEADERS_KEY = 'rea-measure-leaders';
+function readStoredLeaders(): boolean {
+  try {
+    return localStorage.getItem(LEADERS_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
+
 // 'arrow' crea una marca de tipo 'line' con extremo final de flecha (ADR-0018)
 export type ToolType = MarkupType | 'select' | 'pan' | 'calibrate' | 'arrow';
 
@@ -42,7 +51,8 @@ export const useToolStore = create<ToolState>((set) => ({
   currentStyle: {
     strokeColor: '#e02424', // Default red
     fillColor: 'transparent',
-    strokeWidth: 2,
+    // 1 pt por defecto (ADR-0035): las líneas finas de Acrobat
+    strokeWidth: 1,
     opacity: 1,
   },
   author: 'Reviewer',
@@ -52,7 +62,8 @@ export const useToolStore = create<ToolState>((set) => ({
   activeFieldType: 'text',
   volumeDepth: 1,
   measureCaption: 'inline',
-  measureLeaders: false,
+  // Flujo de Acrobat por defecto (ADR-0035): clic, clic y un tercer clic para desplazar la línea
+  measureLeaders: readStoredLeaders(),
 
   setActiveTool: (activeTool) => set({ activeTool }),
   setCurrentStyle: (styleUpdate) =>
@@ -65,6 +76,13 @@ export const useToolStore = create<ToolState>((set) => ({
   setActiveStampId: (activeStampId) => set({ activeStampId }),
   setActiveFieldType: (activeFieldType) => set({ activeFieldType }),
   setMeasureCaption: (measureCaption) => set({ measureCaption }),
-  setMeasureLeaders: (measureLeaders) => set({ measureLeaders }),
+  setMeasureLeaders: (measureLeaders) => {
+    try {
+      localStorage.setItem(LEADERS_KEY, measureLeaders ? '1' : '0');
+    } catch {
+      // Preferencia no persistible: se aplica solo en esta sesión
+    }
+    set({ measureLeaders });
+  },
   setVolumeDepth: (volumeDepth) => set({ volumeDepth: Number.isFinite(volumeDepth) && volumeDepth > 0 ? volumeDepth : 1 }),
 }));

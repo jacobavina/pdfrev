@@ -35,6 +35,10 @@ export function controlPointsOf(markup: Markup): MarkupPoint[] | null {
   if ((BOX_TYPES.has(markup.type) || POLYGONIZABLE_TYPES.has(markup.type)) && pts.length === 2) {
     return corners(pts[0], pts[1]);
   }
+  // Distancia sin desplazar (ADR-0035): un tercer tirador en el centro mueve la línea en paralelo (crea sus guías)
+  if (markup.type === 'length' && pts.length === 2) {
+    return [{ ...pts[0] }, { ...pts[1] }, { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 }];
+  }
   if (VERTEX_TYPES.has(markup.type)) return pts.map((p) => ({ ...p }));
   return null;
 }
@@ -63,5 +67,6 @@ export function applyControlPointDrag(markup: Markup, index: number, target: Mar
     c[index] = t;
     return c;
   }
+  if (markup.type === 'length' && pts.length === 2 && index === 2) return [{ ...pts[0] }, { ...pts[1] }, t];
   return pts.map((p, i) => (i === index ? t : { ...p }));
 }

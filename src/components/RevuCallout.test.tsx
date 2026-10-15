@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { PdfViewer } from './PdfViewer';
+import { Ribbon } from './shell/Ribbon';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useCalibrationStore } from '../store/useCalibrationStore';
@@ -91,6 +92,19 @@ describe('Callout como el de Revu y Foxit (ADR-0042)', () => {
     expect(z2.children!.find((c) => c.tag === 'text')!.attrs.fontSize).toBe(20);
   });
 
+  it('la flecha abre 30° a cada lado, como en Revu y Foxit (más abierta que la de las medidas)', () => {
+    const t = { width: 800, height: 600, scale: 1, offsetX: 0, offsetY: 0, zoom: 1 };
+    const arrow = getMarkupSvgDescriptor(callout, t).children!.filter((c) => c.tag === 'polyline')[1];
+    const [b1, tip, b2] = String(arrow.attrs.points)
+      .split(' ')
+      .map((p) => p.split(',').map(Number));
+    const a1 = Math.atan2(b1[1] - tip[1], b1[0] - tip[0]);
+    const a2 = Math.atan2(b2[1] - tip[1], b2[0] - tip[0]);
+    let opening = Math.abs(a1 - a2);
+    if (opening > Math.PI) opening = 2 * Math.PI - opening;
+    expect((opening * 180) / Math.PI).toBeCloseTo(60, 0);
+  });
+
   it('en el PDF es un callout estándar: /IT /FreeTextCallout con /CL, /LE y /RD, y vuelve igual al abrirlo', async () => {
     const transform: PageTransformInfo = { rotation: 0, widthPt: 800, heightPt: 600, originX: 0, originY: 0 };
     const ap = emitMarkupOperators(callout, transform).operators.split('\n');
@@ -120,6 +134,29 @@ describe('Callout como el de Revu y Foxit (ADR-0042)', () => {
       { x: 0.5, y: 0.19 },
     ]);
     expect(CALLOUT_LANDING_PT).toBe(18);
+  });
+});
+
+describe('Tipo de flecha del callout configurable (ADR-0042)', () => {
+  beforeEach(() => {
+    useToolStore.setState({ activeTool: 'select', currentStyle: { strokeColor: '#e02424', fillColor: 'transparent', strokeWidth: 1, opacity: 1 } });
+  });
+
+  it('la barra muestra la flecha abierta del callout y permite cambiarla por cerrada, círculo o ninguna', () => {
+    useMarkupStore.setState({ markups: [callout], selectedMarkupIds: ['co'] });
+    render(<Ribbon />);
+    const start = screen.getByTestId('ribbon-line-start');
+    expect(start).toHaveAttribute('data-value', 'openArrow');
+    fireEvent.click(start);
+    fireEvent.click(screen.getByTestId('ribbon-line-start-option-closedArrow'));
+    const m = useMarkupStore.getState().markups[0];
+    expect(m.style.lineEndingStart).toBe('closedArrow');
+    const t = { width: 800, height: 600, scale: 1, offsetX: 0, offsetY: 0, zoom: 1 };
+    // Flecha cerrada rellena, con la misma apertura de 30°
+    expect(getMarkupSvgDescriptor(m, t).children!.some((c) => c.tag === 'polygon' && c.attrs.fill === '#e02424')).toBe(true);
+    const none = { ...m, style: { ...m.style, lineEndingStart: 'none' as const } };
+    expect(getMarkupSvgDescriptor(none, t).children!.filter((c) => c.tag === 'polyline')).toHaveLength(1);
+    expect(emitMarkupOperators(m, { rotation: 0, widthPt: 800, heightPt: 600, originX: 0, originY: 0 }).operators).toMatch(/^f$/m);
   });
 });
 

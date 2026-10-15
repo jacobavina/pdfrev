@@ -10,7 +10,7 @@ import {
   wrapCalloutText,
   CALLOUT_MIN_BOX_WIDTH,
 } from '../markup/render';
-import { lineEndingShape, lineEndingSize, endpointAngles, shapeExtent, Pt } from '../markup/lineEndings';
+import { lineEndingShape, lineEndingSize, endpointAngles, shapeExtent, Pt, CALLOUT_ARROW_HALF_ANGLE } from '../markup/lineEndings';
 import { dimensionGeometry, dimensionTextBaseline, defaultDimensionLinePoint } from '../markup/dimension';
 import { getHelveticaTextWidth } from '../markup/helveticaMetrics';
 import { stampLayout } from '../markup/stamps';
@@ -406,7 +406,11 @@ export function emitMarkupOperators(
    * Extremos de línea (ADR-0018) con la misma geometría que la pantalla. Se dibujan sólidos (sin el patrón
    * discontinuo de la línea) y rellenos con el color de trazo; amplían la caja envolvente del /AP.
    */
-  const emitLineEndings = (pdfPts: Pt[], endings: Pick<Markup['style'], 'lineEndingStart' | 'lineEndingEnd'> = markup.style) => {
+  const emitLineEndings = (
+    pdfPts: Pt[],
+    endings: Pick<Markup['style'], 'lineEndingStart' | 'lineEndingEnd'> = markup.style,
+    halfAngle?: number
+  ) => {
     const angles = endpointAngles(pdfPts);
     if (!angles) return;
     const size = lineEndingSize(strokeWidth);
@@ -416,7 +420,7 @@ export function emitMarkupOperators(
     ];
     let prepared = false;
     for (const [tip, angle, ending] of items) {
-      const shape = lineEndingShape(tip, angle, ending, size, true);
+      const shape = lineEndingShape(tip, angle, ending, size, true, halfAngle);
       if (!shape) continue;
       if (!prepared) {
         lines.push('[] 0 d', '0 j', '0 J');
@@ -836,7 +840,7 @@ export function emitMarkupOperators(
         lines.push('0 j');
         pathPdf(pts, false);
         lines.push('S');
-        emitLineEndings(pts, { lineEndingStart: startEnding, lineEndingEnd: 'none' });
+        emitLineEndings(pts, { lineEndingStart: startEnding, lineEndingEnd: 'none' }, CALLOUT_ARROW_HALF_ANGLE);
       }
       const cf = markupFontOf(markup, 10, markup.style.strokeColor);
       const cColor = parseCssColorRgb(cf.color) ?? DARK_TEXT_RGB;

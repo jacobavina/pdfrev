@@ -92,6 +92,8 @@ export const Ribbon: React.FC = () => {
 
   // Tipo de línea (ADR-0041): el de la marca seleccionada; sin selección, el de las marcas nuevas (Cloud con la
   // herramienta de nube)
+  // El callout dibuja flecha abierta si no se eligió otra (ADR-0042): la barra lo muestra así
+  const calloutContext = editingSelection ? selection[0].type === 'callout' : activeTool === 'callout';
   const lineStyle: LineStyleId = editingSelection
     ? lineStyleOfMarkup(selection[0])
     : activeTool === 'cloud' || activeTool === 'cloudPlus'
@@ -325,8 +327,9 @@ export const Ribbon: React.FC = () => {
             <IconPicker
               compact
               testId="ribbon-line-start"
-              title="Start (lines, arrows and polylines)"
-              value={style.lineEndingStart ?? 'none'}
+              withLabels
+              title="Start (lines, arrows, polylines and callouts)"
+              value={style.lineEndingStart ?? (calloutContext ? 'openArrow' : 'none')}
               options={LINE_ENDING_OPTIONS}
               renderIcon={(id) => <LineEndingPreview ending={id} side="start" />}
               onChange={(id) => applyStyle({ lineEndingStart: id })}
@@ -334,6 +337,7 @@ export const Ribbon: React.FC = () => {
             <IconPicker
               compact
               testId="ribbon-line-end"
+              withLabels
               title="End (the Arrow tool uses a closed arrow when None)"
               value={style.lineEndingEnd ?? 'none'}
               options={LINE_ENDING_OPTIONS}

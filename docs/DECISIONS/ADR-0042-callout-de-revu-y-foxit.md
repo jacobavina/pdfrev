@@ -30,7 +30,9 @@ En Revu y Foxit:
 3. **Creación como en Revu y Foxit**: el punto donde se suelta es el codo y la caja queda al lado, centrada con él.
    La vista previa muestra el dibujo final.
 4. **Estilo**:
-   - Directriz de 1 pt con flecha abierta. El extremo se puede cambiar con Start en Properties.
+   - Directriz de 1 pt con flecha abierta de 30° a cada lado, como Revu y Foxit (las medidas siguen con la
+     flecha estrecha de Acrobat). El tipo de flecha se elige en la barra (Start, con nombre y dibujo) o en
+     Properties › Start: abierta, cerrada, círculo, cuadro, rombo, barra o ninguna.
    - Texto del color de la línea, en pt de página, que crece con el zoom.
    - Sin relleno no hay caja (como Revu); con relleno, caja con borde (como Foxit). Las llamadas nuevas y las notas
      de Cloud+ se crean sin caja.

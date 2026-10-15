@@ -35,7 +35,7 @@ import {
   CALLOUT_MIN_BOX_WIDTH,
 } from '../core/markup/render';
 import { getStickyNoteNormalizedSize } from '../utils/coordinates';
-import { lineEndingShape, lineEndingSize, endpointAngles } from '../core/markup/lineEndings';
+import { lineEndingShape, lineEndingSize, endpointAngles, CALLOUT_ARROW_HALF_ANGLE } from '../core/markup/lineEndings';
 import { emitMarkupOperators } from '../core/pdf/operators';
 import { PDFName, drawObject } from 'pdf-lib';
 
@@ -47,7 +47,8 @@ function drawLineEndingsFlat(
   pdfPts: { x: number; y: number }[],
   markup: Markup,
   color: RGB,
-  opacity: number
+  opacity: number,
+  halfAngle?: number
 ): void {
   const angles = endpointAngles(pdfPts);
   if (!angles) return;
@@ -58,7 +59,7 @@ function drawLineEndingsFlat(
     [pdfPts[pdfPts.length - 1], angles.end, markup.style.lineEndingEnd],
   ];
   for (const [tip, angle, ending] of items) {
-    const shape = lineEndingShape(tip, angle, ending, size, true);
+    const shape = lineEndingShape(tip, angle, ending, size, true, halfAngle);
     if (!shape) continue;
     if (shape.kind === 'circle') {
       page.drawEllipse({
@@ -848,7 +849,8 @@ export async function exportMarkupsToPdf(
                 [pdfArrowHead, pdfElbow],
                 { ...markup, style: { ...markup.style, lineEndingStart: markup.style.lineEndingStart ?? 'openArrow', lineEndingEnd: 'none' } },
                 strokeColorParsed.color,
-                strokeColorParsed.opacity ?? opacity
+                strokeColorParsed.opacity ?? opacity,
+                CALLOUT_ARROW_HALF_ANGLE
               );
             }
           }

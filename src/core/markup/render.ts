@@ -9,7 +9,7 @@ import {
   STICKY_NOTE_COLORS,
 } from '../../types/markup';
 import { normalizedToScreen } from '../../utils/coordinates';
-import { lineEndingShape, lineEndingSize, endpointAngles } from './lineEndings';
+import { lineEndingShape, lineEndingSize, endpointAngles, CALLOUT_ARROW_HALF_ANGLE } from './lineEndings';
 import {
   CaptionText,
   MEASURE_CAPTION_COLOR,
@@ -524,9 +524,10 @@ function createLineEndingDescriptor(
   ending: LineEndingStyle,
   strokeColor: string,
   strokeWidthScreen: number,
-  sizeScreen: number
+  sizeScreen: number,
+  halfAngle?: number
 ): SvgRenderDescriptor | null {
-  const shape = lineEndingShape(pt, angleRad, ending, sizeScreen);
+  const shape = lineEndingShape(pt, angleRad, ending, sizeScreen, false, halfAngle);
   if (!shape) return null;
   // Extremos de diseñador (ADR-0035): las formas rellenas no llevan contorno (un trazo redondeaba y engordaba las
   // puntas) y las abiertas se unen en ángulo vivo
@@ -1287,7 +1288,15 @@ export function getMarkupSvgDescriptor(
         });
         const angles = endpointAngles([leader.arrowHead, leader.elbow]);
         if (ending && angles) {
-          const d = createLineEndingDescriptor(leader.arrowHead, angles.start, ending, style.strokeColor, lineW, lineEndingSize(lineW) * pxPerPt);
+          const d = createLineEndingDescriptor(
+            leader.arrowHead,
+            angles.start,
+            ending,
+            style.strokeColor,
+            lineW,
+            lineEndingSize(lineW) * pxPerPt,
+            CALLOUT_ARROW_HALF_ANGLE
+          );
           if (d) children.push(d);
         }
       }

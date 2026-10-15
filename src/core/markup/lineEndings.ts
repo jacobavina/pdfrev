@@ -30,6 +30,9 @@ export function lineEndingSize(strokeWidthPt: number): number {
  */
 export const ARROW_HALF_ANGLE = 0.28;
 
+/** Media apertura de la flecha de los callouts: 30° (punta de 60°), como en Revu y Foxit (ADR-0042). */
+export const CALLOUT_ARROW_HALF_ANGLE = Math.PI / 6;
+
 /**
  * Forma del extremo en `tip`. `angle` es la dirección con la que la línea llega a la punta
  * (atan2 del vector "punto anterior → punta"). `size` en las mismas unidades que los puntos.
@@ -40,7 +43,9 @@ export function lineEndingShape(
   ending: LineEndingStyle | undefined,
   size: number,
   /** Sistema con y hacia arriba (PDF). Solo afecta a la barra, la única forma no simétrica. */
-  yUp = false
+  yUp = false,
+  /** Media apertura de las flechas (por defecto la de Acrobat; los callouts usan una más abierta). */
+  halfAngle = ARROW_HALF_ANGLE
 ): LineEndingShape | null {
   if (!ending || ending === 'none' || !Number.isFinite(angle) || !(size > 0)) return null;
 
@@ -62,8 +67,8 @@ export function lineEndingShape(
 
   if (ending === 'rOpenArrow' || ending === 'rClosedArrow') {
     // Invertida: el vértice en el extremo y las alas hacia fuera de la línea
-    const a1 = { x: tip.x + size * Math.cos(angle - ARROW_HALF_ANGLE), y: tip.y + size * Math.sin(angle - ARROW_HALF_ANGLE) };
-    const a2 = { x: tip.x + size * Math.cos(angle + ARROW_HALF_ANGLE), y: tip.y + size * Math.sin(angle + ARROW_HALF_ANGLE) };
+    const a1 = { x: tip.x + size * Math.cos(angle - halfAngle), y: tip.y + size * Math.sin(angle - halfAngle) };
+    const a2 = { x: tip.x + size * Math.cos(angle + halfAngle), y: tip.y + size * Math.sin(angle + halfAngle) };
     return ending === 'rOpenArrow'
       ? { kind: 'polyline', points: [a1, tip, a2], filled: false }
       : { kind: 'polygon', points: [a1, tip, a2], filled: true };
@@ -71,8 +76,8 @@ export function lineEndingShape(
 
   if (ending === 'openArrow' || ending === 'closedArrow') {
     const back = angle + Math.PI;
-    const a1 = { x: tip.x + size * Math.cos(back - ARROW_HALF_ANGLE), y: tip.y + size * Math.sin(back - ARROW_HALF_ANGLE) };
-    const a2 = { x: tip.x + size * Math.cos(back + ARROW_HALF_ANGLE), y: tip.y + size * Math.sin(back + ARROW_HALF_ANGLE) };
+    const a1 = { x: tip.x + size * Math.cos(back - halfAngle), y: tip.y + size * Math.sin(back - halfAngle) };
+    const a2 = { x: tip.x + size * Math.cos(back + halfAngle), y: tip.y + size * Math.sin(back + halfAngle) };
     return ending === 'openArrow'
       ? { kind: 'polyline', points: [a1, tip, a2], filled: false }
       : { kind: 'polygon', points: [a1, tip, a2], filled: true };

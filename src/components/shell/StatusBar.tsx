@@ -41,7 +41,7 @@ export const StatusBar: React.FC = () => {
   return (
     <footer
       data-testid="status-bar"
-      className="h-7 min-w-0 bg-cad-status border-t border-cad-border flex items-center px-2 text-[11px] text-gray-300 select-none overflow-x-auto"
+      className="h-[26px] min-w-0 bg-cad-status border-t border-cad-border flex items-center px-2 text-[11px] text-gray-400 select-none overflow-x-auto thin-scroll"
     >
       {/* Navegación de páginas */}
       <button
@@ -53,7 +53,7 @@ export const StatusBar: React.FC = () => {
       >
         <ChevronLeft size={15} />
       </button>
-      <span data-testid="page-indicator" className="font-mono px-1 whitespace-nowrap">
+      <span data-testid="page-indicator" className="tabular-nums px-1 whitespace-nowrap">
         {numPages > 0 ? `${currentPageIndex + 1} / ${numPages}` : '— / —'}
       </span>
       <button
@@ -75,7 +75,7 @@ export const StatusBar: React.FC = () => {
       <button
         type="button"
         onClick={resetZoom}
-        className="font-mono px-1.5 rounded hover:bg-cad-hover min-w-[3.25rem]"
+        className="tabular-nums px-1.5 rounded hover:bg-cad-hover min-w-[3.25rem]"
         title="Reset zoom to 100%"
       >
         {Math.round(scale * 100)}%
@@ -144,7 +144,7 @@ export const StatusBar: React.FC = () => {
           title="Open the Measure panel to calibrate or adjust this page's scale"
         >
           <span className={`w-2 h-2 rounded-full ${isCalibrated ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-          <span className="font-mono">
+          <span className="tabular-nums">
             {isCalibrated
               ? `Scale: ${describeCalibration(calib)}`
               : `Scale not set (paper scale, ${calib.unit})`}
@@ -155,7 +155,7 @@ export const StatusBar: React.FC = () => {
       <Divider />
 
       {/* Coordenadas del cursor en unidades reales */}
-      <span data-testid="cursor-coordinates" className="flex items-center gap-1 font-mono whitespace-nowrap min-w-[11rem]">
+      <span data-testid="cursor-coordinates" className="flex items-center gap-1 tabular-nums whitespace-nowrap min-w-[11rem]">
         <Crosshair size={12} className="text-gray-500" />
         {cursorPt ? `X ${fmt(cursorPt.x)}  Y ${fmt(cursorPt.y)} ${calib.unit}` : '—'}
       </span>
@@ -166,7 +166,7 @@ export const StatusBar: React.FC = () => {
         <>
           <span
             data-testid="sheet-size"
-            className="font-mono whitespace-nowrap"
+            className="tabular-nums whitespace-nowrap"
             title={`${(sheetCm.w / 2.54).toFixed(2)} × ${(sheetCm.h / 2.54).toFixed(2)} in`}
           >
             {sheetCm.w.toFixed(2)} × {sheetCm.h.toFixed(2)} cm

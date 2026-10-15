@@ -122,13 +122,13 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({ pageIndex, p
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" data-testid="calibration-modal">
-      <div className="w-96 rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800">
-        <h3 className="mb-4 text-lg font-bold text-gray-900 dark:text-gray-100">Calibrate Page Scale ({pageIndex + 1})</h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[1px]" data-testid="calibration-modal">
+      <div className="w-[400px] rounded-xl bg-cad-panel border border-cad-border p-5 shadow-[0_24px_64px_rgba(0,0,0,0.38)] text-[12px] text-gray-200">
+        <h3 className="mb-3 text-[14px] font-semibold text-cad-strong">Calibrate Page Scale ({pageIndex + 1})</h3>
 
         {!hasPoints ? (
           <>
-            <p className="mb-4 text-sm text-gray-600 dark:text-gray-400" data-testid="calibration-no-points">
+            <p className="mb-4 text-[12px] text-gray-400" data-testid="calibration-no-points">
               Click the start and the end of a known distance on the drawing. Snap helps you land exactly on its
               extension lines.
             </p>
@@ -136,7 +136,7 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({ pageIndex, p
               <button
                 type="button"
                 onClick={close}
-                className="rounded px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                className="ui-btn"
                 data-testid="calibration-cancel-btn"
               >
                 Cancel
@@ -144,7 +144,7 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({ pageIndex, p
               <button
                 type="button"
                 onClick={pickPoints}
-                className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                className="ui-btn ui-btn-primary"
                 data-testid="calibration-pick-points"
               >
                 Pick two points
@@ -153,7 +153,7 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({ pageIndex, p
           </>
         ) : (
           <>
-            <p className="mb-4 text-sm text-gray-600 dark:text-gray-400" data-testid="calibration-measured">
+            <p className="mb-4 text-[12px] text-gray-400" data-testid="calibration-measured">
               Distance on the drawing: <strong>{ptDistance.toFixed(2)} pt</strong>
               {current && (
                 <>
@@ -166,7 +166,7 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({ pageIndex, p
             <div className="mb-4 space-y-3">
               <div className="flex gap-2">
                 <label className="flex-1">
-                  <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Known distance</span>
+                  <span className="mb-1 block text-[11.5px] text-gray-400">Known distance</span>
                   <input
                     type="text"
                     inputMode="decimal"
@@ -178,14 +178,14 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({ pageIndex, p
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleConfirm();
                     }}
-                    className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-cad-strong"
+                    className="w-full ui-input"
                     data-testid="calibration-length-input"
                     placeholder={unit === 'ftin' ? "e.g. 140' or 12'-6\"" : 'e.g. 10.0'}
                     autoFocus
                   />
                 </label>
                 <label className="w-36">
-                  <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Unit</span>
+                  <span className="mb-1 block text-[11.5px] text-gray-400">Unit</span>
                   <select
                     value={unit}
                     onChange={(e) => {
@@ -193,7 +193,7 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({ pageIndex, p
                       setUnit(u);
                       if (!precisionOptions(u).some((o) => o.value === precision)) setPrecision(defaultPrecision(u));
                     }}
-                    className="w-full rounded border border-gray-300 px-2 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-cad-strong"
+                    className="w-full ui-input"
                     data-testid="calibration-unit-select"
                   >
                     {DISPLAY_UNITS.map((u) => (
@@ -206,11 +206,11 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({ pageIndex, p
               </div>
 
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Precision</span>
+                <span className="mb-1 block text-[11.5px] text-gray-400">Precision</span>
                 <select
                   value={precision}
                   onChange={(e) => setPrecision(e.target.value)}
-                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-cad-strong"
+                  className="w-full ui-input"
                   data-testid="calibration-precision-select"
                 >
                   {precisionOptions(unit).map((o) => (
@@ -222,7 +222,7 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({ pageIndex, p
               </label>
 
               {numPages > 1 && (
-                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                <label className="flex items-center gap-2 text-[12px] text-gray-300">
                   <input
                     type="checkbox"
                     checked={allPages}
@@ -244,7 +244,7 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({ pageIndex, p
               <button
                 type="button"
                 onClick={close}
-                className="rounded px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                className="ui-btn"
                 data-testid="calibration-cancel-btn"
               >
                 Cancel
@@ -252,7 +252,7 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({ pageIndex, p
               <button
                 type="button"
                 onClick={handleConfirm}
-                className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                className="ui-btn ui-btn-primary"
                 data-testid="calibration-confirm-btn"
               >
                 Calibrate

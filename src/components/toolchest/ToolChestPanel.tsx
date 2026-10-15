@@ -88,7 +88,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
         </button>
         <div className="flex flex-col items-center space-y-4">
           <Briefcase size={16} className="text-blue-400" />
-          <span className="text-[10px] text-gray-500 font-medium rotate-90 whitespace-nowrap mt-4">
+          <span className="text-[11px] text-gray-400 font-medium rotate-90 whitespace-nowrap tracking-wide mt-4">
             Tool Chest
           </span>
           {tools.length > 0 && (

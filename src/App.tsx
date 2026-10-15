@@ -42,12 +42,12 @@ const DocumentTab: React.FC = () => {
   const isDirty = useMarkupStore((s) => s.isDirty);
   if (!fileName) return null;
   return (
-    <div className="h-8 bg-cad-subtle border-b border-cad-border flex items-end px-2 shrink-0" data-testid="document-tabs">
+    <div className="h-9 bg-cad-panel border-b border-cad-border flex items-end px-2 shrink-0" data-testid="document-tabs">
       <div
-        className="flex items-center gap-1.5 h-7 px-3 bg-cad-canvas/0 bg-cad-ribbon border border-b-0 border-cad-border rounded-t text-xs text-gray-200 max-w-[22rem]"
+        className="relative flex items-center gap-2 h-9 px-3 text-[12px] text-cad-strong max-w-[22rem] shadow-[inset_0_-2px_0_rgb(var(--cad-accent))]"
         title={filePath ?? fileName}
       >
-        <FileText size={13} className="text-rose-600 dark:text-rose-400 shrink-0" />
+        <FileText size={13} className="text-gray-400 shrink-0" />
         <span className="truncate">{fileName}</span>
         {isDirty && filePath && <span className="text-amber-600 dark:text-amber-400">●</span>}
       </div>

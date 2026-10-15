@@ -80,25 +80,25 @@ const STATUS_CONFIG: Record<
   // Claro por defecto con variante oscura (ADR-0017): colores legibles en ambos temas
   pending: {
     label: 'Pending',
-    bg: 'bg-amber-100 dark:bg-amber-950/60',
+    bg: 'bg-amber-500/[0.13]',
     text: 'text-amber-800 dark:text-amber-300',
     border: 'border-amber-300 dark:border-amber-700',
   },
   accepted: {
     label: 'Accepted',
-    bg: 'bg-emerald-100 dark:bg-emerald-950/60',
+    bg: 'bg-emerald-500/[0.13]',
     text: 'text-emerald-800 dark:text-emerald-300',
     border: 'border-emerald-300 dark:border-emerald-700',
   },
   rejected: {
     label: 'Rejected',
-    bg: 'bg-rose-100 dark:bg-rose-950/60',
+    bg: 'bg-rose-500/[0.13]',
     text: 'text-rose-800 dark:text-rose-300',
     border: 'border-rose-300 dark:border-rose-700',
   },
   completed: {
     label: 'Completed',
-    bg: 'bg-blue-100 dark:bg-blue-950/60',
+    bg: 'bg-blue-500/[0.13]',
     text: 'text-blue-800 dark:text-blue-300',
     border: 'border-blue-300 dark:border-blue-700',
   },
@@ -544,14 +544,14 @@ export const MarkupsList: React.FC = () => {
         />
       )}
       {/* Barra de cabecera del panel de marcas */}
-      <div className="h-8 bg-cad-dark px-3 flex items-center justify-between text-xs font-medium border-b border-cad-border">
+      <div className="h-9 bg-cad-panel px-3 flex items-center justify-between text-[12px] border-b border-cad-border">
         <div className="flex items-center space-x-3">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="flex items-center space-x-1.5 text-gray-300 hover:text-cad-strong"
           >
             {isExpanded ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-            <span className="font-semibold tracking-wide uppercase">
+            <span className="ui-panel-title">
               Markups List ({displayedMarkups.length})
             </span>
           </button>
@@ -574,20 +574,20 @@ export const MarkupsList: React.FC = () => {
             <button
               data-testid="export-csv-button"
               onClick={handleExportCsv}
-              className="flex items-center space-x-1 px-2 py-0.5 bg-cad-ribbon hover:bg-cad-hover text-gray-200 rounded border border-cad-border text-xs transition-colors"
+              className="ui-btn !h-7 !px-2"
               title="Export visible markups to CSV (RFC 4180)"
             >
-              <FileSpreadsheet size={12} className="text-emerald-600 dark:text-emerald-400" />
+              <FileSpreadsheet size={13} className="text-gray-400" />
               <span>CSV</span>
             </button>
 
             <button
               data-testid="export-pdf-report-button"
               onClick={handleExportPdfReport}
-              className="flex items-center space-x-1 px-2 py-0.5 bg-cad-ribbon hover:bg-cad-hover text-gray-200 rounded border border-cad-border text-xs transition-colors"
+              className="ui-btn !h-7 !px-2"
               title="Generate PDF summary report"
             >
-              <FileText size={12} className="text-purple-600 dark:text-purple-400" />
+              <FileText size={13} className="text-gray-400" />
               <span>PDF Report</span>
             </button>
 
@@ -600,17 +600,17 @@ export const MarkupsList: React.FC = () => {
                 setNewColExpr('');
                 setIsAddColumnModalOpen(true);
               }}
-              className="flex items-center space-x-1 px-2 py-0.5 bg-cad-ribbon hover:bg-cad-hover text-gray-200 rounded border border-cad-border text-xs transition-colors"
+              className="ui-btn !h-7 !px-2"
               title="Add custom column"
             >
-              <Plus size={12} className="text-cad-accent" />
+              <Plus size={13} className="text-gray-400" />
               <span>Column</span>
             </button>
 
             {selectedMarkupIds.length > 0 && (
               <button
                 onClick={deleteSelectedMarkups}
-                className="flex items-center space-x-1 px-2 py-0.5 bg-cad-ribbon hover:bg-rose-500/10 text-rose-700 dark:text-rose-300 rounded border border-rose-300 dark:border-rose-700 text-xs transition-colors"
+                className="ui-btn ui-btn-danger !h-7 !px-2"
                 title="Delete selected markups (Del)"
               >
                 <Trash2 size={12} />
@@ -625,7 +625,7 @@ export const MarkupsList: React.FC = () => {
       {isExpanded && (
         <div
           data-testid="markups-toolbar"
-          className="bg-cad-panel/95 px-3 py-1 flex flex-wrap items-center gap-2 border-b border-cad-border text-xs"
+          className="bg-cad-panel px-3 py-1.5 flex flex-wrap items-center gap-2 border-b border-cad-border text-[12px]"
         >
           {/* Búsqueda rápida por texto o autor */}
           <input
@@ -634,7 +634,7 @@ export const MarkupsList: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search markups..."
-            className="px-2 py-0.5 bg-cad-dark border border-cad-border rounded text-gray-200 placeholder-gray-500 text-xs focus:outline-none focus:border-cad-accent w-36"
+            className="ui-input w-36"
           />
 
           {/* Filtro por tipo */}
@@ -642,7 +642,7 @@ export const MarkupsList: React.FC = () => {
             data-testid="markups-filter-type"
             value={filterType}
             onChange={(e) => setFilterType(e.target.value as MarkupType | 'all')}
-            className="px-2 py-0.5 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent"
+            className="ui-input"
           >
             <option value="all">All types</option>
             {(Object.keys(MARKUP_TYPE_LABELS) as MarkupType[])
@@ -659,7 +659,7 @@ export const MarkupsList: React.FC = () => {
             data-testid="markups-filter-author"
             value={filterAuthor}
             onChange={(e) => setFilterAuthor(e.target.value)}
-            className="px-2 py-0.5 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent max-w-[130px] truncate"
+            className="ui-input max-w-[130px] truncate"
           >
             <option value="all">All authors</option>
             {uniqueAuthors.map((auth) => (
@@ -674,7 +674,7 @@ export const MarkupsList: React.FC = () => {
             data-testid="markups-filter-status"
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as MarkupStatus | 'all')}
-            className="px-2 py-0.5 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent"
+            className="ui-input"
           >
             <option value="all">All statuses</option>
             <option value="pending">Pending</option>
@@ -711,10 +711,10 @@ export const MarkupsList: React.FC = () => {
               No markups match the applied filters.
             </div>
           ) : (
-            <table className="w-full text-left border-collapse text-xs">
-              <thead className="bg-cad-subtle text-gray-300 sticky top-0 border-b border-cad-border z-10">
+            <table className="w-full text-left border-collapse text-[12px]">
+              <thead className="bg-cad-panel text-gray-500 text-[11px] sticky top-0 shadow-[inset_0_-1px_0_rgb(var(--cad-border))] z-10">
                 <tr>
-                  <th className="py-1 px-2.5 w-8 font-medium"></th>
+                  <th className="py-1.5 px-2.5 w-8 font-medium"></th>
                   <th
                     onClick={() => handleSort('type')}
                     className="py-1 px-2 font-medium w-28 cursor-pointer hover:text-cad-strong select-none"
@@ -764,7 +764,7 @@ export const MarkupsList: React.FC = () => {
                   >
                     Measurement {renderSortIndicator('measurement')}
                   </th>
-                  <th className="py-1 px-2 font-medium w-16 text-center select-none">
+                  <th className="py-1.5 px-2 font-medium w-16 text-center select-none">
                     Unit
                   </th>
 
@@ -796,7 +796,7 @@ export const MarkupsList: React.FC = () => {
                     </th>
                   ))}
 
-                  <th className="py-1 px-2 font-medium w-12 text-center">Action</th>
+                  <th className="py-1.5 px-2 font-medium w-12 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-cad-border/50 text-gray-200">
@@ -829,12 +829,12 @@ export const MarkupsList: React.FC = () => {
                       data-testid={`markup-row-${markup.id}`}
                       className={`cursor-pointer transition-colors ${
                         isSelected
-                          ? 'bg-cad-accent/30 hover:bg-cad-accent/40 font-medium'
-                          : 'hover:bg-cad-hover/60'
+                          ? 'bg-cad-accent/[0.14] hover:bg-cad-accent/20 text-cad-strong'
+                          : 'hover:bg-cad-hover/70'
                       } ${markup.groupId ? 'border-l-2 border-l-purple-500/80' : ''}`}
                     >
                       {/* Checkbox */}
-                      <td className="py-1 px-2.5 text-center" onClick={(e) => e.stopPropagation()}>
+                      <td className="py-1.5 px-2.5 text-center" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -844,7 +844,7 @@ export const MarkupsList: React.FC = () => {
                       </td>
 
                       {/* Tipo */}
-                      <td className="py-1 px-2 flex items-center space-x-1.5">
+                      <td className="py-1.5 px-2 flex items-center space-x-1.5">
                         {getMarkupIcon(markup.type)}
                         <span>{markupTypeLabel(markup.type)}</span>
                         {markup.locked && (
@@ -855,7 +855,7 @@ export const MarkupsList: React.FC = () => {
                       </td>
 
                       {/* Texto / Comentario editable */}
-                      <td className="py-1 px-2" onClick={(e) => e.stopPropagation()}>
+                      <td className="py-1.5 px-2" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="text"
                           value={markup.text || ''}
@@ -866,26 +866,26 @@ export const MarkupsList: React.FC = () => {
                       </td>
 
                       {/* Autor */}
-                      <td className="py-1 px-2 text-gray-400 truncate">{markup.author}</td>
+                      <td className="py-1.5 px-2 text-gray-400 truncate">{markup.author}</td>
 
                       {/* Fecha */}
-                      <td className="py-1 px-2 text-gray-400 font-mono text-[11px]">
+                      <td className="py-1.5 px-2 text-gray-400 tabular-nums text-[11px]">
                         {formatDate(markup.createdAt)}
                       </td>
 
                       {/* Página */}
-                      <td className="py-1 px-2 text-center font-mono text-gray-300">
+                      <td className="py-1.5 px-2 text-center tabular-nums text-gray-300">
                         {markup.pageIndex + 1}
                       </td>
 
                       {/* Estado con dropdown interactivo */}
-                      <td className="py-1 px-2 text-center" onClick={(e) => e.stopPropagation()}>
+                      <td className="py-1.5 px-2 text-center" onClick={(e) => e.stopPropagation()}>
                         <select
                           value={markup.status}
                           onChange={(e) =>
                             updateMarkupStatus(markup.id, e.target.value as MarkupStatus)
                           }
-                          className={`text-[11px] font-medium py-0.5 px-2 rounded border outline-none cursor-pointer ${statusInfo.bg} ${statusInfo.text} ${statusInfo.border}`}
+                          className={`text-[11px] font-medium py-0.5 pl-2 pr-1 rounded-full border-0 outline-none cursor-pointer ${statusInfo.bg} ${statusInfo.text}`}
                         >
                           <option value="pending" className="bg-cad-dark text-amber-300">
                             Pending
@@ -906,12 +906,12 @@ export const MarkupsList: React.FC = () => {
                       </td>
 
                       {/* Medida */}
-                      <td className="py-1 px-2 text-right font-mono text-gray-200">
+                      <td className="py-1.5 px-2 text-right tabular-nums text-gray-200">
                         {markup.measurement?.formatted || (markup.measurement?.value !== undefined ? String(markup.measurement.value) : '—')}
                       </td>
 
                       {/* Unidad */}
-                      <td className="py-1 px-2 text-center text-gray-400 font-mono text-[11px]">
+                      <td className="py-1.5 px-2 text-center text-gray-400 tabular-nums text-[11px]">
                         {markup.measurement?.unit ? (markup.type === 'area'
                             ? `${markup.measurement.unit}²`
                             : markup.type === 'volume'
@@ -973,7 +973,7 @@ export const MarkupsList: React.FC = () => {
                                 onChange={(e) =>
                                   updateMarkupCustomField(markup.id, col.id, e.target.value)
                                 }
-                                className="bg-cad-dark border border-cad-border rounded px-1.5 py-0.5 text-xs text-gray-200 outline-none w-full"
+                                className="ui-input w-full"
                               >
                                 <option value="">—</option>
                                 {col.opciones?.map((opt) => (
@@ -1036,7 +1036,7 @@ export const MarkupsList: React.FC = () => {
                       })}
 
                       {/* Acciones */}
-                      <td className="py-1 px-2 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <td className="py-1.5 px-2 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={async () => {
                             const store = useToolChestStore.getState();
@@ -1106,7 +1106,7 @@ export const MarkupsList: React.FC = () => {
           onClick={() => setIsAddColumnModalOpen(false)}
         >
           <div
-            className="bg-cad-panel border border-cad-border rounded-lg shadow-2xl w-full max-w-md p-4 text-xs text-gray-200"
+            className="bg-cad-panel border border-cad-border rounded-xl shadow-[0_24px_64px_rgba(0,0,0,0.38)] w-full max-w-md p-5 text-xs text-gray-200"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-sm font-semibold text-cad-strong mb-3">
@@ -1124,7 +1124,7 @@ export const MarkupsList: React.FC = () => {
                   onChange={(e) => setNewColName(e.target.value)}
                   placeholder="e.g. Length, Estimated cost, Category..."
                   required
-                  className="w-full px-2.5 py-1.5 bg-cad-dark border border-cad-border rounded text-gray-200 focus:outline-none focus:border-cad-accent"
+                  className="w-full ui-input"
                 />
               </div>
 
@@ -1138,7 +1138,7 @@ export const MarkupsList: React.FC = () => {
                   onChange={(e) =>
                     setNewColType(e.target.value as BbxCustomColumnType)
                   }
-                  className="w-full px-2.5 py-1.5 bg-cad-dark border border-cad-border rounded text-gray-200 focus:outline-none focus:border-cad-accent"
+                  className="w-full ui-input"
                 >
                   {CANONICAL_CUSTOM_COLUMN_TYPES.map((t) => (
                     <option key={t} value={t}>
@@ -1162,7 +1162,7 @@ export const MarkupsList: React.FC = () => {
                     value={newColOptions}
                     onChange={(e) => setNewColOptions(e.target.value)}
                     placeholder="ej. Alta, Media, Baja"
-                    className="w-full px-2.5 py-1.5 bg-cad-dark border border-cad-border rounded text-gray-200 focus:outline-none focus:border-cad-accent"
+                    className="w-full ui-input"
                   />
                 </div>
               )}
@@ -1178,7 +1178,7 @@ export const MarkupsList: React.FC = () => {
                     value={newColExpr}
                     onChange={(e) => setNewColExpr(e.target.value)}
                     placeholder="ej. strokeWidth * 2.5 + {otra_columna}"
-                    className="w-full px-2.5 py-1.5 bg-cad-dark border border-cad-border rounded text-gray-200 font-mono focus:outline-none focus:border-cad-accent"
+                    className="w-full ui-input font-mono"
                   />
                   {!formulaValidation.ok && newColExpr.trim().length > 0 && (
                     <p
@@ -1202,7 +1202,7 @@ export const MarkupsList: React.FC = () => {
                   type="button"
                   data-testid="cancel-column-button"
                   onClick={() => setIsAddColumnModalOpen(false)}
-                  className="px-3 py-1 bg-cad-hover text-gray-300 hover:text-cad-strong rounded transition-colors"
+                  className="ui-btn"
                 >
                   Cancel
                 </button>
@@ -1213,7 +1213,7 @@ export const MarkupsList: React.FC = () => {
                     !newColName.trim() ||
                     (newColType === 'formula' && !formulaValidation.ok)
                   }
-                  className="px-3 py-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded transition-colors"
+                  className="ui-btn ui-btn-primary"
                 >
                   Save Column
                 </button>
@@ -1231,7 +1231,7 @@ export const MarkupsList: React.FC = () => {
           onClick={() => setColumnToDelete(null)}
         >
           <div
-            className="bg-cad-panel border border-cad-border rounded-lg shadow-2xl w-full max-w-sm p-4 text-xs text-gray-200"
+            className="bg-cad-panel border border-cad-border rounded-xl shadow-[0_24px_64px_rgba(0,0,0,0.38)] w-full max-w-sm p-5 text-xs text-gray-200"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-sm font-semibold text-rose-300 mb-2 flex items-center space-x-1.5">
@@ -1247,7 +1247,7 @@ export const MarkupsList: React.FC = () => {
               <button
                 data-testid="cancel-delete-column-btn"
                 onClick={() => setColumnToDelete(null)}
-                className="px-3 py-1 bg-cad-hover text-gray-300 hover:text-cad-strong rounded transition-colors"
+                className="ui-btn"
               >
                 Cancel
               </button>
@@ -1257,7 +1257,7 @@ export const MarkupsList: React.FC = () => {
                   removeCustomColumn(columnToDelete.id);
                   setColumnToDelete(null);
                 }}
-                className="px-3 py-1 bg-rose-700 hover:bg-rose-600 text-white font-medium rounded transition-colors"
+                className="ui-btn !bg-rose-600 !text-white hover:!bg-rose-500"
               >
                 Delete
               </button>
@@ -1270,7 +1270,7 @@ export const MarkupsList: React.FC = () => {
       {contextMenu && (
         <div
           data-testid="markups-list-context-menu"
-          className="fixed z-50 bg-cad-panel border border-cad-border shadow-2xl rounded py-1 text-xs text-gray-200 min-w-[170px]"
+          className="fixed z-50 bg-cad-panel border border-cad-border shadow-[0_10px_32px_rgba(0,0,0,0.28)] rounded-lg p-1 text-xs text-gray-200 min-w-[170px]"
           style={{ top: contextMenu.y, left: contextMenu.x }}
           onClick={(e) => e.stopPropagation()}
         >

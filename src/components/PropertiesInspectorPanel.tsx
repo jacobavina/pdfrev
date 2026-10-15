@@ -29,6 +29,18 @@ export interface PropertiesInspectorPanelProps {
   defaultCollapsed?: boolean;
 }
 
+/** Color CSS como hex en mayúsculas; rgba() pasa a hex con su opacidad en % (lectura de diseñador). */
+function colorHex(c: string): string {
+  const m = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i.exec(c);
+  if (!m) return c;
+  return '#' + [m[1], m[2], m[3]].map((v) => Number(v).toString(16).padStart(2, '0')).join('');
+}
+function colorLabel(c: string): string {
+  const a = /^rgba\([^)]*,\s*([\d.]+)\s*\)$/i.exec(c);
+  const hex = colorHex(c).replace('#', '').toUpperCase();
+  return a ? `${hex} · ${Math.round(Number(a[1]) * 100)}%` : hex;
+}
+
 export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> = ({
   defaultCollapsed = false,
 }) => {
@@ -62,7 +74,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
         >
           <SlidersHorizontal size={16} />
         </button>
-        <span className="text-[10px] text-gray-500 font-medium rotate-90 whitespace-nowrap mt-4">
+        <span className="text-[11px] text-gray-400 font-medium rotate-90 whitespace-nowrap tracking-wide mt-4">
           Properties
         </span>
       </aside>
@@ -74,15 +86,13 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
       <aside
         data-testid="properties-inspector-panel"
         data-collapsed="false"
-        className="w-64 bg-cad-panel border-l border-cad-border flex flex-col p-3 text-xs select-none"
+        className="w-[268px] bg-cad-panel border-l border-cad-border flex flex-col text-[12px] select-none"
       >
-        <div className="flex items-center justify-between pb-1 border-b border-cad-border mb-2">
-          <span className="font-semibold text-gray-300 uppercase tracking-wider">
-            Properties
-          </span>
+        <div className="h-10 px-3 flex items-center justify-between border-b border-cad-border shrink-0">
+          <span className="ui-panel-title">Properties</span>
           <button
             onClick={() => setIsCollapsed(true)}
-            className="p-1 text-gray-400 hover:text-cad-strong hover:bg-cad-hover rounded transition-colors"
+            className="ui-btn !h-7 !w-7 !p-0"
             title="Collapse properties"
             data-testid="collapse-properties-btn"
           >
@@ -91,7 +101,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
         </div>
         <div
           data-testid="properties-empty-message"
-          className="text-gray-500 italic mt-6 text-center"
+          className="text-gray-500 mt-10 px-6 text-center leading-relaxed"
         >
           Select one or more markups to view and edit their properties.
         </div>
@@ -281,17 +291,12 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
     <aside
       data-testid="properties-inspector-panel"
       data-collapsed="false"
-      className="w-64 bg-cad-panel border-l border-cad-border flex flex-col p-3 text-xs select-none overflow-y-auto"
+      className="w-[268px] bg-cad-panel border-l border-cad-border flex flex-col text-[12px] select-none overflow-y-auto"
     >
-      <div className="flex items-center justify-between pb-1.5 mb-3 border-b border-cad-border">
-        <div className="flex items-center space-x-2">
-          <span className="font-semibold text-gray-200 uppercase tracking-wider">
-            Properties
-          </span>
-          <span
-            data-testid="selection-count-badge"
-            className="bg-blue-900/60 text-blue-300 px-1.5 py-0.5 rounded text-[11px] font-mono border border-blue-700"
-          >
+      <div className="h-10 px-3 flex items-center justify-between border-b border-cad-border shrink-0 sticky top-0 bg-cad-panel z-10">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="ui-panel-title">Properties</span>
+          <span data-testid="selection-count-badge" className="ui-badge">
             {selectedMarkups.length === 1 ? '1 markup' : `${selectedMarkups.length} markups`}
           </span>
           <button
@@ -299,11 +304,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
             data-testid="prop-lock-btn"
             onClick={toggleLockSelectedMarkups}
             title={isAllLocked ? 'Unlock markup(s)' : 'Lock markup(s)'}
-            className={`px-1.5 py-0.5 rounded transition-colors flex items-center gap-1 text-[11px] font-medium border ${
-              isAllLocked
-                ? 'bg-amber-950/70 text-amber-300 border-amber-600 hover:bg-amber-900'
-                : 'bg-cad-dark text-gray-400 border-cad-border hover:text-gray-200'
-            }`}
+            className={`ui-btn !h-6 !px-1.5 !text-[11px] ${isAllLocked ? '!text-amber-500' : ''}`}
           >
             {isAllLocked ? <Lock size={12} className="text-amber-400" /> : <LockOpen size={12} />}
             <span>{isAllLocked ? 'Locked' : 'Lock'}</span>
@@ -311,7 +312,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
         </div>
         <button
           onClick={() => setIsCollapsed(true)}
-          className="p-1 text-gray-400 hover:text-cad-strong hover:bg-cad-hover rounded transition-colors"
+          className="ui-btn !h-7 !w-7 !p-0"
           title="Collapse properties"
           data-testid="collapse-properties-btn"
         >
@@ -319,61 +320,58 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
         </button>
       </div>
 
-      <div className="space-y-3">
+      <div className="px-3 py-3 space-y-1.5">
         {selectedMarkups.length === 1 &&
           (selectedMarkups[0].type === 'link' ||
             selectedMarkups[0].type === 'fileAttachment' ||
             selectedMarkups[0].type === 'formField') && <InteractiveProperties markup={selectedMarkups[0]} />}
         {/* Color de trazo */}
-        <div className="flex flex-col gap-1">
-          <label className="text-gray-400 font-medium">Line color</label>
-          <div className="flex items-center gap-2">
+        <div className="ui-row">
+          <label className="ui-label">Stroke</label>
+          <div className="flex items-center gap-2 h-7 px-1.5 rounded-md bg-cad-field">
             <input
               type="color"
               data-testid="prop-stroke-color"
               value={strokeColor === MIXED_VALUE ? '#000000' : (strokeColor as string)}
               onChange={(e) => handleStrokeColorChange(e.target.value)}
-              className="w-7 h-7 rounded border border-cad-border bg-transparent cursor-pointer p-0"
+              className="ui-swatch !w-5 !h-5"
             />
-            <span className="text-gray-300 font-mono text-[11px]">
-              {strokeColor === MIXED_VALUE ? MIXED_VALUE : (strokeColor as string)}
+            <span className="text-gray-200 text-[11.5px] tabular-nums uppercase">
+              {strokeColor === MIXED_VALUE ? MIXED_VALUE : colorLabel(strokeColor as string)}
             </span>
           </div>
         </div>
 
         {/* Color de relleno */}
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between">
-            <label className="text-gray-400 font-medium">Fill</label>
+        <div className="ui-row">
+          <label className="ui-label">Fill</label>
+          <div className="flex items-center gap-2 h-7 px-1.5 rounded-md bg-cad-field min-w-0">
+            <input
+              type="color"
+              data-testid="prop-fill-color"
+              value={fillColor === MIXED_VALUE || !fillColor ? '#ffffff' : colorHex(fillColor as string)}
+              onChange={(e) => handleFillColorChange(e.target.value)}
+              className="ui-swatch !w-5 !h-5"
+            />
+            <span className="flex-1 text-gray-200 text-[11.5px] tabular-nums uppercase truncate">
+              {fillColor === MIXED_VALUE ? MIXED_VALUE : fillColor ? colorLabel(fillColor as string) : 'None'}
+            </span>
             {fillColor && fillColor !== MIXED_VALUE && (
               <button
                 type="button"
                 onClick={() => handleFillColorChange('')}
-                className="text-[10px] text-gray-400 hover:text-rose-400 underline"
+                title="No fill"
+                className="text-gray-400 hover:text-rose-500 text-[13px] leading-none px-0.5"
               >
-                No fill
+                ×
               </button>
             )}
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="color"
-              data-testid="prop-fill-color"
-              value={fillColor === MIXED_VALUE || !fillColor ? '#ffffff' : (fillColor as string)}
-              onChange={(e) => handleFillColorChange(e.target.value)}
-              className="w-7 h-7 rounded border border-cad-border bg-transparent cursor-pointer p-0"
-            />
-            <span className="text-gray-300 font-mono text-[11px]">
-              {fillColor === MIXED_VALUE
-                ? MIXED_VALUE
-                : (fillColor as string) || '(Transparente)'}
-            </span>
           </div>
         </div>
 
         {/* Grosor de trazo */}
-        <div className="flex flex-col gap-1">
-          <label className="text-gray-400 font-medium">Line width (pt)</label>
+        <div className="ui-row">
+          <label className="ui-label">Weight (pt)</label>
           <input
             type="number"
             data-testid="prop-stroke-width"
@@ -382,18 +380,14 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
             value={strokeWidth === MIXED_VALUE ? '' : (strokeWidth as number)}
             placeholder={strokeWidth === MIXED_VALUE ? MIXED_VALUE : '1'}
             onChange={(e) => handleStrokeWidthChange(e.target.value)}
-            className="px-2 py-1 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent"
+            className="ui-input"
           />
         </div>
 
         {/* Opacidad */}
-        <div className="flex flex-col gap-1">
-          <div className="flex justify-between items-center">
-            <label className="text-gray-400 font-medium">Opacity</label>
-            <span className="text-gray-400 text-[11px]">
-              {opacity === MIXED_VALUE ? MIXED_VALUE : `${Math.round((opacity as number) * 100)}%`}
-            </span>
-          </div>
+        <div className="ui-row">
+          <label className="ui-label">Opacity</label>
+          <div className="flex items-center gap-2">
           <input
             type="range"
             data-testid="prop-opacity"
@@ -402,13 +396,17 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
             step="0.05"
             value={opacity === MIXED_VALUE ? 1 : (opacity as number)}
             onChange={(e) => handleOpacityChange(e.target.value)}
-            className="w-full cursor-pointer accent-cad-accent"
+            className="flex-1 min-w-0 cursor-pointer ui-range"
           />
+            <span className="w-9 text-right text-gray-300 text-[11.5px] tabular-nums">
+              {opacity === MIXED_VALUE ? MIXED_VALUE : `${Math.round((opacity as number) * 100)}%`}
+            </span>
+          </div>
         </div>
 
         {/* Estilo de trazo */}
-        <div className="flex flex-col gap-1">
-          <label className="text-gray-400 font-medium">Line style</label>
+        <div className="ui-row">
+          <label className="ui-label">Style</label>
           <IconPicker<LineStyleId | 'cloud'>
             testId="prop-stroke-style"
             title="Line style"
@@ -427,9 +425,9 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
 
         {/* Estilo de nube: tamaño de arco e invertir (como en Revu) */}
         {allCloud && (
-          <div className="flex items-end gap-3" data-testid="prop-cloud-style">
-            <div className="flex flex-col gap-1">
-              <label className="text-gray-400 font-medium">Arc size</label>
+          <div className="ui-row" data-testid="prop-cloud-style">
+            <label className="ui-label">Arc size</label>
+            <div className="flex items-center gap-3">
               <input
                 type="number"
                 data-testid="prop-cloud-size"
@@ -439,10 +437,9 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
                 value={cloudSize === MIXED_VALUE ? '' : (cloudSize as number)}
                 placeholder={cloudSize === MIXED_VALUE ? MIXED_VALUE : '2'}
                 onChange={(e) => handleCloudSizeChange(e.target.value)}
-                className="w-20 px-2 py-1 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent"
+                className="w-20 ui-input"
               />
-            </div>
-            <label className="flex items-center gap-1.5 text-gray-300 pb-1.5 cursor-pointer">
+            <label className="flex items-center gap-1.5 text-gray-300 cursor-pointer">
               <input
                 type="checkbox"
                 data-testid="prop-cloud-invert"
@@ -452,14 +449,15 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
               />
               Invert
             </label>
+            </div>
           </div>
         )}
 
         {/* Extremos de línea (flechas y formas) */}
         {hasLineMarkup && (
           <>
-            <div className="flex flex-col gap-1">
-              <label className="text-gray-400 font-medium">Start</label>
+            <div className="ui-row">
+              <label className="ui-label">Start</label>
               <IconPicker
                 testId="prop-line-ending-start"
                 title="Start"
@@ -470,8 +468,8 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
               />
             </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-gray-400 font-medium">End</label>
+            <div className="ui-row">
+              <label className="ui-label">End</label>
               <IconPicker
                 testId="prop-line-ending-end"
                 title="End"
@@ -486,15 +484,15 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
 
         {/* Valor de la distancia: dentro de la línea o encima (Acrobat, ADR-0033) */}
         {allLengths && (
-          <div className="flex flex-col gap-1">
-            <label className="text-gray-400 font-medium">Value position</label>
+          <div className="ui-row">
+            <label className="ui-label">Value</label>
             <select
               data-testid="prop-caption"
               value={captionStyle === MIXED_VALUE ? '' : (captionStyle as string)}
               onChange={(e) =>
                 applyPropertiesToMarkups(selectedMarkupIds, { customFields: { captionStyle: e.target.value } }, 'Set value position')
               }
-              className="px-2 py-1 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent"
+              className="ui-input"
             >
               {captionStyle === MIXED_VALUE && <option value="">{MIXED_VALUE}</option>}
               <option value="inline">Inside the line</option>
@@ -505,8 +503,8 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
 
         {/* Texto del valor de las mediciones: fuente, color, negrita y cursiva (ADR-0035) */}
         {allMeasures && (
-          <div className="flex flex-col gap-1" data-testid="prop-measure-text">
-            <label className="text-gray-400 font-medium">Text</label>
+          <div className="ui-row" data-testid="prop-measure-text">
+            <label className="ui-label">Text</label>
             <div className="flex items-center gap-1.5">
               <select
                 data-testid="prop-font-family"
@@ -514,7 +512,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
                 onChange={(e) =>
                   applyPropertiesToMarkups(selectedMarkupIds, { style: { fontFamily: e.target.value } }, 'Set font')
                 }
-                className="flex-1 px-2 py-1 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent"
+                className="flex-1 ui-input"
               >
                 {textFamily === MIXED_VALUE && <option value="">{MIXED_VALUE}</option>}
                 {CAPTION_FAMILIES.map((f) => (
@@ -531,7 +529,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
                 onChange={(e) =>
                   applyPropertiesToMarkups(selectedMarkupIds, { style: { textColor: e.target.value } }, 'Set text color')
                 }
-                className="w-7 h-7 p-0.5 rounded border border-cad-border bg-cad-dark cursor-pointer"
+                className="ui-swatch !w-7 !h-7"
               />
               {(
                 [
@@ -553,8 +551,8 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
                       title
                     )
                   }
-                  className={`w-7 h-7 rounded border text-xs ${cls} ${
-                    on ? 'border-cad-accent bg-cad-accent/15 text-cad-accent' : 'border-cad-border text-gray-300 hover:bg-cad-hover'
+                  className={`w-7 h-7 rounded-md text-xs ${cls} ${
+                    on ? 'bg-cad-accent/15 text-cad-accent' : 'bg-cad-field text-gray-300 hover:text-cad-strong'
                   }`}
                 >
                   {glyph}
@@ -565,8 +563,8 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
         )}
 
         {/* Tamaño de fuente */}
-        <div className="flex flex-col gap-1">
-          <label className="text-gray-400 font-medium">Font size (pt)</label>
+        <div className="ui-row">
+          <label className="ui-label">Font size</label>
           <input
             type="number"
             data-testid="prop-font-size"
@@ -575,18 +573,18 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
             value={fontSize === MIXED_VALUE ? '' : (fontSize as number)}
             placeholder={fontSize === MIXED_VALUE ? MIXED_VALUE : '12'}
             onChange={(e) => handleFontSizeChange(e.target.value)}
-            className="px-2 py-1 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent"
+            className="ui-input"
           />
         </div>
 
         {/* Estado */}
-        <div className="flex flex-col gap-1">
-          <label className="text-gray-400 font-medium">Status</label>
+        <div className="ui-row">
+          <label className="ui-label">Status</label>
           <select
             data-testid="prop-status"
             value={status === MIXED_VALUE ? '' : (status as string)}
             onChange={(e) => handleStatusChange(e.target.value)}
-            className="px-2 py-1 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent"
+            className="ui-input"
           >
             {status === MIXED_VALUE && <option value="">{MIXED_VALUE}</option>}
             {VALID_MARKUP_STATUSES.map((st) => (
@@ -598,28 +596,28 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
         </div>
 
         {/* Autor */}
-        <div className="flex flex-col gap-1">
-          <label className="text-gray-400 font-medium">Author</label>
+        <div className="ui-row">
+          <label className="ui-label">Author</label>
           <input
             type="text"
             data-testid="prop-author"
             value={author === MIXED_VALUE ? '' : (author as string)}
             placeholder={author === MIXED_VALUE ? MIXED_VALUE : 'Author'}
             onChange={(e) => handleAuthorChange(e.target.value)}
-            className="px-2 py-1 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent"
+            className="ui-input"
           />
         </div>
 
         {/* Contenido / Texto */}
-        <div className="flex flex-col gap-1">
-          <label className="text-gray-400 font-medium">Comment / Text</label>
+        <div className="ui-row">
+          <label className="ui-label self-start pt-1.5">Comment</label>
           <textarea
             data-testid="prop-text"
             rows={3}
             value={textContent === MIXED_VALUE ? '' : (textContent as string)}
             placeholder={textContent === MIXED_VALUE ? MIXED_VALUE : 'Markup text...'}
             onChange={(e) => handleTextChange(e.target.value)}
-            className="px-2 py-1 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent resize-none"
+            className="ui-input resize-none"
           />
         </div>
       </div>

@@ -84,7 +84,7 @@ export const CanvasContextMenu: React.FC<{ x: number; y: number; onClose: () => 
       ref={ref}
       role="menu"
       data-testid="canvas-context-menu"
-      className="fixed z-50 w-56 bg-cad-ribbon border border-cad-border rounded shadow-2xl py-1 text-xs select-none"
+      className="fixed z-50 w-56 bg-cad-panel border border-cad-border rounded-lg shadow-[0_10px_32px_rgba(0,0,0,0.28)] p-1 text-xs select-none"
       style={{ left, top }}
       onContextMenu={(e) => e.preventDefault()}
     >

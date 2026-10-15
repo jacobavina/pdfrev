@@ -20,7 +20,7 @@ export const ToastHost: React.FC = () => {
   return (
     <div
       role="alert"
-      className="fixed top-24 right-4 z-50 flex items-center space-x-2 bg-red-900/95 border border-red-500 text-red-50 px-3.5 py-2.5 rounded shadow-2xl text-xs backdrop-blur-sm"
+      className="fixed top-24 right-4 z-50 flex items-center space-x-2 bg-[rgb(32,32,35)]/95 border border-white/10 text-white px-3.5 py-2.5 rounded-xl shadow-[0_10px_32px_rgba(0,0,0,0.28)] text-[12px] backdrop-blur-sm"
     >
       <AlertTriangle size={15} className="text-red-300 shrink-0" />
       <span className="max-w-sm">{toastMessage}</span>

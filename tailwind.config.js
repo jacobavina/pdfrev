@@ -22,6 +22,7 @@ export default {
           strong: v('cad-strong'),
           ribbon: v('cad-ribbon'),
           status: v('cad-status'),
+          field: v('cad-field'),
         },
         gray: {
           50: v('gray-50'),

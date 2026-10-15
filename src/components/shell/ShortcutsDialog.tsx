@@ -43,7 +43,7 @@ export const ShortcutsDialog: React.FC = () => {
         role="dialog"
         aria-label="Keyboard shortcuts"
         data-testid="shortcuts-dialog"
-        className="w-[560px] max-h-[80vh] overflow-y-auto bg-cad-ribbon border border-cad-border rounded-lg shadow-2xl text-xs text-gray-200"
+        className="w-[560px] max-h-[80vh] overflow-y-auto bg-cad-panel border border-cad-border rounded-xl shadow-[0_24px_64px_rgba(0,0,0,0.38)] text-xs text-gray-200"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 h-10 border-b border-cad-border">

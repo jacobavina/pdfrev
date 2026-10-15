@@ -61,23 +61,22 @@ function precisionKeyOf(c: PageCalibration): string {
 }
 
 const inputCls =
-  'h-7 rounded border border-cad-border bg-cad-dark px-1.5 text-gray-200 focus:outline-none focus:border-cad-accent';
+  'ui-input';
 
 /** Sección plegable con rótulo y línea, como los paneles Format de Foxit/Revu. */
 const Section: React.FC<{ title: string; testId?: string; children: React.ReactNode }> = ({ title, testId, children }) => {
   const [open, setOpen] = useState(true);
   return (
-    <section data-testid={testId}>
+    <section data-testid={testId} className="py-3 first:pt-1">
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-1.5 text-gray-300 font-semibold mb-1.5"
+        className="w-full flex items-center justify-between ui-section-title mb-2 hover:text-cad-strong"
       >
-        {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         <span>{title}</span>
-        <span className="flex-1 border-t border-cad-border ml-1" />
+        {open ? <ChevronDown size={13} className="text-gray-500" /> : <ChevronRight size={13} className="text-gray-500" />}
       </button>
-      {open && <div className="pl-3 space-y-2">{children}</div>}
+      {open && <div className="space-y-2">{children}</div>}
     </section>
   );
 };
@@ -296,7 +295,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
         >
           <Ruler size={16} />
         </button>
-        <span className="text-[10px] text-gray-500 font-medium rotate-90 whitespace-nowrap mt-6">Measure</span>
+        <span className="text-[11px] text-gray-400 font-medium rotate-90 whitespace-nowrap tracking-wide mt-6">Measure</span>
       </aside>
     );
   }
@@ -307,13 +306,13 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
     <aside
       data-testid="measurements-panel"
       data-collapsed="false"
-      className="w-80 bg-cad-panel border-l border-cad-border flex flex-col text-xs select-none min-h-0"
+      className="w-[288px] bg-cad-panel border-l border-cad-border flex flex-col text-[12px] select-none min-h-0"
     >
-      <div className="flex items-center justify-between px-3 h-9 border-b border-cad-border shrink-0">
-        <span className="font-semibold text-gray-300 uppercase tracking-wider">Measure</span>
+      <div className="flex items-center justify-between px-3 h-10 border-b border-cad-border shrink-0">
+        <span className="ui-panel-title">Measure</span>
         <button
           onClick={() => setIsCollapsed(true)}
-          className="p-1 text-gray-400 hover:text-cad-strong hover:bg-cad-hover rounded transition-colors"
+          className="ui-btn !h-7 !w-7 !p-0"
           title="Collapse measurements"
           data-testid="collapse-measurements-btn"
         >
@@ -321,7 +320,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+      <div className="flex-1 overflow-y-auto px-3 divide-y divide-cad-border">
         <Section title="Scale" testId="measure-scale-section">
           <div className="flex items-center justify-between">
             <span className="text-gray-400">Page {currentPageIndex + 1}</span>
@@ -342,8 +341,8 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
               data-testid="measure-calibrate-btn"
               disabled={!pdfBytes}
               onClick={() => setActiveTool('calibrate')}
-              className="flex-1 py-1.5 rounded border border-cad-border hover:bg-cad-hover disabled:opacity-40"
-              title="Draw a known distance on the drawing"
+              className="flex-1 ui-btn ui-btn-primary"
+              title="Click two points of a known distance on the drawing"
             >
               Calibrate
             </button>
@@ -352,7 +351,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
               data-testid="measure-add-preset-btn"
               disabled={!pdfBytes}
               onClick={addPreset}
-              className="flex-1 py-1.5 rounded border border-cad-border hover:bg-cad-hover disabled:opacity-40"
+              className="flex-1 ui-btn ui-btn-secondary"
               title="Save the custom scale as a preset"
             >
               Add Preset
@@ -489,8 +488,8 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
             </>
           )}
 
-          <div className="flex items-center gap-2">
-            <span className="text-gray-400 w-16">Precision:</span>
+          <div className="ui-row">
+            <span className="ui-label">Precision</span>
             <select
               data-testid="measure-precision"
               value={precision}
@@ -498,7 +497,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
                 setPrecision(e.target.value);
                 apply({ precision: e.target.value, ...(mode === 'preset' && selectedPreset ? { preset: selectedPreset } : {}) });
               }}
-              className={`${inputCls} flex-1`}
+              className={`${inputCls} w-full`}
             >
               {precisionOptions(display).map((o) => (
                 <option key={o.value} value={o.value}>
@@ -529,18 +528,18 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
         </Section>
 
         <Section title="Distance Properties">
-          <label className="flex items-center gap-2">
-            <span className="text-gray-400 w-16">Label:</span>
+          <label className="ui-row">
+            <span className="ui-label">Label</span>
             <input
               data-testid="measure-label"
               value={measureLabel}
               onChange={(e) => setMeasureLabel(e.target.value)}
               placeholder="e.g. Wall"
-              className={`${inputCls} flex-1`}
+              className={`${inputCls} w-full`}
             />
           </label>
-          <label className="flex items-center gap-2">
-            <span className="text-gray-400 w-16">Length:</span>
+          <label className="ui-row">
+            <span className="ui-label">Length</span>
             <select
               data-testid="measure-length-unit"
               value={display}
@@ -549,7 +548,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
                 apply({ display: u, ...(mode === 'preset' && selectedPreset ? { preset: selectedPreset } : {}) });
               }}
               disabled={!pdfBytes}
-              className={`${inputCls} flex-1`}
+              className={`${inputCls} w-full`}
             >
               {DISPLAY_UNITS.map((u) => (
                 <option key={u} value={u}>
@@ -558,8 +557,8 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
               ))}
             </select>
           </label>
-          <label className="flex items-center gap-2">
-            <span className="text-gray-400 w-16">Caption:</span>
+          <label className="ui-row">
+            <span className="ui-label">Caption</span>
             <select
               data-testid="measure-caption"
               value={selectedLength ? captionStyleOf(selectedLength.customFields?.captionStyle) : measureCaption}
@@ -571,7 +570,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
                   setMeasureCaption(v);
                 }
               }}
-              className={`${inputCls} flex-1`}
+              className={`${inputCls} w-full`}
               title="Where the distance value goes, like Caption Style in Acrobat"
             >
               <option value="inline">Inside the line</option>
@@ -591,8 +590,9 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
         </Section>
 
         <Section title="Volume Properties">
-          <label className="flex items-center gap-2">
-            <span className="text-gray-400 w-16">Depth:</span>
+          <label className="ui-row">
+            <span className="ui-label">Depth</span>
+            <span className="flex items-center gap-2">
             <input
               data-testid="measure-volume-depth"
               type="number"
@@ -602,7 +602,8 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
               onChange={(e) => onDepthChange(Number(e.target.value))}
               className={`${inputCls} flex-1`}
             />
-            <span className="text-gray-400">{calib.unit}</span>
+            <span className="text-gray-400 w-6">{calib.unit}</span>
+            </span>
           </label>
           <p className="text-gray-500 leading-snug">
             {selectedVolume ? 'Depth of the selected volume.' : 'Depth for new Volume measurements.'}
@@ -619,8 +620,8 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
                 aria-pressed={snap[k]}
                 onClick={() => setSnap({ [k]: !snap[k] })}
                 title={SNAP_TITLES[k]}
-                className={`p-1.5 rounded border ${
-                  snap[k] ? 'border-cad-accent bg-cad-accent/20 text-cad-strong' : 'border-transparent text-gray-400 hover:bg-cad-hover'
+                className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${
+                  snap[k] ? 'bg-cad-accent/15 text-cad-accent ring-1 ring-inset ring-cad-accent/50' : 'bg-cad-field text-gray-400 hover:text-cad-strong'
                 }`}
               >
                 <SnapIcon kind={k} />
@@ -664,14 +665,14 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
 
         <Section title="Totals">
           <div className="flex items-center justify-end">
-            <div className="flex rounded border border-cad-border overflow-hidden text-[11px]">
+            <div className="flex p-0.5 rounded-md bg-cad-field text-[11px]">
               {(['page', 'document'] as const).map((s) => (
                 <button
                   key={s}
                   type="button"
                   data-testid={`measurements-scope-${s}`}
                   onClick={() => setScope(s)}
-                  className={`px-2 py-0.5 ${scope === s ? 'bg-cad-accent text-white' : 'hover:bg-cad-hover'}`}
+                  className={`px-2.5 py-0.5 rounded ${scope === s ? 'bg-cad-panel text-cad-strong shadow-sm' : 'text-gray-400 hover:text-cad-strong'}`}
                 >
                   {s === 'page' ? 'Page' : 'Document'}
                 </button>

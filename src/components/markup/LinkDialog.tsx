@@ -41,7 +41,7 @@ export const LinkDialog: React.FC<{
         role="dialog"
         aria-label="Hyperlink"
         data-testid="link-dialog"
-        className="w-[380px] bg-cad-ribbon border border-cad-border rounded-lg shadow-2xl text-xs text-gray-200 p-4 space-y-3"
+        className="w-[380px] bg-cad-panel border border-cad-border rounded-xl shadow-[0_24px_64px_rgba(0,0,0,0.38)] text-xs text-gray-200 p-4 space-y-3"
         onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
           if (e.key === 'Enter') confirm();

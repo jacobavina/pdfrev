@@ -397,11 +397,11 @@ export const MenuBar: React.FC = () => {
               <div
                 role="menu"
                 data-testid={`menu-popup-${menu.id}`}
-                className="absolute left-0 top-full mt-0.5 min-w-[260px] bg-cad-ribbon border border-cad-border rounded shadow-xl py-1 z-50"
+                className="absolute left-0 top-full mt-0.5 min-w-[260px] bg-cad-panel border border-cad-border rounded-lg shadow-[0_10px_32px_rgba(0,0,0,0.28)] p-1 z-50"
               >
                 {menu.entries.map((entry, idx) =>
                   entry === 'separator' ? (
-                    <div key={`sep-${idx}`} className="my-1 border-t border-cad-border" />
+                    <div key={`sep-${idx}`} className="my-1 mx-1 border-t border-cad-border" />
                   ) : entry.submenu ? (
                     <div
                       key={entry.label}
@@ -415,7 +415,7 @@ export const MenuBar: React.FC = () => {
                         aria-expanded={openSub === entry.label}
                         data-testid={entry.testId}
                         onClick={() => setOpenSub(openSub === entry.label ? null : entry.label)}
-                        className={`w-full flex items-center justify-between gap-6 px-3 py-1.5 text-left text-gray-200 hover:bg-cad-accent hover:text-white ${
+                        className={`w-full flex items-center justify-between gap-6 px-2 py-1.5 rounded-md text-left text-gray-200 hover:bg-cad-accent hover:text-white ${
                           openSub === entry.label ? 'bg-cad-accent text-white' : ''
                         }`}
                       >
@@ -431,7 +431,7 @@ export const MenuBar: React.FC = () => {
                         <div
                           role="menu"
                           data-testid={`${entry.testId}-popup`}
-                          className="absolute left-full top-0 -mt-1 ml-0.5 min-w-[240px] max-h-[70vh] overflow-y-auto bg-cad-ribbon border border-cad-border rounded shadow-xl py-1 z-50"
+                          className="absolute left-full top-0 -mt-1 ml-0.5 min-w-[240px] max-h-[70vh] overflow-y-auto bg-cad-panel border border-cad-border rounded-lg shadow-[0_10px_32px_rgba(0,0,0,0.28)] p-1 z-50"
                         >
                           {entry.submenu.map((sub, j) =>
                             sub === 'separator' ? (
@@ -448,7 +448,7 @@ export const MenuBar: React.FC = () => {
                                   setOpenSub(null);
                                   sub.onSelect?.();
                                 }}
-                                className="w-full flex items-center justify-between gap-6 px-3 py-1.5 text-left text-gray-200 hover:bg-cad-accent hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-200"
+                                className="w-full flex items-center justify-between gap-6 px-2 py-1.5 rounded-md text-left text-gray-200 hover:bg-cad-accent hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-200"
                               >
                                 <span className="flex items-center gap-2">
                                   <span
@@ -479,7 +479,7 @@ export const MenuBar: React.FC = () => {
                         setOpenMenu(null);
                         entry.onSelect?.();
                       }}
-                      className="w-full flex items-center justify-between gap-6 px-3 py-1.5 text-left text-gray-200 hover:bg-cad-accent hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-200"
+                      className="w-full flex items-center justify-between gap-6 px-2 py-1.5 rounded-md text-left text-gray-200 hover:bg-cad-accent hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-200"
                     >
                       <span className="flex items-center gap-2">
                         <span

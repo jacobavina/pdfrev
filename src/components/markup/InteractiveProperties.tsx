@@ -7,7 +7,7 @@ import { fieldTypeDef, fieldTypeOf, fieldOptions } from '../../core/markup/formF
 import { isAllowedLinkUrl, normalizeLinkUrl, openExternalUrl, goToPageNumber, saveAttachment } from '../../services/linkService';
 
 const inputCls =
-  'w-full px-2 py-1 bg-cad-dark border border-cad-border rounded text-gray-200 text-xs focus:outline-none focus:border-cad-accent';
+  'w-full ui-input';
 
 /** Campo de texto que confirma al salir o con Enter (un paso de deshacer por edición). */
 const CommitInput: React.FC<{

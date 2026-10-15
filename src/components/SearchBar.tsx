@@ -127,7 +127,7 @@ export const SearchBar: React.FC = () => {
   return (
     <div
       data-testid="search-bar"
-      className="absolute top-14 right-6 z-40 flex items-center space-x-1.5 rounded-lg border border-cad-border bg-cad-panel/95 px-3 py-1.5 text-xs text-gray-200 shadow-2xl backdrop-blur"
+      className="absolute top-14 right-6 z-40 flex items-center space-x-1.5 rounded-xl border border-cad-border bg-cad-panel/95 px-3 py-1.5 text-[12px] text-gray-200 shadow-[0_10px_32px_rgba(0,0,0,0.28)] backdrop-blur"
     >
       <Search size={14} className="text-gray-400" />
       <input

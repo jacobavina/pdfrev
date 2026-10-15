@@ -189,4 +189,5 @@ plan y `AGENTS.md`, **gana `AGENTS.md`**.
 | 2026-10-14 | Claude (Opus 5.5) | ADR-0033: distancia de Acrobat con líneas de referencia (tercer clic), flechas cerradas angostas y separador de miles. |
 | 2026-10-14 | Claude (Opus 5.5) | ADR-0034: barra de acceso rápido, cinta y paleta más limpias, guías en los extremos de las distancias y texto a 8 pt. |
 | 2026-10-14 | Claude (Opus 5.5) | ADR-0035: distancia en tres pasos como Acrobat, tirador para desplazar guías, puntas solo relleno y texto editable del valor. |
+| 2026-10-14 | Claude (Opus 5.5) | ADR-0036: sistema visual de herramienta de diseño en toda la app (tokens, tipografía y componentes comunes). |
 

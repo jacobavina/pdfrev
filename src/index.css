@@ -5,17 +5,19 @@
 @layer base {
   /* Tema claro (por defecto): espacio de trabajo técnico neutro, lienzo gris medio y hoja blanca (ADR-0017) */
   :root {
-    /* Paleta afinada (ADR-0034): zonas con contraste suave, bordes discretos y acento azul más limpio */
-    --cad-dark: 231 234 239;
-    --cad-panel: 246 247 249;
-    --cad-subtle: 237 239 243;
-    --cad-border: 214 218 225;
-    --cad-accent: 37 99 235;
-    --cad-hover: 229 234 242;
-    --cad-canvas: 142 148 157;
-    --cad-strong: 15 18 24;
-    --cad-ribbon: 252 252 253;
-    --cad-status: 238 240 244;
+    /* Sistema visual de herramienta de diseño (ADR-0036): neutros sin tinte, superficies blancas, líneas finas */
+    --cad-dark: 241 241 243;
+    --cad-panel: 255 255 255;
+    --cad-subtle: 246 246 248;
+    --cad-border: 228 228 232;
+    --cad-accent: 13 153 255;
+    --cad-hover: 241 241 244;
+    --cad-canvas: 229 229 232;
+    --cad-strong: 17 17 19;
+    --cad-ribbon: 255 255 255;
+    --cad-status: 250 250 251;
+    --cad-field: 245 245 247;
+    --cad-field-hover: 238 238 241;
 
     /* Escala gray invertida: el "texto claro" de los componentes pasa a texto oscuro legible */
     --gray-50: 10 12 15;
@@ -33,17 +35,19 @@
 
   /* Tema oscuro: paleta original de REA */
   [data-theme='dark'] {
-    /* Grafito con un toque azul (ADR-0034): paneles un escalón sobre el fondo y lienzo más profundo */
-    --cad-dark: 26 28 33;
-    --cad-panel: 33 36 42;
-    --cad-subtle: 44 48 56;
-    --cad-border: 52 57 66;
-    --cad-accent: 64 140 255;
-    --cad-hover: 50 55 65;
-    --cad-canvas: 18 20 24;
+    /* Oscuro neutro de herramienta de diseño (ADR-0036): paneles grafito, lienzo profundo y acento único */
+    --cad-dark: 30 30 32;
+    --cad-panel: 44 44 47;
+    --cad-subtle: 52 52 56;
+    --cad-border: 62 62 67;
+    --cad-accent: 13 153 255;
+    --cad-hover: 56 56 61;
+    --cad-canvas: 24 24 26;
     --cad-strong: 255 255 255;
-    --cad-ribbon: 38 41 48;
-    --cad-status: 28 30 36;
+    --cad-ribbon: 44 44 47;
+    --cad-status: 38 38 41;
+    --cad-field: 56 56 60;
+    --cad-field-hover: 64 64 69;
 
     --gray-50: 249 250 251;
     --gray-100: 243 244 246;
@@ -67,6 +71,11 @@
     -webkit-user-select: none;
     background: rgb(var(--cad-dark));
     color: rgb(var(--gray-200));
+    /* Tipografía de interfaz (ADR-0036): la variable de Windows 11, con Inter y el sistema como respaldo */
+    font-family: 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', Inter, system-ui, -apple-system, sans-serif;
+    font-size: 12px;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: 'tnum' 0;
   }
 }
 
@@ -130,4 +139,142 @@
 .thin-scroll::-webkit-scrollbar-thumb {
   border: 0;
   border-radius: 2px;
+}
+
+/* ===== Sistema de componentes (ADR-0036) ===== */
+@layer components {
+  /* Campo: 28 px, sin borde visible hasta pasar el cursor; foco con anillo del acento */
+  .ui-input {
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: rgb(var(--cad-field));
+    color: rgb(var(--gray-200));
+    padding: 0 8px;
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.12s, background-color 0.12s, box-shadow 0.12s;
+    min-width: 0;
+  }
+  .ui-input:hover {
+    background: rgb(var(--cad-field-hover));
+  }
+  .ui-input:focus {
+    border-color: rgb(var(--cad-accent));
+    box-shadow: 0 0 0 2px rgb(var(--cad-accent) / 0.18);
+    background: rgb(var(--cad-field));
+  }
+  .ui-input::placeholder {
+    color: rgb(var(--gray-500));
+  }
+  textarea.ui-input {
+    height: auto;
+    padding: 6px 8px;
+    line-height: 1.4;
+  }
+
+  /* Botones: fantasma (por defecto), secundario y primario */
+  .ui-btn {
+    height: 28px;
+    padding: 0 10px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: rgb(var(--gray-300));
+    background: transparent;
+    transition: background-color 0.12s, color 0.12s;
+    white-space: nowrap;
+  }
+  .ui-btn:hover:not(:disabled) {
+    background: rgb(var(--cad-hover));
+    color: rgb(var(--cad-strong));
+  }
+  .ui-btn:disabled {
+    opacity: 0.4;
+  }
+  .ui-btn-secondary {
+    background: rgb(var(--cad-field));
+    color: rgb(var(--gray-200));
+  }
+  .ui-btn-primary {
+    background: rgb(var(--cad-accent));
+    color: #fff;
+  }
+  .ui-btn-primary:hover:not(:disabled) {
+    background: rgb(var(--cad-accent) / 0.88);
+    color: #fff;
+  }
+  .ui-btn-danger:hover:not(:disabled) {
+    background: rgb(244 63 94 / 0.14);
+    color: rgb(244 63 94);
+  }
+
+  /* Fila de propiedad "etiqueta | control" */
+  .ui-row {
+    display: grid;
+    grid-template-columns: 76px minmax(0, 1fr);
+    align-items: center;
+    column-gap: 8px;
+    min-height: 28px;
+  }
+  .ui-label {
+    font-size: 11.5px;
+    color: rgb(var(--gray-400));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Encabezado de panel y título de sección */
+  .ui-panel-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: rgb(var(--cad-strong));
+    letter-spacing: 0.01em;
+  }
+  .ui-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgb(var(--gray-300));
+    letter-spacing: 0.02em;
+  }
+
+  /* Muestra de color redonda con borde fino */
+  .ui-swatch {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: 1px solid rgb(var(--cad-border));
+    padding: 0;
+    cursor: pointer;
+    background: transparent;
+    overflow: hidden;
+  }
+  .ui-swatch::-webkit-color-swatch-wrapper {
+    padding: 0;
+  }
+  .ui-swatch::-webkit-color-swatch {
+    border: none;
+    border-radius: 5px;
+  }
+
+  /* Insignia discreta (contadores) */
+  .ui-badge {
+    font-size: 10.5px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgb(var(--cad-field));
+    color: rgb(var(--gray-300));
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Rango (opacidad) fino con el acento */
+  input[type='range'].ui-range {
+    accent-color: rgb(var(--cad-accent));
+    height: 4px;
+  }
 }

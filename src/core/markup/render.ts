@@ -33,6 +33,7 @@ import {
 export { measureLabelText, measureLineEndings } from './measureCaption';
 import { dimensionGeometry, dimensionTextBaseline, defaultDimensionLinePoint } from './dimension';
 import { revisionCloudPathNormalized, cloudParams } from './revisionCloud';
+import { calloutLeaderLayout, CALLOUT_LANDING_PT } from './calloutLayout';
 import { linePatternPrimitives, markupLinePattern, patternOutlineOf, PatternLineStyleId } from './linePatterns';
 import { stampLayout } from './stamps';
 import { fieldTypeOf, fieldDisplayText, isFieldChecked } from './formFields';
@@ -167,7 +168,8 @@ export function calculateCalloutGeometry(
   boxP1: { x: number; y: number },
   boxP2: { x: number; y: number },
   leadersPoints: Array<{ x: number; y: number }[]>,
-  scale = 1
+  scale = 1,
+  landing?: number
 ): CalloutGeometry {
   const left = Math.min(boxP1.x, boxP2.x);
   const top = Math.min(boxP1.y, boxP2.y);
@@ -186,38 +188,21 @@ export function calculateCalloutGeometry(
     height,
   };
 
-  const shoulderLength = CALLOUT_SHOULDER_LENGTH * scale;
   const arrowSize = CALLOUT_ARROW_SIZE * scale;
-  const boxCenterY = top + height / 2;
+  const landingLen = (landing ?? CALLOUT_LANDING_PT) * scale;
 
+  // Directriz de Revu/Foxit (ADR-0042): punta → codo → tramo horizontal al lado de la caja que mira al codo
   const leaders: CalloutLeaderGeometry[] = (
     leadersPoints && leadersPoints.length > 0
       ? leadersPoints
-      : [[{ x: left - shoulderLength * 2, y: boxCenterY }]]
+      : [[{ x: left - landingLen * 2, y: top + height / 2 }]]
   ).map((leaderPts) => {
-    const arrowHead = leaderPts[0] || { x: left - shoulderLength * 2, y: boxCenterY };
-    let boxAttachment: { x: number; y: number };
-    let elbow: { x: number; y: number };
+    const arrowHead = leaderPts[0] || { x: left - landingLen * 2, y: top + height / 2 };
+    const lay = calloutLeaderLayout(arrowHead, leaderPts[1], box, landingLen);
+    const elbow = lay.knee;
+    const boxAttachment = lay.attach;
 
-    // Decisión de quiebre y hombro horizontal CAD según posición del objetivo:
-    if (arrowHead.x < left) {
-      boxAttachment = { x: left, y: boxCenterY };
-      elbow = { x: Math.min(left - shoulderLength, (left + arrowHead.x) / 2), y: boxCenterY };
-    } else if (arrowHead.x > left + width) {
-      boxAttachment = { x: left + width, y: boxCenterY };
-      elbow = { x: Math.max(left + width + shoulderLength, (left + width + arrowHead.x) / 2), y: boxCenterY };
-    } else {
-      // Directamente arriba o abajo de la caja
-      if (arrowHead.y < top) {
-        boxAttachment = { x: left + width / 2, y: top };
-        elbow = { x: left + width / 2, y: Math.min(top - shoulderLength, (top + arrowHead.y) / 2) };
-      } else {
-        boxAttachment = { x: left + width / 2, y: top + height };
-        elbow = { x: left + width / 2, y: Math.max(top + height + shoulderLength, (top + height + arrowHead.y) / 2) };
-      }
-    }
-
-    // Cálculo de la cabeza de flecha poligonal (apuntando a arrowHead)
+    // Barbas de la flecha (compatibilidad; el dibujo usa el extremo de línea de la marca)
     const dx = elbow.x - arrowHead.x;
     const dy = elbow.y - arrowHead.y;
     const len = Math.hypot(dx, dy);
@@ -267,7 +252,8 @@ export function getCalloutGeometryFromMarkup(
       : [[{ x: (markup.points[0]?.x ?? 0.1) - 0.05, y: (markup.points[0]?.y ?? 0.1) - 0.05 }]]
   ).map((leader) => leader.map((pt) => normalizedToScreen(pt, transform)));
 
-  return calculateCalloutGeometry(p1, p2, leadersRaw, transform.scale);
+  // En unidades de página con el zoom del visor: la llamada crece con el plano, como en Revu
+  return calculateCalloutGeometry(p1, p2, leadersRaw, transform.zoom ?? transform.scale ?? 1);
 }
 
 export const CALLOUT_MAX_LINE_WIDTH_PT = 216;
@@ -1279,38 +1265,34 @@ export function getMarkupSvgDescriptor(
 
     // Callout (Llamada con directriz y caja de texto)
     case 'callout': {
+      // Callout de Revu/Foxit (ADR-0042): directriz fina con flecha abierta, tramo horizontal y texto del color
+      // de la línea; la caja solo se dibuja si tiene relleno
       const geom = getCalloutGeometryFromMarkup(markup, transform);
+      const pxPerPt = transform.zoom ?? transform.scale ?? 1;
       const children: SvgRenderDescriptor[] = [];
+      const lineW = style.strokeWidth || 1;
+      const opacity = baseAttrs.opacity ?? 1;
+      const ending = style.lineEndingStart && style.lineEndingStart !== 'none' ? style.lineEndingStart : style.lineEndingStart === 'none' ? null : 'openArrow';
 
-      // 1. Directrices (al fondo detrás de la caja): polilínea de quiebre y punta de flecha poligonal
       for (const leader of geom.leaders) {
-        // Línea con quiebre (codo)
         children.push({
           tag: 'polyline',
           attrs: {
             points: `${leader.arrowHead.x.toFixed(1)},${leader.arrowHead.y.toFixed(1)} ${leader.elbow.x.toFixed(1)},${leader.elbow.y.toFixed(1)} ${leader.boxAttachment.x.toFixed(1)},${leader.boxAttachment.y.toFixed(1)}`,
             stroke: style.strokeColor,
-            strokeWidth: style.strokeWidth || 1.5,
+            strokeWidth: lineW,
             fill: 'none',
-            strokeLinejoin: 'round',
+            strokeLinejoin: 'miter',
           },
         });
-
-        // Cabeza de flecha visible en el objetivo (unidades de página escaladas)
-        const [tip, b1, b2] = leader.arrowPoints;
-        children.push({
-          tag: 'polygon',
-          attrs: {
-            points: `${tip.x.toFixed(1)},${tip.y.toFixed(1)} ${b1.x.toFixed(1)},${b1.y.toFixed(1)} ${b2.x.toFixed(1)},${b2.y.toFixed(1)}`,
-            fill: style.strokeColor,
-            stroke: style.strokeColor,
-            strokeWidth: 1,
-            strokeLinejoin: 'round',
-          },
-        });
+        const angles = endpointAngles([leader.arrowHead, leader.elbow]);
+        if (ending && angles) {
+          const d = createLineEndingDescriptor(leader.arrowHead, angles.start, ending, style.strokeColor, lineW, lineEndingSize(lineW) * pxPerPt);
+          if (d) children.push(d);
+        }
       }
 
-      // 2. Caja de texto opaca (encima de la entrada de las directrices)
+      const boxed = Boolean(style.fillColor && style.fillColor !== 'transparent');
       children.push({
         tag: 'rect',
         attrs: {
@@ -1318,37 +1300,34 @@ export function getMarkupSvgDescriptor(
           y: geom.box.y,
           width: geom.box.width,
           height: geom.box.height,
-          fill: style.fillColor || '#ffffff',
-          stroke: style.strokeColor,
-          strokeWidth: style.strokeWidth || 1.5,
-          rx: 2,
+          fill: boxed ? style.fillColor! : 'transparent',
+          stroke: boxed ? style.strokeColor : 'none',
+          strokeWidth: lineW,
         },
       });
 
-      // 3. Texto de la llamada (capa superior dentro de la caja, multilínea unificada) con su tipografía (ADR-0040)
-      const calloutFont = markupFontOf(markup, 12, BOX_TEXT_COLOR);
-      const fontSize = calloutFont.size;
-      const lineHeight = fontSize + 3;
-      const maxTextWidth = Math.max(CALLOUT_MIN_BOX_WIDTH - 16, geom.box.width - 16);
-      const calloutLines = wrapCalloutText(markup.text || '', maxTextWidth, fontSize);
-
-      for (let i = 0; i < calloutLines.length; i++) {
+      // Texto en pt de página con el zoom, con su tipografía (ADR-0040); por defecto del color de la línea
+      const calloutFont = markupFontOf(markup, 10, style.strokeColor);
+      const fontPx = calloutFont.size * pxPerPt;
+      const maxTextWidth = Math.max(CALLOUT_MIN_BOX_WIDTH - 16, geom.box.width / pxPerPt - 16) * pxPerPt;
+      const calloutLines = wrapCalloutText(markup.text || '', maxTextWidth, fontPx);
+      calloutLines.forEach((line, i) => {
         children.push({
           tag: 'text',
           attrs: {
-            x: geom.box.x + 6,
-            y: geom.box.y + 16 + i * lineHeight,
-            fontSize,
+            x: geom.box.x + 6 * pxPerPt,
+            y: geom.box.y + (4 + calloutFont.size + i * (calloutFont.size + 3)) * pxPerPt,
+            fontSize: fontPx,
             ...fontAttrs(calloutFont),
             className: 'pointer-events-none',
           },
-          textNode: calloutLines[i],
+          textNode: line,
         });
-      }
+      });
 
       return {
         tag: 'g',
-        attrs: { className: 'cursor-pointer' },
+        attrs: { className: 'cursor-pointer', opacity },
         children,
       };
     }

@@ -1,0 +1,160 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import fs from 'fs';
+import path from 'path';
+import { render, screen, fireEvent, act } from '@testing-library/react';
+import { PdfViewer } from './PdfViewer';
+import { useMarkupStore } from '../store/useMarkupStore';
+import { useDocumentStore } from '../store/useDocumentStore';
+import { useCalibrationStore } from '../store/useCalibrationStore';
+import { useToolStore } from '../store/useToolStore';
+import { useUiStore } from '../store/useUiStore';
+import { calloutLeaderLayout, calloutBoxFromDrag, CALLOUT_LANDING_PT } from '../core/markup/calloutLayout';
+import { controlPointsOf, applyControlPointDrag, controlPointShape } from '../core/markup/controlPoints';
+import { keepsLeaderTips } from '../utils/dragInteraction';
+import { translateMarkup } from '../utils/coordinates';
+import { getMarkupSvgDescriptor } from '../core/markup/render';
+import { emitMarkupOperators, PageTransformInfo } from '../core/pdf/operators';
+import { saveIncrementalMarkups } from '../core/pdf/incrementalWriter';
+import { importPdfAnnotations } from '../core/pdf/annotationReader';
+import { Markup, MarkupType } from '../types/markup';
+
+vi.mock('../services/pdfService', () => ({
+  renderPageToCanvas: vi.fn().mockResolvedValue({ width: 800, height: 600, hasText: true }),
+}));
+
+const mk = (id: string, type: MarkupType, points: { x: number; y: number }[], extra: Partial<Markup> = {}): Markup => ({
+  id,
+  type,
+  pageIndex: 0,
+  points,
+  style: { strokeColor: '#e02424', strokeWidth: 1, opacity: 1 },
+  author: 'Reviewer',
+  createdAt: '',
+  updatedAt: '',
+  status: 'pending',
+  ...extra,
+});
+
+const callout = mk('co', 'callout', [{ x: 0.3, y: 0.15 }, { x: 0.42, y: 0.19 }], {
+  leaders: [[{ x: 0.1, y: 0.35 }]],
+  text: 'Hola',
+});
+
+describe('Callout como el de Revu y Foxit (ADR-0042)', () => {
+  it('la directriz llega en horizontal al centro del lado de la caja que mira al codo', () => {
+    const box = { x: 300, y: 100, width: 100, height: 40 };
+    const left = calloutLeaderLayout({ x: 100, y: 300 }, undefined, box, 18);
+    expect(left.attach).toEqual({ x: 300, y: 120 });
+    expect(left.knee).toEqual({ x: 282, y: 120 });
+    const right = calloutLeaderLayout({ x: 600, y: 10 }, undefined, box, 18);
+    expect(right.attach).toEqual({ x: 400, y: 120 });
+    expect(right.knee).toEqual({ x: 418, y: 120 });
+    // Un codo guardado fija el largo del tramo horizontal; nunca queda dentro de la caja
+    expect(calloutLeaderLayout({ x: 100, y: 300 }, { x: 240, y: 999 }, box, 18).knee).toEqual({ x: 240, y: 120 });
+    expect(calloutLeaderLayout({ x: 100, y: 300 }, { x: 320, y: 0 }, box, 18).knee.x).toBe(300);
+  });
+
+  it('al crearlo, la caja queda junto al punto donde se suelta (el codo), del lado contrario a la punta', () => {
+    const size = { width: 0.1, height: 0.04 };
+    const [a, b] = calloutBoxFromDrag({ x: 0.1, y: 0.5 }, { x: 0.3, y: 0.3 }, size, 0.02);
+    expect(a.x).toBeCloseTo(0.32, 9);
+    expect((a.y + b.y) / 2).toBeCloseTo(0.3, 9);
+    const [c] = calloutBoxFromDrag({ x: 0.6, y: 0.5 }, { x: 0.4, y: 0.3 }, size, 0.02);
+    expect(c.x + size.width).toBeCloseTo(0.38, 9);
+  });
+
+  it('mover la caja deja la punta de la flecha donde estaba; con su nube (Cloud+) se mueve entera', () => {
+    const delta = { x: 0.1, y: 0.05 };
+    expect(keepsLeaderTips(callout, [callout])).toBe(true);
+    const moved = translateMarkup(callout, delta, { keepLeaderTips: true });
+    expect(moved.leaders![0][0]).toEqual(callout.leaders![0][0]);
+    expect(moved.points[0].x).toBeCloseTo(0.4, 9);
+    // El codo guardado se mueve con la caja
+    const withKnee = { ...callout, leaders: [[{ x: 0.1, y: 0.35 }, { x: 0.25, y: 0.17 }]] };
+    expect(translateMarkup(withKnee, delta, { keepLeaderTips: true }).leaders![0][1].x).toBeCloseTo(0.35, 9);
+    const note = { ...callout, groupId: 'g' };
+    const cloud = mk('cl', 'cloudPlus', [{ x: 0.05, y: 0.3 }, { x: 0.15, y: 0.4 }], { groupId: 'g' });
+    expect(keepsLeaderTips(note, [note, cloud])).toBe(false);
+  });
+
+  it('en pantalla: flecha abierta fina, texto del color de la línea y caja solo si tiene relleno', () => {
+    const t = { width: 800, height: 600, scale: 1, offsetX: 0, offsetY: 0, zoom: 1 };
+    const desc = getMarkupSvgDescriptor(callout, t);
+    const kids = desc.children!;
+    expect(kids.filter((c) => c.tag === 'polyline')).toHaveLength(2); // directriz y flecha abierta
+    expect(kids.find((c) => c.tag === 'rect')!.attrs.stroke).toBe('none');
+    expect(kids.find((c) => c.tag === 'text')!.attrs.fill).toBe('#e02424');
+    const boxed = getMarkupSvgDescriptor({ ...callout, style: { ...callout.style, fillColor: '#ffffff' } }, t);
+    expect(boxed.children!.find((c) => c.tag === 'rect')!.attrs.stroke).toBe('#e02424');
+    // El texto crece con el zoom, como el resto del plano
+    const z2 = getMarkupSvgDescriptor(callout, { ...t, width: 1600, height: 1200, zoom: 2 });
+    expect(z2.children!.find((c) => c.tag === 'text')!.attrs.fontSize).toBe(20);
+  });
+
+  it('en el PDF es un callout estándar: /IT /FreeTextCallout con /CL, /LE y /RD, y vuelve igual al abrirlo', async () => {
+    const transform: PageTransformInfo = { rotation: 0, widthPt: 800, heightPt: 600, originX: 0, originY: 0 };
+    const ap = emitMarkupOperators(callout, transform).operators.split('\n');
+    expect(ap.filter((l) => l === 'S').length).toBeGreaterThanOrEqual(2); // directriz y flecha abierta (sin relleno)
+    expect(ap).not.toContain('B');
+    const blueprint = new Uint8Array(fs.readFileSync(path.resolve(__dirname, '../../fixtures/test-blueprint.pdf')));
+    const saved = await saveIncrementalMarkups(blueprint, [callout]);
+    const raw = new TextDecoder('latin1').decode(saved);
+    expect(raw).toContain('/IT /FreeTextCallout');
+    // Punta (80, 390), codo a 18 pt de la caja (222, 498) y llegada al centro del lado izquierdo (240, 498)
+    expect(raw).toContain('/CL [80.00 390.00 222.00 498.00 240.00 498.00]');
+    expect(raw).toContain('/LE /OpenArrow');
+    expect(raw).toMatch(/\/RD \[[\d. ]+\]/);
+    const back = (await importPdfAnnotations(saved)).markups.find((m) => m.id === 'co')!;
+    expect(back.leaders![0][0].x).toBeCloseTo(0.1, 5);
+    expect(back.points[0].x).toBeCloseTo(0.3, 5);
+  });
+
+  it('tiradores de Revu: círculos en las esquinas, cuadros en los lados; un lado mueve solo ese lado', () => {
+    const cps = controlPointsOf(callout)!;
+    expect(cps).toHaveLength(8);
+    expect(controlPointShape(callout, 0)).toBe('circle');
+    expect(controlPointShape(callout, 5)).toBe('square');
+    // Lado derecho hacia la derecha: la caja se ensancha sin moverse en vertical
+    expect(applyControlPointDrag(callout, 5, { x: 0.5, y: 0.9 })).toEqual([
+      { x: 0.3, y: 0.15 },
+      { x: 0.5, y: 0.19 },
+    ]);
+    expect(CALLOUT_LANDING_PT).toBe(18);
+  });
+});
+
+describe('Callout en el visor (ADR-0042)', () => {
+  beforeEach(() => {
+    useMarkupStore.setState({ markups: [], selectedMarkupIds: [] });
+    useDocumentStore.setState({ currentPageIndex: 0, scale: 1, rotation: 0, numPages: 1, pdfBytes: new Uint8Array([1]), pdfDoc: {} as never });
+    useCalibrationStore.setState({ calibrations: {}, importedCalibrations: {} });
+    useUiStore.setState({ hiddenLayers: [], snap: { endpoint: false, midpoint: false, nearest: false, intersection: false, content: false } });
+    useToolStore.setState({ activeTool: 'select', currentStyle: { strokeColor: '#e02424', fillColor: 'transparent', strokeWidth: 1, opacity: 1 } });
+  });
+
+  it('arrastrar la caja mueve el texto y el codo; la punta sigue señalando el mismo sitio', async () => {
+    useMarkupStore.setState({ markups: [callout], selectedMarkupIds: ['co'] });
+    await act(async () => {
+      render(<PdfViewer />);
+    });
+    const svg = screen.getByTestId('markup-overlay-svg');
+    // Tiradores del codo y de la caja, como en Revu
+    expect(screen.getByTestId('callout-knee-handle-0')).toBeInTheDocument();
+    expect(screen.getByTestId('control-point-5').tagName.toLowerCase()).toBe('rect');
+    act(() => {
+      fireEvent.mouseDown(svg, { button: 0, clientX: 280, clientY: 100 });
+    });
+    act(() => {
+      fireEvent.mouseMove(svg, { clientX: 380, clientY: 160 });
+    });
+    act(() => {
+      fireEvent.mouseUp(svg, { button: 0, clientX: 380, clientY: 160 });
+    });
+    const m = useMarkupStore.getState().markups[0];
+    expect(m.leaders![0][0]).toEqual({ x: 0.1, y: 0.35 });
+    expect(m.points[0].x).toBeCloseTo(0.425, 6);
+    expect(m.points[0].y).toBeCloseTo(0.25, 6);
+    act(() => useMarkupStore.getState().undo());
+    expect(useMarkupStore.getState().markups[0].points[0]).toEqual({ x: 0.3, y: 0.15 });
+  });
+});

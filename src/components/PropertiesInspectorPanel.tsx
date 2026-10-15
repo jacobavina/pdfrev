@@ -164,10 +164,13 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
   const handleLineStylePick = (id: LineStyleId) => applyLineStyle(selectedMarkupIds, id);
 
   const hasLineMarkup = selectedMarkups.some(
-    (m) => m.type === 'line' || m.type === 'polyLine' || m.type === 'dimension' || m.type === 'length'
+    (m) => m.type === 'line' || m.type === 'polyLine' || m.type === 'dimension' || m.type === 'length' || m.type === 'callout'
   );
   // Una distancia sin extremos guardados se dibuja con flechas cerradas (Acrobat, ADR-0033)
-  const lineEndingStart = getUnifiedValue((m) => m.style.lineEndingStart || (m.type === 'length' ? 'closedArrow' : 'none'));
+  // El callout usa flecha abierta por defecto, como Revu (ADR-0042)
+  const lineEndingStart = getUnifiedValue(
+    (m) => m.style.lineEndingStart || (m.type === 'length' ? 'closedArrow' : m.type === 'callout' ? 'openArrow' : 'none')
+  );
   const lineEndingEnd = getUnifiedValue((m) => m.style.lineEndingEnd || (m.type === 'length' ? 'closedArrow' : 'none'));
   // Posición del valor de las distancias ("Caption Style" de Acrobat)
   const allLengths = selectedMarkups.length > 0 && selectedMarkups.every((m) => m.type === 'length');

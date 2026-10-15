@@ -560,7 +560,8 @@ describe('Coordinate Conversion and Hit-Testing', () => {
       });
 
       it('caso: perímetro (sobre la directriz / flecha)', () => {
-        expect(hitTestMarkup({ x: 0.6, y: 0.525 }, calloutMarkup, 0.015)).toBe(true);
+        // Punta (0.4, 0.25) y codo en x = 0.8 (ADR-0042): directriz horizontal a la altura del centro de la caja
+        expect(hitTestMarkup({ x: 0.6, y: 0.25 }, calloutMarkup, 0.015)).toBe(true);
       });
     });
 
@@ -1263,9 +1264,10 @@ describe('Coordinate Conversion and Hit-Testing', () => {
     });
 
     it('detecta clic en el cuerpo de la directriz devolviendo { type: "leaderBody", leaderIndex }', () => {
-      const hitBody = findCalloutComponentAtPoint({ x: 0.25, y: 0.375 }, baseCallout, 0.015);
+      // Mitad del tramo punta (0.2, 0.3) → codo (0.4 - tramo horizontal, 0.45) (ADR-0042)
+      const hitBody = findCalloutComponentAtPoint({ x: 0.28875, y: 0.375 }, baseCallout, 0.015);
       expect(hitBody).toEqual({ type: 'leaderBody', leaderIndex: 0 });
-      expect(hitTestMarkup({ x: 0.25, y: 0.375 }, baseCallout)).toBe(true);
+      expect(hitTestMarkup({ x: 0.28875, y: 0.375 }, baseCallout)).toBe(true);
     });
 
     it('devuelve null y hitTestMarkup=false para clics fuera de la caja y directrices', () => {

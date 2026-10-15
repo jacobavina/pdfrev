@@ -64,8 +64,8 @@ describe('ToolVectorThumbnail (Canal Único de Renderizado ADR-0007 / B.3)', () 
       <ToolVectorThumbnail type="callout" style={baseStyle} />
     );
     const calloutEl = screen.getByTestId('tool-vector-thumbnail-callout');
-    expect(calloutEl.querySelector('polygon')).toBeInTheDocument(); // Saeta de la directriz
-    expect(calloutEl.querySelector('polyline')).toBeInTheDocument(); // Codo de la directriz
+    // Directriz con codo y flecha abierta de Revu (ADR-0042): dos polilíneas
+    expect(calloutEl.querySelectorAll('polyline').length).toBeGreaterThanOrEqual(2);
     expect(calloutEl.querySelector('rect')).toBeInTheDocument(); // Caja de texto
 
     rerender(<ToolVectorThumbnail type="cloudPlus" style={baseStyle} />);

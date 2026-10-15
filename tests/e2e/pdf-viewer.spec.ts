@@ -514,7 +514,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     expect(rect2RestoredY).toBeCloseTo(rect2InitialY, 0);
   });
 
-  test('Sub-entregable A.3: Creación de Callout con directriz, edición inline, movimiento independiente de ancla y arrastre conjunto de caja', async ({
+  test('Sub-entregable A.3: Creación de Callout con directriz, edición inline, movimiento independiente de ancla y arrastre de la caja con la punta fija', async ({
     page,
   }) => {
     await page.goto('/');
@@ -595,8 +595,8 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     expect(boxXAfterAnchorDrag).toBeCloseTo(initBoxX, 0);
     expect(boxYAfterAnchorDrag).toBeCloseTo(initBoxY, 0);
 
-    // 7. Arrastre de la caja del callout (Resolución del BLOQUEANTE - Paso 5 del plan aprobado):
-    // Arrastrar la caja debe desplazar la caja Y la directriz por el EXACTO MISMO delta
+    // 7. Arrastre de la caja del callout: como en Revu y Foxit (ADR-0042) se mueve la caja y la punta de la flecha
+    // sigue señalando el mismo sitio
     const boxClickX = svgBox.x + boxXAfterAnchorDrag + 30;
     const boxClickY = svgBox.y + boxYAfterAnchorDrag + 15;
 
@@ -620,9 +620,9 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     expect(deltaBoxY).toBeGreaterThanOrEqual(30);
     expect(deltaBoxY).toBeLessThanOrEqual(50);
 
-    // Directriz y caja se trasladan por el mismo delta exacto
-    expect(deltaAnchorX).toBeCloseTo(deltaBoxX, 0);
-    expect(deltaAnchorY).toBeCloseTo(deltaBoxY, 0);
+    // La punta no se mueve (ADR-0042)
+    expect(deltaAnchorX).toBeCloseTo(0, 0);
+    expect(deltaAnchorY).toBeCloseTo(0, 0);
 
     // 8. Deshacer atómico con Ctrl+Z del arrastre de la caja:
     await page.keyboard.press('Control+z');
@@ -2334,5 +2334,52 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.locator('[data-testid="ribbon-line-style-option-tracks"]').click();
     await expect(page.locator('[data-testid="markups-list-panel"] tbody tr').filter({ hasText: 'Rectangle' })).toHaveCount(2);
     await expect(page.locator('[data-testid="ribbon-line-style"]')).toHaveAttribute('data-value', 'tracks');
+  });
+
+  test('Callout de Revu: se suelta donde va el codo y mover la caja deja la punta fija (ADR-0042)', async ({ page }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
+    const box = (await overlaySvg.boundingBox())!;
+    const at = (nx: number, ny: number) => ({ x: box.x + box.width * nx, y: box.y + box.height * ny });
+
+    // Clic en la punta, arrastrar y soltar donde va el codo; vista previa con el dibujo final
+    await page.locator('button[title*="Callout (Q)"]').click();
+    const tip = at(0.62, 0.4);
+    const knee = at(0.72, 0.2);
+    await page.mouse.move(tip.x, tip.y);
+    await page.mouse.down();
+    await page.mouse.move(knee.x, knee.y, { steps: 5 });
+    await expect(overlaySvg.locator('[data-testid="callout-preview"]')).toHaveCount(1);
+    await page.mouse.up();
+    const editor = page.locator('[data-testid="inline-text-editor-input"]');
+    await editor.fill('Hola');
+    await page.keyboard.press('Enter');
+    await expect(editor).toHaveCount(0);
+
+    // Seleccionado: punta y codo (círculos), esquinas (círculos) y lados (cuadros) de la caja
+    await page.locator('button[title*="Select (V)"]').click();
+    const row = page.locator('[data-testid="markups-list-panel"] tbody tr').filter({ hasText: 'Callout' });
+    await row.click();
+    const tipHandle = overlaySvg.locator('[data-testid="callout-anchor-handle-0"]');
+    const kneeHandle = overlaySvg.locator('[data-testid="callout-knee-handle-0"]');
+    await expect(kneeHandle).toHaveCount(1);
+    await expect(overlaySvg.locator('rect[data-testid^="control-point-"]')).toHaveCount(4);
+    const kneeBox = (await kneeHandle.boundingBox())!;
+    expect(Math.abs(kneeBox.x + kneeBox.width / 2 - knee.x)).toBeLessThan(3); // el codo queda donde se soltó
+    const tip0 = (await tipHandle.boundingBox())!;
+
+    // Arrastrar el texto: la caja y el codo se mueven, la punta no
+    const text = overlaySvg.locator('text', { hasText: 'Hola' });
+    const t0 = (await text.boundingBox())!;
+    await page.mouse.move(t0.x + t0.width / 2, t0.y + t0.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(t0.x + t0.width / 2 + 60, t0.y + t0.height / 2 + 40, { steps: 6 });
+    await page.mouse.up();
+    const t1 = (await text.boundingBox())!;
+    expect(t1.x - t0.x).toBeGreaterThan(40);
+    const tip1 = (await tipHandle.boundingBox())!;
+    expect(Math.abs(tip1.x - tip0.x) + Math.abs(tip1.y - tip0.y)).toBeLessThan(1);
   });
 });

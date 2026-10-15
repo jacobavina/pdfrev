@@ -108,6 +108,24 @@ export function handleSelectMouseDown({
 }
 
 /**
+ * Un callout que se mueve solo deja la punta de sus directrices donde estaba, como en Revu y Foxit (ADR-0042): se
+ * mueven la caja y el codo. Si se mueve junto con su nube (Cloud+), se mueve entero.
+ */
+export function keepsLeaderTips(m: Markup, moving: Markup[]): boolean {
+  return m.type === 'callout' && !(m.groupId && moving.some((o) => o.id !== m.id && o.groupId === m.groupId));
+}
+
+/** Traslación de las marcas arrastradas y marcas para limitar el desplazamiento a la página (sin las puntas fijas). */
+function dragTranslate(markups: Markup[], delta: MarkupPoint): Markup[] {
+  return markups.map((m) => translateMarkup(m, delta, { keepLeaderTips: keepsLeaderTips(m, markups) }));
+}
+function clampable(markups: Markup[]): Markup[] {
+  return markups.map((m) =>
+    keepsLeaderTips(m, markups) && m.leaders ? { ...m, leaders: m.leaders.map((l) => l.slice(1)) } : m
+  );
+}
+
+/**
  * Gestiona el evento mousemove en modo selección durante un arrastre:
  * - Comprueba el umbral de 4 px sin tragarse un micro-movimiento o temblor menor a 4 px.
  * - Si supera 4 px, calcula el desplazamiento normalizado y lo restringe con clampGroupTranslationDelta [0, 1].
@@ -157,7 +175,7 @@ export function handleSelectMouseMove({
 
   // Condición 1: Clamp 0..1 del grupo de marcas seleccionadas
   const clampedDelta = clampGroupTranslationDelta(
-    dragState.initialMarkups,
+    clampable(dragState.initialMarkups),
     {
       x: deltaNormX,
       y: deltaNormY,
@@ -165,9 +183,7 @@ export function handleSelectMouseMove({
     pageDims
   );
 
-  const updatedMarkups = dragState.initialMarkups.map((m) =>
-    translateMarkup(m, clampedDelta)
-  );
+  const updatedMarkups = dragTranslate(dragState.initialMarkups, clampedDelta);
 
   return {
     updatedMarkups,
@@ -224,7 +240,7 @@ export function handleSelectMouseUp({
   };
 
   const clampedDelta = clampGroupTranslationDelta(
-    dragState.initialMarkups,
+    clampable(dragState.initialMarkups),
     {
       x: deltaNormX,
       y: deltaNormY,
@@ -233,8 +249,9 @@ export function handleSelectMouseUp({
   );
 
   if (Math.abs(clampedDelta.x) > 1e-6 || Math.abs(clampedDelta.y) > 1e-6) {
-    const moves: MoveMarkupItem[] = dragState.initialMarkups.map((m) => {
-      const moved = translateMarkup(m, clampedDelta);
+    const movedAll = dragTranslate(dragState.initialMarkups, clampedDelta);
+    const moves: MoveMarkupItem[] = dragState.initialMarkups.map((m, idx) => {
+      const moved = movedAll[idx];
       return {
         id: m.id,
         originalPoints: m.points.map((p) => ({ ...p })),

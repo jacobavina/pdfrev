@@ -35,6 +35,12 @@ export function controlPointsOf(markup: Markup): MarkupPoint[] | null {
   if ((BOX_TYPES.has(markup.type) || POLYGONIZABLE_TYPES.has(markup.type)) && pts.length === 2) {
     return corners(pts[0], pts[1]);
   }
+  // Caja del callout (ADR-0042), como en Revu: esquinas y centro de cada lado (arriba, derecha, abajo, izquierda)
+  if (markup.type === 'callout' && pts.length >= 2) {
+    const c = corners(pts[0], pts[1]);
+    const mid = (a: MarkupPoint, b: MarkupPoint) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+    return [...c, mid(c[0], c[1]), mid(c[1], c[2]), mid(c[2], c[3]), mid(c[3], c[0])];
+  }
   // Distancia sin desplazar (ADR-0035): un tercer tirador en el centro mueve la línea en paralelo (crea sus guías)
   if (markup.type === 'length' && pts.length === 2) {
     return [{ ...pts[0] }, { ...pts[1] }, { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 }];
@@ -67,6 +73,31 @@ export function applyControlPointDrag(markup: Markup, index: number, target: Mar
     c[index] = t;
     return c;
   }
+  if (markup.type === 'callout' && pts.length >= 2) {
+    const c = corners(pts[0], pts[1]);
+    if (index < 4) {
+      const opposite = c[(index + 2) % 4];
+      return [
+        { x: Math.min(opposite.x, t.x), y: Math.min(opposite.y, t.y) },
+        { x: Math.max(opposite.x, t.x), y: Math.max(opposite.y, t.y) },
+      ];
+    }
+    // Centro de un lado: solo se mueve ese lado
+    let [x0, y0, x1, y1] = [c[0].x, c[0].y, c[2].x, c[2].y];
+    if (index === 4) y0 = Math.min(t.y, y1);
+    else if (index === 5) x1 = Math.max(t.x, x0);
+    else if (index === 6) y1 = Math.max(t.y, y0);
+    else x0 = Math.min(t.x, x1);
+    return [
+      { x: x0, y: y0 },
+      { x: x1, y: y1 },
+    ];
+  }
   if (markup.type === 'length' && pts.length === 2 && index === 2) return [{ ...pts[0] }, { ...pts[1] }, t];
   return pts.map((p, i) => (i === index ? t : { ...p }));
+}
+
+/** Forma del tirador, como en Revu: cuadro en el centro de los lados de la caja del callout, círculo en el resto. */
+export function controlPointShape(markup: Pick<Markup, 'type'>, index: number): 'circle' | 'square' {
+  return markup.type === 'callout' && index >= 4 ? 'square' : 'circle';
 }

@@ -1,4 +1,5 @@
 import { dimensionSegmentsNormalized } from '../core/markup/dimension';
+import { calloutLeaderLayout } from '../core/markup/calloutLayout';
 import {
   MarkupPoint,
   Markup,
@@ -8,6 +9,9 @@ import {
 } from '../types/markup';
 
 export { STICKY_NOTE_SIZE_PT };
+
+/** Tramo horizontal del callout en coordenadas normalizadas (≈ 18 pt en un plano de 800 pt de ancho). */
+const CALLOUT_LANDING_NORM = 0.0225;
 
 /**
  * Convierte el tamaño estándar en puntos (STICKY_NOTE_SIZE_PT = 24 pt) a dimensiones
@@ -427,53 +431,16 @@ export function findCalloutComponentAtPoint(
       return { type: 'box' };
     }
 
-    // B. ¿Clic en el cuerpo de la directriz (codo, hombro o tramos de polilínea)?
-    const boxCenterY = top + height / 2;
+    // B. ¿Clic en el cuerpo de la directriz (punta → codo → tramo horizontal a la caja, ADR-0042)?
     for (let i = 0; i < markup.leaders.length; i++) {
       const leader = markup.leaders[i];
       if (leader.length === 0) continue;
-
-      if (leader.length === 1) {
-        const arrowHead = leader[0];
-        let boxAttachment: MarkupPoint;
-        let elbow: MarkupPoint;
-        const shoulderNorm = 0.015;
-
-        if (arrowHead.x < left) {
-          boxAttachment = { x: left, y: boxCenterY };
-          elbow = { x: Math.min(left - shoulderNorm, (left + arrowHead.x) / 2), y: boxCenterY };
-        } else if (arrowHead.x > left + width) {
-          boxAttachment = { x: left + width, y: boxCenterY };
-          elbow = { x: Math.max(left + width + shoulderNorm, (left + width + arrowHead.x) / 2), y: boxCenterY };
-        } else {
-          if (arrowHead.y < top) {
-            boxAttachment = { x: left + width / 2, y: top };
-            elbow = { x: left + width / 2, y: Math.min(top - shoulderNorm, (top + arrowHead.y) / 2) };
-          } else {
-            boxAttachment = { x: left + width / 2, y: top + height };
-            elbow = { x: left + width / 2, y: Math.max(top + height + shoulderNorm, (top + height + arrowHead.y) / 2) };
-          }
-        }
-
-        if (
-          distanceToSegment(point, arrowHead, elbow) <= tolerance ||
-          distanceToSegment(point, elbow, boxAttachment) <= tolerance
-        ) {
-          return { type: 'leaderBody', leaderIndex: i };
-        }
-      } else {
-        // Directriz multi-punto explícita: tramos consecutivos
-        for (let j = 1; j < leader.length; j++) {
-          if (distanceToSegment(point, leader[j - 1], leader[j]) <= tolerance) {
-            return { type: 'leaderBody', leaderIndex: i };
-          }
-        }
-        // Conexión del último punto al centro de la caja
-        const lastPt = leader[leader.length - 1];
-        const boxAttachment = { x: left, y: boxCenterY };
-        if (distanceToSegment(point, lastPt, boxAttachment) <= tolerance) {
-          return { type: 'leaderBody', leaderIndex: i };
-        }
+      const lay = calloutLeaderLayout(leader[0], leader[1], { x: left, y: top, width, height }, CALLOUT_LANDING_NORM);
+      if (
+        distanceToSegment(point, lay.tip, lay.knee) <= tolerance ||
+        distanceToSegment(point, lay.knee, lay.attach) <= tolerance
+      ) {
+        return { type: 'leaderBody', leaderIndex: i };
       }
     }
   }
@@ -850,7 +817,8 @@ export function clampGroupTranslationDelta(
  */
 export function translateMarkup(
   markup: Markup,
-  delta: MarkupPoint
+  delta: MarkupPoint,
+  opts: { keepLeaderTips?: boolean } = {}
 ): Markup {
   const newPoints = markup.points.map((p) => ({
     x: Math.max(0, Math.min(1, p.x + delta.x)),
@@ -859,11 +827,16 @@ export function translateMarkup(
 
   let newLeaders = markup.leaders;
   if (markup.leaders && Array.isArray(markup.leaders)) {
+    // Callout (ADR-0042): con keepLeaderTips la punta sigue señalando el mismo sitio y solo se mueve el resto
     newLeaders = markup.leaders.map((leader) =>
-      leader.map((lp) => ({
-        x: Math.max(0, Math.min(1, lp.x + delta.x)),
-        y: Math.max(0, Math.min(1, lp.y + delta.y)),
-      }))
+      leader.map((lp, k) =>
+        k === 0 && opts.keepLeaderTips
+          ? { ...lp }
+          : {
+              x: Math.max(0, Math.min(1, lp.x + delta.x)),
+              y: Math.max(0, Math.min(1, lp.y + delta.y)),
+            }
+      )
     );
   }
 

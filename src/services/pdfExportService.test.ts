@@ -749,7 +749,8 @@ describe('PDF Export Service (Sub-entregable 0.3 - H1 Vector Export)', () => {
     // 1. Verificación de emisión vectorial en el content stream
     // El ancla está en (0.1, 0.15) de una página 800x600 pt -> x=80, y=600 - 90 = 510
     expect(stream).toContain('80 -510 m');
-    expect(stream).toContain('160 -450 l');
+    // Codo a 18 pt de la caja con tramo horizontal (ADR-0042)
+    expect(stream).toContain('222 -450 l');
     expect(stream).toContain('240 -450 l');
     expect(stream).toContain('240 -480 m');
 

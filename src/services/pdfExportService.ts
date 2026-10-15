@@ -841,21 +841,16 @@ export async function exportMarkupsToPdf(
               borderOpacity: strokeColorParsed.opacity ?? opacity,
             });
 
-            // Cabeza de flecha poligonal en el objetivo
-            const [tip, b1, b2] = leader.arrowPoints;
-            const pdfTip = normalizedToPdfCoordinates(toNorm(tip), transform);
-            const pdfB1 = normalizedToPdfCoordinates(toNorm(b1), transform);
-            const pdfB2 = normalizedToPdfCoordinates(toNorm(b2), transform);
-
-            const arrowD = `M ${pdfTip.x.toFixed(2)} ${(-pdfTip.y).toFixed(2)} L ${pdfB1.x.toFixed(2)} ${(-pdfB1.y).toFixed(2)} L ${pdfB2.x.toFixed(2)} ${(-pdfB2.y).toFixed(2)} Z`;
-            page.drawSvgPath(arrowD, {
-              x: 0,
-              y: 0,
-              color: strokeColorParsed.color,
-              borderColor: strokeColorParsed.color,
-              borderWidth: 1,
-              opacity: strokeColorParsed.opacity ?? opacity,
-            });
+            // Flecha del callout (ADR-0042): abierta por defecto, con la geometría compartida de los extremos
+            if (strokeColorParsed.color) {
+              drawLineEndingsFlat(
+                page,
+                [pdfArrowHead, pdfElbow],
+                { ...markup, style: { ...markup.style, lineEndingStart: markup.style.lineEndingStart ?? 'openArrow', lineEndingEnd: 'none' } },
+                strokeColorParsed.color,
+                strokeColorParsed.opacity ?? opacity
+              );
+            }
           }
 
           // 2. Dibujar caja de llamada (cubriendo la entrada de las directrices)
@@ -870,10 +865,11 @@ export async function exportMarkupsToPdf(
           const pdfBL = normalizedToPdfCoordinates(normBL, transform);
 
           const boxD = `M ${pdfTL.x.toFixed(2)} ${(-pdfTL.y).toFixed(2)} L ${pdfTR.x.toFixed(2)} ${(-pdfTR.y).toFixed(2)} L ${pdfBR.x.toFixed(2)} ${(-pdfBR.y).toFixed(2)} L ${pdfBL.x.toFixed(2)} ${(-pdfBL.y).toFixed(2)} Z`;
-          page.drawSvgPath(boxD, {
+          // Caja solo si tiene relleno: sin él, el callout es texto suelto como en Revu (ADR-0042)
+          if (fillColorParsed.color) page.drawSvgPath(boxD, {
             x: 0,
             y: 0,
-            color: fillColorParsed.color ?? rgb(1, 1, 1),
+            color: fillColorParsed.color,
             borderColor: strokeColorParsed.color,
             borderWidth: strokeWidth,
             borderOpacity: strokeColorParsed.opacity ?? opacity,
@@ -887,13 +883,14 @@ export async function exportMarkupsToPdf(
 
             const fontSize = markup.style.fontSize ?? 10;
             const lineHeight = fontSize + 3;
+            const textColor = parseCssColor(markup.style.textColor ?? markup.style.strokeColor).color ?? rgb(0.12, 0.16, 0.22);
             const maxTextWidth = Math.max(CALLOUT_MIN_BOX_WIDTH - 16, geom.box.width - 16);
             const lines = wrapCalloutText(sanitized.text, maxTextWidth, fontSize);
 
             for (let i = 0; i < lines.length; i++) {
               const textPosVis = {
                 x: geom.box.x + 6,
-                y: geom.box.y + 14 + i * lineHeight,
+                y: geom.box.y + 4 + fontSize + i * lineHeight,
               };
               const textPdfPos = normalizedToPdfCoordinates(toNorm(textPosVis), transform);
 
@@ -902,7 +899,7 @@ export async function exportMarkupsToPdf(
                 y: textPdfPos.y,
                 size: fontSize,
                 font: helveticaFont,
-                color: rgb(0.12, 0.16, 0.22),
+                color: textColor,
                 rotate: transform.rotation === 0 ? undefined : degrees((360 - transform.rotation) % 360),
               });
             }

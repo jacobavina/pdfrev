@@ -435,8 +435,8 @@ describe('Pure Markup Rendering (src/core/markup/render.ts - Criterio 1)', () =>
       expect(desc.children).toBeDefined();
 
       const tags = desc.children?.map((c) => c.tag);
-      expect(tags).toContain('polyline');
-      expect(tags).toContain('polygon');
+      // Directriz y flecha abierta (ADR-0042): dos polilíneas; caja con relleno
+      expect(tags?.filter((t) => t === 'polyline')).toHaveLength(2);
       expect(tags).toContain('rect');
       expect(tags).toContain('text');
 

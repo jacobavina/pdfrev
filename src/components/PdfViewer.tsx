@@ -30,6 +30,7 @@ import {
   getMarkupSvgDescriptor,
   renderSvgDescriptor,
   estimateCalloutBoxNormalizedSize,
+  getCalloutGeometryFromMarkup,
 } from '../core/markup/render';
 import {
   Markup,
@@ -47,8 +48,9 @@ import { CanvasContextMenu } from './shell/CanvasContextMenu';
 import { runPageOperation } from './shell/appActions';
 import { translucentFill } from '../core/markup/typeLabels';
 import { defaultDimensionLinePoint } from '../core/markup/dimension';
-import { controlPointsOf, applyControlPointDrag } from '../core/markup/controlPoints';
+import { controlPointsOf, applyControlPointDrag, controlPointShape } from '../core/markup/controlPoints';
 import { revisionCloudPathNormalized } from '../core/markup/revisionCloud';
+import { calloutBoxFromDrag, CALLOUT_LANDING_PT } from '../core/markup/calloutLayout';
 import { snapPoint, SnapResult } from '../core/markup/snap';
 import { remeasureMarkup, SCALED_MEASURE_TYPES } from '../core/measurements/remeasure';
 import {
@@ -238,6 +240,8 @@ export const PdfViewer: React.FC = () => {
   const anchorDragRef = useRef<{
     markupId: string;
     leaderIndex: number;
+    /** 0 = punta de la flecha; 1 = codo de la directriz (ADR-0042). */
+    pointIndex: number;
     initialLeaders: MarkupPoint[][];
     startScreenX: number;
     startScreenY: number;
@@ -1204,11 +1208,8 @@ export const PdfViewer: React.FC = () => {
       pageIndex: currentPageIndex,
       points: [boxP1, boxP2],
       leaders: [[{ ...arrowTarget }]],
-      style: {
-        ...currentStyle,
-        fillColor: '#ffffff',
-        strokeWidth: 1.5,
-      },
+      // Nota de Revu (ADR-0042): texto con directriz, sin caja
+      style: { ...currentStyle },
       text: 'Cloud+ note',
       author: author || 'Reviewer',
       createdAt: now,
@@ -1529,8 +1530,9 @@ export const PdfViewer: React.FC = () => {
       };
       const target = markupsRef.current.find((m) => m.id === markupId);
       if (target && target.leaders) {
+        const { pointIndex } = anchorDragRef.current;
         const updatedLeaders = target.leaders.map((lead, idx) =>
-          idx === leaderIndex ? [clampedPt, ...lead.slice(1)] : lead
+          idx !== leaderIndex ? lead : pointIndex === 0 ? [clampedPt, ...lead.slice(1)] : [lead[0], clampedPt]
         );
         setMarkupsTransient([{ ...target, leaders: updatedLeaders }]);
       }
@@ -1968,14 +1970,8 @@ export const PdfViewer: React.FC = () => {
           unscaledWidth,
           unscaledHeight
         );
-        const boxP1 = {
-          x: Math.max(0, Math.min(1 - normSize.width, currentDrawPoint.x)),
-          y: Math.max(0, Math.min(1 - normSize.height, currentDrawPoint.y)),
-        };
-        const boxP2 = {
-          x: boxP1.x + normSize.width,
-          y: boxP1.y + normSize.height,
-        };
+        // Como en Revu y Foxit (ADR-0042): se suelta donde va el codo y la caja queda al lado
+        const [boxP1, boxP2] = calloutBoxFromDrag(drawingStart, currentDrawPoint, normSize, CALLOUT_LANDING_PT / unscaledWidth);
 
         const calloutMarkup: Markup = {
           id: newId,
@@ -1983,13 +1979,10 @@ export const PdfViewer: React.FC = () => {
           pageIndex: currentPageIndex,
           points: [boxP1, boxP2],
           leaders: [[{ x: drawingStart.x, y: drawingStart.y }]],
+          // Sin caja por defecto (texto suelto, como Revu); con relleno, caja con borde (como Foxit)
           style: {
             ...currentStyle,
-            fillColor:
-              currentStyle.fillColor && currentStyle.fillColor !== 'transparent'
-                ? currentStyle.fillColor
-                : '#ffffff',
-            strokeWidth: currentStyle.strokeWidth || 1.5,
+            strokeWidth: currentStyle.strokeWidth || 1,
           },
           text: initialText,
           author: author || 'Reviewer',
@@ -2233,7 +2226,8 @@ export const PdfViewer: React.FC = () => {
   const handleAnchorMouseDown = (
     e: React.MouseEvent<SVGCircleElement>,
     markupId: string,
-    leaderIndex: number
+    leaderIndex: number,
+    pointIndex = 0
   ) => {
     e.stopPropagation();
     e.preventDefault();
@@ -2243,6 +2237,7 @@ export const PdfViewer: React.FC = () => {
     anchorDragRef.current = {
       markupId,
       leaderIndex,
+      pointIndex,
       initialLeaders: target.leaders.map((lead) => lead.map((p) => ({ ...p }))),
       startScreenX: e.clientX,
       startScreenY: e.clientY,
@@ -2867,21 +2862,41 @@ export const PdfViewer: React.FC = () => {
                         );
                       })}
 
+                      {/* Codo de cada directriz (ADR-0042): círculo amarillo como en Revu; arrastrarlo alarga o acorta el
+                          tramo horizontal hasta la caja */}
+                      {getCalloutGeometryFromMarkup(markup, viewportTransform).leaders.map((lg, lIdx) =>
+                        markup.leaders?.[lIdx] ? (
+                          <circle
+                            key={`callout-knee-${markup.id}-${lIdx}`}
+                            data-testid={`callout-knee-handle-${lIdx}`}
+                            cx={lg.elbow.x}
+                            cy={lg.elbow.y}
+                            r={3.5}
+                            fill="#d9b93a"
+                            stroke="#3f3f46"
+                            strokeWidth={1}
+                            className="cursor-ew-resize"
+                            onMouseDown={(e) => handleAnchorMouseDown(e, markup.id, lIdx, 1)}
+                          />
+                        ) : null
+                      )}
+
                       {/* Tirador para añadir directriz (+) */}
                       {(() => {
                         const p1Scr = normalizedToScreen(markup.points[0], viewportTransform);
                         const p2Scr = normalizedToScreen(markup.points[1], viewportTransform);
                         const boxRight = Math.max(p1Scr.x, p2Scr.x);
                         const boxTop = Math.min(p1Scr.y, p2Scr.y);
-                        const addX = boxRight + 12;
-                        const addY = boxTop + 10;
+                        // Separado del tirador de la esquina de la caja (ADR-0042)
+                        const addX = boxRight + 20;
+                        const addY = boxTop - 4;
                         return (
                           <g
                             data-testid="callout-add-leader-handle"
                             className="cursor-pointer"
                             onClick={(e) => handleAddLeader(e, markup.id)}
                           >
-                            <circle cx={addX} cy={addY} r={6} fill="#3b82f6" stroke="#ffffff" strokeWidth={1} />
+                            <circle cx={addX} cy={addY} r={5.5} fill="#3b82f6" stroke="#ffffff" strokeWidth={1} />
                             <text
                               x={addX}
                               y={addY + 3.5}
@@ -2914,6 +2929,23 @@ export const PdfViewer: React.FC = () => {
                   <g data-testid="control-points-layer">
                     {cps.map((cp, idx) => {
                       const scr = normalizedToScreen(cp, viewportTransform);
+                      if (controlPointShape(markup, idx) === 'square') {
+                        return (
+                          <rect
+                            key={`cp-${markup.id}-${idx}`}
+                            data-testid={`control-point-${idx}`}
+                            x={scr.x - 3}
+                            y={scr.y - 3}
+                            width={6}
+                            height={6}
+                            fill="#d9b93a"
+                            stroke="#3f3f46"
+                            strokeWidth={1}
+                            className={idx % 2 === 0 ? 'cursor-ns-resize' : 'cursor-ew-resize'}
+                            onMouseDown={(e) => handleControlPointMouseDown(e, markup, idx)}
+                          />
+                        );
+                      }
                       return (
                         <circle
                           key={`cp-${markup.id}-${idx}`}
@@ -3369,29 +3401,35 @@ export const PdfViewer: React.FC = () => {
                       unscaledWidth,
                       unscaledHeight
                     );
-                    const boxW = normSize.width * viewportTransform.width;
-                    const boxH = normSize.height * viewportTransform.height;
+                    // Vista previa con el dibujo final (ADR-0042) y el contorno de la caja que se creará
+                    const [b1, b2] = calloutBoxFromDrag(drawingStart, currentDrawPoint, normSize, CALLOUT_LANDING_PT / unscaledWidth);
+                    const preview: Markup = {
+                      id: 'callout-preview',
+                      type: 'callout',
+                      pageIndex: currentPageIndex,
+                      points: [b1, b2],
+                      leaders: [[drawingStart]],
+                      style: { ...currentStyle, strokeWidth: currentStyle.strokeWidth || 1 },
+                      text: '',
+                      author: '',
+                      createdAt: '',
+                      updatedAt: '',
+                      status: 'pending',
+                    };
+                    const s1 = normalizedToScreen(b1, viewportTransform);
+                    const s2 = normalizedToScreen(b2, viewportTransform);
                     return (
-                      <g>
-                        <line
-                          x1={p1.x}
-                          y1={p1.y}
-                          x2={p2.x}
-                          y2={p2.y}
-                          stroke={currentStyle.strokeColor}
-                          strokeWidth={currentStyle.strokeWidth || 1.5}
-                          strokeDasharray="4 2"
-                        />
-                        <circle cx={p1.x} cy={p1.y} r={4} fill={currentStyle.strokeColor} />
+                      <g data-testid="callout-preview">
+                        {renderSvgDescriptor(getMarkupSvgDescriptor(preview, viewportTransform), 'callout-preview')}
                         <rect
-                          x={p2.x}
-                          y={p2.y}
-                          width={boxW}
-                          height={boxH}
+                          x={s1.x}
+                          y={s1.y}
+                          width={s2.x - s1.x}
+                          height={s2.y - s1.y}
                           stroke={currentStyle.strokeColor}
                           strokeWidth={1}
-                          fill="rgba(255, 255, 255, 0.85)"
-                          strokeDasharray="3 3"
+                          fill="rgba(255, 255, 255, 0.35)"
+                          strokeDasharray="3 2"
                         />
                       </g>
                     );

@@ -804,36 +804,46 @@ export function emitMarkupOperators(
 
     case 'callout': {
       if (markup.points.length === 0) break;
+      // Callout de Revu/Foxit (ADR-0042): misma geometría que la pantalla; flecha abierta por defecto y caja solo
+      // si tiene relleno
       const geom = calculateCalloutGeometry(
         toVis(markup.points[0]),
         toVis(markup.points[1] ?? markup.points[0]),
         (markup.leaders || []).map((lead) => lead.map(toVis)),
         1
       );
-      for (const leader of geom.leaders) {
-        pathPdf([visToPdf(leader.arrowHead), visToPdf(leader.elbow), visToPdf(leader.boxAttachment)], false);
-        lines.push('S');
-        if (strokeParsed) lines.push(rgbOp(strokeParsed, 'rg'));
-        pathPdf(leader.arrowPoints.map(visToPdf), true);
-        lines.push('b');
-      }
       const bx = geom.box;
-      lines.push(rgbOp(fillParsed ?? { r: 1, g: 1, b: 1 }, 'rg'));
-      pathPdf(
-        [
-          visToPdf({ x: bx.x, y: bx.y }),
-          visToPdf({ x: bx.x + bx.width, y: bx.y }),
-          visToPdf({ x: bx.x + bx.width, y: bx.y + bx.height }),
-          visToPdf({ x: bx.x, y: bx.y + bx.height }),
-        ],
-        true
-      );
-      lines.push(strokeParsed ? 'B' : 'f');
-      const cb = boxFont(10);
-      const fontSize = cb.font.size;
+      if (fillParsed) {
+        lines.push(rgbOp(fillParsed, 'rg'));
+        pathPdf(
+          [
+            visToPdf({ x: bx.x, y: bx.y }),
+            visToPdf({ x: bx.x + bx.width, y: bx.y }),
+            visToPdf({ x: bx.x + bx.width, y: bx.y + bx.height }),
+            visToPdf({ x: bx.x, y: bx.y + bx.height }),
+          ],
+          true
+        );
+        lines.push(strokeParsed ? 'B' : 'f');
+      } else {
+        // Caja sin dibujo: la caja envolvente la incluye igualmente (Revu y Acrobat la editan con /RD)
+        updateBBox(visToPdf({ x: bx.x, y: bx.y }).x, visToPdf({ x: bx.x, y: bx.y }).y);
+        updateBBox(visToPdf({ x: bx.x + bx.width, y: bx.y + bx.height }).x, visToPdf({ x: bx.x + bx.width, y: bx.y + bx.height }).y);
+      }
+      const startEnding = markup.style.lineEndingStart ?? 'openArrow';
+      for (const leader of geom.leaders) {
+        const pts = [visToPdf(leader.arrowHead), visToPdf(leader.elbow), visToPdf(leader.boxAttachment)];
+        lines.push('0 j');
+        pathPdf(pts, false);
+        lines.push('S');
+        emitLineEndings(pts, { lineEndingStart: startEnding, lineEndingEnd: 'none' });
+      }
+      const cf = markupFontOf(markup, 10, markup.style.strokeColor);
+      const cColor = parseCssColorRgb(cf.color) ?? DARK_TEXT_RGB;
+      const fontSize = cf.size;
       const maxTextWidth = Math.max(CALLOUT_MIN_BOX_WIDTH - 16, bx.width - 16);
       wrapCalloutText(markup.text || '', maxTextWidth, fontSize).forEach((line, i) => {
-        textVis(line, { x: bx.x + 6, y: bx.y + 14 + i * (fontSize + 3) }, fontSize, cb.color, 'left', false, cb.font);
+        textVis(line, { x: bx.x + 6, y: bx.y + 4 + fontSize + i * (fontSize + 3) }, fontSize, cColor, 'left', false, cf);
       });
       break;
     }
@@ -1135,4 +1145,32 @@ export function emitMarkupOperators(
     ...(usesBold ? { boldFontName: AP_BOLD_FONT_NAME } : {}),
     ...(Object.keys(extraFonts).length > 0 ? { extraFonts } : {}),
   };
+}
+
+/**
+ * Directriz y caja de un callout en coordenadas PDF (ADR-0042), para /CL y /RD del FreeText de tipo callout: así
+ * Revu y Acrobat lo reconocen como callout y al mover la caja la punta se queda donde estaba.
+ */
+export function calloutPdfLayout(
+  markup: Markup,
+  transform: PageTransformInfo
+): { line: Pt[]; box: [number, number, number, number] } | null {
+  if (markup.type !== 'callout' || markup.points.length === 0) return null;
+  const isRot = transform.rotation === 90 || transform.rotation === 270;
+  const visW = isRot ? transform.heightPt : transform.widthPt;
+  const visH = isRot ? transform.widthPt : transform.heightPt;
+  const toVis = (p: MarkupPoint): Pt => ({ x: p.x * visW, y: p.y * visH });
+  const visToPdf = (p: Pt) => normalizedToPdfCoordinates({ x: p.x / visW, y: p.y / visH }, transform);
+  const geom = calculateCalloutGeometry(
+    toVis(markup.points[0]),
+    toVis(markup.points[1] ?? markup.points[0]),
+    (markup.leaders || []).map((lead) => lead.map(toVis)),
+    1
+  );
+  const b = geom.box;
+  const c1 = visToPdf({ x: b.x, y: b.y });
+  const c2 = visToPdf({ x: b.x + b.width, y: b.y + b.height });
+  const box: [number, number, number, number] = [Math.min(c1.x, c2.x), Math.min(c1.y, c2.y), Math.max(c1.x, c2.x), Math.max(c1.y, c2.y)];
+  const l = geom.leaders[0];
+  return { line: [visToPdf(l.arrowHead), visToPdf(l.elbow), visToPdf(l.boxAttachment)], box };
 }

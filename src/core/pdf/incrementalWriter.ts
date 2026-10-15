@@ -24,6 +24,7 @@ import {
 } from '../markup/formFields';
 import {
   emitMarkupOperators,
+  calloutPdfLayout,
   normalizedToPdfCoordinates,
   parseCssColorRgb,
   PageTransformInfo,
@@ -653,6 +654,14 @@ ${apLine}  /REA ${reaDict}
         // Mismos tamaños por defecto que la pantalla y el /AP (llamada 10 pt, texto 12 pt)
         const fontPt = markup.style.fontSize ?? (markup.type === 'callout' ? 10 : 12);
         annotDict += `  /DA (/Helv ${fontPt} Tf 0 0 0 rg)\n`;
+        // Callout estándar (ADR-0042): directriz /CL, flecha /LE y caja de texto /RD, como los de Revu y Acrobat
+        const co = calloutPdfLayout(markup, transform);
+        if (co) {
+          const [x0, y0, x1, y1] = emitted.bbox;
+          const rd = [co.box[0] - x0, co.box[1] - y0, x1 - co.box[2], y1 - co.box[3]].map((v) => Math.max(0, v).toFixed(2));
+          annotDict += `  /IT /FreeTextCallout\n  /CL [${co.line.map((p) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')}]\n`;
+          annotDict += `  /LE ${toPdfLineEnding(markup.style.lineEndingStart ?? 'openArrow')}\n  /RD [${rd.join(' ')}]\n`;
+        }
       } else if (annotTypeSubtype === 'Link') {
         annotDict += `  /Border [0 0 0]\n  /H /I\n`;
         const uri = markup.customFields?.linkUri;

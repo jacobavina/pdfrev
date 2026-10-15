@@ -17,11 +17,11 @@ const PanelShell: React.FC<{ title: string; testId: string; children: React.Reac
   testId,
   children,
 }) => (
-  <aside data-testid={testId} className="w-56 bg-cad-panel border-r border-cad-border flex flex-col select-none min-h-0">
-    <div className="h-9 px-3 border-b border-cad-border flex items-center text-xs font-medium text-gray-400 shrink-0">
+  <aside data-testid={testId} className="w-60 bg-cad-panel border-r border-cad-border flex flex-col select-none min-h-0 text-[12px]">
+    <div className="h-10 px-3 border-b border-cad-border flex items-center ui-panel-title shrink-0">
       {title}
     </div>
-    <div className="flex-1 overflow-y-auto text-xs text-gray-200">{children}</div>
+    <div className="flex-1 overflow-y-auto text-[12px] text-gray-200">{children}</div>
   </aside>
 );
 
@@ -126,15 +126,15 @@ const PdfLayersSection: React.FC = () => {
 
   return (
     <section data-testid="pdf-layers-section" className="border-b border-cad-border">
-      <div className="flex items-center justify-between px-2 py-1.5 bg-cad-ribbon/60">
-        <span className="font-semibold text-gray-300">PDF Layers ({rows.filter((r) => r.id).length})</span>
+      <div className="flex items-center justify-between px-3 pt-3 pb-1.5">
+        <span className="ui-section-title">PDF Layers ({rows.filter((r) => r.id).length})</span>
         {rows.length > 0 && (
           <span className="flex gap-1">
             <button
               type="button"
               data-testid="pdf-layers-show-all"
               onClick={() => setAllPdfLayersVisible(true)}
-              className="px-1.5 rounded text-[11px] text-gray-400 hover:bg-cad-hover hover:text-cad-strong"
+              className="ui-btn !h-6 !px-1.5 !text-[11px]"
             >
               Show all
             </button>
@@ -142,7 +142,7 @@ const PdfLayersSection: React.FC = () => {
               type="button"
               data-testid="pdf-layers-hide-all"
               onClick={() => setAllPdfLayersVisible(false)}
-              className="px-1.5 rounded text-[11px] text-gray-400 hover:bg-cad-hover hover:text-cad-strong"
+              className="ui-btn !h-6 !px-1.5 !text-[11px]"
             >
               Hide all
             </button>
@@ -212,7 +212,7 @@ const LayersPanel: React.FC = () => {
   return (
     <PanelShell title="Layers" testId="layers-panel">
       <PdfLayersSection />
-      <div className="px-2 py-1.5 font-semibold text-gray-300 bg-cad-ribbon/60">Markup Layers</div>
+      <div className="px-3 pt-3 pb-1.5 ui-section-title">Markup Layers</div>
       {layers.length === 0 ? (
         <div className="p-3 text-gray-500">There are no markups in the document.</div>
       ) : (
@@ -234,7 +234,7 @@ const LayersPanel: React.FC = () => {
                 <span className={`flex-1 truncate ${hidden ? 'text-gray-500 line-through' : ''}`}>
                   {layer || 'No layer'}
                 </span>
-                <span className="text-gray-500 font-mono">{count}</span>
+                <span className="ui-badge">{count}</span>
               </li>
             );
           })}
@@ -256,7 +256,7 @@ export const LeftDock: React.FC = () => {
 
   return (
     <div className="flex min-h-0" data-testid="left-dock">
-      <div className="w-9 bg-cad-subtle border-r border-cad-border flex flex-col items-center py-1.5 gap-1 shrink-0">
+      <div className="w-10 bg-cad-panel border-r border-cad-border flex flex-col items-center py-2 gap-1 shrink-0">
         {TABS.map((tab) => {
           const active = leftOpen && leftTab === tab.id;
           return (
@@ -267,8 +267,10 @@ export const LeftDock: React.FC = () => {
               onClick={() => setLeftTab(tab.id)}
               title={tab.label}
               aria-pressed={active}
-              className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${
-                active ? 'bg-cad-accent text-white' : 'text-gray-400 hover:bg-cad-hover hover:text-cad-strong'
+              className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${
+                active
+                  ? 'bg-cad-accent/15 text-cad-accent ring-1 ring-inset ring-cad-accent/50'
+                  : 'text-gray-400 hover:bg-cad-hover hover:text-cad-strong'
               }`}
             >
               {tab.icon}

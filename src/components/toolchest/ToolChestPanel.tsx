@@ -87,7 +87,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
           <ChevronLeft size={16} />
         </button>
         <div className="flex flex-col items-center space-y-4">
-          <Briefcase size={16} className="text-blue-400" />
+          <Briefcase size={16} className="text-gray-400" />
           <span className="text-[11px] text-gray-400 font-medium rotate-90 whitespace-nowrap tracking-wide mt-4">
             Tool Chest
           </span>
@@ -105,13 +105,13 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
     <aside
       data-testid="tool-chest-panel"
       data-collapsed="false"
-      className="w-64 bg-cad-panel border-l border-cad-border flex flex-col select-none z-10 transition-all duration-200 overflow-hidden"
+      className="w-[268px] bg-cad-panel border-l border-cad-border flex flex-col select-none z-10 transition-all duration-200 overflow-hidden text-[12px]"
     >
       {/* 1. Cabecera del Panel */}
-      <div className="h-9 px-3 border-b border-cad-border flex items-center justify-between text-xs text-gray-300 font-medium bg-cad-dark/40">
+      <div className="h-10 px-3 border-b border-cad-border flex items-center justify-between shrink-0">
         <div className="flex items-center space-x-1.5">
-          <Briefcase size={14} className="text-blue-400" />
-          <span>Tool Chest</span>
+          <Briefcase size={14} className="text-gray-400" />
+          <span className="ui-panel-title">Tool Chest</span>
           {/* Indicador de persistencia IndexedDB */}
           <span
             className={`w-2 h-2 rounded-full ml-1 ${
@@ -127,7 +127,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
 
         <button
           onClick={() => setIsCollapsed(true)}
-          className="p-1 text-gray-400 hover:text-cad-strong hover:bg-cad-hover rounded transition-colors"
+          className="ui-btn !h-7 !w-7 !p-0"
           title="Collapse Tool Chest"
           data-testid="collapse-tool-chest-btn"
         >
@@ -139,7 +139,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
       {!isPersistent && persistenceError && (
         <div
           data-testid="tool-chest-persistence-warning"
-          className="px-2.5 py-1.5 bg-amber-950/60 border-b border-amber-800 text-[11px] text-amber-300 flex items-center space-x-1.5"
+          className="px-3 py-1.5 bg-amber-500/10 border-b border-cad-border text-[11px] text-amber-600 dark:text-amber-300 flex items-center space-x-1.5"
         >
           <AlertCircle size={13} className="shrink-0 text-amber-400" />
           <span className="truncate">In-memory (data not saved to disk)</span>
@@ -147,14 +147,14 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
       )}
 
       {/* 2. Selector de Paleta Activa */}
-      <div className="p-2 border-b border-cad-border bg-cad-dark/20">
+      <div className="px-3 py-3 border-b border-cad-border">
         <div className="flex items-center justify-between mb-1.5">
-          <label className="text-[11px] text-gray-400 font-medium uppercase tracking-wider">
+          <label className="ui-section-title">
             Palette
           </label>
           <button
             onClick={() => setIsCreatingPalette(true)}
-            className="p-0.5 text-gray-400 hover:text-blue-400 hover:bg-cad-hover rounded"
+            className="p-0.5 text-gray-400 hover:text-cad-accent hover:bg-cad-hover rounded"
             title="Create new palette"
             data-testid="create-palette-btn"
           >
@@ -170,7 +170,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
               value={newPaletteName}
               onChange={(e) => setNewPaletteName(e.target.value)}
               placeholder="Palette name..."
-              className="flex-1 bg-cad-dark text-xs text-gray-100 px-2 py-1 rounded border border-cad-border focus:border-blue-500 outline-none"
+              className="flex-1 ui-input"
               data-testid="new-palette-name-input"
             />
             <button
@@ -198,7 +198,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
             <select
               value={activePalette?.id || ''}
               onChange={(e) => setActivePalette(e.target.value)}
-              className="flex-1 bg-cad-dark text-xs text-gray-200 px-2 py-1 rounded border border-cad-border focus:border-blue-500 outline-none cursor-pointer"
+              className="flex-1 ui-input cursor-pointer"
               data-testid="palette-select"
             >
               {palettes.map((p, idx) => (
@@ -223,13 +223,13 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
       </div>
 
       {/* 3. Lista de Herramientas de la Paleta Activa */}
-      <div className="flex-1 overflow-y-auto p-2">
-        <div className="text-[11px] text-gray-400 font-medium uppercase tracking-wider mb-2 flex items-center justify-between">
+      <div className="flex-1 overflow-y-auto px-3 py-3">
+        <div className="ui-section-title mb-2 flex items-center justify-between">
           <span>Tools ({activeTools.length})</span>
         </div>
 
         {activeTools.length === 0 ? (
-          <div className="p-4 text-center text-xs text-gray-500 border border-dashed border-gray-700/60 rounded my-2">
+          <div className="p-4 text-center text-[12px] text-gray-500 border border-dashed border-cad-border rounded-lg my-2">
             <p className="font-medium text-gray-400 mb-1">Empty palette</p>
             <p className="text-[11px]">
               Right-click a markup in the list or drag to add tools here.
@@ -246,7 +246,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
                 data-testid={`tool-item-${tool.id}`}
                 data-tool-type={tool.type}
                 data-tool-mode={tool.mode}
-                className="group flex items-center justify-between p-1.5 rounded bg-cad-dark/60 hover:bg-cad-hover border border-cad-border hover:border-blue-500/50 cursor-pointer transition-all shadow-sm"
+                className="group flex items-center justify-between p-1.5 rounded-md bg-cad-field hover:bg-cad-hover border border-transparent hover:border-cad-accent/40 cursor-pointer transition-all shadow-sm"
                 title={`Haz clic para ${
                   tool.mode === 'properties' ? 'aplicar propiedades' : 'activar modo dibujo'
                 }. Arrastra al lienzo para estampar.`}
@@ -310,9 +310,9 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
         )}
 
         {/* 4. Sección Herramientas Recientes */}
-        <div data-testid="recent-tools-section" className="mt-6 pt-3 border-t border-cad-border">
+        <div data-testid="recent-tools-section" className="mt-5 pt-3 border-t border-cad-border">
           <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center space-x-1 text-[11px] text-gray-400 font-medium uppercase tracking-wider">
+            <div className="flex items-center space-x-1.5 ui-section-title">
               <Clock size={12} className="text-gray-400" />
               <span>Recent ({recentTools.length})</span>
             </div>
@@ -320,11 +320,11 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
             {recentTools.length > 0 && (
               <button
                 onClick={() => clearRecent()}
-                className="text-[10px] text-gray-500 hover:text-rose-400 transition-colors"
+                className="ui-btn ui-btn-danger !h-6 !px-1.5 !text-[11px]"
                 title="Clear recent tools"
                 data-testid="clear-recent-tools-btn"
               >
-                Limpiar
+                Clear
               </button>
             )}
           </div>
@@ -332,7 +332,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
           {recentTools.length === 0 ? (
             <p className="text-[11px] text-gray-500 italic p-1">No recent tools</p>
           ) : (
-            <div className="grid grid-cols-5 gap-1.5 p-1 bg-cad-dark/40 rounded border border-cad-border">
+            <div className="grid grid-cols-5 gap-1.5">
               {recentTools.map((recent) => (
                 <div
                   key={recent.id}
@@ -341,7 +341,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
                   onClick={() => applyTool(recent)}
                   data-testid={`recent-tool-${recent.id}`}
                   data-tool-type={recent.type}
-                  className="p-1 rounded bg-cad-dark hover:bg-cad-hover border border-transparent hover:border-blue-500/50 cursor-pointer flex items-center justify-center transition-all"
+                  className="p-1 rounded-md bg-cad-field hover:bg-cad-hover border border-transparent hover:border-cad-accent/40 cursor-pointer flex items-center justify-center transition-all"
                   title={`${recent.text || recent.type} (drag onto the drawing or click)`}
                 >
                   <ToolVectorThumbnail

@@ -1,8 +1,8 @@
 import { useCalibrationStore } from '../store/useCalibrationStore';
 import { useAttachmentStore } from '../store/useAttachmentStore';
-import { PDFDocument, PDFArray, PDFDict, PDFName, PDFString, PDFHexString } from 'pdf-lib';
+import { PDFDocument, PDFArray, PDFDict, PDFName, PDFRef } from 'pdf-lib';
 import { isTauriEnvironment } from './bbxPersistenceService';
-import { saveIncrementalMarkups } from '../core/pdf/incrementalWriter';
+import { annotationKeyFor, isSignedSignatureField, saveIncrementalMarkups } from '../core/pdf/incrementalWriter';
 import { useUiStore } from '../store/useUiStore';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { Markup } from '../types/markup';
@@ -44,10 +44,12 @@ export async function validateSavedPdf(
     const annots = page.node.Annots();
     if (!(annots instanceof PDFArray)) continue;
     for (let i = 0; i < annots.size(); i++) {
-      const d = saved.context.lookup(annots.get(i));
-      if (!(d instanceof PDFDict) || !(d.get(PDFName.of('REA')) instanceof PDFDict)) continue;
-      const nm = d.get(PDFName.of('NM'));
-      const id = nm instanceof PDFString || nm instanceof PDFHexString ? nm.decodeText() : '';
+      const item = annots.get(i);
+      const d = saved.context.lookup(item);
+      if (!(d instanceof PDFDict)) continue;
+      // Anotaciones de REA y campos de firma ya firmados, que se conservan tal cual (ADR-0058)
+      if (!(d.get(PDFName.of('REA')) instanceof PDFDict) && !isSignedSignatureField(d)) continue;
+      const id = annotationKeyFor(d, item instanceof PDFRef ? item : undefined) ?? '';
       seen.set(id, (seen.get(id) ?? 0) + 1);
     }
   }

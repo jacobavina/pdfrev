@@ -1,0 +1,95 @@
+/**
+ * Archivos .pfx de prueba (ADR-0058), creados por nosotros con OpenSSL 3.5.8 sobre claves RSA-1024 desechables
+ * (sin valor fuera de los tests). Contraseña de los tres: `rea-test`. Firmante: CN=Ana Torres, O=Torres Ingenieria,
+ * emitido por CN=REA Test CA. Comandos:
+ *   openssl pkcs12 -export -legacy -in k.pem -inkey k.key -out legacy.pfx
+ *   openssl pkcs12 -export -in k.pem -inkey k.key -certpbe PBE-SHA1-3DES -keypbe PBE-SHA1-3DES -macalg sha1 -out tdes.pfx
+ *   openssl pkcs12 -export -in k.pem -inkey k.key -certfile ca.pem -out modern.pfx
+ */
+
+/** Huella SHA-256 del certificado del firmante (`openssl x509 -fingerprint -sha256`). */
+export const OPENSSL_PFX_CERT_SHA256 = 'f3046edf6a53f2b3fbee56ce34b408180dae4afb84e7fbbb50b0d4fafb9815e9';
+
+/** OpenSSL -legacy (por defecto en 1.x y en exportaciones antiguas de Windows): certificado en encryptedData con
+ * pbeWithSHA1And40BitRC2-CBC, clave con pbeWithSHA1And3-KeyTripleDES-CBC, MAC SHA-1. */
+export const OPENSSL_PFX_LEGACY_RC2_3DES =
+  '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';
+
+/** Certificado y clave con pbeWithSHA1And3-KeyTripleDES-CBC y MAC SHA-1 ("TripleDES-SHA1" de Windows). */
+export const OPENSSL_PFX_3DES =
+  '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';
+
+/** OpenSSL 3 por defecto (y "AES256-SHA256" de Windows): PBES2 PBKDF2-HMAC-SHA256 + AES-256-CBC en encryptedData
+ * y en la clave, MAC SHA-256 y el certificado de la CA en la cadena (dos certificados). */
+export const OPENSSL_PFX_AES_WITH_CHAIN =
+  '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' +
+  'PVxjd9J2g1p2sCgECKMlEUIEJgT1AgIIAA==';

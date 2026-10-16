@@ -8,8 +8,10 @@ import {
   escapePdfString,
   formatPdfDate,
   concatUint8Arrays,
+  isSignedSignatureField,
 } from './incrementalWriter';
 import { PageTransformInfo } from './operators';
+import { Pkcs12Hash, bmpPassword, pkcs12Kdf, rc2CbcDecrypt, stripPkcs7Padding, tripleDesCbcDecrypt } from './pkcs12Ciphers';
 
 /**
  * Firma digital de PDF con certificado X.509 / PKCS#12 (.pfx / .p12) y contenedor CMS / PKCS#7
@@ -51,6 +53,8 @@ export interface VerifiedPdfSignature {
   reason?: string;
   location?: string;
   byteRange: [number, number, number, number];
+  /** false si después de firmar se añadieron revisiones incrementales (ADR-0058): la firma cubre la suya. */
+  coversWholeDocument: boolean;
 }
 
 // --- Codificador y lector ASN.1 DER mínimo ---
@@ -141,6 +145,26 @@ function derUtf8String(str: string): Uint8Array {
 
 function derIA5String(str: string): Uint8Array {
   return derTag(0x16, new TextEncoder().encode(str));
+}
+
+function derBmpString(str: string): Uint8Array {
+  const out = new Uint8Array(str.length * 2);
+  for (let i = 0; i < str.length; i++) {
+    out[i * 2] = str.charCodeAt(i) >> 8;
+    out[i * 2 + 1] = str.charCodeAt(i) & 0xff;
+  }
+  return derTag(0x1e, out);
+}
+
+/** SET OF en orden canónico DER (X.690 §11.6): elementos ordenados por sus bytes. */
+function derSetOf(...items: Uint8Array[]): Uint8Array {
+  const sorted = [...items].sort((a, b) => {
+    for (let i = 0; i < Math.min(a.length, b.length); i++) {
+      if (a[i] !== b[i]) return a[i] - b[i];
+    }
+    return a.length - b.length;
+  });
+  return derSet(...sorted);
 }
 
 function derUtcTime(date: Date): Uint8Array {
@@ -259,6 +283,43 @@ const OID_PBKDF2 = '1.2.840.113549.1.5.12';
 const OID_HMAC_WITH_SHA256 = '1.2.840.113549.2.9';
 const OID_AES256_CBC = '2.16.840.1.101.3.4.1.42';
 const OID_AES128_CBC = '2.16.840.1.101.3.4.1.2';
+// PKCS#12 de otras herramientas (ADR-0058)
+const OID_PKCS7_ENCRYPTED_DATA = '1.2.840.113549.1.7.6';
+const OID_PKCS7_ENVELOPED_DATA = '1.2.840.113549.1.7.3';
+const OID_SAFE_CONTENTS_BAG = '1.2.840.113549.1.12.10.1.6';
+const OID_FRIENDLY_NAME = '1.2.840.113549.1.9.20';
+const OID_LOCAL_KEY_ID = '1.2.840.113549.1.9.21';
+const OID_PBMAC1 = '1.2.840.113549.1.5.14';
+const OID_DES_EDE3_CBC = '1.2.840.113549.3.7';
+/** pbeWithSHAAnd…: longitud de clave y cifrado (RFC 7292 apéndice C). */
+const PKCS12_PBE: Record<string, { keyLen: number; rc2Bits?: number }> = {
+  '1.2.840.113549.1.12.1.3': { keyLen: 24 },
+  '1.2.840.113549.1.12.1.4': { keyLen: 16 },
+  '1.2.840.113549.1.12.1.5': { keyLen: 16, rc2Bits: 128 },
+  '1.2.840.113549.1.12.1.6': { keyLen: 5, rc2Bits: 40 },
+};
+/** Longitud de clave de los cifrados de PBES2 que se admiten. */
+const PBES2_CIPHERS: Record<string, number> = {
+  [OID_AES128_CBC]: 16,
+  [OID_AES256_CBC]: 32,
+  [OID_DES_EDE3_CBC]: 24,
+};
+const HMAC_PRF: Record<string, Pkcs12Hash> = {
+  '1.2.840.113549.2.7': 'SHA-1',
+  [OID_HMAC_WITH_SHA256]: 'SHA-256',
+  '1.2.840.113549.2.10': 'SHA-384',
+  '1.2.840.113549.2.11': 'SHA-512',
+};
+const DIGEST_OIDS: Record<string, Pkcs12Hash> = {
+  '1.3.14.3.2.26': 'SHA-1',
+  [OID_SHA256]: 'SHA-256',
+  '2.16.840.1.101.3.4.2.2': 'SHA-384',
+  '2.16.840.1.101.3.4.2.3': 'SHA-512',
+};
+const HASH_LENGTH: Record<Pkcs12Hash, number> = { 'SHA-1': 20, 'SHA-256': 32, 'SHA-384': 48, 'SHA-512': 64 };
+const PFX_MAC_ITERATIONS = 2048;
+const MAX_PBE_ITERATIONS = 1_000_000;
+const PFX_PASSWORD_ERROR = 'Invalid certificate password or corrupted PFX file';
 
 function buildX509Name(commonName: string, organization?: string, email?: string): Uint8Array {
   const rdns: Uint8Array[] = [
@@ -311,43 +372,131 @@ async function encryptPkcs8Pbes2(pkcs8Der: Uint8Array, password: string): Promis
   return derSequence(encAlgId, derOctetString(cipherBytes));
 }
 
-/**
- * Descifra un EncryptedPrivateKeyInfo PBES2 (PBKDF2 + AES-128/256-CBC) usando WebCrypto.
- */
-async function decryptEncryptedPrivateKeyInfo(encKeyInfoDer: Uint8Array, password: string): Promise<Uint8Array> {
-  const top = readDerNode(encKeyInfoDer);
-  const topKids = readDerChildren(top);
-  if (topKids.length < 2) throw new Error('Malformed EncryptedPrivateKeyInfo');
-  const algSeq = readDerChildren(topKids[0]);
-  const algOid = decodeDerOid(algSeq[0].value);
-  const encryptedBytes = topKids[1].value;
-
-  if (algOid !== OID_PBES2 || algSeq.length < 2) {
-    throw new Error(`Unsupported private key encryption OID: ${algOid}`);
+/** Entero DER no negativo como número (iteraciones); rechaza valores desmesurados. */
+function derToNumber(node: DerNode): number {
+  if (node.tag !== 0x02 || node.value.length === 0 || node.value.length > 6) {
+    throw new Error('Corrupted PFX file: invalid INTEGER');
   }
+  let n = 0;
+  for (const b of node.value) n = n * 256 + b;
+  return n;
+}
+
+function iterationsOf(node: DerNode | undefined): number {
+  const n = node ? derToNumber(node) : 1;
+  if (n < 1 || n > MAX_PBE_ITERATIONS) throw new Error(`Unsupported PFX/P12 iteration count: ${n}`);
+  return n;
+}
+
+/**
+ * Pasa BER a DER (ADR-0058): longitudes indefinidas y OCTET STRING construidos, como los que escriben el llavero de
+ * macOS o Java. No entra en los OCTET STRING primitivos: lo que llevan dentro se normaliza al leerlo.
+ */
+export function berToDer(buf: Uint8Array): Uint8Array {
+  const read = (offset: number, depth: number): { der: Uint8Array; next: number } => {
+    if (depth > 64) throw new Error('ASN.1 nesting too deep');
+    if (offset + 2 > buf.length) throw new Error('ASN.1 BER truncated');
+    const tag = buf[offset];
+    if ((tag & 0x1f) === 0x1f) throw new Error('ASN.1 high tag numbers are not supported');
+    const constructed = (tag & 0x20) !== 0;
+    const first = buf[offset + 1];
+    let idx = offset + 2;
+    let end = -1;
+    if (first === 0x80) {
+      if (!constructed) throw new Error('ASN.1 BER indefinite length on a primitive value');
+    } else if ((first & 0x80) === 0) {
+      end = idx + first;
+    } else {
+      const numBytes = first & 0x7f;
+      if (numBytes > 4 || idx + numBytes > buf.length) throw new Error('ASN.1 BER invalid length byte count');
+      let len = 0;
+      for (let i = 0; i < numBytes; i++) len = len * 256 + buf[idx++];
+      end = idx + len;
+    }
+    if (end > buf.length) throw new Error('ASN.1 BER value exceeds buffer');
+    if (!constructed) return { der: derTag(tag, buf.subarray(idx, end)), next: end };
+    const kids: Uint8Array[] = [];
+    for (;;) {
+      if (end === -1) {
+        if (idx + 2 > buf.length) throw new Error('ASN.1 BER missing end-of-contents');
+        if (buf[idx] === 0 && buf[idx + 1] === 0) {
+          idx += 2;
+          break;
+        }
+      } else if (idx >= end) {
+        break;
+      }
+      const kid = read(idx, depth + 1);
+      kids.push(kid.der);
+      idx = kid.next;
+    }
+    if (end !== -1 && idx !== end) throw new Error('ASN.1 BER child exceeds its parent');
+    if (tag === 0x24) {
+      // OCTET STRING construido: la concatenación de sus trozos
+      return { der: derOctetString(concatUint8Arrays(kids.map((k) => readDerNode(k).value))), next: idx };
+    }
+    return { der: derTag(tag, concatUint8Arrays(kids)), next: idx };
+  };
+  return read(0, 0).der;
+}
+
+/** Contenido de un [0] IMPLICIT OCTET STRING, primitivo (0x80) o construido por trozos (0xa0). */
+function implicitOctets(node: DerNode): Uint8Array {
+  if (node.tag === 0x80) return node.value;
+  if (node.tag === 0xa0) return concatUint8Arrays(readDerChildren(node).map((k) => k.value));
+  throw new Error('Corrupted PFX file: unexpected encrypted content');
+}
+
+/**
+ * Descifra con el AlgorithmIdentifier de PKCS#5 / PKCS#12 (ADR-0058): PBES2 (PBKDF2 con HMAC-SHA1/256/384/512 y
+ * AES-128/256-CBC o DES-EDE3-CBC) y pbeWithSHAAnd3-KeyTripleDES-CBC, 2-KeyTripleDES-CBC, 128BitRC2-CBC y
+ * 40BitRC2-CBC con el KDF de PKCS#12.
+ */
+async function decryptPbe(algIdNode: DerNode, encrypted: Uint8Array, password: string): Promise<Uint8Array> {
+  const algSeq = readDerChildren(algIdNode);
+  const algOid = algSeq[0]?.tag === 0x06 ? decodeDerOid(algSeq[0].value) : '';
+  const legacy = PKCS12_PBE[algOid];
+  if (legacy && algSeq.length >= 2) {
+    const params = readDerChildren(algSeq[1]);
+    const salt = params[0].value;
+    const iterations = iterationsOf(params[1]);
+    const pw = bmpPassword(password);
+    const key = await pkcs12Kdf('SHA-1', pw, salt, iterations, 1, legacy.keyLen);
+    const iv = await pkcs12Kdf('SHA-1', pw, salt, iterations, 2, 8);
+    const raw =
+      legacy.rc2Bits === undefined
+        ? tripleDesCbcDecrypt(key, iv, encrypted)
+        : rc2CbcDecrypt(key, legacy.rc2Bits, iv, encrypted);
+    return stripPkcs7Padding(raw, 8);
+  }
+  if (algOid !== OID_PBES2 || algSeq.length < 2) {
+    throw new Error(`Unsupported PFX/P12 encryption algorithm: ${algOid || 'unknown'}`);
+  }
+
   const pbes2Kids = readDerChildren(algSeq[1]);
   const kdfKids = readDerChildren(pbes2Kids[0]);
   const encKids = readDerChildren(pbes2Kids[1]);
   const kdfOid = decodeDerOid(kdfKids[0].value);
   if (kdfOid !== OID_PBKDF2) throw new Error(`Unsupported KDF OID: ${kdfOid}`);
 
+  // PBKDF2-params: salt, iterationCount, keyLength OPTIONAL, prf DEFAULT hmacWithSHA1 (RFC 8018 A.2)
   const pbkdf2Params = readDerChildren(kdfKids[1]);
+  if (pbkdf2Params[0]?.tag !== 0x04) throw new Error('Unsupported PBKDF2 salt source');
   const salt = pbkdf2Params[0].value;
-  let iterations = 0;
-  for (const b of pbkdf2Params[1].value) iterations = (iterations << 8) | b;
-
-  let hashName: 'SHA-256' | 'SHA-1' = 'SHA-256';
+  const iterations = iterationsOf(pbkdf2Params[1]);
+  let hashName: Pkcs12Hash = 'SHA-1';
   for (let i = 2; i < pbkdf2Params.length; i++) {
     if (pbkdf2Params[i].tag === 0x30) {
-      const prfKids = readDerChildren(pbkdf2Params[i]);
-      if (prfKids.length > 0 && decodeDerOid(prfKids[0].value) !== OID_HMAC_WITH_SHA256) {
-        hashName = 'SHA-1';
-      }
+      const prfOid = decodeDerOid(readDerChildren(pbkdf2Params[i])[0].value);
+      const prf = HMAC_PRF[prfOid];
+      if (!prf) throw new Error(`Unsupported PBKDF2 PRF: ${prfOid}`);
+      hashName = prf;
     }
   }
 
   const cipherOid = decodeDerOid(encKids[0].value);
-  const keyBits = cipherOid === OID_AES128_CBC ? 128 : 256;
+  const keyBytes = PBES2_CIPHERS[cipherOid];
+  if (!keyBytes) throw new Error(`Unsupported PBES2 cipher: ${cipherOid}`);
   const iv = encKids[1].value;
 
   const baseKey = await crypto.subtle.importKey(
@@ -355,25 +504,64 @@ async function decryptEncryptedPrivateKeyInfo(encKeyInfoDer: Uint8Array, passwor
     new TextEncoder().encode(password),
     'PBKDF2',
     false,
-    ['deriveKey']
+    ['deriveBits']
   );
-  const aesKey = await crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt: salt as BufferSource, iterations, hash: hashName },
-    baseKey,
-    { name: 'AES-CBC', length: keyBits },
-    false,
-    ['decrypt']
+  const keyRaw = new Uint8Array(
+    await crypto.subtle.deriveBits(
+      { name: 'PBKDF2', salt: salt as BufferSource, iterations, hash: hashName },
+      baseKey,
+      keyBytes * 8
+    )
   );
+  if (cipherOid === OID_DES_EDE3_CBC) {
+    return stripPkcs7Padding(tripleDesCbcDecrypt(keyRaw, iv, encrypted), 8);
+  }
+  const aesKey = await crypto.subtle.importKey('raw', keyRaw as BufferSource, 'AES-CBC', false, ['decrypt']);
   try {
     const plain = await crypto.subtle.decrypt(
       { name: 'AES-CBC', iv: iv as BufferSource },
       aesKey,
-      encryptedBytes as BufferSource
+      encrypted as BufferSource
     );
     return new Uint8Array(plain);
   } catch {
-    throw new Error('Invalid certificate password or corrupted PFX file');
+    throw new Error(PFX_PASSWORD_ERROR);
   }
+}
+
+/** HMAC de PKCS#12 sobre el AuthenticatedSafe, con la clave del KDF (id 3) del mismo resumen (RFC 7292 §4). */
+async function pfxMac(
+  hash: Pkcs12Hash,
+  pw: Uint8Array,
+  salt: Uint8Array,
+  iterations: number,
+  data: Uint8Array
+): Promise<Uint8Array> {
+  const keyBytes = await pkcs12Kdf(hash, pw, salt, iterations, 3, HASH_LENGTH[hash]);
+  const key = await crypto.subtle.importKey('raw', keyBytes as BufferSource, { name: 'HMAC', hash }, false, ['sign']);
+  return new Uint8Array(await crypto.subtle.sign('HMAC', key, data as BufferSource));
+}
+
+/** Comprueba el macData: detecta la contraseña incorrecta y el archivo alterado antes de descifrar nada. */
+async function verifyPfxMac(macDataNode: DerNode, authSafeOctets: Uint8Array, password: string): Promise<void> {
+  const macKids = readDerChildren(macDataNode);
+  const digestInfo = readDerChildren(macKids[0]);
+  const algOid = decodeDerOid(readDerChildren(digestInfo[0])[0].value);
+  if (algOid === OID_PBMAC1) throw new Error('Unsupported PFX/P12 MAC algorithm (PBMAC1)');
+  const hash = DIGEST_OIDS[algOid];
+  if (!hash) throw new Error(`Unsupported PFX/P12 MAC algorithm: ${algOid}`);
+  const expected = digestInfo[1].value;
+  const salt = macKids[1].value;
+  const iterations = iterationsOf(macKids[2]);
+  // Contraseña vacía: unas herramientas la codifican como 00 00 y otras como cadena vacía; valen las dos
+  const candidates = password === '' ? [bmpPassword(''), new Uint8Array(0)] : [bmpPassword(password)];
+  for (const pw of candidates) {
+    const mac = await pfxMac(hash, pw, salt, iterations, authSafeOctets);
+    let diff = mac.length ^ expected.length;
+    for (let i = 0; i < Math.min(mac.length, expected.length); i++) diff |= mac[i] ^ expected[i];
+    if (diff === 0) return;
+  }
+  throw new Error(`${PFX_PASSWORD_ERROR} (MAC verification failed)`);
 }
 
 /**
@@ -495,31 +683,112 @@ export async function createSelfSignedPfx(
   );
   const certDer = derSequence(tbsCertificate, sigAlgDer, derBitString(new Uint8Array(certSigBuf)));
 
-  // Construir contenedor PKCS#12 (PFX v3, RFC 7292)
+  // Construir contenedor PKCS#12 (PFX v3, RFC 7292). Los dos bolsos llevan localKeyId (SHA-1 del certificado) y
+  // friendlyName, con los que Windows y Acrobat emparejan la clave con su certificado (ADR-0058)
   const encryptedKeyInfo = await encryptPkcs8Pbes2(pkcs8Der, opts.password);
-  const shroudedKeyBag = derSequence(derOid(OID_PKCS8_SHROUDED_KEY_BAG), derTag(0xa0, encryptedKeyInfo));
+  const localKeyId = new Uint8Array(await crypto.subtle.digest('SHA-1', certDer as BufferSource));
+  const bagAttributes = derSetOf(
+    derSequence(derOid(OID_FRIENDLY_NAME), derSet(derBmpString(opts.commonName.trim()))),
+    derSequence(derOid(OID_LOCAL_KEY_ID), derSet(derOctetString(localKeyId)))
+  );
+  const shroudedKeyBag = derSequence(
+    derOid(OID_PKCS8_SHROUDED_KEY_BAG),
+    derTag(0xa0, encryptedKeyInfo),
+    bagAttributes
+  );
 
   const x509CertBagValue = derSequence(derOid(OID_X509_CERTIFICATE), derTag(0xa0, derOctetString(certDer)));
-  const certBag = derSequence(derOid(OID_CERT_BAG), derTag(0xa0, x509CertBagValue));
+  const certBag = derSequence(derOid(OID_CERT_BAG), derTag(0xa0, x509CertBagValue), bagAttributes);
 
   const safeContents = derSequence(certBag, shroudedKeyBag);
   const dataContentInfo = derSequence(derOid(OID_PKCS7_DATA), derTag(0xa0, derOctetString(safeContents)));
   const authSafeBytes = derSequence(dataContentInfo);
   const authSafeContentInfo = derSequence(derOid(OID_PKCS7_DATA), derTag(0xa0, derOctetString(authSafeBytes)));
 
-  const pfxBytes = derSequence(derIntegerFromNumber(3), authSafeContentInfo);
+  // macData con HMAC-SHA256 (ADR-0058): sin él, Windows y Acrobat pueden rechazar el archivo
+  const macSalt = crypto.getRandomValues(new Uint8Array(16));
+  const mac = await pfxMac('SHA-256', bmpPassword(opts.password), macSalt, PFX_MAC_ITERATIONS, authSafeBytes);
+  const macData = derSequence(
+    derSequence(derSequence(derOid(OID_SHA256), derNull()), derOctetString(mac)),
+    derOctetString(macSalt),
+    derIntegerFromNumber(PFX_MAC_ITERATIONS)
+  );
+
+  const pfxBytes = derSequence(derIntegerFromNumber(3), authSafeContentInfo, macData);
   const certificate = parseX509CertificateDer(certDer, keyPair.privateKey);
 
   return { pfxBytes, certificate };
 }
 
+interface PfxBags {
+  certs: { der: Uint8Array; localKeyId?: string }[];
+  keys: { pkcs8?: Uint8Array; encrypted?: DerNode; localKeyId?: string }[];
+}
+
+/** localKeyId de los atributos de un SafeBag, en hexadecimal. */
+function localKeyIdOf(attrs: DerNode | undefined): string | undefined {
+  if (!attrs || attrs.tag !== 0x31) return undefined;
+  for (const attr of readDerChildren(attrs)) {
+    const kids = readDerChildren(attr);
+    if (kids.length < 2 || kids[0].tag !== 0x06 || decodeDerOid(kids[0].value) !== OID_LOCAL_KEY_ID) continue;
+    const value = readDerChildren(kids[1])[0];
+    if (value?.tag === 0x04) return Array.from(value.value, (b) => b.toString(16).padStart(2, '0')).join('');
+  }
+  return undefined;
+}
+
+/** Recorre un SafeContents (RFC 7292 §4.2): certificados X.509, claves en claro o cifradas y SafeContents anidados. */
+function collectSafeBags(safeContents: Uint8Array, bags: PfxBags, depth: number): void {
+  const seq = readDerNode(berToDer(safeContents));
+  if (seq.tag !== 0x30) throw new Error('Corrupted PFX file: invalid SafeContents');
+  for (const bag of readDerChildren(seq)) {
+    const kids = readDerChildren(bag);
+    if (kids.length < 2 || kids[0].tag !== 0x06 || kids[1].tag !== 0xa0) continue;
+    const bagId = decodeDerOid(kids[0].value);
+    const value = readDerNode(kids[1].value);
+    const localKeyId = localKeyIdOf(kids[2]);
+    if (bagId === OID_CERT_BAG) {
+      const certBag = readDerChildren(value);
+      if (certBag.length >= 2 && decodeDerOid(certBag[0].value) === OID_X509_CERTIFICATE && certBag[1].tag === 0xa0) {
+        const octets = readDerNode(certBag[1].value);
+        if (octets.tag === 0x04) bags.certs.push({ der: octets.value, localKeyId });
+      }
+    } else if (bagId === OID_KEY_BAG) {
+      bags.keys.push({ pkcs8: value.raw, localKeyId });
+    } else if (bagId === OID_PKCS8_SHROUDED_KEY_BAG) {
+      bags.keys.push({ encrypted: value, localKeyId });
+    } else if (bagId === OID_SAFE_CONTENTS_BAG && depth < 4) {
+      collectSafeBags(value.raw, bags, depth + 1);
+    }
+  }
+}
+
+/** Módulo RSA (JWK `n`) de una clave pública SPKI o de una privada PKCS#8, para emparejar clave y certificado. */
+async function rsaModulusOf(format: 'spki' | 'pkcs8', der: Uint8Array): Promise<string | undefined> {
+  try {
+    const usage: KeyUsage[] = format === 'spki' ? ['verify'] : ['sign'];
+    const key = await crypto.subtle.importKey(format, der as BufferSource, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, true, usage);
+    return (await crypto.subtle.exportKey('jwk', key)).n;
+  } catch {
+    return undefined;
+  }
+}
+
+/** SubjectPublicKeyInfo de un certificado X.509 DER. */
+function certSpki(certDer: Uint8Array): Uint8Array {
+  const tbsKids = readDerChildren(readDerChildren(readDerNode(certDer))[0]);
+  return tbsKids[(tbsKids[0].tag === 0xa0 ? 1 : 0) + 5].raw;
+}
+
 /**
  * Lee un archivo PKCS#12 (.pfx / .p12) con su contraseña y devuelve el certificado X.509 y su clave privada.
+ * Admite los de REA y los de Windows, OpenSSL y Acrobat (ADR-0058): SafeContents en `data` y en `encryptedData`,
+ * PBES2/AES, 3DES y RC2 con el KDF de PKCS#12, BER, cadenas con varios certificados y verificación del macData.
  */
 export async function parsePfxCertificate(pfxBytes: Uint8Array, password: string): Promise<ParsedCertificate> {
   let root: DerNode;
   try {
-    root = readDerNode(pfxBytes);
+    root = readDerNode(berToDer(pfxBytes));
   } catch {
     throw new Error('Invalid PFX/P12 file: not a valid ASN.1 DER structure');
   }
@@ -527,53 +796,58 @@ export async function parsePfxCertificate(pfxBytes: Uint8Array, password: string
     throw new Error('Invalid PFX/P12 file: expected ASN.1 SEQUENCE');
   }
 
-  let foundCertDer: Uint8Array | null = null;
-  let foundEncryptedKeyDer: Uint8Array | null = null;
-  let foundPlainKeyDer: Uint8Array | null = null;
+  // PFX ::= SEQUENCE { version, authSafe ContentInfo, macData OPTIONAL }
+  const pfxKids = readDerChildren(root);
+  if (pfxKids.length < 2 || pfxKids[0].tag !== 0x02 || pfxKids[1].tag !== 0x30) {
+    throw new Error('Invalid PFX/P12 file: not a PKCS#12 PFX structure');
+  }
+  const authSafeInfo = readDerChildren(pfxKids[1]);
+  if (authSafeInfo.length < 2 || decodeDerOid(authSafeInfo[0].value) !== OID_PKCS7_DATA || authSafeInfo[1].tag !== 0xa0) {
+    throw new Error('Unsupported PFX/P12 integrity mode: only password-protected files are supported');
+  }
+  const authSafeOctets = readDerNode(authSafeInfo[1].value);
+  if (authSafeOctets.tag !== 0x04) throw new Error('Corrupted PFX file: invalid AuthenticatedSafe');
+  if (pfxKids[2]?.tag === 0x30) {
+    await verifyPfxMac(pfxKids[2], authSafeOctets.value, password);
+  }
 
-  const walk = (node: DerNode): void => {
-    const isConstructed = (node.tag & 0x20) !== 0;
-    if (isConstructed) {
-      let children: DerNode[] = [];
-      try {
-        children = readDerChildren(node);
-      } catch {
-        return;
-      }
-      if (node.tag === 0x30 && children.length >= 2 && children[0].tag === 0x06) {
-        const oid = decodeDerOid(children[0].value);
-        if (oid === OID_X509_CERTIFICATE && children[1].tag === 0xa0) {
-          const inner = readDerNode(children[1].value);
-          if (inner.tag === 0x04) foundCertDer = inner.value;
-        } else if (oid === OID_PKCS8_SHROUDED_KEY_BAG && children[1].tag === 0xa0) {
-          foundEncryptedKeyDer = children[1].value;
-        } else if (oid === OID_KEY_BAG && children[1].tag === 0xa0) {
-          foundPlainKeyDer = children[1].value;
-        }
-      }
-      for (const child of children) walk(child);
-    } else if (node.tag === 0x04 && node.value.length >= 4 && (node.value[0] === 0x30 || node.value[0] === 0x04)) {
-      try {
-        const inner = readDerNode(node.value);
-        if (inner.totalLength === node.value.length) walk(inner);
-      } catch {
-        // No es un nodo ASN.1 anidado
-      }
+  // AuthenticatedSafe ::= SEQUENCE OF ContentInfo (data o encryptedData)
+  const bags: PfxBags = { certs: [], keys: [] };
+  for (const info of readDerChildren(readDerNode(berToDer(authSafeOctets.value)))) {
+    const kids = readDerChildren(info);
+    const oid = kids[0]?.tag === 0x06 ? decodeDerOid(kids[0].value) : '';
+    if (kids.length < 2 || kids[1].tag !== 0xa0) continue;
+    if (oid === OID_PKCS7_DATA) {
+      const octets = readDerNode(kids[1].value);
+      if (octets.tag === 0x04) collectSafeBags(octets.value, bags, 0);
+    } else if (oid === OID_PKCS7_ENCRYPTED_DATA) {
+      // EncryptedData ::= SEQUENCE { version, EncryptedContentInfo { contentType, algorithm, [0] IMPLICIT content } }
+      const encryptedData = readDerChildren(readDerNode(kids[1].value));
+      const contentInfo = encryptedData[1] ? readDerChildren(encryptedData[1]) : [];
+      if (contentInfo.length < 3) continue;
+      collectSafeBags(await decryptPbe(contentInfo[1], implicitOctets(contentInfo[2]), password), bags, 0);
+    } else if (oid === OID_PKCS7_ENVELOPED_DATA) {
+      throw new Error('Unsupported PFX/P12 file: SafeContents encrypted with a public key (envelopedData)');
     }
-  };
+  }
 
-  walk(root);
-
-  if (!foundCertDer) {
+  if (bags.certs.length === 0) {
     throw new Error('No X.509 certificate found in PFX/P12 file');
   }
-  if (!foundEncryptedKeyDer && !foundPlainKeyDer) {
+  if (bags.keys.length === 0) {
     throw new Error('No private key found in PFX/P12 file');
   }
 
-  const pkcs8Bytes = foundEncryptedKeyDer
-    ? await decryptEncryptedPrivateKeyInfo(foundEncryptedKeyDer, password)
-    : foundPlainKeyDer!;
+  const keyBag = bags.keys[0];
+  let pkcs8Bytes: Uint8Array;
+  if (keyBag.pkcs8) {
+    pkcs8Bytes = keyBag.pkcs8;
+  } else {
+    // EncryptedPrivateKeyInfo ::= SEQUENCE { encryptionAlgorithm, encryptedData OCTET STRING }
+    const encKids = readDerChildren(keyBag.encrypted!);
+    if (encKids.length < 2 || encKids[1].tag !== 0x04) throw new Error('Malformed EncryptedPrivateKeyInfo');
+    pkcs8Bytes = berToDer(await decryptPbe(encKids[0], encKids[1].value, password));
+  }
 
   let privateKey: CryptoKey;
   try {
@@ -588,7 +862,21 @@ export async function parsePfxCertificate(pfxBytes: Uint8Array, password: string
     throw new Error('Unsupported private key format in PFX/P12 (RSA SHA-256 required)');
   }
 
-  return parseX509CertificateDer(foundCertDer, privateKey);
+  // Certificado de la clave: el de su mismo localKeyId; si no, el único, o el de su mismo módulo RSA (cadenas con CA)
+  let cert = keyBag.localKeyId ? bags.certs.find((c) => c.localKeyId === keyBag.localKeyId) : undefined;
+  if (!cert && bags.certs.length === 1) cert = bags.certs[0];
+  if (!cert) {
+    const keyModulus = await rsaModulusOf('pkcs8', pkcs8Bytes);
+    for (const c of bags.certs) {
+      if (keyModulus && (await rsaModulusOf('spki', certSpki(c.der))) === keyModulus) {
+        cert = c;
+        break;
+      }
+    }
+  }
+  if (!cert) throw new Error('No certificate in the PFX/P12 file matches its private key');
+
+  return parseX509CertificateDer(cert.der, privateKey);
 }
 
 /**
@@ -719,6 +1007,9 @@ export async function signPdfWithCertificate(
   if (!widgetRef || !widgetDict) {
     throw new Error('Could not locate signature widget annotation in saved PDF');
   }
+  if (isSignedSignatureField(widgetDict)) {
+    throw new Error('This signature field is already signed');
+  }
 
   const sigObjNum = writer.allocateObjectNumber();
   const sigRef = PDFRef.of(sigObjNum, 0);
@@ -828,7 +1119,8 @@ export async function verifyPdfSignature(pdfBytes: Uint8Array): Promise<Verified
   const r2Start = parseInt(sigMatch[3], 10);
   const r2Len = parseInt(sigMatch[4], 10);
 
-  if (r1Start !== 0 || r2Start + r2Len !== pdfBytes.length || r1Len >= r2Start) {
+  // La firma cubre su revisión: las actualizaciones incrementales posteriores quedan fuera (ADR-0058)
+  if (r1Start !== 0 || r2Start + r2Len > pdfBytes.length || r1Len >= r2Start) {
     throw new Error('Invalid /ByteRange bounds');
   }
 
@@ -927,5 +1219,6 @@ export async function verifyPdfSignature(pdfBytes: Uint8Array): Promise<Verified
     reason: reasonMatch?.[1],
     location: locationMatch?.[1],
     byteRange: [r1Start, r1Len, r2Start, r2Len],
+    coversWholeDocument: r2Start + r2Len === pdfBytes.length,
   };
 }

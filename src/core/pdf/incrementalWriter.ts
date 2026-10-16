@@ -115,6 +115,25 @@ export function annotationKeyFor(dict: PDFDict, ref?: PDFRef): string | undefine
 }
 
 /**
+ * Campo de firma ya firmado (ADR-0058): /FT /Sig y /V con su diccionario de firma, propios o heredados del /Parent.
+ * Su objeto queda dentro del /ByteRange de la firma, así que ningún guardado posterior lo retira ni lo reescribe.
+ */
+export function isSignedSignatureField(dict: PDFDict): boolean {
+  let ft: PDFObject | undefined;
+  let v: PDFObject | undefined;
+  let cur: PDFDict | undefined = dict;
+  const seen = new Set<PDFDict>();
+  for (let depth = 0; cur && depth < 8 && !seen.has(cur); depth++) {
+    seen.add(cur);
+    if (ft === undefined) ft = cur.lookup(PDFName.of('FT'));
+    if (v === undefined) v = cur.lookup(PDFName.of('V'));
+    const parent: PDFObject | undefined = cur.lookup(PDFName.of('Parent'));
+    cur = parent instanceof PDFDict ? parent : undefined;
+  }
+  return ft instanceof PDFName && ft.asString() === '/Sig' && v instanceof PDFDict;
+}
+
+/**
  * Concatena una lista de Uint8Array en un único búfer continuo.
  */
 export function concatUint8Arrays(arrays: Uint8Array[]): Uint8Array {
@@ -337,10 +356,31 @@ export async function saveIncrementalMarkups(
   const pdfDoc = await PDFDocument.load(originalBytes);
   const pages = pdfDoc.getPages();
 
+  // Campos de firma ya firmados (ADR-0058): se conservan tal cual, con su objeto original, aunque su marca siga en el
+  // modelo. La marca está bloqueada: sus cambios de geometría o estilo no se escriben.
+  const signedKeys = new Set<string>();
+  const signedObjNums = new Set<number>();
+  for (const page of pages) {
+    const annots = page.node.Annots();
+    if (!(annots instanceof PDFArray)) continue;
+    for (let i = 0; i < annots.size(); i++) {
+      const item = annots.get(i);
+      const dict = item instanceof PDFRef ? pdfDoc.context.lookup(item) : item;
+      if (!(dict instanceof PDFDict) || !isSignedSignatureField(dict)) continue;
+      const key = annotationKeyFor(dict, item instanceof PDFRef ? item : undefined);
+      if (key !== undefined) signedKeys.add(key);
+      if (item instanceof PDFRef) signedObjNums.add(item.objectNumber);
+    }
+  }
+  const writable = markups.filter((m) => {
+    const foreignNum = m.customFields?.foreignWidgetObjNum;
+    return !signedKeys.has(m.id) && !(typeof foreignNum === 'number' && signedObjNums.has(foreignNum));
+  });
+
   // Capas de marcas como contenido opcional (ADR-0046): un /OCG por capa, que Revu y Acrobat listan en su panel
   // de capas y con el que muestran u ocultan las anotaciones
   const layerOcg = new Map<string, number>();
-  for (const m of markups) {
+  for (const m of writable) {
     if (m.layer && !layerOcg.has(m.layer)) layerOcg.set(m.layer, writer.allocateObjectNumber());
   }
   for (const [name, num] of layerOcg) {
@@ -348,11 +388,11 @@ export async function saveIncrementalMarkups(
   }
 
   // Ids que el modelo reescribe en este guardado y que el usuario borró desde la importación
-  const replacedIds = new Set<string>([...markups.map((m) => m.id), ...(options.importedIds ?? [])]);
+  const replacedIds = new Set<string>([...writable.map((m) => m.id), ...(options.importedIds ?? [])]);
 
   // Agrupar marcas por índice de página
   const markupsByPage = new Map<number, Markup[]>();
-  for (const m of markups) {
+  for (const m of writable) {
     const list = markupsByPage.get(m.pageIndex) || [];
     list.push(m);
     markupsByPage.set(m.pageIndex, list);
@@ -362,7 +402,7 @@ export async function saveIncrementalMarkups(
   const newFieldRefs: string[] = [];
   const foreignParentsToUpdate = new Map<number, { ft: FieldType; value: string }>();
   const radioGroups = new Map<string, { objNum: number; kids: string[]; value: string | null }>();
-  for (const m of markups) {
+  for (const m of writable) {
     if (m.type === 'formField' && fieldTypeOf(m) === 'radio' && typeof m.customFields?.foreignParentObjNum !== 'number') {
       const group = String(m.customFields?.fieldName ?? 'Group1');
       if (!radioGroups.has(group)) radioGroups.set(group, { objNum: writer.allocateObjectNumber(), kids: [], value: null });
@@ -412,6 +452,7 @@ export async function saveIncrementalMarkups(
     const refKey = (r: PDFRef) => `${r.objectNumber} ${r.generationNumber}`;
     for (const it of existingItems) {
       if (!it.dict || it.dict.get(PDFName.of('StateModel')) !== undefined) continue;
+      if (isSignedSignatureField(it.dict)) continue;
       const isRea = it.dict.get(PDFName.of('REA')) instanceof PDFDict;
       const key = annotationKeyFor(it.dict, it.ref);
       if (isRea || (key !== undefined && replacedIds.has(key))) {
@@ -925,7 +966,8 @@ function updateAcroForm(
           continue;
         }
         const dict = item instanceof PDFRef ? pdfDoc.context.lookup(item) : item;
-        if (dict instanceof PDFDict && dict.get(PDFName.of('REA'))) {
+        // Los campos de firma ya firmados se conservan (ADR-0058)
+        if (dict instanceof PDFDict && dict.get(PDFName.of('REA')) && !isSignedSignatureField(dict)) {
           hadRea = true;
           continue;
         }

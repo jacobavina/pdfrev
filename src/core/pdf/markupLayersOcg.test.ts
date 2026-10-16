@@ -54,9 +54,10 @@ describe('Capas de marcas como capas del PDF (/OCG, ADR-0046)', () => {
     expect(info.ocgs).toEqual(['Markups', 'Electrical']);
     expect(info.off).toEqual(['Electrical']);
     expect(info.annotLayers.sort()).toEqual(['Electrical', 'Markups', 'Markups']);
-    // Y vuelven a REA con su capa
+    // Y vuelven a REA con su capa y su estado de visibilidad
     const back = await importPdfAnnotations(saved);
     expect(back.markups.find((m) => m.id === 'b')!.layer).toBe('Electrical');
+    expect(back.hiddenLayers).toEqual(['Electrical']);
   });
 
   it('al volver a guardar se reemplazan las capas de REA y se conservan las capas propias del plano', async () => {

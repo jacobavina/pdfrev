@@ -63,7 +63,7 @@ describe('Mediciones de Revu: volumen, ángulo, conteo, radio y diámetro (ADR-0
     for (const id of ['vol', 'ang', 'cnt', 'dia']) expect(a[id].get(PDFName.of('Measure'))).toBeDefined();
   });
 
-  it('al abrir un PDF de Revu, sus mediciones de volumen, ángulo, conteo y radio vuelven como mediciones de REA', async () => {
+  it('al abrir un PDF de Revu, sus mediciones de volumen, ángulo, conteo, radio y diámetro vuelven como mediciones de REA', async () => {
     const doc = await PDFDocument.load(blueprint);
     const ctx = doc.context;
     const annot = (o: Record<string, unknown>) => ctx.register(ctx.obj(o as never));
@@ -74,6 +74,7 @@ describe('Mediciones de Revu: volumen, ángulo, conteo, radio y diámetro (ADR-0
       annot({ Type: 'Annot', Subtype: 'PolyLine', IT: PDFName.of('PolyLineAngle'), NM: PDFString.of('rv-ang'), Rect: [300, 300, 400, 400], Vertices: [300, 400, 300, 300, 400, 300] }),
       annot({ Type: 'Annot', Subtype: 'Circle', IT: PDFName.of('PolygonCount'), NM: PDFString.of('rv-cnt'), Rect: [500, 500, 510, 510] }),
       annot({ Type: 'Annot', Subtype: 'Circle', IT: PDFName.of('PolygonRadius'), NM: PDFString.of('rv-rad'), Rect: [600, 100, 700, 200] }),
+      annot({ Type: 'Annot', Subtype: 'Circle', IT: PDFName.of('PolygonRadius'), MeasurementTypes: 384, NM: PDFString.of('rv-dia'), Rect: [600, 100, 700, 200] }),
     ];
     doc.getPages()[0].node.set(PDFName.of('Annots'), ctx.obj(annots));
     const back = (await importPdfAnnotations(await doc.save({ useObjectStreams: false }))).markups;
@@ -87,5 +88,48 @@ describe('Mediciones de Revu: volumen, ángulo, conteo, radio y diámetro (ADR-0
     expect(by('rv-cnt').points).toHaveLength(1);
     expect(by('rv-rad').type).toBe('radius');
     expect(by('rv-rad').measurement!.value).toBeGreaterThan(0);
+    expect(by('rv-dia').type).toBe('diameter');
+    expect(by('rv-dia').measurement!.value).toBeCloseTo(by('rv-rad').measurement!.value * 2, 3);
+  });
+
+  it('callout /FreeTextCallout y sellos /Stamp de Revu/Acrobat se importan con su directriz, caja /RD y nombre de sello (ADR-0053)', async () => {
+    const doc = await PDFDocument.load(blueprint);
+    const ctx = doc.context;
+    const annot = (o: Record<string, unknown>) => ctx.register(ctx.obj(o as never));
+    const annots = [
+      annot({
+        Type: 'Annot',
+        Subtype: 'FreeText',
+        IT: PDFName.of('FreeTextCallout'),
+        NM: PDFString.of('rv-callout'),
+        Rect: [100, 100, 300, 240],
+        RD: [80, 60, 0, 0],
+        CL: [100, 100, 160, 200, 180, 200],
+        LE: PDFName.of('OpenArrow'),
+        Contents: PDFString.of('Verify beam'),
+      }),
+      annot({
+        Type: 'Annot',
+        Subtype: 'Stamp',
+        Name: PDFName.of('Draft'),
+        NM: PDFString.of('rv-stamp'),
+        Rect: [350, 150, 470, 195],
+        T: PDFString.of('Marta'),
+      }),
+    ];
+    doc.getPages()[0].node.set(PDFName.of('Annots'), ctx.obj(annots));
+    const res = await importPdfAnnotations(await doc.save({ useObjectStreams: false }));
+    expect(res.foreignUnsupportedCount).toBe(0);
+    const co = res.markups.find((m) => m.id === 'rv-callout')!;
+    expect(co.type).toBe('callout');
+    expect(co.text).toBe('Verify beam');
+    expect(co.style.lineEndingStart).toBe('openArrow');
+    expect(co.leaders?.[0]).toHaveLength(2);
+    // La caja de texto tomó Rect menos RD (empieza en x=180, no en x=100)
+    expect(co.points[0].x).toBeGreaterThan(co.leaders![0][0].x);
+    const st = res.markups.find((m) => m.id === 'rv-stamp')!;
+    expect(st.type).toBe('stamp');
+    expect(st.author).toBe('Marta');
+    expect(String(st.customFields?.stampId)).toMatch(/draft/);
   });
 });

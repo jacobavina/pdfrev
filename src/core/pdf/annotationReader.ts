@@ -23,15 +23,27 @@ import {
   calculateCount,
   calculateVolume,
 } from '../measurements/calculate';
+import { STAMPS, stampSubtitle } from '../markup/stamps';
 
-/** Mediciones cuyo valor se recalcula de la geometría del PDF si esta cambió fuera de REA (ADR-0030). */
-const RECOMPUTED_MEASURES = new Set<MarkupType>(['length', 'polylineMeasure', 'perimeter', 'area', 'volume', 'angle', 'radius']);
+/** Mediciones cuyo valor se recalcula de la geometría del PDF si esta cambió fuera de REA (ADR-0030/0053). */
+const RECOMPUTED_MEASURES = new Set<MarkupType>([
+  'length',
+  'polylineMeasure',
+  'perimeter',
+  'area',
+  'volume',
+  'angle',
+  'radius',
+  'diameter',
+]);
 
 export interface ImportAnnotationsResult {
   markups: Markup[];
   foreignUnsupportedCount: number;
   /** Adjuntos embebidos de las marcas de REA, por `attachmentKey` (ADR-0027). */
   attachments: Record<string, { name: string; mime: string; bytes: Uint8Array }>;
+  /** Capas de marcas que el PDF trae apagadas en /OCProperties /D /OFF (ADR-0046/0053). */
+  hiddenLayers?: string[];
 }
 
 /**
@@ -388,8 +400,19 @@ export async function importPdfAnnotations(
         if (!isRea && markupType === 'polylineMeasure' && closed) markupType = 'perimeter';
         if (markupType === 'perimeter' && closed) points.pop();
       } else if (subtype === 'Circle') {
-        // Conteo y radio de Revu (ADR-0051); si no, una elipse
-        if (!isRea) markupType = intent === 'PolygonCount' ? 'count' : intent === 'PolygonRadius' ? 'radius' : 'circle';
+        // Conteo, radio y diámetro de Revu (ADR-0051/0053); si no, una elipse
+        const mtObj = annotDict.get(PDFName.of('MeasurementTypes'));
+        const mt = mtObj instanceof PDFNumber ? mtObj.asNumber() : 0;
+        if (!isRea) {
+          markupType =
+            intent === 'PolygonCount' || mt === 128
+              ? 'count'
+              : mt === 384
+                ? 'diameter'
+                : intent === 'PolygonRadius'
+                  ? 'radius'
+                  : 'circle';
+        }
       } else if (subtype === 'Text') {
         markupType = 'stickyNote';
       } else if (subtype === 'Highlight') {
@@ -399,7 +422,29 @@ export async function importPdfAnnotations(
       } else if (subtype === 'StrikeOut') {
         if (!isRea) markupType = 'strikeOut';
       } else if (subtype === 'FreeText') {
-        if (!isRea) markupType = 'text';
+        if (!isRea) {
+          const hasCl = annotDict.get(PDFName.of('CL')) instanceof PDFArray;
+          markupType = intent === 'FreeTextCallout' || hasCl ? 'callout' : 'text';
+        }
+      } else if (subtype === 'Stamp') {
+        if (!isRea) {
+          markupType = 'stamp';
+          const nameObj = annotDict.get(PDFName.of('Name'));
+          const rawName = nameObj instanceof PDFName ? decodePdfName(nameObj.asString()) : 'Approved';
+          const norm = rawName.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const matched =
+            STAMPS.find(
+              (s) =>
+                s.pdfName?.toLowerCase() === rawName.toLowerCase() ||
+                `rea${s.id.replace(/[^a-z0-9]/gi, '').toLowerCase()}` === norm ||
+                s.id.replace(/[^a-z0-9]/gi, '').toLowerCase() === norm ||
+                s.label.replace(/[^a-z0-9]/gi, '').toLowerCase() === norm
+            ) ?? STAMPS.find((s) => s.id === 'approved')!;
+          customFields.stampId = matched.id;
+          if ((matched.dynamic ?? 'by') === 'by') {
+            customFields.stampSubtitle = stampSubtitle(author, dateStr);
+          }
+        }
       } else if (
         !isRea &&
         ![
@@ -414,6 +459,7 @@ export async function importPdfAnnotations(
           'Highlight',
           'Underline',
           'StrikeOut',
+          'Stamp',
         ].includes(subtype)
       ) {
         // Subtipo no soportado por REA. Enlaces, campos de formulario y ventanas emergentes ajenos se conservan
@@ -482,24 +528,76 @@ export async function importPdfAnnotations(
         lineStyle = extractPdfStringValue(reaObj.get(PDFName.of('lineStyle'))) || undefined;
       }
 
+      // Callout ajeno o movido en Revu/Acrobat (ADR-0042/0053): caja de texto desde /Rect - /RD y directriz desde /CL
+      if (markupType === 'callout' && !exactGeometry) {
+        const rdObj = annotDict.get(PDFName.of('RD'));
+        if (
+          rdObj instanceof PDFArray &&
+          rdObj.size() >= 4 &&
+          rectObj instanceof PDFArray &&
+          rectObj.size() >= 4
+        ) {
+          const rNums = [0, 1, 2, 3].map((i) => rectObj.get(i));
+          const dNums = [0, 1, 2, 3].map((i) => rdObj.get(i));
+          if (rNums.every((n) => n instanceof PDFNumber) && dNums.every((n) => n instanceof PDFNumber)) {
+            const [rx0, ry0, rx1, ry1] = rNums.map((n) => (n as PDFNumber).asNumber());
+            const [dl, db, dr, dt] = dNums.map((n) => (n as PDFNumber).asNumber());
+            const bx0 = Math.min(rx0, rx1) + Math.max(0, dl);
+            const by0 = Math.min(ry0, ry1) + Math.max(0, db);
+            const bx1 = Math.max(rx0, rx1) - Math.max(0, dr);
+            const by1 = Math.max(ry0, ry1) - Math.max(0, dt);
+            if (bx1 > bx0 && by1 > by0) {
+              points.splice(
+                0,
+                points.length,
+                pdfToNormalizedCoordinates({ x: bx0, y: by1 }, transform),
+                pdfToNormalizedCoordinates({ x: bx1, y: by0 }, transform)
+              );
+            }
+          }
+        }
+        const clObj = annotDict.get(PDFName.of('CL'));
+        if (clObj instanceof PDFArray && clObj.size() >= 4) {
+          const nums: number[] = [];
+          for (let i = 0; i < clObj.size(); i++) {
+            const v = clObj.get(i);
+            if (v instanceof PDFNumber) nums.push(v.asNumber());
+          }
+          if (nums.length >= 6) {
+            leaders = [
+              [
+                pdfToNormalizedCoordinates({ x: nums[0], y: nums[1] }, transform),
+                pdfToNormalizedCoordinates({ x: nums[2], y: nums[3] }, transform),
+              ],
+            ];
+          } else if (nums.length >= 4) {
+            leaders = [[pdfToNormalizedCoordinates({ x: nums[0], y: nums[1] }, transform)]];
+          }
+        }
+      }
+
       // Capa de una anotación ajena (o de REA sin capa): el /Name de su /OCG (ADR-0046)
       if (!layer) {
         const ocObj = annotDict.lookup(PDFName.of('OC'));
         if (ocObj instanceof PDFDict) layer = extractPdfStringValue(ocObj.get(PDFName.of('Name'))) || undefined;
       }
 
-      // Conteo y radio de Revu sin geometría de REA (ADR-0051): el punto es el centro de su caja o de sus vértices; el
-      // radio va del centro al borde derecho
+      // Conteo, radio y diámetro de Revu (o de REA movidos fuera) sin geometría exacta (ADR-0051/0053)
       if (!isRea && !exactGeometry && markupType === 'count' && points.length >= 2) {
         const cx = points.reduce((t, p) => t + p.x, 0) / points.length;
         const cy = points.reduce((t, p) => t + p.y, 0) / points.length;
         points.splice(0, points.length, { x: cx, y: cy });
         measurement = calculateCount(1);
       }
-      if (!isRea && !exactGeometry && markupType === 'radius' && subtype === 'Circle' && points.length === 2) {
+      if (!exactGeometry && (markupType === 'radius' || markupType === 'diameter') && subtype === 'Circle' && points.length === 2) {
         const [a, b] = points;
         const c = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-        points.splice(0, 2, c, { x: Math.max(a.x, b.x), y: c.y });
+        points.splice(
+          0,
+          2,
+          markupType === 'radius' ? c : { x: Math.min(a.x, b.x), y: c.y },
+          { x: Math.max(a.x, b.x), y: c.y }
+        );
       }
       // Profundidad del volumen de Revu (/Depth)
       if (!isRea && markupType === 'volume') {
@@ -517,7 +615,7 @@ export async function importPdfAnnotations(
         if (markupType === 'length') measurement = calculateLength(points.slice(0, 2), visualDims, cal);
         else if (markupType === 'polylineMeasure') measurement = calculatePolylineLength(points, visualDims, cal);
         else if (markupType === 'perimeter') measurement = calculatePerimeter(points, visualDims, cal);
-        else if (markupType === 'radius') measurement = calculateLength(points.slice(0, 2), visualDims, cal);
+        else if (markupType === 'radius' || markupType === 'diameter') measurement = calculateLength(points.slice(0, 2), visualDims, cal);
         else if (markupType === 'angle') {
           if (points.length >= 3) measurement = calculateAngle(points.slice(0, 3), visualDims, cal);
         } else if (markupType === 'volume') {
@@ -542,31 +640,34 @@ export async function importPdfAnnotations(
         locked = true;
       }
 
-      // Comprobar extremos de línea (/LE)
+      // Comprobar extremos de línea (/LE: array de 2 nombres en Line/PolyLine o nombre único en FreeTextCallout)
       let lineEndingStart: LineEndingStyle | undefined;
       let lineEndingEnd: LineEndingStyle | undefined;
       const leObj = annotDict.get(PDFName.of('LE'));
+      const parseEnding = (entry: unknown): LineEndingStyle | undefined => {
+        if (entry instanceof PDFName) {
+          const raw = entry.asString().replace(/^\//, '').toLowerCase();
+          if (raw === 'circle') return 'circle';
+          if (raw === 'closedarrow') return 'closedArrow';
+          if (raw === 'openarrow') return 'openArrow';
+          if (raw === 'square') return 'square';
+          if (raw === 'diamond') return 'diamond';
+          if (raw === 'butt') return 'butt';
+          if (raw === 'slash') return 'slash';
+          if (raw === 'ropenarrow') return 'rOpenArrow';
+          if (raw === 'rclosedarrow') return 'rClosedArrow';
+          if (raw === 'none') return 'none';
+        }
+        return undefined;
+      };
       if (leObj instanceof PDFArray && leObj.size() >= 2) {
-        const parseEnding = (entry: unknown): LineEndingStyle | undefined => {
-          if (entry instanceof PDFName) {
-            const raw = entry.asString().replace(/^\//, '').toLowerCase();
-            if (raw === 'circle') return 'circle';
-            if (raw === 'closedarrow') return 'closedArrow';
-            if (raw === 'openarrow') return 'openArrow';
-            if (raw === 'square') return 'square';
-            if (raw === 'diamond') return 'diamond';
-            if (raw === 'butt') return 'butt';
-            if (raw === 'slash') return 'slash';
-            if (raw === 'ropenarrow') return 'rOpenArrow';
-            if (raw === 'rclosedarrow') return 'rClosedArrow';
-            if (raw === 'none') return 'none';
-          }
-          return undefined;
-        };
         const s = parseEnding(leObj.get(0));
         const e = parseEnding(leObj.get(1));
         if (s && s !== 'none') lineEndingStart = s;
         if (e && e !== 'none') lineEndingEnd = e;
+      } else if (leObj instanceof PDFName) {
+        const s = parseEnding(leObj);
+        if (s && s !== 'none') lineEndingStart = s;
       }
 
       const markup: Markup = {
@@ -612,10 +713,32 @@ export async function importPdfAnnotations(
     }
   }
 
+  // Capas de marcas que el PDF deja apagadas en /OCProperties /D /OFF (ADR-0046/0053)
+  const hiddenLayers: string[] = [];
+  const ocProps = pdfDoc.catalog.lookup(PDFName.of('OCProperties'));
+  if (ocProps instanceof PDFDict) {
+    const dDict = ocProps.lookup(PDFName.of('D'));
+    const offArr = dDict instanceof PDFDict ? dDict.lookup(PDFName.of('OFF')) : null;
+    const markupLayerNames = new Set(markups.map((m) => m.layer).filter((l): l is string => Boolean(l)));
+    if (offArr instanceof PDFArray) {
+      for (let i = 0; i < offArr.size(); i++) {
+        const ocg = offArr.lookup(i);
+        if (ocg instanceof PDFDict) {
+          const name = extractPdfStringValue(ocg.get(PDFName.of('Name')));
+          const isReaLayer = ocg.get(PDFName.of('REA')) instanceof PDFDict;
+          if (name && (isReaLayer || markupLayerNames.has(name)) && !hiddenLayers.includes(name)) {
+            hiddenLayers.push(name);
+          }
+        }
+      }
+    }
+  }
+
   return {
     markups,
     foreignUnsupportedCount,
     attachments,
+    hiddenLayers,
   };
 }
 

@@ -1,6 +1,6 @@
 # Plan Maestro v2 — REA hacia interoperabilidad real con Revu y Acrobat
 
-> **Estado: EN EJECUCIÓN.** El usuario aprobó el plan y se ha ejecutado por hitos con ADR propio (hasta ADR-0052,
+> **Estado: EN EJECUCIÓN.** El usuario aprobó el plan y se ha ejecutado por hitos con ADR propio (hasta ADR-0057,
 > 2026-10-15; ver el registro de sesiones al final y `docs/STATUS.md` §0, "Traspaso al siguiente agente"). Lo que
 > se haga a partir de aquí sigue las mismas reglas: ADR, PARITY con test literal y verify ×3.
 >
@@ -204,4 +204,9 @@ plan y `AGENTS.md`, **gana `AGENTS.md`**.
 | 2026-10-15 | Claude (Opus 5.5) | ADR-0050: alineación por 2 o 3 pares de puntos en Overlay Pages. |
 | 2026-10-15 | Claude (Opus 5.5) | ADR-0051: volumen, ángulo, conteo, radio y diámetro con las claves de medición de Revu. |
 | 2026-10-15 | Claude (Opus 5.5) | ADR-0052: atajos de Revu y Pan (arrastre, Espacio y botón central). |
+| 2026-10-15 | Claude (Opus 5.5) | ADR-0053: interop de diámetro de Revu, callout /FreeTextCallout, sellos /Stamp ajenos y capas /OCG ocultas. |
+| 2026-10-15 | Claude (Opus 5.5) | ADR-0054: Sync en ambos sentidos y alineación en la vista lado a lado. |
+| 2026-10-15 | Claude (Opus 5.5) | ADR-0055: importar y rellenar formularios AcroForm de otras aplicaciones. |
+| 2026-10-15 | Claude (Opus 5.5) | ADR-0056: firma con certificado PKCS#12 y certificado autofirmado (defectos pendientes, ver STATUS §0). |
+| 2026-10-16 | Claude (Opus 5.5) | ADR-0057: hatch de Revu en formas cerradas y Cloud+ sin flecha. |
 

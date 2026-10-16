@@ -482,6 +482,7 @@ export async function importPdfAnnotations(
       let groupId: string | undefined;
       let layer: string | undefined;
       let lineStyle: string | undefined;
+      let hatch: string | undefined;
       let exactGeometry = false;
       if (isRea && reaObj instanceof PDFDict) {
         const readPts = (arr: unknown): MarkupPoint[] | null => {
@@ -535,6 +536,8 @@ export async function importPdfAnnotations(
         layer = extractPdfStringValue(reaObj.get(PDFName.of('layer'))) || undefined;
         // Tipo de línea con patrón (ADR-0041)
         lineStyle = extractPdfStringValue(reaObj.get(PDFName.of('lineStyle'))) || undefined;
+        // Hatch de formas cerradas (ADR-0057)
+        hatch = extractPdfStringValue(reaObj.get(PDFName.of('hatch'))) || undefined;
       }
 
       // Callout ajeno o movido en Revu/Acrobat (ADR-0042/0053): caja de texto desde /Rect - /RD y directriz desde /CL
@@ -695,6 +698,7 @@ export async function importPdfAnnotations(
           lineEndingEnd,
           dashArray,
           ...(lineStyle ? { lineStyle } : {}),
+          ...(hatch ? { hatch } : {}),
         },
         text: text || undefined,
         author,

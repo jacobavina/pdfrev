@@ -530,6 +530,9 @@ endstream`;
       if (markup.style.lineStyle) {
         reaDict += ` /lineStyle ${escapePdfString(markup.style.lineStyle)}`;
       }
+      if (markup.style.hatch) {
+        reaDict += ` /hatch ${escapePdfString(markup.style.hatch)}`;
+      }
       // Geometría exacta de REA (ida y vuelta sin pérdidas). /rect fija la caja con la que se escribió: si otra
       // aplicación mueve la anotación, el lector lo detecta y usa la geometría estándar del PDF.
       const numList = (pts: { x: number; y: number }[]) => pts.map((p) => `${p.x.toFixed(6)} ${p.y.toFixed(6)}`).join(' ');

@@ -6,12 +6,12 @@
 
 ## 0. Traspaso al siguiente agente (2026-10-15)
 
-**Último hito:** ADR-0056 (Firma con certificado digital PKCS#12 y creación de certificado autofirmado). Las filas de la sección 1 llevan, cada una, el resultado de
+**Último hito:** ADR-0057 (hatch de Revu en formas cerradas y Cloud+ sin flecha). Fecha del traspaso vigente: 2026-10-16. Las filas de la sección 1 llevan, cada una, el resultado de
 `node scripts/verify.mjs --with-e2e --e2e-loop 3` de su hito.
 
 **Cómo continuar**
 1. Leer `AGENTS.md`, `CLAUDE.md`, esta sección, `PARITY.md` (0 filas `todo`) y los ADR recientes en
-   `docs/DECISIONS/` (ADR-0039 a ADR-0052).
+   `docs/DECISIONS/` (ADR-0039 a ADR-0057).
 2. Entorno (Windows, Git Bash):
    `export PATH="/c/Program Files/nodejs:/c/Users/jmm_j/.cargo/bin:$PATH"; export NODE_OPTIONS="--use-system-ca"`.
    - Liberar el puerto 1421 antes de Playwright:
@@ -24,7 +24,9 @@
    - Recompilar el nativo.
 
 **Restricciones vigentes que muerden**
-- **Bundle principal:** 788.45 kB de 800 kB tras ADR-0052 (no subir el umbral). Lo nuevo y pesado va con `React.lazy` o
+- **Bundle principal:** 796.93 kB de 800 kB tras ADR-0057 (no subir el umbral). Quedan ~3 kB: el siguiente hito
+  con código en el bundle principal debe liberar espacio antes (p. ej. cargar bajo demanda la barra de propiedades
+  o los submenús de MenuBar). Lo nuevo y pesado va con `React.lazy` o
   `import()` dinámico. Ya se cargan aparte: MarkupsList, paneles derechos, LeftDock, StampPicker,
   CanvasContextMenu, SplitPane, OverlayCanvas/Bar, Rulers, CalibrationModal, contentSnapService, búsqueda,
   persistencia y operadores.
@@ -37,18 +39,20 @@
   y las estándar de PDF.
 
 **Pendiente (por orden sugerido)**
-1. Verificación del usuario (ventana nativa y Revu/Acrobat) de todo lo entregado desde ADR-0039. Lo más
-   dudoso:
-   - claves de medición de Revu tomadas de pymkup (ADR-0051);
-   - sellos dinámicos y /Name propios (ADR-0045);
+1. Firma digital (ADR-0056), defectos hallados en la revisión del 2026-10-16:
+   - **Volver a guardar rompe la firma:** el escritor descarta y reescribe toda anotación con `/REA`, y el widget
+     firmado se reescribe sin `/V`.
+   - **`.pfx` de otras herramientas:** no se pueden importar. Faltan los SafeContents en `encryptedData`, 3DES/RC2 con
+     el KDF de PKCS#12 y `macData`.
+2. Verificación del usuario (ventana nativa y Revu/Acrobat) de todo lo entregado desde ADR-0039. Lo más dudoso:
+   - claves de medición de Revu (ADR-0051);
+   - sellos (ADR-0045);
    - capas /OCG (ADR-0046);
-   - callout /FreeTextCallout (ADR-0042).
-2. Vista lado a lado: Sync en ambos sentidos (hoy solo visor → panel) y aplicar ahí la alineación de Overlay
-   (ADR-0049/0050).
-3. Rellenar formularios de PDFs ajenos (campos AcroForm no creados por REA).
-4. Firma con certificado digital (alto riesgo: requiere decisión del usuario sobre almacén de certificados).
-5. Posibles mejoras de diseño pedidas por el usuario tras revisar ADR-0044 (cinta con pestañas, paleta "sala
-   de planos").
+   - callout (ADR-0042/0053);
+   - formularios ajenos (ADR-0055);
+   - firma (ADR-0056);
+   - hatch (ADR-0057).
+3. Posibles mejoras de diseño pedidas por el usuario tras revisar ADR-0044.
 
 **Preferencias del usuario (de la conversación)**
 - Responde en español; la interfaz va en inglés.
@@ -105,6 +109,7 @@
 | **Sincronización en ambos sentidos y alineación en la vista lado a lado (ADR-0054)** | **ENTREGADO (verificación nativa PENDIENTE del usuario)** | Desplazar el panel derecho o el visor principal sincroniza el otro en ambos sentidos (`main` ↔ `split`) sin rebotes; cambiar de página en el panel derecho con otro PDF y `Sync` actualiza la página del visor principal; el centrado respeta la matriz de alineación (`matrix`, `offset`) de `useOverlayStore`. `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 745 tests unitarios (85 archivos), 129 PARITY shipped y 0 todo, bundle principal 789.36 kB, 13 tests cargo, E2E 34/34 ×3 |
 | **Importar y rellenar formularios AcroForm de PDFs hechos en otras aplicaciones (ADR-0055)** | **ENTREGADO (verificación nativa y en Revu/Acrobat PENDIENTE del usuario)** | Importación de `/Subtype /Widget` ajenos sin `/REA` (`importForeignWidget`) con herencia `/Parent` (`/FT`, `/T`, `/Ff`, `/V`, `/Opt`, resolución de índices `/0`..`/n` en grupos de opción), detección de `onStateName` en `/AP /N`, bandera `ReadOnly`, actualización incremental in-place reutilizando `foreignWidgetObjNum` y actualizando el diccionario `/Parent`, desduplicación en `/AcroForm /Fields`, eliminación de `/NeedAppearances` y exclusión mutua de opciones en `InteractiveProperties`. `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 746 tests unitarios (85 archivos), 130 PARITY shipped y 0 todo, bundle principal 789.36 kB, 13 tests cargo, E2E 34/34 ×3 |
 | **Firma con certificado digital PKCS#12 (.pfx / .p12) y creación de certificado autofirmado (ADR-0056)** | **ENTREGADO (verificación nativa y en Revu/Acrobat PENDIENTE del usuario)** | Generación de pares de claves RSA-2048 SHA-256 y certificados X.509 v3 autofirmados empaquetados en PKCS#12 (.pfx/.p12 cifrado PBES2 PBKDF2-HMAC-SHA256 + AES-256-CBC) o importación de archivos existentes con contraseña; firma incremental ISO 32000-1 §12.8 con diccionario /Type /Sig, /Filter /Adobe.PPKLite, /SubFilter /adbe.pkcs7.detached, /ByteRange exacto y contenedor CMS SignedData detached con firma RSA PKCS#1 v1.5; /SigFlags 3 en /AcroForm; apariencia visual /AP /N con sello técnico ("Digitally signed by...", fecha ISO, motivo, ubicación); verificación criptográfica integrada con WebCrypto; diálogo SignDocumentModal cargado bajo demanda. `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 748 tests unitarios (86 archivos), 132 PARITY shipped y 0 todo, bundle principal 790.47 kB, 13 tests cargo, E2E 34/34 ×3 |
+| **Hatch de Revu en formas cerradas y Cloud+ sin flecha (ADR-0057)** | **ENTREGADO (verificación nativa y en Revu/Acrobat PENDIENTE del usuario)** | Menú Hatch en la barra de propiedades con los 11 patrones de Revu (Brick, Diagonal Brick, Horizontal, Vertical, Diagonal Down/Up, Grid, Weave, Dots 10/20/30 %), del color de la línea, anclados a la página y recortados al contorno en pantalla, `/AP` y aplanado; `/hatch` en `/REA`. Cloud+ crea la nota con directriz diagonal sin flecha, como en Revu. `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 753 tests unitarios (87 archivos), 136 PARITY shipped y 0 todo, bundle principal 796.93 kB, 13 tests cargo, E2E 34/34 ×3 |
 
 ---
 

@@ -35,6 +35,7 @@ import { dimensionGeometry, dimensionTextBaseline, defaultDimensionLinePoint } f
 import { revisionCloudPathNormalized, cloudParams } from './revisionCloud';
 import { calloutLeaderLayout, calloutBoxPaint, CALLOUT_LANDING_PT } from './calloutLayout';
 import { linePatternPrimitives, markupLinePattern, patternOutlineOf, PatternLineStyleId } from './linePatterns';
+import { HatchId, hatchOutlineD, hatchStrokes, markupHatch, pathBox } from './hatch';
 import { stampById, stampTextOf } from './stamps';
 import { stampArt } from './stampArt';
 import { fieldTypeOf, fieldDisplayText, isFieldChecked, signatureDisplayLines } from './formFields';
@@ -508,7 +509,7 @@ export function generateCloudPath(
 }
 
 export interface SvgRenderDescriptor {
-  tag: 'rect' | 'ellipse' | 'line' | 'polygon' | 'polyline' | 'path' | 'text' | 'g';
+  tag: 'rect' | 'ellipse' | 'line' | 'polygon' | 'polyline' | 'path' | 'text' | 'g' | 'defs' | 'clipPath';
   attrs: Record<string, string | number>;
   style?: React.CSSProperties;
   children?: SvgRenderDescriptor[];
@@ -622,6 +623,43 @@ function patternDescriptor(
   return { tag: 'g', attrs: { opacity }, children };
 }
 
+/**
+ * Hatch de una forma cerrada (ADR-0057): el patrón del color de la línea recortado a su contorno, con la misma
+ * geometría que el /AP. Medidas en pt de página que crecen con el zoom.
+ */
+function hatchDescriptor(markup: Markup, hatch: HatchId, transform: ViewportTransform): SvgRenderDescriptor | null {
+  const pxPerPt = transform.zoom ?? transform.scale ?? 1;
+  let cloudD: string | undefined;
+  if (markup.type === 'cloud' || markup.type === 'cloudPlus') {
+    const { step, invert } = cloudParams(markup.customFields, DEFAULT_ARC_STEP);
+    const size = { width: transform.width * transform.scale, height: transform.height * transform.scale };
+    cloudD = revisionCloudPathNormalized(markup.points, size, step * pxPerPt, invert) || undefined;
+  }
+  const outline = hatchOutlineD(markup.type, markup.points.map((p) => normalizedToScreen(p, transform)), cloudD);
+  const box = outline ? pathBox(outline) : null;
+  if (!outline || !box) return null;
+  const clipId = `rea-hatch-${markup.id}-${Math.round(transform.width * transform.scale)}`;
+  const strokes: SvgRenderDescriptor[] = hatchStrokes(box, hatch, pxPerPt).map((st) => ({
+    tag: 'path',
+    attrs: {
+      d: st.d,
+      fill: 'none',
+      stroke: markup.style.strokeColor,
+      // Las líneas nunca por debajo de 1 px, para que el patrón se lea a cualquier zoom
+      strokeWidth: st.dash ? st.width : Math.max(1, st.width),
+      ...(st.dash ? { strokeDasharray: st.dash.map((v) => v.toFixed(2)).join(' ') } : {}),
+    },
+  }));
+  return {
+    tag: 'g',
+    attrs: { opacity: markup.style.opacity ?? 1, 'data-hatch': hatch },
+    children: [
+      { tag: 'defs', attrs: {}, children: [{ tag: 'clipPath', attrs: { id: clipId }, children: [{ tag: 'path', attrs: { d: outline } }] }] },
+      { tag: 'g', attrs: { clipPath: `url(#${clipId})` }, children: strokes },
+    ],
+  };
+}
+
 /** Atributos SVG de una tipografía: color, familia, negrita y cursiva (ADR-0040). */
 function fontAttrs(font: CaptionFont): Record<string, string> {
   return {
@@ -681,6 +719,14 @@ export function getMarkupSvgDescriptor(
 
   if (style.dashArray && style.dashArray.length > 0) {
     baseAttrs.strokeDasharray = style.dashArray.map((d) => d * (transform.scale || 1)).join(' ');
+  }
+
+  // Hatch (ADR-0057): la forma tal cual y, encima, el patrón recortado a su contorno
+  const hatch = markupHatch(markup);
+  if (hatch) {
+    const shape = getMarkupSvgDescriptor({ ...markup, style: { ...style, hatch: undefined } }, transform);
+    const layer = hatchDescriptor(markup, hatch, transform);
+    return layer ? { tag: 'g', attrs: {}, children: [shape, layer] } : shape;
   }
 
   // Tipo de línea con patrón (ADR-0041): nube, valla, gas, vías... sobre líneas, polígonos, rectángulos y elipses

@@ -1,3 +1,4 @@
+import { hatchOutlineD, hatchStrokes, markupHatch, pathBox } from '../markup/hatch';
 import {
   Markup,
   MarkupPoint,
@@ -286,7 +287,7 @@ export function emitMarkupOperators(
   };
 
   /** Trazado SVG de solo M/Q/Z en espacio visual → PDF (las cuadráticas pasan a cúbicas exactas). */
-  const svgQuadPathToPdf = (d: string) => {
+  const svgQuadPathToPdf = (d: string, track = true) => {
     const tokens = d.match(/[MLQCZ]|-?\d*\.?\d+(?:e-?\d+)?/gi) ?? [];
     let i = 0;
     let current: Pt | null = null;
@@ -295,28 +296,28 @@ export function emitMarkupOperators(
       const cmd = tokens[i++].toUpperCase();
       if (cmd === 'M') {
         current = visToPdf({ x: num(), y: num() });
-        updateBBox(current.x, current.y);
+        if (track) updateBBox(current.x, current.y);
         lines.push(`${f2(current.x)} ${f2(current.y)} m`);
       } else if (cmd === 'L' && current) {
         current = visToPdf({ x: num(), y: num() });
-        updateBBox(current.x, current.y);
+        if (track) updateBBox(current.x, current.y);
         lines.push(`${f2(current.x)} ${f2(current.y)} l`);
       } else if (cmd === 'Q' && current) {
         const q = visToPdf({ x: num(), y: num() });
         const end = visToPdf({ x: num(), y: num() });
         const c1 = { x: current.x + ((q.x - current.x) * 2) / 3, y: current.y + ((q.y - current.y) * 2) / 3 };
         const c2 = { x: end.x + ((q.x - end.x) * 2) / 3, y: end.y + ((q.y - end.y) * 2) / 3 };
-        updateBBox(q.x, q.y);
-        updateBBox(end.x, end.y);
+        if (track) updateBBox(q.x, q.y);
+        if (track) updateBBox(end.x, end.y);
         lines.push(`${f2(c1.x)} ${f2(c1.y)} ${f2(c2.x)} ${f2(c2.y)} ${f2(end.x)} ${f2(end.y)} c`);
         current = end;
       } else if (cmd === 'C' && current) {
         const c1 = visToPdf({ x: num(), y: num() });
         const c2 = visToPdf({ x: num(), y: num() });
         const end = visToPdf({ x: num(), y: num() });
-        updateBBox(c1.x, c1.y);
-        updateBBox(c2.x, c2.y);
-        updateBBox(end.x, end.y);
+        if (track) updateBBox(c1.x, c1.y);
+        if (track) updateBBox(c2.x, c2.y);
+        if (track) updateBBox(end.x, end.y);
         lines.push(`${f2(c1.x)} ${f2(c1.y)} ${f2(c2.x)} ${f2(c2.y)} ${f2(end.x)} ${f2(end.y)} c`);
         current = end;
       } else if (cmd === 'Z') {
@@ -1120,6 +1121,30 @@ export function emitMarkupOperators(
         updateBBox(p2.x, p2.y);
       }
       break;
+    }
+  }
+
+  // Hatch (ADR-0057): patrón del color de la línea recortado al contorno; no amplía la caja envolvente
+  const hatch = markupHatch(markup);
+  if (hatch && strokeParsed) {
+    let cloudD: string | undefined;
+    if (markup.type === 'cloud' || markup.type === 'cloudPlus') {
+      const arcStep = typeof markup.customFields?.arcStep === 'number' ? markup.customFields.arcStep : DEFAULT_ARC_STEP;
+      const { invert } = cloudParams(markup.customFields, arcStep);
+      cloudD = revisionCloudPathNormalized(markup.points, { width: visW, height: visH }, arcStep, invert) || undefined;
+    }
+    const outline = hatchOutlineD(markup.type, markup.points.map(toVis), cloudD);
+    const box = outline ? pathBox(outline) : null;
+    if (outline && box) {
+      lines.push('q');
+      svgQuadPathToPdf(outline);
+      lines.push('W n', rgbOp(strokeParsed, 'RG'));
+      for (const st of hatchStrokes(box, hatch, 1)) {
+        lines.push(`${f2(st.width)} w`, st.dash ? `[${st.dash.map(f2).join(' ')}] 0 d` : '[] 0 d');
+        svgQuadPathToPdf(st.d, false);
+        lines.push('S');
+      }
+      lines.push('Q');
     }
   }
 

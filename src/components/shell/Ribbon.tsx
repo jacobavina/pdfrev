@@ -11,6 +11,7 @@ import { dashArrayFor, lineStyleOfMarkup, LineStyleId } from '../../core/markup/
 import { isPatternLineStyle } from '../../core/markup/linePatterns';
 import { cloudParams, CLOUD_SIZE_FACTOR, DEFAULT_CLOUD_STEP } from '../../core/markup/revisionCloud';
 import { CloudStylePicker } from './CloudStylePicker';
+import { HatchPreview, HATCH_OPTIONS, HatchOption } from './HatchPreview';
 import { calloutBoxPaint } from '../../core/markup/calloutLayout';
 import {
   IconPicker,
@@ -410,6 +411,16 @@ export const Ribbon: React.FC = () => {
                 />
               );
             })}
+            <IconPicker
+              compact
+              testId="ribbon-hatch"
+              withLabels
+              title="Hatch (closed shapes)"
+              value={(style.hatch ?? 'none') as HatchOption}
+              options={HATCH_OPTIONS}
+              renderIcon={(id) => <HatchPreview id={id} />}
+              onChange={(id) => applyStyle({ hatch: id === 'none' ? undefined : id })}
+            />
             {calloutContext && (
               <button
                 type="button"

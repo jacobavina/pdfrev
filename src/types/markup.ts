@@ -153,6 +153,8 @@ export interface MarkupStyle {
   dashArray?: number[];
   /** Tipo de línea con patrón (nube, valla, gas, vías...), ADR-0041; sin él, continua o discontinua. */
   lineStyle?: string;
+  /** Hatch de las formas cerradas (ADR-0057): ladrillo, rejilla, puntos... del color de la línea. */
+  hatch?: string;
   fontFamily?: string;
   fontSize?: number;
   /** Color del texto (valor de las mediciones, ADR-0035); por defecto negro. */

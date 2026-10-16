@@ -1310,11 +1310,12 @@ export const PdfViewer: React.FC = () => {
 
     const calloutWidth = 0.12;
     const calloutHeight = 0.04;
-    let boxX = maxX + 0.03;
+    // Como en Revu, la nota queda arriba a la derecha, separada de la nube por una directriz en diagonal (ADR-0057)
+    let boxX = maxX + 0.07;
     if (boxX + calloutWidth > 0.99) {
-      boxX = Math.max(0.01, minX - calloutWidth - 0.03);
+      boxX = Math.max(0.01, minX - calloutWidth - 0.07);
     }
-    let boxY = minY - 0.04;
+    let boxY = minY - 0.1;
     if (boxY < 0.01) {
       boxY = Math.min(0.95, maxY + 0.03);
     }
@@ -1351,8 +1352,9 @@ export const PdfViewer: React.FC = () => {
       pageIndex: currentPageIndex,
       points: [boxP1, boxP2],
       leaders: [[{ ...arrowTarget }]],
-      // Nota de Revu (ADR-0042): texto con directriz, sin caja
-      style: { ...currentStyle },
+      // Nota de Revu (ADR-0042): texto con directriz, sin caja; en Cloud+ la directriz sale de la nube sin flecha
+      // (ADR-0057), como en Revu
+      style: { ...currentStyle, lineEndingStart: 'none', hatch: undefined },
       text: 'Cloud+ note',
       ...calloutBorderFields(),
       author: author || 'Reviewer',

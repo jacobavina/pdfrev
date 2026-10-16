@@ -182,6 +182,23 @@ describe('Nube de forma libre (ADR-0039)', () => {
     expect(ms[0].points).toHaveLength(3);
     expect(ms[1].leaders![0][0]).toEqual(ms[0].points[1]); // vértice más cercano a la esquina superior derecha
   });
+
+  it('Cloud+ como en Revu: la directriz sale de la nube sin flecha (ADR-0057)', async () => {
+    const svg = await renderViewer();
+    act(() => useToolStore.setState({ activeTool: 'cloudPlus' }));
+    for (const [x, y] of [
+      [200, 200],
+      [400, 210],
+      [380, 380],
+    ]) {
+      click(svg, x, y);
+    }
+    click(svg, 201, 201);
+    const callout = useMarkupStore.getState().markups.find((m) => m.type === 'callout')!;
+    expect(callout.style.lineEndingStart).toBe('none');
+    // El callout suelto conserva su flecha abierta
+    expect(useToolStore.getState().currentStyle.lineEndingStart).toBeUndefined();
+  });
 });
 
 describe('Barra de propiedades contextual con fuentes (ADR-0040)', () => {
@@ -190,6 +207,22 @@ describe('Barra de propiedades contextual con fuentes (ADR-0040)', () => {
   beforeEach(() => {
     useDocumentStore.setState({ numPages: 1, currentPageIndex: 0, pdfBytes: new Uint8Array([1]) });
     useToolStore.setState({ activeTool: 'select', currentStyle: { strokeColor: '#e02424', fillColor: 'transparent', strokeWidth: 1, opacity: 1 } });
+  });
+
+  it('el menú Hatch de la barra lista los patrones de Revu y aplica el elegido a la forma seleccionada (ADR-0057)', () => {
+    const rect = mk('rh', 'rectangle', [{ x: 0.1, y: 0.1 }, { x: 0.3, y: 0.3 }]);
+    useMarkupStore.setState({ markups: [rect], selectedMarkupIds: ['rh'] });
+    render(<Ribbon />);
+    fireEvent.click(screen.getByTestId('ribbon-hatch'));
+    const list = screen.getByTestId('ribbon-hatch-list');
+    expect(list).toHaveTextContent('(None)');
+    expect(list).toHaveTextContent('Diagonal Brick');
+    expect(list).toHaveTextContent('30% Dots');
+    fireEvent.click(screen.getByTestId('ribbon-hatch-option-brick'));
+    expect(useMarkupStore.getState().markups[0].style.hatch).toBe('brick');
+    fireEvent.click(screen.getByTestId('ribbon-hatch'));
+    fireEvent.click(screen.getByTestId('ribbon-hatch-option-none'));
+    expect(useMarkupStore.getState().markups[0].style.hatch).toBeUndefined();
   });
 
   it('con selección edita la marca (no el estilo por defecto), incluido el tipo de letra', () => {

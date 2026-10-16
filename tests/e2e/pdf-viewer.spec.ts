@@ -6,6 +6,10 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       if (!localStorage.getItem('rea-auto-panels')) localStorage.setItem('rea-auto-panels', '0');
+      // La lista de marcas abre cerrada y agrupada por Subject, como en Revu (ADR-0060); estas pruebas la quieren
+      // abierta y sin grupos (las filas se buscan por texto). La agrupación tiene su propia prueba.
+      if (!localStorage.getItem('rea-markups-list-at-start')) localStorage.setItem('rea-markups-list-at-start', '1');
+      if (!localStorage.getItem('rea-markups-group')) localStorage.setItem('rea-markups-group', '0');
     });
   });
 
@@ -1022,10 +1026,10 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(textBtn).toHaveAttribute('aria-pressed', 'true');
     await expect(vectorBtn).toHaveAttribute('aria-pressed', 'false');
 
-    // Colapsar panel inferior para dar espacio vertical completo al lienzo
-    const collapsePanelBtn = markupsPanel.locator('button').first();
-    await collapsePanelBtn.click();
-    await expect(markupsPanel).toHaveCSS('height', '32px');
+    // Ocultar la lista para dar espacio vertical completo al lienzo (ADR-0060): solo queda su botón en la barra
+    const listToggle = page.locator('[data-testid="markups-list-toggle"]');
+    await listToggle.click();
+    await expect(markupsPanel).toBeHidden();
 
     const spanBox = (await titleSpan.boundingBox())!;
     expect(spanBox).not.toBeNull();
@@ -1048,7 +1052,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(hlRect).toBeVisible();
 
     // Condición 8: Aserción fuerte de contenido en MarkupsList (reabrir panel)
-    await collapsePanelBtn.click();
+    await listToggle.click();
     // Alto por defecto de la lista (ADR-0044)
     await expect(markupsPanel).toHaveCSS('height', '168px');
     const newRow = markupsPanel.locator('tbody tr').last();
@@ -1057,9 +1061,9 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const textInRow = await newRow.locator('input[type="text"]').inputValue();
     expect(textInRow).toContain('PLANO DE PRUEBA');
 
-    // Colapsar panel para continuar pruebas de lienzo
-    await collapsePanelBtn.click();
-    await expect(markupsPanel).toHaveCSS('height', '32px');
+    // Ocultar la lista para continuar pruebas de lienzo
+    await listToggle.click();
+    await expect(markupsPanel).toBeHidden();
 
     // Condición 1: Cobertura geométrica (rectángulo cubre la caja del tramo dentro de <= 8 px de tolerancia)
     const hlBox = (await hlRect.boundingBox())!;
@@ -2566,5 +2570,42 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(page.locator('[data-testid="overlay-offset"]')).toContainText(/^-\d/);
     // Los clics de alineación no crearon ni seleccionaron marcas
     await expect(page.locator('[data-testid="markups-list-panel"] tbody tr')).toHaveCount(1);
+  });
+
+  test('Markups List de Revu: abre cerrada, agrupa por Subject, elige columnas y Alt+L la cierra (ADR-0060)', async ({ page }) => {
+    // Como la abre un usuario nuevo: cerrada al arrancar y agrupada por Subject
+    await page.addInitScript(() => {
+      localStorage.setItem('rea-markups-list-at-start', '0');
+      localStorage.setItem('rea-markups-group', '1');
+    });
+    await page.goto('/');
+    await expect(page.locator('[data-testid="markup-overlay-svg"]')).toBeVisible({ timeout: 15000 });
+    const panel = page.locator('[data-testid="markups-list-panel"]');
+    const toggle = page.locator('[data-testid="markups-list-toggle"]');
+    await expect(panel).toHaveCount(0);
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+
+    await toggle.click();
+    await expect(panel).toBeVisible();
+    const group = panel.locator('[data-testid="markups-group-Rectangle"]');
+    await expect(group).toContainText('Rectangle (1)');
+    await expect(panel.locator('[data-testid^="markup-row-"]')).toHaveCount(1);
+    await group.click();
+    await expect(panel.locator('[data-testid^="markup-row-"]')).toHaveCount(0);
+    await group.click();
+
+    // Markups List ▸ Columns: quitar Layer y poner Page Index
+    await panel.locator('[data-testid="markups-list-menu"]').click();
+    await panel.locator('[data-testid="markups-menu-columns"]').click();
+    await panel.locator('[data-testid="markups-column-toggle-layer"]').click();
+    await panel.locator('[data-testid="markups-column-toggle-pageIndex"]').click();
+    await expect(panel.locator('[data-testid="markups-col-layer"]')).toHaveCount(0);
+    await expect(panel.locator('[data-testid="markups-col-pageIndex"]')).toHaveText(/Page Index/);
+
+    await page.keyboard.press('Escape');
+    await page.locator('header').click();
+    await page.keyboard.press('Alt+l');
+    await expect(panel).toBeHidden();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   });
 });

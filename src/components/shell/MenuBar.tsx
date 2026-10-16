@@ -8,6 +8,7 @@ import {
   FileDown,
   FileSpreadsheet,
   ClipboardList,
+  List as ListIcon,
   Undo2,
   Redo2,
   Copy,
@@ -125,6 +126,10 @@ export const MenuBar: React.FC = () => {
     setShowRulers,
     autoOpenPanels,
     setAutoOpenPanels,
+    markupsListOpen,
+    toggleMarkupsList,
+    markupsListAtStart,
+    setMarkupsListAtStart,
   } = useUiStore();
   const { saveNow } = useAutoSave(0);
 
@@ -251,6 +256,22 @@ export const MenuBar: React.FC = () => {
           checked: autoOpenPanels,
           onSelect: () => setAutoOpenPanels(!autoOpenPanels),
           testId: 'menu-view-auto-panels',
+        },
+        // Lista de marcas de Revu (ADR-0060): abre cerrada salvo que se pida abrirla al arrancar
+        {
+          icon: <ListIcon size={15} />,
+          label: 'Markups List',
+          shortcut: 'Alt+L',
+          checked: markupsListOpen,
+          onSelect: toggleMarkupsList,
+          testId: 'menu-view-markups-list',
+        },
+        {
+          icon: <ListIcon size={15} />,
+          label: 'Open Markups List at Start',
+          checked: markupsListAtStart,
+          onSelect: () => setMarkupsListAtStart(!markupsListAtStart),
+          testId: 'menu-view-list-at-start',
         },
         'separator',
         {

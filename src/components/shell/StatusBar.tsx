@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, Search, Crosshair } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, Search, Crosshair, List } from 'lucide-react';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useMarkupStore } from '../../store/useMarkupStore';
 import { useCalibrationStore } from '../../store/useCalibrationStore';
@@ -24,6 +24,8 @@ export const StatusBar: React.FC = () => {
   const viewMode = useUiStore((s) => s.viewMode);
   const setViewMode = useUiStore((s) => s.setViewMode);
   const requestFit = useUiStore((s) => s.requestFit);
+  const markupsListOpen = useUiStore((s) => s.markupsListOpen);
+  const toggleMarkupsList = useUiStore((s) => s.toggleMarkupsList);
   const pageDims = useDocumentStore((s) => s.pageDimensions[s.currentPageIndex]);
   // Tamaño de la hoja activa (la dimensión guardada está en píxeles a la escala del último render)
   const sheetCm =
@@ -43,6 +45,19 @@ export const StatusBar: React.FC = () => {
       data-testid="status-bar"
       className="h-[26px] min-w-0 bg-cad-status border-t border-cad-border flex items-center px-2 text-[11px] text-gray-400 select-none overflow-x-auto thin-scroll"
     >
+      {/* Lista de marcas (ADR-0060): cerrada, como en Revu, solo queda este botón */}
+      <button
+        type="button"
+        data-testid="markups-list-toggle"
+        onClick={toggleMarkupsList}
+        aria-pressed={markupsListOpen}
+        className={`h-[22px] w-[26px] mr-1.5 -ml-1 grid place-items-center rounded ${
+          markupsListOpen ? 'bg-cad-accent/20 text-cad-accent' : 'hover:bg-cad-hover hover:text-cad-strong'
+        }`}
+        title="Markups List (Alt+L)"
+      >
+        <List size={15} />
+      </button>
       {/* Navegación de páginas */}
       <button
         type="button"

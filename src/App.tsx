@@ -67,6 +67,10 @@ const DocumentTab: React.FC = () => {
 export const App: React.FC = () => {
   const { pdfBytes, setLoading } = useDocumentStore();
   const showRulers = useUiStore((s) => s.showRulers);
+  const markupsListOpen = useUiStore((s) => s.markupsListOpen);
+  const markupsListEverOpened = useRef(markupsListOpen);
+  if (markupsListOpen) markupsListEverOpened.current = true;
+  const markupsListMounted = markupsListEverOpened.current;
   const overlayActive = useOverlayStore((s) => s.active);
   const splitActive = useSplitStore((s) => s.active);
   const viewerHostRef = useRef<HTMLDivElement>(null);
@@ -232,9 +236,12 @@ export const App: React.FC = () => {
       </div>
 
       {/* 3. Lista de marcas y barra de estado */}
-      <Suspense fallback={<div className="h-8 shrink-0 bg-cad-panel border-t border-cad-border" />}>
-        <MarkupsList />
-      </Suspense>
+      {/* Abre cerrada, como en Revu (ADR-0060); una vez abierta queda montada para conservar filtros y orden */}
+      {markupsListMounted && (
+        <Suspense fallback={markupsListOpen ? <div className="h-8 shrink-0 bg-cad-panel border-t border-cad-border" /> : null}>
+          <MarkupsList hidden={!markupsListOpen} />
+        </Suspense>
+      )}
       <StatusBar />
 
       <ToastHost />

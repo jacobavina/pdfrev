@@ -1,6 +1,6 @@
 # Plan Maestro v2 — REA hacia interoperabilidad real con Revu y Acrobat
 
-> **Estado: EN EJECUCIÓN.** El usuario aprobó el plan y se ha ejecutado por hitos con ADR propio (hasta ADR-0059,
+> **Estado: EN EJECUCIÓN.** El usuario aprobó el plan y se ha ejecutado por hitos con ADR propio (hasta ADR-0060,
 > 2026-10-15; ver el registro de sesiones al final y `docs/STATUS.md` §0, "Traspaso al siguiente agente"). Lo que
 > se haga a partir de aquí sigue las mismas reglas: ADR, PARITY con test literal y verify ×3.
 >
@@ -211,4 +211,5 @@ plan y `AGENTS.md`, **gana `AGENTS.md`**.
 | 2026-10-16 | Claude (Opus 5.5) | ADR-0057: hatch de Revu en formas cerradas y Cloud+ sin flecha. |
 | 2026-10-16 | Claude (Opus 5.5) | ADR-0058: la firma se conserva al volver a guardar y se abren .pfx de Windows, OpenSSL y Acrobat. |
 | 2026-10-16 | Claude (Opus 5.5) | ADR-0059: Count de Revu (símbolos, escala y total por marca) y servicio del Tool Chest bajo demanda. |
+| 2026-10-16 | Claude (Opus 5.5) | ADR-0060: Markups List como la de Revu (abre cerrada, columnas elegibles y grupos por Subject). |
 

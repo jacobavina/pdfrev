@@ -1,9 +1,20 @@
 import { countItems } from '../core/markup/countSymbols';
-import React, { useEffect, useRef, useState } from 'react';
+import {
+  COLUMNS_STORAGE_KEY,
+  DEFAULT_VISIBLE_COLUMNS,
+  MARKUP_COLUMNS,
+  MarkupColumnId,
+  columnDef,
+  columnText,
+  groupBySubject,
+  parseVisibleColumns,
+  toggleColumn,
+} from '../core/markup/markupColumns';
+import React, { useState } from 'react';
 import {
   Trash2,
   ChevronDown,
-  ChevronUp,
+  ChevronRight,
   HelpCircle,
   Briefcase,
   Check,
@@ -73,6 +84,30 @@ import {
 const LIST_HEIGHT_KEY = 'rea-markups-list-height';
 // Más baja por defecto (ADR-0044): la cinta con pestañas y la barra de propiedades ocupan más alto
 const DEFAULT_LIST_HEIGHT = 168;
+/** Agrupar por Subject (ADR-0060): activo por defecto, como en Revu. */
+const GROUP_STORAGE_KEY = 'rea-markups-group';
+/** Ancho y alineación de cada columna de Revu (ADR-0060). */
+const COLUMN_CLASS: Partial<Record<MarkupColumnId, string>> = {
+  subject: 'w-36',
+  pageLabel: 'w-20 text-center tabular-nums',
+  pageIndex: 'w-20 text-center tabular-nums',
+  comments: 'min-w-[160px]',
+  lock: 'w-12 text-center',
+  author: 'w-32',
+  date: 'w-32',
+  creationDate: 'w-32',
+  length: 'w-24 text-right tabular-nums',
+  area: 'w-24 text-right tabular-nums',
+  volume: 'w-24 text-right tabular-nums',
+  count: 'w-16 text-right tabular-nums',
+  measurement: 'w-24 text-right tabular-nums',
+  label: 'w-24',
+  depth: 'w-20 text-right tabular-nums',
+  status: 'w-28 text-center',
+  color: 'w-14 text-center',
+  layer: 'w-24',
+  unit: 'w-14 text-center tabular-nums text-[11px]',
+};
 const MIN_LIST_HEIGHT = 120;
 
 const STATUS_CONFIG: Record<
@@ -180,7 +215,7 @@ function getMarkupIcon(type: MarkupType) {
   }
 }
 
-export const MarkupsList: React.FC = () => {
+export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) => {
   const {
     markups,
     selectedMarkupIds,
@@ -202,13 +237,49 @@ export const MarkupsList: React.FC = () => {
     fileName,
   } = useDocumentStore();
 
-  const [isExpanded, setIsExpanded] = useState(true);
-  // Alt+L muestra u oculta la lista, como en Revu (ADR-0052)
-  const toggleRequest = useUiStore((s) => s.markupsListToggleRequest);
-  const firstToggle = useRef(toggleRequest);
-  useEffect(() => {
-    if (toggleRequest !== firstToggle.current) setIsExpanded((v) => !v);
-  }, [toggleRequest]);
+  // Cerrada, la lista se oculta entera y solo queda su botón en la barra de estado (ADR-0060); Alt+L la alterna
+  const setMarkupsListOpen = useUiStore((s) => s.setMarkupsListOpen);
+  // Columnas visibles y agrupación por Subject, como el menú "Markups List" de Revu (ADR-0060), recordadas
+  const [visibleColumns, setVisibleColumns] = useState<MarkupColumnId[]>(() => {
+    try {
+      return parseVisibleColumns(localStorage.getItem(COLUMNS_STORAGE_KEY));
+    } catch {
+      return DEFAULT_VISIBLE_COLUMNS;
+    }
+  });
+  const saveColumns = (cols: MarkupColumnId[]) => {
+    setVisibleColumns(cols);
+    try {
+      localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(cols));
+    } catch {
+      // Preferencia no persistible: se aplica solo en esta sesión
+    }
+  };
+  const [groupOn, setGroupOn] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(GROUP_STORAGE_KEY) !== '0';
+    } catch {
+      return true;
+    }
+  });
+  const toggleGrouping = () => {
+    const next = !groupOn;
+    setGroupOn(next);
+    try {
+      localStorage.setItem(GROUP_STORAGE_KEY, next ? '1' : '0');
+    } catch {
+      // Preferencia no persistible: se aplica solo en esta sesión
+    }
+  };
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
+  const toggleGroup = (subject: string) =>
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(subject)) next.delete(subject);
+      else next.add(subject);
+      return next;
+    });
+  const [listMenu, setListMenu] = useState<null | 'main' | 'columns'>(null);
   const [filterPageOnly, setFilterPageOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<MarkupType | 'all'>('all');
@@ -234,10 +305,14 @@ export const MarkupsList: React.FC = () => {
   } | null>(null);
 
   React.useEffect(() => {
-    const handleGlobalClick = () => setContextMenu(null);
+    const handleGlobalClick = () => {
+      setContextMenu(null);
+      setListMenu(null);
+    };
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setContextMenu(null);
+        setListMenu(null);
         setIsAddColumnModalOpen(false);
         setColumnToDelete(null);
       }
@@ -535,38 +610,267 @@ export const MarkupsList: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exportRequest]);
 
+  /** Celda de una columna de Revu (ADR-0060): Comments y Status se editan en la propia lista. */
+  const renderCell = (id: MarkupColumnId, markup: Markup): React.ReactNode => {
+    const base = `py-1.5 px-2 ${COLUMN_CLASS[id] ?? ''}`;
+    switch (id) {
+      case 'subject':
+        return (
+          <td key={id} className="py-1.5 px-2 flex items-center space-x-1.5">
+            {getMarkupIcon(markup.type)}
+            <span>{markupTypeLabel(markup.type)}</span>
+            {markup.locked && (
+              <span title="Locked markup" data-testid={`markup-locked-badge-${markup.id}`}>
+                <Lock size={12} className="text-amber-400 shrink-0 ml-1" />
+              </span>
+            )}
+          </td>
+        );
+      case 'comments':
+        return (
+          <td key={id} className="py-1.5 px-2" onClick={(e) => e.stopPropagation()}>
+            <input
+              type="text"
+              value={markup.text || ''}
+              placeholder="No comment..."
+              onChange={(e) => updateMarkup(markup.id, { text: e.target.value })}
+              className="w-full bg-transparent hover:bg-cad-dark/50 focus:bg-cad-dark px-1.5 py-0.5 rounded border border-transparent focus:border-cad-border text-xs text-gray-200 outline-none truncate"
+            />
+          </td>
+        );
+      case 'author':
+        return (
+          <td key={id} className="py-1.5 px-2 text-gray-400 truncate">
+            {markup.author}
+          </td>
+        );
+      case 'date':
+      case 'creationDate':
+        return (
+          <td key={id} className="py-1.5 px-2 text-gray-400 tabular-nums text-[11px] whitespace-nowrap">
+            {formatDate(id === 'date' ? markup.updatedAt || markup.createdAt : markup.createdAt)}
+          </td>
+        );
+      case 'status': {
+        const statusInfo = STATUS_CONFIG[markup.status];
+        return (
+          <td key={id} className="py-1.5 px-2 text-center" onClick={(e) => e.stopPropagation()}>
+            <select
+              value={markup.status}
+              onChange={(e) => updateMarkupStatus(markup.id, e.target.value as MarkupStatus)}
+              className={`text-[11px] font-medium py-0.5 pl-2 pr-1 rounded-full border-0 outline-none cursor-pointer ${statusInfo.bg} ${statusInfo.text}`}
+            >
+              <option value="pending" className="bg-cad-dark text-amber-300">
+                Pending
+              </option>
+              <option value="accepted" className="bg-cad-dark text-emerald-300">
+                Accepted
+              </option>
+              <option value="rejected" className="bg-cad-dark text-rose-300">
+                Rejected
+              </option>
+              <option value="completed" className="bg-cad-dark text-blue-300">
+                Completed
+              </option>
+              <option value="cancelled" className="bg-cad-dark text-zinc-400">
+                Cancelled
+              </option>
+            </select>
+          </td>
+        );
+      }
+      case 'color':
+        return (
+          <td key={id} className="py-1.5 px-2 text-center">
+            <span
+              data-testid={`markup-color-${markup.id}`}
+              className="inline-block w-3 h-3 rounded-[2px] align-middle border border-black/20"
+              style={{ backgroundColor: markup.style.strokeColor }}
+              title={markup.style.strokeColor}
+            />
+          </td>
+        );
+      case 'measurement':
+        return (
+          <td key={id} className={`${base} text-gray-200`}>
+            {columnText(id, markup)}
+          </td>
+        );
+      default:
+        return (
+          <td key={id} className={`${base} text-gray-400`}>
+            {columnText(id, markup)}
+          </td>
+        );
+    }
+  };
+
+  /** Filas de la tabla, agrupadas por Subject como en Revu (ADR-0060) o en una sola lista. */
+  const renderGroupedRows = (renderRow: (markup: Markup) => React.ReactNode): React.ReactNode[] => {
+    if (!groupOn) return displayedMarkups.map(renderRow);
+    const span = visibleColumns.length + (customColumns?.length || 0) + 2;
+    return groupBySubject(displayedMarkups, sortField === 'type' && sortDirection === 'desc').flatMap((g) => {
+      const collapsed = collapsedGroups.has(g.subject);
+      const header = (
+        <tr
+          key={`group-${g.subject}`}
+          data-testid={`markups-group-${g.subject}`}
+          aria-expanded={!collapsed}
+          onClick={() => toggleGroup(g.subject)}
+          className="cursor-pointer bg-cad-subtle/70 hover:bg-cad-hover/70"
+        >
+          <td colSpan={span} className="py-1 px-2 text-[11.5px] font-semibold text-gray-200">
+            <span className="inline-flex items-center gap-1">
+              {collapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+              {g.subject} ({g.items.length})
+            </span>
+          </td>
+        </tr>
+      );
+      return collapsed ? [header] : [header, ...g.items.map(renderRow)];
+    });
+  };
+
   return (
     <section
       data-testid="markups-list-panel"
-      className="bg-cad-panel border-t border-cad-border flex flex-col select-none z-10 relative shrink-0"
+      hidden={hidden}
+      // La clase de Tailwind anularía el atributo hidden: cerrada no ocupa sitio (ADR-0060)
+      className={`bg-cad-panel border-t border-cad-border ${hidden ? 'hidden' : 'flex'} flex-col select-none z-10 relative shrink-0`}
       // En ventanas bajas la lista no pasa del 38 % de la altura: el plano conserva el espacio (ADR-0034)
-      style={{ height: isExpanded ? `${listHeight}px` : '32px', maxHeight: isExpanded ? '38vh' : undefined }}
+      style={{ height: `${listHeight}px`, maxHeight: '38vh' }}
     >
       {/* Separador arrastrable para redimensionar la lista (ADR-0017) */}
-      {isExpanded && (
         <div
           data-testid="markups-list-resizer"
           onMouseDown={startListResize}
           title="Drag to resize the list"
           className="absolute -top-1 left-0 right-0 h-2 cursor-row-resize z-20 hover:bg-cad-accent/30"
         />
-      )}
       {/* Barra de cabecera del panel de marcas */}
       <div
-        className={`${isExpanded ? 'h-10 border-b border-cad-border' : 'h-8'} shrink-0 bg-cad-panel px-3 flex items-center justify-between gap-3 text-[12px]`}
+        className="h-10 border-b border-cad-border shrink-0 bg-cad-panel px-3 flex items-center justify-between gap-3 text-[12px]"
       >
         <div className="flex items-center gap-3 min-w-0">
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center space-x-1.5 text-gray-300 hover:text-cad-strong"
-          >
-            {isExpanded ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-            <span className="ui-panel-title">
-              Markups List ({displayedMarkups.length})
-            </span>
-          </button>
+          {/* Menú "Markups List ▾" de Revu (ADR-0060): columnas, agrupar por Subject y ocultar */}
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              data-testid="markups-list-menu"
+              aria-haspopup="menu"
+              aria-expanded={listMenu !== null}
+              onClick={(e) => {
+                e.stopPropagation();
+                setListMenu(listMenu ? null : 'main');
+              }}
+              className="flex items-center gap-1 text-gray-300 hover:text-cad-strong"
+              title="Markups List options"
+            >
+              <span className="ui-panel-title">Markups List ({displayedMarkups.length})</span>
+              <ChevronDown size={13} />
+            </button>
+            {listMenu && (
+              <div
+                role="menu"
+                data-testid="markups-list-menu-popup"
+                onClick={(e) => e.stopPropagation()}
+                className="absolute left-0 bottom-full mb-1 z-40 w-52 py-1 rounded-md border border-cad-border bg-cad-panel shadow-xl text-[12px] text-gray-200"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-testid="markups-menu-columns"
+                  aria-haspopup="menu"
+                  aria-expanded={listMenu === 'columns'}
+                  onMouseEnter={() => setListMenu('columns')}
+                  onClick={() => setListMenu('columns')}
+                  className={`w-full h-7 px-2.5 flex items-center justify-between hover:bg-cad-hover ${listMenu === 'columns' ? 'bg-cad-hover' : ''}`}
+                >
+                  <span>Columns</span>
+                  <ChevronRight size={13} />
+                </button>
+                <button
+                  type="button"
+                  role="menuitemcheckbox"
+                  aria-checked={groupOn}
+                  data-testid="markups-menu-group"
+                  onMouseEnter={() => setListMenu('main')}
+                  onClick={toggleGrouping}
+                  className="w-full h-7 px-2.5 flex items-center gap-2 hover:bg-cad-hover"
+                >
+                  <span className="w-3.5">{groupOn && <Check size={13} />}</span>
+                  <span>Group by Subject</span>
+                </button>
+                <div className="my-1 border-t border-cad-border" />
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-testid="markups-menu-hide"
+                  onMouseEnter={() => setListMenu('main')}
+                  onClick={() => {
+                    setListMenu(null);
+                    setMarkupsListOpen(false);
+                  }}
+                  className="w-full h-7 px-2.5 flex items-center justify-between hover:bg-cad-hover"
+                >
+                  <span>Hide Markups List</span>
+                  <span className="text-gray-500 text-[11px]">Alt+L</span>
+                </button>
+                {listMenu === 'columns' && (
+                  <div
+                    role="menu"
+                    data-testid="markups-columns-menu"
+                    className="absolute left-full bottom-0 ml-0.5 w-48 max-h-[50vh] overflow-y-auto thin-scroll py-1 rounded-md border border-cad-border bg-cad-panel shadow-xl"
+                  >
+                    {MARKUP_COLUMNS.map((c) => {
+                      const on = visibleColumns.includes(c.id);
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          role="menuitemcheckbox"
+                          aria-checked={on}
+                          data-testid={`markups-column-toggle-${c.id}`}
+                          onClick={() => saveColumns(toggleColumn(visibleColumns, c.id))}
+                          className="w-full h-6 px-2.5 flex items-center gap-2 hover:bg-cad-hover"
+                        >
+                          <span className="w-3.5">{on && <Check size={13} />}</span>
+                          <span>{c.label}</span>
+                        </button>
+                      );
+                    })}
+                    <div className="my-1 border-t border-cad-border" />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      data-testid="markups-columns-select-all"
+                      onClick={() => saveColumns(MARKUP_COLUMNS.map((c) => c.id))}
+                      className="w-full h-6 px-2.5 pl-8 text-left hover:bg-cad-hover"
+                    >
+                      Select All
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      data-testid="markups-columns-manage"
+                      onClick={() => {
+                        setListMenu(null);
+                        setNewColName('');
+                        setNewColType('text');
+                        setNewColOptions('');
+                        setNewColExpr('');
+                        setIsAddColumnModalOpen(true);
+                      }}
+                      className="w-full h-6 px-2.5 pl-8 text-left hover:bg-cad-hover"
+                    >
+                      Manage Columns…
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
-          {isExpanded && (
           <div
             data-testid="markups-toolbar"
             className="flex items-center gap-1.5 min-w-0 text-[12px]"
@@ -645,9 +949,7 @@ export const MarkupsList: React.FC = () => {
               Sort: <span className="text-gray-300 capitalize">{sortField ?? 'natural'}</span> {sortField ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
             </span>
           </div>
-          )}
 
-          {isExpanded && (
             <label className="flex items-center space-x-1.5 text-gray-400 hover:text-gray-200 cursor-pointer ml-3">
               <input
                 type="checkbox"
@@ -657,10 +959,8 @@ export const MarkupsList: React.FC = () => {
               />
               <span>Current page only</span>
             </label>
-          )}
         </div>
 
-        {isExpanded && (
           <div className="flex items-center space-x-2">
             <button
               data-testid="export-csv-button"
@@ -708,12 +1008,20 @@ export const MarkupsList: React.FC = () => {
                 <span>Delete ({selectedMarkupIds.length})</span>
               </button>
             )}
+
+            <button
+              type="button"
+              data-testid="markups-list-hide"
+              onClick={() => setMarkupsListOpen(false)}
+              className="ui-btn !h-7 !w-7 !p-0"
+              title="Hide Markups List (Alt+L)"
+            >
+              <ChevronDown size={14} />
+            </button>
           </div>
-        )}
       </div>
 
       {/* Contenedor de la Tabla */}
-      {isExpanded && (
         <div className="flex-1 overflow-auto bg-cad-panel">
           {displayedMarkups.length === 0 ? (
             <div className="h-full flex items-center justify-center text-xs text-gray-500 italic" data-testid="markups-empty-message">
@@ -724,58 +1032,23 @@ export const MarkupsList: React.FC = () => {
               <thead className="bg-cad-panel text-gray-500 text-[10px] uppercase tracking-[0.06em] sticky top-0 shadow-[inset_0_-1px_0_rgb(var(--cad-border))] z-10">
                 <tr>
                   <th className="py-1.5 px-2.5 w-8 font-medium"></th>
-                  <th
-                    onClick={() => handleSort('type')}
-                    className="py-1 px-2 font-medium w-28 cursor-pointer hover:text-cad-strong select-none"
-                    title="Sort by type"
-                  >
-                    Type {renderSortIndicator('type')}
-                  </th>
-                  <th
-                    onClick={() => handleSort('text')}
-                    className="py-1 px-2 font-medium min-w-[160px] cursor-pointer hover:text-cad-strong select-none"
-                    title="Sort by subject / comment"
-                  >
-                    Comment {renderSortIndicator('text')}
-                  </th>
-                  <th
-                    onClick={() => handleSort('author')}
-                    className="py-1 px-2 font-medium w-32 cursor-pointer hover:text-cad-strong select-none"
-                    title="Sort by author"
-                  >
-                    Author {renderSortIndicator('author')}
-                  </th>
-                  <th
-                    onClick={() => handleSort('createdAt')}
-                    className="py-1 px-2 font-medium w-32 cursor-pointer hover:text-cad-strong select-none"
-                    title="Sort by date"
-                  >
-                    Date {renderSortIndicator('createdAt')}
-                  </th>
-                  <th
-                    onClick={() => handleSort('pageIndex')}
-                    className="py-1 px-2 font-medium w-20 text-center cursor-pointer hover:text-cad-strong select-none"
-                    title="Sort by page"
-                  >
-                    Page {renderSortIndicator('pageIndex')}
-                  </th>
-                  <th
-                    onClick={() => handleSort('status')}
-                    className="py-1 px-2 font-medium w-28 text-center cursor-pointer hover:text-cad-strong select-none"
-                    title="Sort by status"
-                  >
-                    Status {renderSortIndicator('status')}
-                  </th>
-                  <th
-                    onClick={() => handleSort('measurement')}
-                    className="py-1 px-2 font-medium w-24 text-right cursor-pointer hover:text-cad-strong select-none"
-                    title="Sort by measurement"
-                  >
-                    Measurement {renderSortIndicator('measurement')}
-                  </th>
-                  <th className="py-1.5 px-2 font-medium w-16 text-center select-none">
-                    Unit
-                  </th>
+                  {visibleColumns.map((id) => {
+                    const def = columnDef(id);
+                    const sort = 'sort' in def ? def.sort : undefined;
+                    return (
+                      <th
+                        key={id}
+                        data-testid={`markups-col-${id}`}
+                        onClick={sort ? () => handleSort(sort) : undefined}
+                        className={`py-1 px-2 font-medium whitespace-nowrap select-none ${COLUMN_CLASS[id] ?? ''} ${
+                          sort ? 'cursor-pointer hover:text-cad-strong' : ''
+                        }`}
+                        title={sort ? `Sort by ${def.label.toLowerCase()}` : def.label}
+                      >
+                        {def.label} {sort ? renderSortIndicator(sort) : null}
+                      </th>
+                    );
+                  })}
 
                   {/* Cabeceras dinámicas de Columnas Personalizadas (P2-C.3) */}
                   {customColumns?.map((col) => (
@@ -809,9 +1082,8 @@ export const MarkupsList: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-cad-border/50 text-gray-200">
-                {displayedMarkups.map((markup) => {
+                {renderGroupedRows((markup) => {
                   const isSelected = selectedMarkupIds.includes(markup.id);
-                  const statusInfo = STATUS_CONFIG[markup.status];
 
                   return (
                     <tr
@@ -852,85 +1124,7 @@ export const MarkupsList: React.FC = () => {
                         />
                       </td>
 
-                      {/* Tipo */}
-                      <td className="py-1.5 px-2 flex items-center space-x-1.5">
-                        {getMarkupIcon(markup.type)}
-                        <span>{markupTypeLabel(markup.type)}</span>
-                        {markup.locked && (
-                          <span title="Locked markup" data-testid={`markup-locked-badge-${markup.id}`}>
-                            <Lock size={12} className="text-amber-400 shrink-0 ml-1" />
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Texto / Comentario editable */}
-                      <td className="py-1.5 px-2" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="text"
-                          value={markup.text || ''}
-                          placeholder="No comment..."
-                          onChange={(e) => updateMarkup(markup.id, { text: e.target.value })}
-                          className="w-full bg-transparent hover:bg-cad-dark/50 focus:bg-cad-dark px-1.5 py-0.5 rounded border border-transparent focus:border-cad-border text-xs text-gray-200 outline-none truncate"
-                        />
-                      </td>
-
-                      {/* Autor */}
-                      <td className="py-1.5 px-2 text-gray-400 truncate">{markup.author}</td>
-
-                      {/* Fecha */}
-                      <td className="py-1.5 px-2 text-gray-400 tabular-nums text-[11px]">
-                        {formatDate(markup.createdAt)}
-                      </td>
-
-                      {/* Página */}
-                      <td className="py-1.5 px-2 text-center tabular-nums text-gray-300">
-                        {markup.pageIndex + 1}
-                      </td>
-
-                      {/* Estado con dropdown interactivo */}
-                      <td className="py-1.5 px-2 text-center" onClick={(e) => e.stopPropagation()}>
-                        <select
-                          value={markup.status}
-                          onChange={(e) =>
-                            updateMarkupStatus(markup.id, e.target.value as MarkupStatus)
-                          }
-                          className={`text-[11px] font-medium py-0.5 pl-2 pr-1 rounded-full border-0 outline-none cursor-pointer ${statusInfo.bg} ${statusInfo.text}`}
-                        >
-                          <option value="pending" className="bg-cad-dark text-amber-300">
-                            Pending
-                          </option>
-                          <option value="accepted" className="bg-cad-dark text-emerald-300">
-                            Accepted
-                          </option>
-                          <option value="rejected" className="bg-cad-dark text-rose-300">
-                            Rejected
-                          </option>
-                          <option value="completed" className="bg-cad-dark text-blue-300">
-                            Completed
-                          </option>
-                          <option value="cancelled" className="bg-cad-dark text-zinc-400">
-                            Cancelled
-                          </option>
-                        </select>
-                      </td>
-
-                      {/* Medida */}
-                      <td className="py-1.5 px-2 text-right tabular-nums text-gray-200">
-                        {markup.measurement?.formatted || (markup.measurement?.value !== undefined ? String(markup.measurement.value) : '—')}
-                      </td>
-
-                      {/* Unidad */}
-                      <td className="py-1.5 px-2 text-center text-gray-400 tabular-nums text-[11px]">
-                        {markup.measurement?.unit ? (markup.type === 'area'
-                            ? `${markup.measurement.unit}²`
-                            : markup.type === 'volume'
-                              ? `${markup.measurement.unit}³`
-                              : markup.type === 'angle'
-                                ? '°'
-                                : markup.type === 'count'
-                                  ? 'ea'
-                                  : markup.measurement.unit) : '—'}
-                      </td>
+                      {visibleColumns.map((id) => renderCell(id, markup))}
 
                       {/* Celdas de Columnas Personalizadas (P2-C.3) */}
                       {customColumns?.map((col) => {
@@ -1077,7 +1271,7 @@ export const MarkupsList: React.FC = () => {
               {measurementTotals.hasAny && (
                 <tfoot className="bg-cad-subtle border-t border-cad-border text-gray-300 font-medium">
                   <tr data-testid="markups-totals-summary">
-                    <td colSpan={9} className="py-1.5 px-3 text-xs">
+                    <td colSpan={visibleColumns.length + 1} className="py-1.5 px-3 text-xs">
                       <span className="font-semibold text-cad-accent mr-2">Measurement totals:</span>
                       {measurementTotals.lengthSummary && (
                         <span className="mr-3">
@@ -1107,7 +1301,6 @@ export const MarkupsList: React.FC = () => {
             </table>
           )}
         </div>
-      )}
 
       {/* Modal para Crear Columna Personalizada (P2-C.3) */}
       {isAddColumnModalOpen && (

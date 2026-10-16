@@ -50,6 +50,16 @@ const THEME_STORAGE_KEY = 'rea-theme';
 const VIEW_MODE_STORAGE_KEY = 'rea-view-mode';
 const RULERS_STORAGE_KEY = 'rea-rulers';
 const AUTO_PANELS_STORAGE_KEY = 'rea-auto-panels';
+const LIST_AT_START_STORAGE_KEY = 'rea-markups-list-at-start';
+
+/** La lista de marcas abre cerrada, como en Revu (ADR-0060), salvo con View ▸ Open Markups List at Start. */
+export function readStoredListAtStart(): boolean {
+  try {
+    return localStorage.getItem(LIST_AT_START_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 export function readStoredAutoPanels(): boolean {
   try {
@@ -137,8 +147,10 @@ interface UiState {
   /** Se incrementa cada vez que algo pide abrir el panel de propiedades (menú contextual, menú Ver). */
   /** Panel derecho abierto (ADR-0044): uno a la vez, como los paneles de Revu; null = todos plegados. */
   rightPanel: RightPanelId | null;
-  /** Petición de mostrar u ocultar la lista de marcas (Alt+L, ADR-0052). */
-  markupsListToggleRequest: number;
+  /** Lista de marcas abierta (ADR-0060); cerrada solo queda su botón en la barra de estado. Alt+L la alterna. */
+  markupsListOpen: boolean;
+  /** Abrir la lista de marcas al arrancar (View ▸ Open Markups List at Start). */
+  markupsListAtStart: boolean;
   propertiesOpenRequest: number;
   measurementsOpenRequest: number;
   /** Petición de exportación de la lista de marcas (la ejecuta la lista, respetando sus filtros y columnas). */
@@ -168,6 +180,8 @@ interface UiState {
   requestPropertiesPanel: () => void;
   setRightPanel: (panel: RightPanelId | null) => void;
   toggleMarkupsList: () => void;
+  setMarkupsListOpen: (open: boolean) => void;
+  setMarkupsListAtStart: (on: boolean) => void;
   requestMeasurementsPanel: () => void;
   requestExport: (kind: 'csv' | 'report') => void;
   setShortcutsOpen: (open: boolean) => void;
@@ -187,7 +201,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   hiddenLayers: [],
   cursorPt: null,
   rightPanel: null,
-  markupsListToggleRequest: 0,
+  markupsListOpen: readStoredListAtStart(),
+  markupsListAtStart: readStoredListAtStart(),
   propertiesOpenRequest: 0,
   measurementsOpenRequest: 0,
   exportRequest: null,
@@ -233,7 +248,16 @@ export const useUiStore = create<UiState>((set, get) => ({
   requestMeasurementsPanel: () =>
     set((s) => ({ rightPanel: 'measure', measurementsOpenRequest: s.measurementsOpenRequest + 1 })),
   setRightPanel: (rightPanel) => set({ rightPanel }),
-  toggleMarkupsList: () => set((s) => ({ markupsListToggleRequest: s.markupsListToggleRequest + 1 })),
+  toggleMarkupsList: () => set((s) => ({ markupsListOpen: !s.markupsListOpen })),
+  setMarkupsListOpen: (markupsListOpen) => set({ markupsListOpen }),
+  setMarkupsListAtStart: (markupsListAtStart) => {
+    try {
+      localStorage.setItem(LIST_AT_START_STORAGE_KEY, markupsListAtStart ? '1' : '0');
+    } catch {
+      // Preferencia no persistible: se aplica solo en esta sesión
+    }
+    set({ markupsListAtStart });
+  },
   requestExport: (kind) => set((s) => ({ exportRequest: { kind, seq: (s.exportRequest?.seq ?? 0) + 1 } })),
   setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
   setViewMode: (viewMode) => {

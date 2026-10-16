@@ -1,3 +1,4 @@
+import { useUiStore } from '../store/useUiStore';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MarkupsList } from './MarkupsList';
@@ -9,6 +10,9 @@ import { Markup } from '../types/markup';
 
 describe('MarkupsList Context Menu (Añadir a Tool Chest B.4)', () => {
   beforeEach(async () => {
+    // Preferencias de la lista (ADR-0060) aisladas entre pruebas
+    localStorage.removeItem('rea-markups-group');
+    localStorage.removeItem('rea-markups-columns');
     const fakeIDB = new IDBFactory();
     toolChestService.setCustomIDBFactory(fakeIDB);
     await toolChestService.resetToolChestService();
@@ -130,27 +134,26 @@ describe('MarkupsList Context Menu (Añadir a Tool Chest B.4)', () => {
       });
     });
 
-    it('conserva los invariantes críticos de E2E: colapso en primer botón y primer input text en la fila', () => {
+    it('conserva los invariantes críticos de E2E: el primer botón es el menú Markups List, ocultar cierra la lista y el primer input text es el comentario de una fila', () => {
+      useUiStore.setState({ markupsListOpen: true });
       render(<MarkupsList />);
       const panel = screen.getByTestId('markups-list-panel');
 
-      // 1. El primer botón del panel debe ser el de colapsar/expandir
+      // 1. El primer botón del panel es el menú "Markups List ▾" de Revu (ADR-0060)
       const firstButton = panel.querySelectorAll('button')[0];
       expect(firstButton.textContent).toContain('Markups List');
-
-      // Al colapsar, mide 32px
-      fireEvent.click(firstButton);
-      expect(panel).toHaveStyle({ height: '32px' });
-
-      // Re-expandir
-      fireEvent.click(firstButton);
+      expect(firstButton).toHaveAttribute('data-testid', 'markups-list-menu');
       // Alto por defecto (ADR-0044)
       expect(panel).toHaveStyle({ height: '168px' });
+
+      // Ocultar la deja cerrada: solo queda su botón en la barra de estado
+      fireEvent.click(screen.getByTestId('markups-list-hide'));
+      expect(useUiStore.getState().markupsListOpen).toBe(false);
 
       // 2. El primer input[type="text"] dentro del panel es el campo de comentario de la fila (guarda de foco A.6)
       const firstTextInput = panel.querySelector('input[type="text"]') as HTMLInputElement;
       expect(firstTextInput).not.toBeNull();
-      expect(firstTextInput.value).toBe('Viga IPE 300');
+      expect(firstTextInput.closest('tr')?.getAttribute('data-testid')).toMatch(/^markup-row-/);
     });
 
     it('filtra por término de búsqueda en markups-search-input', () => {
@@ -206,8 +209,37 @@ describe('MarkupsList Context Menu (Añadir a Tool Chest B.4)', () => {
       expect(screen.getByTestId('markup-row-m-2')).toBeInTheDocument();
     });
 
+    it('el menú Markups List muestra y oculta columnas de Revu y la lista agrupa por Subject con grupos plegables (ADR-0060)', () => {
+      render(<MarkupsList />);
+      // Agrupada por Subject por defecto, como en Revu
+      const groups = screen.getAllByTestId(/^markups-group-/);
+      expect(groups.length).toBeGreaterThan(0);
+      const first = groups[0];
+      const rowsBefore = screen.getAllByTestId(/^markup-row-/).length;
+      fireEvent.click(first);
+      expect(first).toHaveAttribute('aria-expanded', 'false');
+      expect(screen.getAllByTestId(/^markup-row-/).length).toBeLessThan(rowsBefore);
+      fireEvent.click(first);
+
+      // Columns: quitar Layer y poner Page Index; se recuerda entre sesiones
+      expect(screen.getByTestId('markups-col-layer')).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId('markups-list-menu'));
+      fireEvent.click(screen.getByTestId('markups-menu-columns'));
+      expect(screen.getByTestId('markups-column-toggle-subject')).toHaveAttribute('aria-checked', 'true');
+      fireEvent.click(screen.getByTestId('markups-column-toggle-layer'));
+      fireEvent.click(screen.getByTestId('markups-column-toggle-pageIndex'));
+      expect(screen.queryByTestId('markups-col-layer')).toBeNull();
+      expect(screen.getByTestId('markups-col-pageIndex')).toHaveTextContent('Page Index');
+      expect(JSON.parse(localStorage.getItem('rea-markups-columns')!)).toContain('pageIndex');
+      fireEvent.click(screen.getByTestId('markups-columns-select-all'));
+      expect(screen.getByTestId('markups-col-volume')).toBeInTheDocument();
+    });
+
     it('ordena por columna al hacer clic en la cabecera th', () => {
       render(<MarkupsList />);
+      // Sin agrupar por Subject (ADR-0060), el orden es el de toda la lista
+      fireEvent.click(screen.getByTestId('markups-list-menu'));
+      fireEvent.click(screen.getByTestId('markups-menu-group'));
       const authorTh = screen.getByTitle('Sort by author');
 
       // Clic inicial -> asc (Beatriz Arq antes de Carlos Ing)

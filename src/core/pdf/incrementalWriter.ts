@@ -358,11 +358,12 @@ export async function saveIncrementalMarkups(
     markupsByPage.set(m.pageIndex, list);
   }
 
-  // Formularios (ADR-0027): campos de primer nivel nuevos y grupos de botones de opción (un campo padre por grupo)
+  // Formularios (ADR-0027 / ADR-0055): campos de primer nivel, grupos de botones de opción y padres /Parent ajenos
   const newFieldRefs: string[] = [];
+  const foreignParentsToUpdate = new Map<number, { ft: FieldType; value: string }>();
   const radioGroups = new Map<string, { objNum: number; kids: string[]; value: string | null }>();
   for (const m of markups) {
-    if (m.type === 'formField' && fieldTypeOf(m) === 'radio') {
+    if (m.type === 'formField' && fieldTypeOf(m) === 'radio' && typeof m.customFields?.foreignParentObjNum !== 'number') {
       const group = String(m.customFields?.fieldName ?? 'Group1');
       if (!radioGroups.has(group)) radioGroups.set(group, { objNum: writer.allocateObjectNumber(), kids: [], value: null });
       if (isFieldChecked(m)) radioGroups.get(group)!.value = radioExportValue(m);
@@ -478,8 +479,11 @@ endstream`;
 
       writer.addObject(apObjNum, apBody);
 
-      // 3. Crear el objeto de anotación estándar
-      const annotObjNum = writer.allocateObjectNumber();
+      // 3. Crear el objeto de anotación estándar (o reutilizar el número de objeto de un widget AcroForm ajeno)
+      const annotObjNum =
+        typeof markup.customFields?.foreignWidgetObjNum === 'number'
+          ? markup.customFields.foreignWidgetObjNum
+          : writer.allocateObjectNumber();
       newAnnotRefsList.push(`${annotObjNum} 0 R`);
 
       // Diccionario base común
@@ -548,18 +552,24 @@ endstream`;
       }
       reaDict += ' >>';
 
-      // Widgets: /T es el nombre del campo (los botones de opción lo heredan de su grupo); casillas y opciones
-      // llevan dos apariencias (activada y /Off) y su estado /AS
+      // Widgets: /T es el nombre del campo (los botones de opción o hijos de un /Parent lo heredan de su padre);
+      // casillas y opciones llevan dos apariencias (activada y /Off) y su estado /AS
       const isField = markup.type === 'formField';
       const ft = isField ? fieldTypeOf(markup) : null;
+      const foreignParentObjNum =
+        typeof markup.customFields?.foreignParentObjNum === 'number' ? markup.customFields.foreignParentObjNum : undefined;
+      const customOnName =
+        typeof markup.customFields?.onStateName === 'string' && markup.customFields.onStateName
+          ? markup.customFields.onStateName
+          : undefined;
       const titleLine = isField
-        ? ft === 'radio'
+        ? ft === 'radio' || foreignParentObjNum !== undefined
           ? ''
           : `  /T ${escapePdfString(String(markup.customFields?.fieldName ?? 'Field'))}\n`
         : `  /T ${escapePdfString(markup.author || options.authorDefault || 'Revisor')}\n`;
       let apLine = `  /AP << /N ${apObjNum} 0 R >>\n`;
       if (ft === 'checkbox' || ft === 'radio') {
-        const onName = ft === 'radio' ? radioExportValue(markup) : 'Yes';
+        const onName = customOnName ?? (ft === 'radio' ? radioExportValue(markup) : 'Yes');
         const states: [string, string][] = [[onName, 'Yes'], ['Off', 'Off']];
         const refs: string[] = [];
         for (const [stateName, value] of states) {
@@ -710,8 +720,26 @@ ${markup.layer && layerOcg.has(markup.layer) ? `  /OC ${layerOcg.get(markup.laye
         }
         annotDict += `  /Name /Paperclip\n`;
       } else if (annotTypeSubtype === 'Widget' && ft) {
-        annotDict += `  ${widgetFieldEntries(markup, ft, radioGroups)}\n`;
-        if (ft === 'radio') {
+        const onName = customOnName ?? (ft === 'radio' ? radioExportValue(markup) : 'Yes');
+        annotDict += `  ${widgetFieldEntries(markup, ft, radioGroups, foreignParentObjNum, onName)}\n`;
+        if (foreignParentObjNum !== undefined) {
+          if (ft === 'radio') {
+            if (!foreignParentsToUpdate.has(foreignParentObjNum)) {
+              foreignParentsToUpdate.set(foreignParentObjNum, { ft, value: 'Off' });
+            }
+            if (isFieldChecked(markup)) {
+              foreignParentsToUpdate.set(foreignParentObjNum, { ft, value: onName });
+            }
+          } else {
+            const val =
+              ft === 'checkbox'
+                ? isFieldChecked(markup)
+                  ? onName
+                  : 'Off'
+                : String(markup.customFields?.fieldValue ?? '');
+            foreignParentsToUpdate.set(foreignParentObjNum, { ft, value: val });
+          }
+        } else if (ft === 'radio') {
           radioGroups.get(String(markup.customFields?.fieldName ?? 'Group1'))?.kids.push(`${annotObjNum} 0 R`);
         } else {
           newFieldRefs.push(`${annotObjNum} 0 R`);
@@ -804,7 +832,7 @@ ${markup.layer && layerOcg.has(markup.layer) ? `  /OC ${layerOcg.get(markup.laye
     }
   }
 
-  // Campos padre de los grupos de botones de opción
+  // Campos padre de los grupos de botones de opción creados en REA
   for (const [group, g] of radioGroups) {
     if (g.kids.length === 0) continue;
     writer.addObject(
@@ -813,7 +841,19 @@ ${markup.layer && layerOcg.has(markup.layer) ? `  /OC ${layerOcg.get(markup.laye
     );
     newFieldRefs.push(`${g.objNum} 0 R`);
   }
-  const formChanged = updateAcroForm(pdfDoc, writer, newFieldRefs);
+  // Actualizar in-place los diccionarios /Parent ajenos (ADR-0055)
+  for (const [parentObjNum, info] of foreignParentsToUpdate) {
+    const parentObj = pdfDoc.context.lookup(PDFRef.of(parentObjNum, 0));
+    if (parentObj instanceof PDFDict) {
+      if (info.ft === 'radio' || info.ft === 'checkbox') {
+        parentObj.set(PDFName.of('V'), PDFName.of(info.value || 'Off'));
+      } else {
+        parentObj.set(PDFName.of('V'), PDFString.of(info.value));
+      }
+      writer.addObject(parentObjNum, parentObj.toString());
+    }
+  }
+  const formChanged = updateAcroForm(pdfDoc, writer, newFieldRefs, foreignParentsToUpdate.size > 0);
   const layersChanged = updateOCProperties(
     pdfDoc,
     [...layerOcg].map(([name, num]) => ({ name, ref: PDFRef.of(num, 0) })),
@@ -827,40 +867,49 @@ ${markup.layer && layerOcg.has(markup.layer) ? `  /OC ${layerOcg.get(markup.laye
   return writer.build();
 }
 
-/** Entradas de campo de un widget (/FT, /Ff, /V, /Opt, /DA, /MK); los botones de opción las heredan del grupo. */
+/** Entradas de campo de un widget (/FT, /Ff, /V, /Opt, /DA, /MK); si tiene /Parent, las hereda del diccionario padre. */
 function widgetFieldEntries(
   markup: Markup,
   ft: FieldType,
-  radioGroups: Map<string, { objNum: number }>
+  radioGroups: Map<string, { objNum: number }>,
+  foreignParentObjNum?: number,
+  onName: string = 'Yes'
 ): string {
   const def = fieldTypeDef(ft);
   const mk = '/MK << /BG [0.933 0.957 1] /BC [0.39 0.45 0.55]';
-  if (ft === 'radio') {
-    const group = radioGroups.get(String(markup.customFields?.fieldName ?? 'Group1'));
-    return `/Parent ${group?.objNum ?? 0} 0 R ${mk} >>`;
+  const caption = ft === 'button' ? ` /CA ${escapePdfString(String(markup.customFields?.buttonCaption ?? 'Button'))}` : '';
+  if (ft === 'radio' || foreignParentObjNum !== undefined) {
+    const parentNum =
+      foreignParentObjNum ?? radioGroups.get(String(markup.customFields?.fieldName ?? 'Group1'))?.objNum ?? 0;
+    return `/Parent ${parentNum} 0 R ${mk}${caption} >>`;
   }
   const parts = [`/FT /${def.pdfFT}`];
   if (def.flags) parts.push(`/Ff ${def.flags}`);
   parts.push('/DA (/Helv 0 Tf 0 g)');
   const value = markup.customFields?.fieldValue;
   if (ft === 'text' && typeof value === 'string') parts.push(`/V ${escapePdfString(value)}`);
-  if (ft === 'checkbox') parts.push(`/V /${isFieldChecked(markup) ? 'Yes' : 'Off'}`);
+  if (ft === 'checkbox') parts.push(`/V /${isFieldChecked(markup) ? onName : 'Off'}`);
   if (ft === 'listbox' || ft === 'dropdown') {
     parts.push(`/Opt [${fieldOptions(markup).map((o) => escapePdfString(o)).join(' ')}]`);
     if (typeof value === 'string' && value) parts.push(`/V ${escapePdfString(value)}`);
   }
-  const caption = ft === 'button' ? ` /CA ${escapePdfString(String(markup.customFields?.buttonCaption ?? 'Button'))}` : '';
   parts.push(`${mk}${caption} >>`);
   return parts.join(' ');
 }
 
 /**
- * /AcroForm del catálogo (ADR-0027): conserva los campos ajenos, retira los de REA escritos antes y añade los
- * actuales. Solo cambia el catálogo si hay campos de REA nuevos o anteriores; devuelve si lo cambió.
+ * /AcroForm del catálogo (ADR-0027 / ADR-0055): conserva los campos ajenos sin duplicarlos, retira los de REA
+ * escritos antes y añade los actuales. Elimina /NeedAppearances para que el visor use los /AP /N escritos.
  */
-function updateAcroForm(pdfDoc: PDFDocument, writer: IncrementalWriter, newFieldRefs: string[]): boolean {
+function updateAcroForm(
+  pdfDoc: PDFDocument,
+  writer: IncrementalWriter,
+  newFieldRefs: string[],
+  hasForeignParentUpdates: boolean = false
+): boolean {
   const catalog = pdfDoc.catalog;
   const existing = catalog.lookup(PDFName.of('AcroForm'));
+  const newRefNums = new Set(newFieldRefs.map((r) => parseInt(r, 10)));
   const kept: PDFObject[] = [];
   let hadRea = false;
   if (existing instanceof PDFDict) {
@@ -868,6 +917,10 @@ function updateAcroForm(pdfDoc: PDFDocument, writer: IncrementalWriter, newField
     if (fields instanceof PDFArray) {
       for (let i = 0; i < fields.size(); i++) {
         const item = fields.get(i);
+        if (item instanceof PDFRef && newRefNums.has(item.objectNumber)) {
+          hadRea = true;
+          continue;
+        }
         const dict = item instanceof PDFRef ? pdfDoc.context.lookup(item) : item;
         if (dict instanceof PDFDict && dict.get(PDFName.of('REA'))) {
           hadRea = true;
@@ -877,11 +930,12 @@ function updateAcroForm(pdfDoc: PDFDocument, writer: IncrementalWriter, newField
       }
     }
   }
-  if (newFieldRefs.length === 0 && !hadRea) return false;
+  if (newFieldRefs.length === 0 && !hadRea && !hasForeignParentUpdates) return false;
   const ctx = pdfDoc.context;
   const acro = existing instanceof PDFDict ? existing : ctx.obj({});
   const refs = newFieldRefs.map((r) => PDFRef.of(parseInt(r, 10), 0));
   acro.set(PDFName.of('Fields'), ctx.obj([...kept, ...refs]));
+  acro.delete(PDFName.of('NeedAppearances'));
   if (!acro.get(PDFName.of('DA'))) acro.set(PDFName.of('DA'), PDFString.of('/Helv 0 Tf 0 g'));
   const dr = acro.lookup(PDFName.of('DR'));
   const drDict = dr instanceof PDFDict ? dr : ctx.obj({});

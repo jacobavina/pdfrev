@@ -157,7 +157,15 @@ export const InteractiveProperties: React.FC<{ markup: Markup }> = ({ markup }) 
               type="checkbox"
               data-testid="prop-field-checked"
               checked={value === 'Yes'}
-              onChange={(e) => set({ fieldValue: e.target.checked ? 'Yes' : 'Off' }, e.target.checked ? 'Check field' : 'Uncheck field')}
+              onChange={(e) => {
+                if (ft === 'radio' && e.target.checked) {
+                  const others = markups
+                    .filter((m) => m.type === 'formField' && m.id !== markup.id && fieldTypeOf(m) === 'radio' && m.customFields?.fieldName === name)
+                    .map((m) => m.id);
+                  if (others.length) applyPropertiesToMarkups(others, { customFields: { fieldValue: 'Off' } }, `Clear ${name}`);
+                }
+                set({ fieldValue: e.target.checked ? 'Yes' : 'Off' }, e.target.checked ? 'Check field' : 'Uncheck field');
+              }}
               className="accent-cad-accent"
             />
             Checked

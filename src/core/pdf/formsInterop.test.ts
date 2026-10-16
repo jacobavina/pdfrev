@@ -115,4 +115,114 @@ describe('Formularios, enlaces y adjuntos en el PDF (ADR-0027)', () => {
     const doc3 = await PDFDocument.load(none);
     expect(doc3.catalog.lookup(PDFName.of('AcroForm'), PDFDict).lookup(PDFName.of('Fields'), PDFArray).size()).toBe(0);
   });
+
+  it('importa y rellena formularios AcroForm de PDFs hechos en otras aplicaciones sin /REA (ADR-0055)', async () => {
+    // Construye un PDF externo con AcroForm estándar de pdf-lib (sin clave /REA, con herencia /Parent en grupos)
+    const extDoc = await PDFDocument.create();
+    const page = extDoc.addPage([612, 792]);
+    const form = extDoc.getForm();
+
+    const tf = form.createTextField('Contractor');
+    tf.setText('Initial Co');
+    tf.addToPage(page, { x: 50, y: 700, width: 150, height: 24 });
+
+    const cb = form.createCheckBox('SiteReady');
+    cb.uncheck();
+    cb.addToPage(page, { x: 50, y: 650, width: 18, height: 18 });
+
+    const rg = form.createRadioGroup('Zone');
+    rg.addOptionToPage('North', page, { x: 50, y: 600, width: 18, height: 18 });
+    rg.addOptionToPage('South', page, { x: 100, y: 600, width: 18, height: 18 });
+    rg.select('North');
+
+    const dd = form.createDropdown('Material');
+    dd.addOptions(['Concrete', 'Steel', 'Timber']);
+    dd.select('Concrete');
+    dd.addToPage(page, { x: 50, y: 550, width: 120, height: 24 });
+
+    const ro = form.createTextField('ReadOnlyCode');
+    ro.setText('DOC-001');
+    ro.enableReadOnly();
+    ro.addToPage(page, { x: 50, y: 500, width: 120, height: 24 });
+
+    const foreignBytes = await extDoc.save();
+
+    // 1. Importar con importPdfAnnotations
+    const imported = await importPdfAnnotations(foreignBytes);
+    expect(imported.foreignUnsupportedCount).toBe(0);
+    const fields = imported.markups.filter((m) => m.type === 'formField');
+    expect(fields).toHaveLength(6); // Contractor, SiteReady, Zone(North), Zone(South), Material, ReadOnlyCode
+
+    const contractor = fields.find((m) => m.customFields?.fieldName === 'Contractor')!;
+    const siteReady = fields.find((m) => m.customFields?.fieldName === 'SiteReady')!;
+    const zoneNorth = fields.find(
+      (m) => m.customFields?.fieldName === 'Zone' && m.customFields?.radioValue === 'North'
+    )!;
+    const zoneSouth = fields.find(
+      (m) => m.customFields?.fieldName === 'Zone' && m.customFields?.radioValue === 'South'
+    )!;
+    const material = fields.find((m) => m.customFields?.fieldName === 'Material')!;
+    const readOnly = fields.find((m) => m.customFields?.fieldName === 'ReadOnlyCode')!;
+
+    expect(contractor.customFields?.fieldValue).toBe('Initial Co');
+    expect(siteReady.customFields?.fieldValue).toBe('Off');
+    expect(zoneNorth.customFields?.fieldValue).toBe('Yes');
+    expect(zoneSouth.customFields?.fieldValue).toBe('Off');
+    expect(material.customFields?.fieldValue).toBe('Concrete');
+    expect(String(material.customFields?.fieldOptions).split('\n')).toEqual(['Concrete', 'Steel', 'Timber']);
+    expect(readOnly.locked).toBe(true);
+
+    // 2. Rellenar los campos en REA y guardar incrementalmente
+    const updatedMarkups = imported.markups.map((m) => {
+      if (m.id === contractor.id) {
+        return { ...m, customFields: { ...m.customFields, fieldValue: 'Acme Builders' } };
+      }
+      if (m.id === siteReady.id) {
+        return { ...m, customFields: { ...m.customFields, fieldValue: 'Yes' } };
+      }
+      if (m.id === zoneNorth.id) {
+        return { ...m, customFields: { ...m.customFields, fieldValue: 'Off' } };
+      }
+      if (m.id === zoneSouth.id) {
+        return { ...m, customFields: { ...m.customFields, fieldValue: 'Yes' } };
+      }
+      if (m.id === material.id) {
+        return { ...m, customFields: { ...m.customFields, fieldValue: 'Steel' } };
+      }
+      return m;
+    });
+
+    const saved = await saveIncrementalMarkups(foreignBytes, updatedMarkups, {}, {
+      importedIds: imported.markups.map((m) => m.id),
+    });
+
+    // Comprobar que el archivo original se conserva intacto como prefijo (actualización incremental)
+    expect(saved.subarray(0, foreignBytes.length)).toEqual(foreignBytes);
+
+    // 3. Reabrir con PDF.js y con importPdfAnnotations
+    const pdf = await pdfjs.getDocument({ data: saved.slice(), disableFontFace: true }).promise;
+    const pdfFields = (await pdf.getFieldObjects()) as Record<string, { type: string; value: unknown }[]>;
+    expect(pdfFields.Contractor.find((f) => f.type)?.value).toBe('Acme Builders');
+    expect(pdfFields.Material.find((f) => f.type)?.value).toBe('Steel');
+    await pdf.destroy();
+
+    // No se duplicaron entradas en /AcroForm /Fields
+    const reloadedDoc = await PDFDocument.load(saved);
+    const acro = reloadedDoc.catalog.lookup(PDFName.of('AcroForm'), PDFDict);
+    expect(acro.lookup(PDFName.of('Fields'), PDFArray).size()).toBe(5);
+
+    const reimported = await importPdfAnnotations(saved);
+    const reByName = (name: string, radioVal?: string) =>
+      reimported.markups.find(
+        (m) =>
+          m.customFields?.fieldName === name &&
+          (radioVal === undefined || m.customFields?.radioValue === radioVal)
+      )!;
+    expect(reByName('Contractor').customFields?.fieldValue).toBe('Acme Builders');
+    expect(reByName('SiteReady').customFields?.fieldValue).toBe('Yes');
+    expect(reByName('Zone', 'North').customFields?.fieldValue).toBe('Off');
+    expect(reByName('Zone', 'South').customFields?.fieldValue).toBe('Yes');
+    expect(reByName('Material').customFields?.fieldValue).toBe('Steel');
+  });
 });
+

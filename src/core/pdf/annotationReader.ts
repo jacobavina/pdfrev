@@ -201,8 +201,8 @@ export async function importPdfAnnotations(
       const author = extractPdfStringValue(authorObj) || 'External author';
 
       // Colores y grosor
-      const strokeColor = pdfColorArrayToHex(annotDict.get(PDFName.of('C'))) || '#000000';
-      const fillColor = pdfColorArrayToHex(annotDict.get(PDFName.of('IC')));
+      let strokeColor = pdfColorArrayToHex(annotDict.get(PDFName.of('C'))) || '#000000';
+      let fillColor = pdfColorArrayToHex(annotDict.get(PDFName.of('IC')));
 
       let strokeWidth = 1;
       let dashArray: number[] | undefined;
@@ -445,6 +445,14 @@ export async function importPdfAnnotations(
             customFields.stampSubtitle = stampSubtitle(author, dateStr);
           }
         }
+      } else if (subtype === 'Widget') {
+        if (!isRea) {
+          markupType = 'formField';
+          const wInfo = importForeignWidget(annotDict, annotRefOrDict);
+          Object.assign(customFields, wInfo.fields);
+          if (!annotDict.get(PDFName.of('C')) && wInfo.strokeColor) strokeColor = wInfo.strokeColor;
+          if (!annotDict.get(PDFName.of('IC')) && wInfo.fillColor) fillColor = wInfo.fillColor;
+        }
       } else if (
         !isRea &&
         ![
@@ -460,11 +468,12 @@ export async function importPdfAnnotations(
           'Underline',
           'StrikeOut',
           'Stamp',
+          'Widget',
         ].includes(subtype)
       ) {
-        // Subtipo no soportado por REA. Enlaces, campos de formulario y ventanas emergentes ajenos se conservan
+        // Subtipo no soportado por REA. Enlaces y ventanas emergentes ajenos se conservan
         // intactos en el PDF (los enlaces se pueden seguir en el visor): no se cuentan como no editables.
-        if (!['Link', 'Widget', 'Popup'].includes(subtype)) foreignUnsupportedCount++;
+        if (!['Link', 'Popup'].includes(subtype)) foreignUnsupportedCount++;
         continue;
       }
 
@@ -633,8 +642,9 @@ export async function importPdfAnnotations(
       const daMatch = /([\d.]+)\s+Tf/.exec(extractPdfStringValue(annotDict.get(PDFName.of('DA'))));
       if (daMatch && Number(daMatch[1]) > 0) fontSize = Number(daMatch[1]);
 
-      // Comprobar bandera de bloqueo (/F bit 8 = 128)
-      let locked = false;
+      // Comprobar bandera de bloqueo (/F bit 8 = 128 o /Ff ReadOnly en campos ajenos)
+      let locked = customFields.foreignReadOnly === 1;
+      delete customFields.foreignReadOnly;
       const fObj = annotDict.get(PDFName.of('F'));
       if (fObj instanceof PDFNumber && (fObj.asNumber() & 128) !== 0) {
         locked = true;
@@ -740,6 +750,135 @@ export async function importPdfAnnotations(
     attachments,
     hiddenLayers,
   };
+}
+
+/**
+ * Importa un widget AcroForm de otra aplicación (/Subtype /Widget sin /REA, ADR-0055): resuelve herencia /Parent
+ * para /FT, /T, /Ff, /V y /Opt, detecta el nombre del estado activo en /AP /N y guarda las referencias de objeto
+ * originales para poder reescribir el widget y su padre in-place al guardar.
+ */
+function importForeignWidget(
+  annotDict: PDFDict,
+  annotRefOrDict: unknown
+): { fields: Record<string, string | number>; strokeColor?: string; fillColor?: string } {
+  const lookupAttr = (key: string): unknown => {
+    let cur: PDFDict | undefined = annotDict;
+    const seen = new Set<PDFDict>();
+    for (let depth = 0; cur && depth < 8 && !seen.has(cur); depth++) {
+      seen.add(cur);
+      const val: unknown = cur.lookup(PDFName.of(key));
+      if (val !== undefined) return val;
+      const p: unknown = cur.lookup(PDFName.of('Parent'));
+      cur = p instanceof PDFDict ? p : undefined;
+    }
+    return undefined;
+  };
+
+  const nameParts: string[] = [];
+  let cur: PDFDict | undefined = annotDict;
+  const seen = new Set<PDFDict>();
+  for (let depth = 0; cur && depth < 8 && !seen.has(cur); depth++) {
+    seen.add(cur);
+    const tVal = extractPdfStringValue(cur.get(PDFName.of('T')));
+    if (tVal) nameParts.unshift(tVal);
+    const p: unknown = cur.lookup(PDFName.of('Parent'));
+    cur = p instanceof PDFDict ? p : undefined;
+  }
+  const fieldName = nameParts.join('.') || 'Field';
+
+  const ftObj = lookupAttr('FT');
+  const ftStr = ftObj instanceof PDFName ? decodePdfName(ftObj.asString()) : 'Tx';
+  const ffObj = lookupAttr('Ff');
+  const ff = ffObj instanceof PDFNumber ? ffObj.asNumber() : 0;
+
+  let fieldType = 'text';
+  if (ftStr === 'Btn') {
+    if ((ff & 65536) !== 0) fieldType = 'button';
+    else if ((ff & 32768) !== 0) fieldType = 'radio';
+    else fieldType = 'checkbox';
+  } else if (ftStr === 'Ch') {
+    fieldType = (ff & 131072) !== 0 ? 'dropdown' : 'listbox';
+  } else if (ftStr === 'Sig') {
+    fieldType = 'signature';
+  }
+
+  let onState = '';
+  const apDict = annotDict.lookup(PDFName.of('AP'));
+  const nDict = apDict instanceof PDFDict ? apDict.lookup(PDFName.of('N')) : null;
+  if (nDict instanceof PDFDict) {
+    for (const [k] of nDict.entries()) {
+      const stateKey = decodePdfName(k.asString());
+      if (stateKey && stateKey !== 'Off') {
+        onState = stateKey;
+        break;
+      }
+    }
+  }
+
+  const fields: Record<string, string | number> = { fieldType, fieldName };
+  if (annotRefOrDict instanceof PDFRef) {
+    fields.foreignWidgetObjNum = annotRefOrDict.objectNumber;
+  }
+  const parentRef = annotDict.get(PDFName.of('Parent'));
+  if (parentRef instanceof PDFRef) {
+    fields.foreignParentObjNum = parentRef.objectNumber;
+  }
+  if (onState) fields.onStateName = onState;
+  if ((ff & 1) !== 0) fields.foreignReadOnly = 1;
+
+  const vObj = lookupAttr('V');
+  const vStr = vObj instanceof PDFName ? decodePdfName(vObj.asString()) : extractPdfStringValue(vObj);
+  const asObj = annotDict.get(PDFName.of('AS'));
+  const asStr = asObj instanceof PDFName ? decodePdfName(asObj.asString()) : '';
+
+  if (fieldType === 'radio') {
+    let exportVal = onState || (asStr && asStr !== 'Off' ? asStr : 'Choice1');
+    const optObj = lookupAttr('Opt');
+    if (optObj instanceof PDFArray && /^\d+$/.test(exportVal)) {
+      const idx = parseInt(exportVal, 10);
+      if (idx >= 0 && idx < optObj.size()) {
+        const optLabel = extractPdfStringValue(optObj.lookup(idx));
+        if (optLabel) exportVal = optLabel;
+      }
+    }
+    fields.radioValue = exportVal;
+    const stateToMatch = onState || exportVal;
+    const checked =
+      (asStr !== '' && asStr !== 'Off') ||
+      (asStr === '' && vStr !== '' && (vStr === stateToMatch || vStr === exportVal));
+    fields.fieldValue = checked ? 'Yes' : 'Off';
+  } else if (fieldType === 'checkbox') {
+    const checked = (asStr !== '' && asStr !== 'Off') || (asStr === '' && vStr !== '' && vStr !== 'Off' && vStr !== 'No');
+    fields.fieldValue = checked ? 'Yes' : 'Off';
+  } else if (fieldType === 'dropdown' || fieldType === 'listbox') {
+    const optObj = lookupAttr('Opt');
+    if (optObj instanceof PDFArray) {
+      const opts: string[] = [];
+      for (let i = 0; i < optObj.size(); i++) {
+        const item = optObj.lookup(i);
+        if (item instanceof PDFArray && item.size() >= 2) {
+          const disp = extractPdfStringValue(item.get(1)) || extractPdfStringValue(item.get(0));
+          if (disp) opts.push(disp);
+        } else {
+          const s = extractPdfStringValue(item);
+          if (s) opts.push(s);
+        }
+      }
+      if (opts.length > 0) fields.fieldOptions = opts.join('\n');
+    }
+    fields.fieldValue = vStr;
+  } else if (fieldType === 'button') {
+    const mk = annotDict.lookup(PDFName.of('MK'));
+    const ca = mk instanceof PDFDict ? extractPdfStringValue(mk.get(PDFName.of('CA'))) : '';
+    fields.buttonCaption = ca || fieldName || 'Button';
+  } else if (fieldType === 'text') {
+    fields.fieldValue = vStr;
+  }
+
+  const mk = annotDict.lookup(PDFName.of('MK'));
+  const bc = mk instanceof PDFDict ? pdfColorArrayToHex(mk.get(PDFName.of('BC'))) : undefined;
+  const bg = mk instanceof PDFDict ? pdfColorArrayToHex(mk.get(PDFName.of('BG'))) : undefined;
+  return { fields, strokeColor: bc || '#2563eb', fillColor: bg };
 }
 
 /** Valor, destino o adjunto actuales de una marca interactiva de REA, leídos del propio PDF. */

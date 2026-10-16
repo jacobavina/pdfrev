@@ -231,6 +231,30 @@ describe('Barra de propiedades contextual con fuentes (ADR-0040)', () => {
     useToolStore.setState({ activeTool: 'select', currentStyle: { strokeColor: '#e02424', fillColor: 'transparent', strokeWidth: 1, opacity: 1 } });
   });
 
+  it('Autosize Text de la barra se activa en el callout seleccionado y en los callouts nuevos (ADR-0061)', () => {
+    const co = mk('ca', 'callout', [{ x: 0.1, y: 0.1 }, { x: 0.3, y: 0.15 }], { text: 'Hola', leaders: [[{ x: 0.05, y: 0.3 }]] });
+    useMarkupStore.setState({ markups: [co], selectedMarkupIds: ['ca'] });
+    const { unmount } = render(<Ribbon />);
+    const btn = screen.getByTestId('ribbon-autosize-text');
+    expect(btn).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(btn);
+    expect(useMarkupStore.getState().markups[0].customFields?.autoSizeText).toBe(1);
+    expect(screen.getByTestId('ribbon-autosize-text')).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByTestId('ribbon-autosize-text'));
+    expect(useMarkupStore.getState().markups[0].customFields?.autoSizeText).toBeUndefined();
+    unmount();
+    // Sin selección, con la herramienta Callout, define los callouts nuevos; en un rectángulo no aplica
+    useMarkupStore.setState({ selectedMarkupIds: [] });
+    useToolStore.setState({ activeTool: 'callout', autoSizeText: false });
+    const second = render(<Ribbon />);
+    fireEvent.click(screen.getByTestId('ribbon-autosize-text'));
+    expect(useToolStore.getState().autoSizeText).toBe(true);
+    second.unmount();
+    useToolStore.setState({ activeTool: 'rectangle' });
+    render(<Ribbon />);
+    expect(screen.getByTestId('ribbon-autosize-text')).toBeDisabled();
+  });
+
   it('la barra de Count muestra el total del conteo seleccionado y cambia su símbolo y su escala (ADR-0059)', () => {
     const cnt = mk('cn', 'count', [{ x: 0.1, y: 0.1 }, { x: 0.2, y: 0.1 }], { customFields: { countSymbol: 'check', countScale: 100 } });
     useMarkupStore.setState({ markups: [cnt], selectedMarkupIds: ['cn'] });

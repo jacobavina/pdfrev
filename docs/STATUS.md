@@ -6,12 +6,12 @@
 
 ## 0. Traspaso al siguiente agente (2026-10-15)
 
-**Último hito:** ADR-0060 (Markups List como la de Revu). Fecha del traspaso vigente: 2026-10-16.
+**Último hito:** ADR-0061 (Autosize Text de Revu). Fecha del traspaso vigente: 2026-10-16.
 `node scripts/verify.mjs --with-e2e --e2e-loop 3` de su hito.
 
 **Cómo continuar**
 1. Leer `AGENTS.md`, `CLAUDE.md`, esta sección, `PARITY.md` (0 filas `todo`) y los ADR recientes en
-   `docs/DECISIONS/` (ADR-0039 a ADR-0060).
+   `docs/DECISIONS/` (ADR-0039 a ADR-0061).
 2. Entorno (Windows, Git Bash):
    `export PATH="/c/Program Files/nodejs:/c/Users/jmm_j/.cargo/bin:$PATH"; export NODE_OPTIONS="--use-system-ca"`.
    - Liberar el puerto 1421 antes de Playwright:
@@ -24,7 +24,7 @@
    - Recompilar el nativo.
 
 **Restricciones vigentes que muerden**
-- **Bundle principal:** 793.69 kB de 800 kB tras ADR-0060 (no subir el umbral). ADR-0059 liberó ~9 kB cargando bajo
+- **Bundle principal:** 795.73 kB de 800 kB tras ADR-0061 (no subir el umbral); quedan ~4 kB. ADR-0059 liberó ~9 kB cargando bajo
   demanda el servicio del Tool Chest. Lo siguiente con peso en el bundle principal debe liberar espacio antes (p. ej.
   la barra de propiedades o los submenús de MenuBar). Lo nuevo y pesado va con `React.lazy` o
   `import()` dinámico. Ya se cargan aparte: MarkupsList, paneles derechos, LeftDock, StampPicker,
@@ -40,14 +40,13 @@
   y las estándar de PDF.
 
 **Pendiente (por orden sugerido)**
-0. Pedidos del usuario del 2026-10-16, en cola:
-   - **Autosize Text de Revu** en callout, cuadro de texto y nota de Cloud+.
 1. Verificación del usuario (ventana nativa y Revu/Acrobat) de todo lo entregado desde ADR-0039. Lo más dudoso:
    - claves de medición de Revu (ADR-0051);
    - sellos (ADR-0045);
    - capas /OCG (ADR-0046);
    - callout (ADR-0042/0053);
    - formularios ajenos (ADR-0055);
+   - Count, lista de marcas y Autosize Text (ADR-0059/0060/0061);
    - firma (ADR-0056/0058): firmar, guardar de nuevo en REA y ver la firma válida en Acrobat/Revu; importar en Windows y
      Acrobat un .pfx creado por REA, y abrir en REA uno exportado desde Windows y desde Acrobat;
    - hatch (ADR-0057).
@@ -112,6 +111,7 @@
 | **La firma sobrevive a los guardados posteriores y .pfx de otras herramientas (ADR-0058)** | **ENTREGADO (verificación nativa, en Windows y en Acrobat/Revu PENDIENTE del usuario)** | El widget `/FT /Sig` firmado (de REA o ajeno) ya no se descarta ni se reescribe: conserva su objeto, su `/V` y su sitio en `/Fields`; los cambios a su marca bloqueada se ignoran y firmar otra vez el campo se rechaza. `verifyPdfSignature` valida firmas con revisiones posteriores (`coversWholeDocument`). `parsePfxCertificate` estructurado: SafeContents en `data` y `encryptedData`, PBES2/AES, 3DES y RC2-40/128 con el KDF de PKCS#12 en TS puro (`pkcs12Ciphers.ts`), BER, cadena de CA (por `localKeyId` o módulo RSA) y verificación del `macData`. `createSelfSignedPfx` escribe `macData` HMAC-SHA256, `localKeyId` y `friendlyName` (OpenSSL 3.5.8 lo lee y verifica el MAC). `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 763 tests unitarios (88 archivos), 145 PARITY shipped y 0 todo, bundle principal 796.93 kB, 13 tests cargo, E2E 34/34 ×3 |
 | **Count de Revu: símbolos, escala y total por marca (ADR-0059)** | **ENTREGADO (verificación nativa y en Revu PENDIENTE del usuario)** | Una marca de conteo reúne todos los clics (Enter o Esc la cierran; deshacer clic a clic) con símbolo Check, Triangle, Square, Circle o Diamond, escala en % y "Totals: Count = N" en la barra; /Polygon /PolygonCount con un vértice por clic; los totales suman los clics; sin panel automático mientras se cuenta. Servicio del Tool Chest cargado bajo demanda (~9 kB menos en el bundle principal). `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 767 tests unitarios (89 archivos), 149 PARITY shipped y 0 todo, bundle principal 792.57 kB, 13 tests cargo, E2E 34/34 ×3 |
 | **Markups List como la de Revu (ADR-0060)** | **ENTREGADO (verificación nativa PENDIENTE del usuario)** | Abre cerrada (botón en la barra de estado, Alt+L, View ▸ Markups List; View ▸ Open Markups List at Start); menú "Markups List ▾" con Columns (columnas de Revu con dato en REA, Select All, Manage Columns…), Group by Subject y Hide; grupos "Subject (n)" plegables; columnas y grupos recordados. `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 770 tests unitarios (90 archivos), 153 PARITY shipped y 0 todo, bundle principal 793.69 kB, 13 tests cargo, E2E 35/35 ×3 |
+| **Autosize Text de Revu (ADR-0061)** | **ENTREGADO (verificación nativa y en Revu/Acrobat PENDIENTE del usuario)** | Botón Autosize Text en la barra (callouts, cuadros de texto y nota de Cloud+): el texto toma el mayor tamaño que cabe en su caja y crece o encoge al redimensionarla; mismo tamaño en pantalla, /AP y /DA; el cuadro de texto envuelve y escala con el zoom como su /AP. `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 773 tests unitarios (91 archivos), 156 PARITY shipped y 0 todo, bundle principal 795.73 kB, 13 tests cargo, E2E 35/35 ×3 |
 
 ---
 

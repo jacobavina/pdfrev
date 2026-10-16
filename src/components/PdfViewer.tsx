@@ -1,3 +1,4 @@
+import { isAutosizeText } from '../core/markup/autosizeText';
 import { countMeasurement } from '../core/markup/countSymbols';
 import React, { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -1387,8 +1388,13 @@ export const PdfViewer: React.FC = () => {
 
   /** Borde elegido en la barra para los callouts nuevos (ADR-0042). */
   const calloutBorderFields = () => {
-    const b = useToolStore.getState().calloutBorder;
-    return b === undefined ? {} : { customFields: { calloutBorder: b ? 1 : 0 } };
+    const { calloutBorder: b, autoSizeText } = useToolStore.getState();
+    const fields: Record<string, number> = {
+      ...(b === undefined ? {} : { calloutBorder: b ? 1 : 0 }),
+      // Autosize Text de Revu (ADR-0061)
+      ...(autoSizeText ? { autoSizeText: 1 } : {}),
+    };
+    return Object.keys(fields).length ? { customFields: fields } : {};
   };
 
   /** Cierra una nube de forma libre (ADR-0039): nube poligonal o Cloud+. */
@@ -2297,6 +2303,8 @@ export const PdfViewer: React.FC = () => {
               : customFields),
             // Distancia: dónde va el valor ("Caption Style" de Acrobat, ADR-0032)
             ...(activeTool === 'length' ? { captionStyle: useToolStore.getState().measureCaption } : {}),
+            // Autosize Text de Revu en los cuadros de texto nuevos (ADR-0061)
+            ...(activeTool === 'text' && useToolStore.getState().autoSizeText ? { autoSizeText: 1 } : {}),
           },
           measurement,
         };
@@ -2877,6 +2885,12 @@ export const PdfViewer: React.FC = () => {
                   } else if (targetMarkup.type === 'callout') {
                     // Condición 4: Si el texto es idéntico al actual, evitar comando de historial vacío
                     if (targetMarkup.text === newText) {
+                      setInlineEditing(null);
+                      return;
+                    }
+                    // Con Autosize Text (ADR-0061) la caja se queda y el texto se ajusta a ella
+                    if (isAutosizeText(targetMarkup)) {
+                      updateMarkup(targetMarkup.id, { text: newText });
                       setInlineEditing(null);
                       return;
                     }

@@ -13,6 +13,7 @@ import { cloudParams, CLOUD_SIZE_FACTOR, DEFAULT_CLOUD_STEP } from '../../core/m
 import { CloudStylePicker } from './CloudStylePicker';
 import { HatchPreview, HATCH_OPTIONS, HatchOption } from './HatchPreview';
 import { CountSymbolPreview, COUNT_SYMBOL_OPTIONS } from './CountPreview';
+import { isAutosizeText } from '../../core/markup/autosizeText';
 import { clampCountScale, countItems, countScaleOf, countSymbolOf, CountSymbolId } from '../../core/markup/countSymbols';
 import { calloutBoxPaint } from '../../core/markup/calloutLayout';
 import {
@@ -94,6 +95,14 @@ const ToolButton: React.FC<{
  * tarea con rótulo, en dos filas compactas. Se desplaza horizontalmente por dentro si la ventana es estrecha,
  * sin ensanchar el diseño (ver test E2E de regresión de desborde).
  */
+/** Icono de Autosize Text (ADR-0061): una A con flechas hacia las esquinas, como el botón de Revu. */
+const AutosizeTextIcon: React.FC = () => (
+  <svg width={16} height={16} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.3} aria-hidden="true">
+    <path d="M5.5 11.5 8 4.5l2.5 7M6.4 9.2h3.2" strokeLinejoin="round" />
+    <path d="M1.5 4.5v-3h3M11.5 1.5h3v3M14.5 11.5v3h-3M4.5 14.5h-3v-3" />
+  </svg>
+);
+
 export const Ribbon: React.FC = () => {
   const { pdfBytes, pageHasText, currentPageIndex } = useDocumentStore();
   const {
@@ -113,6 +122,7 @@ export const Ribbon: React.FC = () => {
     countSymbol,
     countScale,
     activeCountId,
+    autoSizeText,
   } = useToolStore();
 
   // Barra de propiedades contextual (ADR-0040), como la de Revu: con marcas seleccionadas edita la selección; sin
@@ -179,6 +189,21 @@ export const Ribbon: React.FC = () => {
     }
   };
   const hasFill = Boolean(style.fillColor && style.fillColor !== 'transparent');
+  // Autosize Text de Revu (ADR-0061): callouts (también la nota de Cloud+) y cuadros de texto
+  const textBoxes = editingSelection ? selection.filter((m) => m.type === 'callout' || m.type === 'text') : [];
+  const autosizeContext = editingSelection ? textBoxes.length > 0 : ['callout', 'text', 'cloudPlus'].includes(activeTool);
+  const autosizeOn = editingSelection ? textBoxes.length > 0 && textBoxes.every(isAutosizeText) : autoSizeText;
+  const toggleAutosize = () => {
+    if (!editingSelection) {
+      useToolStore.setState({ autoSizeText: !autoSizeText });
+      return;
+    }
+    applyPropertiesToMarkups(
+      textBoxes.map((m) => m.id),
+      { customFields: { autoSizeText: autosizeOn ? undefined : 1 } },
+      autosizeOn ? 'Autosize Text off' : 'Autosize Text'
+    );
+  };
   // Count de Revu (ADR-0059): símbolo, escala y total del conteo seleccionado o del que se está haciendo
   const selCounts = editingSelection ? selection.filter((m) => m.type === 'count') : [];
   const countContext = editingSelection ? selCounts.length > 0 && selCounts.length === selection.length : activeTool === 'count';
@@ -561,6 +586,23 @@ export const Ribbon: React.FC = () => {
             className="ui-input !h-6 w-[46px] !px-1.5 !text-[11.5px]"
             title="Font size (pt)"
           />
+          <button
+            type="button"
+            data-testid="ribbon-autosize-text"
+            aria-pressed={autosizeOn}
+            disabled={!autosizeContext}
+            onClick={toggleAutosize}
+            title={
+              autosizeContext
+                ? 'Autosize Text: the text grows or shrinks to fill its box'
+                : 'Autosize Text (callouts and text boxes)'
+            }
+            className={`w-6 h-6 rounded-md grid place-items-center disabled:opacity-35 ${
+              autosizeOn ? 'bg-cad-accent/15 text-cad-accent' : 'text-gray-300 hover:bg-cad-hover'
+            }`}
+          >
+            <AutosizeTextIcon />
+          </button>
           {(
             [
               ['bold', 'B', 'Bold', 'font-bold'],

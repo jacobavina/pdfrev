@@ -1,3 +1,4 @@
+import { effectiveTextSize } from '../markup/autosizeText';
 import { countSymbolOf, countSymbolsPath, countSymbolSizePt } from '../markup/countSymbols';
 import { hatchOutlineD, hatchStrokes, markupHatch, pathBox } from '../markup/hatch';
 import {
@@ -811,7 +812,8 @@ export function emitMarkupOperators(
       pathPdf([visToPdf({ x, y }), visToPdf({ x: x + w, y }), visToPdf({ x: x + w, y: y + h }), visToPdf({ x, y: y + h })], true);
       lines.push(strokeParsed ? 'B' : 'f');
       const tb = boxFont(12);
-      const fontSize = tb.font.size;
+      // Autosize Text (ADR-0061): el tamaño que llena la caja
+      const fontSize = effectiveTextSize(markup, tb.font.size, w, h, 'text');
       wrapCalloutText(markup.text || '', w - 12, fontSize).forEach((line, i) => {
         const baseline = y + 4 + fontSize + i * (fontSize + 2);
         if (baseline <= y + h) textVis(line, { x: x + 6, y: baseline }, fontSize, tb.color, 'left', false, tb.font);
@@ -860,7 +862,8 @@ export function emitMarkupOperators(
       }
       const cf = markupFontOf(markup, 10, markup.style.strokeColor);
       const cColor = parseCssColorRgb(cf.color) ?? DARK_TEXT_RGB;
-      const fontSize = cf.size;
+      // Autosize Text (ADR-0061): el tamaño que llena la caja
+      const fontSize = effectiveTextSize(markup, cf.size, bx.width, bx.height, 'callout');
       const maxTextWidth = Math.max(CALLOUT_MIN_BOX_WIDTH - 16, bx.width - 16);
       wrapCalloutText(markup.text || '', maxTextWidth, fontSize).forEach((line, i) => {
         textVis(line, { x: bx.x + 6, y: bx.y + 4 + fontSize + i * (fontSize + 3) }, fontSize, cColor, 'left', false, cf);

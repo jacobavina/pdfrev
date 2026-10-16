@@ -1,3 +1,4 @@
+import { effectiveTextSize } from '../markup/autosizeText';
 import { countSymbolOf } from '../markup/countSymbols';
 import {
   PDFDocument,
@@ -729,7 +730,23 @@ ${markup.layer && layerOcg.has(markup.layer) ? `  /OC ${layerOcg.get(markup.laye
       }
       if (annotTypeSubtype === 'FreeText') {
         // Mismos tamaños por defecto que la pantalla y el /AP (llamada 10 pt, texto 12 pt)
-        const fontPt = markup.style.fontSize ?? (markup.type === 'callout' ? 10 : 12);
+        // Con Autosize Text (ADR-0061), el tamaño que llena la caja, el mismo del /AP
+        const chosenPt = markup.style.fontSize ?? (markup.type === 'callout' ? 10 : 12);
+        const rotated = transform.rotation === 90 || transform.rotation === 270;
+        // Misma cuenta que el /AP: puntos en pt de la página vista y después la diferencia
+        const visW = rotated ? transform.heightPt : transform.widthPt;
+        const visH = rotated ? transform.widthPt : transform.heightPt;
+        const q0 = markup.points[0];
+        const q1 = markup.points[1] ?? q0;
+        const boxW = Math.abs(q1.x * visW - q0.x * visW);
+        const boxH = Math.abs(q1.y * visH - q0.y * visH);
+        const fontPt = effectiveTextSize(
+          markup,
+          chosenPt,
+          markup.type === 'callout' ? boxW : Math.max(80, boxW),
+          markup.type === 'callout' ? boxH : Math.max(26, boxH),
+          markup.type === 'callout' ? 'callout' : 'text'
+        );
         annotDict += `  /DA (/Helv ${fontPt} Tf 0 0 0 rg)\n`;
         // Callout estándar (ADR-0042): directriz /CL, flecha /LE y caja de texto /RD, como los de Revu y Acrobat
         const co = calloutPdfLayout(markup, transform);

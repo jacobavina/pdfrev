@@ -43,6 +43,8 @@ interface ToolState {
   countScale: number;
   /** Conteo al que se suman los clics de la herramienta Count (ADR-0059); null fuera de un conteo. */
   activeCountId: string | null;
+  /** Autosize Text de Revu en los callouts y cuadros de texto nuevos (ADR-0061). */
+  autoSizeText: boolean;
 
   // Actions
   setActiveTool: (tool: ToolType) => void;
@@ -79,6 +81,7 @@ export const useToolStore = create<ToolState>((set) => ({
   countSymbol: 'check',
   countScale: 100,
   activeCountId: null,
+  autoSizeText: false,
   measureCaption: 'inline',
   // Flujo de Acrobat por defecto (ADR-0035): clic, clic y un tercer clic para desplazar la línea
   measureLeaders: readStoredLeaders(),

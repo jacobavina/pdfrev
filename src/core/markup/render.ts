@@ -1,3 +1,4 @@
+import { effectiveTextSize } from './autosizeText';
 import { countSymbolOf, countSymbolsPath, countSymbolSizePt } from './countSymbols';
 import React from 'react';
 import {
@@ -1428,7 +1429,9 @@ export function getMarkupSvgDescriptor(
 
       // Texto en pt de página con el zoom, con su tipografía (ADR-0040); por defecto del color de la línea
       const calloutFont = markupFontOf(markup, 10, style.strokeColor);
-      const fontPx = calloutFont.size * pxPerPt;
+      // Autosize Text de Revu (ADR-0061): el tamaño que llena la caja
+      const calloutSize = effectiveTextSize(markup, calloutFont.size, geom.box.width / pxPerPt, geom.box.height / pxPerPt, 'callout');
+      const fontPx = calloutSize * pxPerPt;
       const maxTextWidth = Math.max(CALLOUT_MIN_BOX_WIDTH - 16, geom.box.width / pxPerPt - 16) * pxPerPt;
       const calloutLines = wrapCalloutText(markup.text || '', maxTextWidth, fontPx);
       calloutLines.forEach((line, i) => {
@@ -1436,7 +1439,7 @@ export function getMarkupSvgDescriptor(
           tag: 'text',
           attrs: {
             x: geom.box.x + 6 * pxPerPt,
-            y: geom.box.y + (4 + calloutFont.size + i * (calloutFont.size + 3)) * pxPerPt,
+            y: geom.box.y + (4 + calloutSize + i * (calloutSize + 3)) * pxPerPt,
             fontSize: fontPx,
             ...fontAttrs(calloutFont),
             className: 'pointer-events-none',
@@ -1457,6 +1460,12 @@ export function getMarkupSvgDescriptor(
       const rect = getRectGeometry(p1Screen, p2Screen);
       const width = Math.max(80, rect.width);
       const height = Math.max(26, rect.height);
+      // Como el /AP (ADR-0061): texto envuelto en la caja, en pt de página con el zoom; con Autosize Text, el tamaño
+      // que la llena
+      const textPxPerPt = transform.zoom ?? transform.scale ?? 1;
+      const boxFont = markupFontOf(markup, 12, BOX_TEXT_COLOR);
+      const textSize = effectiveTextSize(markup, boxFont.size, width / textPxPerPt, height / textPxPerPt, 'text');
+      const textLines = wrapCalloutText(markup.text || 'Note', width / textPxPerPt - 12, textSize);
       return {
         tag: 'g',
         attrs: { className: 'cursor-text' },
@@ -1474,17 +1483,19 @@ export function getMarkupSvgDescriptor(
               rx: 2,
             },
           },
-          {
-            tag: 'text',
-            attrs: {
-              x: rect.x + 6,
-              y: rect.y + 16,
-              fontSize: markupFontOf(markup, 12, BOX_TEXT_COLOR).size,
-              ...fontAttrs(markupFontOf(markup, 12, BOX_TEXT_COLOR)),
-              className: 'pointer-events-none',
-            },
-            textNode: markup.text || 'Note',
-          },
+          ...textLines.map(
+            (line, i): SvgRenderDescriptor => ({
+              tag: 'text',
+              attrs: {
+                x: rect.x + 6 * textPxPerPt,
+                y: rect.y + (4 + textSize + i * (textSize + 2)) * textPxPerPt,
+                fontSize: textSize * textPxPerPt,
+                ...fontAttrs(boxFont),
+                className: 'pointer-events-none',
+              },
+              textNode: line,
+            })
+          ),
         ],
       };
     }

@@ -76,6 +76,7 @@ import { stampTexts, stampDefaultSize } from '../core/markup/stampArt';
 import { fieldTypeDef, fieldTypeOf, nextFieldName } from '../core/markup/formFields';
 import { useAttachmentStore } from '../store/useAttachmentStore';
 import { useOverlayStore } from '../store/useOverlayStore';
+import { applyAffine } from '../core/compare/overlayAlign';
 import { openExternalUrl, goToPageNumber, pickAttachmentFile, saveAttachment } from '../services/linkService';
 import { Plus, Minus, Crosshair } from 'lucide-react';
 import {
@@ -307,6 +308,11 @@ export const PdfViewer: React.FC = () => {
   // Tamaño sin escalar (pt, con la rotación aplicada) de todas las páginas (ADR-0019): permite maquetar la vista
   // continua sin saltos antes de renderizar y calcular "Ajustar a página". Vacío si el documento no lo ofrece.
   const overlayActive = useOverlayStore((s) => s.active);
+  const overlayAlign = useOverlayStore((s) => s.align);
+  const overlayBaseColor = useOverlayStore((s) => s.baseColor);
+  const overlayOtherColor = useOverlayStore((s) => s.otherColor);
+  const overlayMatrix = useOverlayStore((s) => s.matrix);
+  const overlayOffset = useOverlayStore((s) => s.offset);
   const [pageSizes, setPageSizes] = useState<{ w: number; h: number }[]>([]);
   const pageSizesRef = useRef(pageSizes);
   pageSizesRef.current = pageSizes;
@@ -1392,6 +1398,15 @@ export const PdfViewer: React.FC = () => {
   const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
     if (e.button !== 0) return;
     const pt = getEventPoint(e);
+
+    // Alineación por puntos de Overlay Pages (ADR-0050): el clic marca un punto, no dibuja ni selecciona
+    if (overlayAlign.picking) {
+      e.stopPropagation();
+      const w = pageViewport.width / (scale || 1);
+      const h = pageViewport.height / (scale || 1);
+      useOverlayStore.getState().addAlignPoint({ x: pt.x * w, y: pt.y * h });
+      return;
+    }
 
     // 1. Modo Selección (A.0 y A.2: Vacío -> Marquee, Marca -> Movimiento)
     if (activeTool === 'select') {
@@ -3075,6 +3090,33 @@ export const PdfViewer: React.FC = () => {
                   </g>
                 );
               })()}
+
+            {/* Puntos de la alineación de Overlay Pages (ADR-0050): numerados, del color de su página */}
+            {overlayActive && overlayAlign.picking && (
+              <g data-testid="overlay-align-points" className="pointer-events-none">
+                {[
+                  ...overlayAlign.base.map((p, i) => ({ p, i, color: overlayBaseColor })),
+                  ...overlayAlign.other.map((o, i) => ({
+                    p: applyAffine(overlayMatrix, overlayOffset, o),
+                    i,
+                    color: overlayOtherColor,
+                  })),
+                ].map(({ p, i, color }, k) => {
+                  const x = p.x * (scale || 1);
+                  const y = p.y * (scale || 1);
+                  return (
+                    <g key={k}>
+                      <circle cx={x} cy={y} r={7} fill="none" stroke="#ffffff" strokeWidth={3} />
+                      <circle cx={x} cy={y} r={7} fill="none" stroke={color} strokeWidth={1.5} />
+                      <path d={`M ${x - 11} ${y} H ${x - 4} M ${x + 4} ${y} H ${x + 11} M ${x} ${y - 11} V ${y - 4} M ${x} ${y + 4} V ${y + 11}`} stroke={color} strokeWidth={1.2} />
+                      <text x={x + 9} y={y - 9} fontSize={11} fontWeight="bold" fill={color} stroke="#ffffff" strokeWidth={3} paintOrder="stroke">
+                        {i + 1}
+                      </text>
+                    </g>
+                  );
+                })}
+              </g>
+            )}
 
             {/* Vista previa de nota adhesiva en ancla pendiente de confirmación (A.4) */}
             {inlineEditing && inlineEditing.isPendingCreation && inlineEditing.isStickyNote && (

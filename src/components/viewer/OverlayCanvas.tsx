@@ -29,7 +29,8 @@ async function renderPagePixels(
   w: number,
   h: number,
   dx = 0,
-  dy = 0
+  dy = 0,
+  matrix: [number, number, number, number] = [1, 0, 0, 1]
 ): Promise<Uint8ClampedArray> {
   const page = await doc.getPage(pageIndex + 1);
   const rotation = (((page.rotate + viewRotation) % 360) + 360) % 360;
@@ -48,7 +49,10 @@ async function renderPagePixels(
   const ctx = out.getContext('2d')!;
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, w, h);
-  ctx.drawImage(pageCanvas, dx, dy);
+  // Alineación por puntos (ADR-0050): parte lineal y desplazamiento en píxeles de la página actual
+  ctx.setTransform(matrix[0], matrix[1], matrix[2], matrix[3], dx, dy);
+  ctx.drawImage(pageCanvas, 0, 0);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   return ctx.getImageData(0, 0, w, h).data;
 }
 
@@ -61,7 +65,7 @@ export const OverlayCanvas: React.FC<{
   height: number;
 }> = ({ pdfDoc, pageIndex, scale, rotation, width, height }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const { sourceBytes, otherPageIndex, baseColor, otherColor, offset, showBase, showOther } = useOverlayStore();
+  const { sourceBytes, otherPageIndex, baseColor, otherColor, offset, showBase, showOther, matrix } = useOverlayStore();
   const [otherDoc, setOtherDoc] = useState<PdfDocLike | null>(null);
 
   // Documento comparado: el propio o el PDF elegido (se libera al cambiar o cerrar)
@@ -97,7 +101,7 @@ export const OverlayCanvas: React.FC<{
     Promise.all([
       showBase ? renderPagePixels(doc, pageIndex, scale, rotation, w, h) : Promise.resolve(null),
       showOther && otherPageIndex < otherDoc.numPages
-        ? renderPagePixels(otherDoc, otherPageIndex, scale, rotation, w, h, offset.x * scale, offset.y * scale)
+        ? renderPagePixels(otherDoc, otherPageIndex, scale, rotation, w, h, offset.x * scale, offset.y * scale, matrix)
         : Promise.resolve(null),
     ])
       .then(([base, other]) => {
@@ -119,7 +123,7 @@ export const OverlayCanvas: React.FC<{
     return () => {
       cancelled = true;
     };
-  }, [pdfDoc, otherDoc, pageIndex, scale, rotation, width, height, otherPageIndex, baseColor, otherColor, offset.x, offset.y, showBase, showOther]);
+  }, [pdfDoc, otherDoc, pageIndex, scale, rotation, width, height, otherPageIndex, baseColor, otherColor, offset.x, offset.y, showBase, showOther, matrix]);
 
   return (
     <canvas

@@ -2502,4 +2502,34 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.locator('[data-testid="split-close"]').click();
     await expect(pane).toHaveCount(0);
   });
+
+  test('Overlay Pages: alinear la página comparada con dos pares de puntos (ADR-0050)', async ({ page }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await page.locator('[data-testid="menu-documento"]').click();
+    await page.locator('[data-testid="menu-overlay"]').hover();
+    await page.locator('[data-testid="menu-overlay-self"]').click();
+    await expect(page.locator('[data-testid="overlay-bar"]')).toBeVisible();
+    await page.locator('[data-testid="overlay-align"]').click();
+    const box = (await overlaySvg.boundingBox())!;
+    const at = (nx: number, ny: number) => ({ x: box.x + box.width * nx, y: box.y + box.height * ny });
+    // Par 1 y par 2: el dibujo comparado está 10 px a la derecha de cada punto de la página actual
+    for (const [nx, ny] of [
+      [0.6, 0.15],
+      [0.62, 0.15],
+      [0.85, 0.3],
+      [0.87, 0.3],
+    ]) {
+      const p = at(nx, ny);
+      await page.mouse.click(p.x, p.y);
+    }
+    await expect(overlaySvg.locator('[data-testid="overlay-align-points"] circle')).toHaveCount(8);
+    await page.locator('[data-testid="overlay-align-apply"]').click();
+    await expect(page.locator('[data-testid="overlay-align-steps"]')).toHaveCount(0);
+    // La comparada se desplazó hacia la izquierda para coincidir
+    await expect(page.locator('[data-testid="overlay-offset"]')).toContainText(/^-\d/);
+    // Los clics de alineación no crearon ni seleccionaron marcas
+    await expect(page.locator('[data-testid="markups-list-panel"] tbody tr')).toHaveCount(1);
+  });
 });

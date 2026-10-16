@@ -1,5 +1,7 @@
-import React from 'react';
-import { ArrowLeftRight, Eye, EyeOff, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, RotateCcw } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { ArrowLeftRight, Eye, EyeOff, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, RotateCcw, Crosshair } from 'lucide-react';
+import { describeLinear } from '../../core/compare/overlayAlign';
+import { showToast } from '../../services/toastService';
 import { useOverlayStore } from '../../store/useOverlayStore';
 import { useDocumentStore } from '../../store/useDocumentStore';
 
@@ -10,7 +12,26 @@ import { useDocumentStore } from '../../store/useDocumentStore';
 export const OverlayBar: React.FC = () => {
   const o = useOverlayStore();
   const currentPage = useDocumentStore((s) => s.currentPageIndex);
+  // Esc cancela la alineación por puntos
+  useEffect(() => {
+    if (!o.align.picking) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') useOverlayStore.getState().cancelAlign();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [o.align.picking]);
   if (!o.active) return null;
+
+  // Siguiente punto que pide la alineación (ADR-0050): primero en la página actual y luego el mismo en la comparada
+  const pairs = Math.min(o.align.base.length, o.align.other.length);
+  const onBase = o.align.base.length === o.align.other.length;
+  const pointNo = (onBase ? o.align.base.length : o.align.other.length) + 1;
+  const lin = describeLinear(o.matrix);
+  const aligned = Math.abs(lin.scale - 1) > 1e-4 || Math.abs(lin.rotationDeg) > 1e-3;
+  const apply = () => {
+    if (!o.applyAlign()) showToast('Those points cannot align the drawings: pick points that are apart (and not in a line, with 3).');
+  };
 
   const step = (e: React.MouseEvent) => (e.shiftKey ? 10 : 1);
   const iconBtn = 'ui-btn !h-7 !w-7 !p-0';
@@ -87,9 +108,43 @@ export const OverlayBar: React.FC = () => {
           <ChevronRight size={14} />
         </button>
       </span>
-      <span data-testid="overlay-offset" className="tabular-nums text-gray-400 w-[86px] text-center">
+      <span data-testid="overlay-offset" className="tabular-nums text-gray-400 min-w-[86px] text-center">
         {o.offset.x}, {o.offset.y} pt
+        {aligned && ` · ×${lin.scale.toFixed(3)} · ${lin.rotationDeg.toFixed(2)}°`}
       </span>
+      {/* Alinear por puntos: 2 pares (desplazar, girar y escalar) o 3 (también deformación) */}
+      {o.align.picking ? (
+        <span data-testid="overlay-align-steps" className="flex items-center gap-1.5 pl-1">
+          <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: onBase ? o.baseColor : o.otherColor }} />
+          <span className="text-gray-300">
+            Point {pointNo} on the {onBase ? 'current page' : 'compared page'}
+          </span>
+          <button
+            type="button"
+            data-testid="overlay-align-apply"
+            disabled={pairs < 2 || !onBase}
+            onClick={apply}
+            className="ui-btn ui-btn-primary !h-7 !px-2.5"
+            title="Align with the points picked (2 points: move, rotate and scale; 3: also skew)"
+          >
+            Apply
+          </button>
+          <button type="button" data-testid="overlay-align-cancel" onClick={o.cancelAlign} className="ui-btn !h-7 !px-2" title="Cancel (Esc)">
+            Cancel
+          </button>
+        </span>
+      ) : (
+        <button
+          type="button"
+          data-testid="overlay-align"
+          onClick={o.startAlign}
+          className="ui-btn !h-7 !px-2"
+          title="Align by points: click a point on the current page, then the same point on the compared page (2 or 3 pairs)"
+        >
+          <Crosshair size={13} />
+          Align
+        </button>
+      )}
       <button type="button" data-testid="overlay-reset-offset" onClick={o.resetOffset} title="Reset alignment" className={iconBtn}>
         <RotateCcw size={13} />
       </button>

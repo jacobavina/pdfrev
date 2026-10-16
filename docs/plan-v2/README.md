@@ -1,9 +1,8 @@
 # Plan Maestro v2 — REA hacia interoperabilidad real con Revu y Acrobat
 
-> **Estado: PROPUESTA — NO APROBADA.** Nada de lo que describe esta carpeta se implementa hasta que el
-> usuario lo apruebe (regla `AGENTS.md` §9: lo que no está en `docs/SCOPE.md` requiere ADR + aprobación
-> explícita). Este plan **no sustituye** a `ROADMAP.md`, `SCOPE.md`, `STATUS.md` ni `PARITY.md` hasta que
-> se ejecute el hito `Z.0` (ver `04-gobernanza-y-contabilidad.md`).
+> **Estado: EN EJECUCIÓN.** El usuario aprobó el plan y se ha ejecutado por hitos con ADR propio (hasta ADR-0052,
+> 2026-10-15; ver el registro de sesiones al final y `docs/STATUS.md` §0, "Traspaso al siguiente agente"). Lo que
+> se haga a partir de aquí sigue las mismas reglas: ADR, PARITY con test literal y verify ×3.
 >
 > **Fecha:** 2026-10-10 · **Base verificada:** commit `d310a87` (rama `master`) ·
 > **Autor:** auditoría de Claude (Sonnet 5.5) a petición del usuario.
@@ -204,4 +203,5 @@ plan y `AGENTS.md`, **gana `AGENTS.md`**.
 | 2026-10-15 | Claude (Opus 5.5) | ADR-0049: vista lado a lado (Split View) con Sync. |
 | 2026-10-15 | Claude (Opus 5.5) | ADR-0050: alineación por 2 o 3 pares de puntos en Overlay Pages. |
 | 2026-10-15 | Claude (Opus 5.5) | ADR-0051: volumen, ángulo, conteo, radio y diámetro con las claves de medición de Revu. |
+| 2026-10-15 | Claude (Opus 5.5) | ADR-0052: atajos de Revu y Pan (arrastre, Espacio y botón central). |
 

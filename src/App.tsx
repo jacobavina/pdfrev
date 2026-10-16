@@ -8,6 +8,7 @@ import { ToastHost } from './components/shell/ToastHost';
 import { useDocumentStore } from './store/useDocumentStore';
 import { useMarkupStore } from './store/useMarkupStore';
 import { useSplitStore } from './store/useSplitStore';
+import { showToast } from './services/toastService';
 import { RightRail } from './components/shell/RightRail';
 import { watchSelectionPanels } from './services/selectionPanelService';
 import { useSearchStore } from './store/useSearchStore';
@@ -95,6 +96,24 @@ export const App: React.FC = () => {
         e.preventDefault();
         const ui = useUiStore.getState();
         ui.setShowRulers(!ui.showRulers);
+      } else if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.code === 'KeyL' || e.code === 'KeyP')) {
+        // Alt+L lista de marcas, Alt+P propiedades (como en Revu, ADR-0052)
+        e.preventDefault();
+        const ui = useUiStore.getState();
+        if (e.code === 'KeyL') ui.toggleMarkupsList();
+        else ui.setRightPanel(ui.rightPanel === 'properties' ? null : 'properties');
+      } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'F7' || e.key === 'F8')) {
+        // Snap to Markup (Ctrl+Shift+F7) y Snap to Content (Ctrl+Shift+F8), como en Revu
+        e.preventDefault();
+        const { snap, setSnap } = useUiStore.getState();
+        if (e.key === 'F8') {
+          setSnap({ content: !snap.content });
+          showToast(`Snap to content: ${!snap.content ? 'on' : 'off'}`);
+        } else {
+          const on = !(snap.endpoint || snap.midpoint || snap.intersection);
+          setSnap({ endpoint: on, midpoint: on, intersection: on });
+          showToast(`Snap to markups: ${on ? 'on' : 'off'}`);
+        }
       } else if (e.key === 'F1') {
         e.preventDefault();
         useUiStore.getState().setShortcutsOpen(true);

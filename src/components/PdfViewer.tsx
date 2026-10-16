@@ -233,6 +233,54 @@ export const PdfViewer: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const pageContainerRef = useRef<HTMLDivElement | null>(null);
 
+  // Desplazamiento del plano arrastrando (ADR-0052): herramienta Pan, Espacio mantenido o botón central
+  const [panning, setPanning] = useState(false);
+  const startPan = (e: React.MouseEvent) => {
+    const el = containerRef.current;
+    if (!el) return;
+    e.preventDefault();
+    const start = { x: e.clientX, y: e.clientY, left: el.scrollLeft, top: el.scrollTop };
+    setPanning(true);
+    const move = (ev: MouseEvent) => {
+      el.scrollLeft = start.left - (ev.clientX - start.x);
+      el.scrollTop = start.top - (ev.clientY - start.y);
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+      setPanning(false);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  };
+
+  // Espacio mantenido: Pan temporal; al soltarlo vuelve la herramienta anterior
+  useEffect(() => {
+    let previous: ToolType | null = null;
+    const typing = (t: EventTarget | null) =>
+      t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || (t as HTMLElement | null)?.isContentEditable;
+    const down = (e: KeyboardEvent) => {
+      if (e.code !== 'Space' || e.repeat || typing(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
+      const { activeTool: tool, setActiveTool } = useToolStore.getState();
+      if (tool === 'pan') return;
+      e.preventDefault();
+      previous = tool;
+      setActiveTool('pan');
+    };
+    const up = (e: KeyboardEvent) => {
+      if (e.code !== 'Space' || previous === null) return;
+      e.preventDefault();
+      useToolStore.getState().setActiveTool(previous);
+      previous = null;
+    };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    return () => {
+      window.removeEventListener('keydown', down);
+      window.removeEventListener('keyup', up);
+    };
+  }, []);
+
   // Vista lado a lado (ADR-0049): el panel se centra en el mismo punto del plano que el visor
   const splitActive = useSplitStore((s) => s.active);
   const publishSplitView = useCallback(() => {
@@ -912,12 +960,12 @@ export const PdfViewer: React.FC = () => {
         return;
       }
 
-      if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'q' || e.key === 'Q')) {
+      if (!e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'q' || e.key === 'Q')) {
         useToolStore.getState().setActiveTool('callout');
         return;
       }
 
-      if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'n' || e.key === 'N')) {
+      if (!e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'n' || e.key === 'N')) {
         useToolStore.getState().setActiveTool('stickyNote');
         return;
       }
@@ -932,7 +980,8 @@ export const PdfViewer: React.FC = () => {
           KeyP: 'perimeter',
           KeyV: 'volume',
           KeyG: 'angle',
-          KeyR: 'radius',
+          KeyU: 'radius',
+          KeyR: 'radius', // atajo anterior de REA
           KeyD: 'diameter',
         };
         const tool = measureByCode[e.code];
@@ -943,11 +992,15 @@ export const PdfViewer: React.FC = () => {
         }
       }
 
-      // Cota (Shift+L, como en Revu)
-      if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'l' || e.key === 'L')) {
-        e.preventDefault();
-        useToolStore.getState().setActiveTool('dimension');
-        return;
+      // Cota (Shift+L), polígono (Shift+P), polilínea (Shift+N) y Pan (Shift+V), como en Revu (ADR-0052)
+      if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const shiftTool: Record<string, ToolType> = { l: 'dimension', p: 'polygon', n: 'polyLine', v: 'pan' };
+        const tool = shiftTool[e.key.toLowerCase()];
+        if (tool) {
+          e.preventDefault();
+          useToolStore.getState().setActiveTool(tool);
+          return;
+        }
       }
 
       if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'h' || e.key === 'H')) {
@@ -961,23 +1014,35 @@ export const PdfViewer: React.FC = () => {
         return;
       }
 
-      // Atajos de una letra de la cinta (ADR-0017/0018): los que anuncian los tooltips y la ayuda (F1)
+      // Atajos de una letra (ADR-0017/0052): los de Revu; F (lápiz) y O (elipse) quedan como atajos anteriores
       if (!e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const toolByKey: Record<string, ToolType> = {
           v: 'select',
           t: 'text',
           r: 'rectangle',
+          e: 'circle',
           o: 'circle',
           l: 'line',
           a: 'arrow',
-          p: 'polygon',
+          p: 'freehand',
           f: 'freehand',
           c: 'cloud',
           k: 'cloudPlus',
+          s: 'stamp',
         };
         const tool = toolByKey[e.key.toLowerCase()];
         if (tool) {
           useToolStore.getState().setActiveTool(tool);
+          return;
+        }
+        // Subrayado (U) y tachado (D) sobre el texto del plano
+        const textTool: Record<string, ToolType> = { u: 'underline', d: 'strikeOut' };
+        const tt = textTool[e.key.toLowerCase()];
+        if (tt) {
+          if (pageHasText[currentPageIndex] === false) {
+            showToast('This page has no selectable text layer. Use the Highlight tool (H).');
+          }
+          useToolStore.getState().setActiveTool(tt);
           return;
         }
       }
@@ -1396,6 +1461,11 @@ export const PdfViewer: React.FC = () => {
 
   // Inicio de interacción con el ratón
   const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
+    // Pan (ADR-0052): arrastrar con la herramienta Pan o con el botón central desplaza el plano, como en Revu
+    if (e.button === 1 || (e.button === 0 && activeTool === 'pan')) {
+      startPan(e);
+      return;
+    }
     if (e.button !== 0) return;
     const pt = getEventPoint(e);
 
@@ -2798,7 +2868,9 @@ export const PdfViewer: React.FC = () => {
                 : activeTool === 'select'
                 ? 'cursor-rea-select'
                 : activeTool === 'pan'
-                ? 'cursor-grab'
+                ? panning
+                  ? 'cursor-grabbing'
+                  : 'cursor-grab'
                 : 'cursor-rea-draw'
             }`}
             onMouseDown={handleMouseDown}

@@ -19,6 +19,10 @@ const GENERAL: [string, string][] = [
   ['Double-click + wheel', 'Zoom in / out at the double-clicked point'],
   ['Enter / double-click', 'Close polygon, polyline or area'],
   ['Esc', 'Cancel the stroke or close menus'],
+  ['Shift (while drawing)', 'Straight line at 0°/45°/90°; square or circle'],
+  ['Hold Space / middle button', 'Pan the drawing with any tool'],
+  ['Alt+L / Alt+P', 'Show or hide the Markups list / Properties'],
+  ['Ctrl+Shift+F7 / Ctrl+Shift+F8', 'Snap to markups / Snap to content'],
   ['Right-click', 'Markup context menu'],
   ['F1', 'This help'],
 ];

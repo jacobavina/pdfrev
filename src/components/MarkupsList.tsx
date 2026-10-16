@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Trash2,
   ChevronDown,
@@ -202,6 +202,12 @@ export const MarkupsList: React.FC = () => {
   } = useDocumentStore();
 
   const [isExpanded, setIsExpanded] = useState(true);
+  // Alt+L muestra u oculta la lista, como en Revu (ADR-0052)
+  const toggleRequest = useUiStore((s) => s.markupsListToggleRequest);
+  const firstToggle = useRef(toggleRequest);
+  useEffect(() => {
+    if (toggleRequest !== firstToggle.current) setIsExpanded((v) => !v);
+  }, [toggleRequest]);
   const [filterPageOnly, setFilterPageOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<MarkupType | 'all'>('all');

@@ -137,6 +137,8 @@ interface UiState {
   /** Se incrementa cada vez que algo pide abrir el panel de propiedades (menú contextual, menú Ver). */
   /** Panel derecho abierto (ADR-0044): uno a la vez, como los paneles de Revu; null = todos plegados. */
   rightPanel: RightPanelId | null;
+  /** Petición de mostrar u ocultar la lista de marcas (Alt+L, ADR-0052). */
+  markupsListToggleRequest: number;
   propertiesOpenRequest: number;
   measurementsOpenRequest: number;
   /** Petición de exportación de la lista de marcas (la ejecuta la lista, respetando sus filtros y columnas). */
@@ -165,6 +167,7 @@ interface UiState {
   setCursorPt: (pt: { x: number; y: number } | null) => void;
   requestPropertiesPanel: () => void;
   setRightPanel: (panel: RightPanelId | null) => void;
+  toggleMarkupsList: () => void;
   requestMeasurementsPanel: () => void;
   requestExport: (kind: 'csv' | 'report') => void;
   setShortcutsOpen: (open: boolean) => void;
@@ -184,6 +187,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   hiddenLayers: [],
   cursorPt: null,
   rightPanel: null,
+  markupsListToggleRequest: 0,
   propertiesOpenRequest: 0,
   measurementsOpenRequest: 0,
   exportRequest: null,
@@ -229,6 +233,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   requestMeasurementsPanel: () =>
     set((s) => ({ rightPanel: 'measure', measurementsOpenRequest: s.measurementsOpenRequest + 1 })),
   setRightPanel: (rightPanel) => set({ rightPanel }),
+  toggleMarkupsList: () => set((s) => ({ markupsListToggleRequest: s.markupsListToggleRequest + 1 })),
   requestExport: (kind) => set((s) => ({ exportRequest: { kind, seq: (s.exportRequest?.seq ?? 0) + 1 } })),
   setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
   setViewMode: (viewMode) => {

@@ -146,7 +146,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
 
     // 1. Dibuja Círculo / Elipse
-    const circleBtn = page.locator('button[title*="Ellipse (O)"]');
+    const circleBtn = page.locator('button[title*="Ellipse (E)"]');
     await circleBtn.click();
 
     const svgBox = await overlaySvg.boundingBox();
@@ -168,7 +168,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(markupsPanel.locator('tbody')).toContainText('Ellipse');
 
     // 2. Dibuja Polígono con tecla Enter para cerrar (Criterio 3)
-    const polygonBtn = page.locator('button[title*="Polygon (P)"]');
+    const polygonBtn = page.locator('button[title*="Polygon (Shift+P)"]');
     await polygonBtn.click();
 
     if (svgBox) {

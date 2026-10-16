@@ -4,6 +4,60 @@
 
 ---
 
+## 0. Traspaso al siguiente agente (2026-10-15)
+
+**Último hito:** ADR-0052 (atajos de Revu y Pan). Las filas de la sección 1 llevan, cada una, el resultado de
+`node scripts/verify.mjs --with-e2e --e2e-loop 3` de su hito.
+
+**Cómo continuar**
+1. Leer `AGENTS.md`, `CLAUDE.md`, esta sección, `PARITY.md` (0 filas `todo`) y los ADR recientes en
+   `docs/DECISIONS/` (ADR-0039 a ADR-0052).
+2. Entorno (Windows, Git Bash):
+   `export PATH="/c/Program Files/nodejs:/c/Users/jmm_j/.cargo/bin:$PATH"; export NODE_OPTIONS="--use-system-ca"`.
+   - Liberar el puerto 1421 antes de Playwright:
+     `powershell.exe -NoProfile -Command "Get-NetTCPConnection -LocalPort 1421 | % { Stop-Process -Id $_.OwningProcess -Force }"`.
+   - Build nativo: `npm.cmd run test:native:build` desde PowerShell; deja `src-tauri/target/smoke/app.exe`.
+3. Cada hito:
+   - ADR nuevo, fila(s) en PARITY con el nombre literal del test (sin "|") y fila en esta tabla.
+   - Verify ×3 en verde, borrar `tsconfig.tsbuildinfo`.
+   - Un commit con `git add` explícito y el pie `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+   - Recompilar el nativo.
+
+**Restricciones vigentes que muerden**
+- **Bundle principal:** 788.45 kB de 800 kB tras ADR-0052 (no subir el umbral). Lo nuevo y pesado va con `React.lazy` o
+  `import()` dinámico. Ya se cargan aparte: MarkupsList, paneles derechos, LeftDock, StampPicker,
+  CanvasContextMenu, SplitPane, OverlayCanvas/Bar, Rulers, CalibrationModal, contentSnapService, búsqueda,
+  persistencia y operadores.
+- **E2E por coordenadas:** `tests/e2e/pdf-viewer.spec.ts` apaga "Open Panel on Selection" con `addInitScript`
+  (abrir un panel cambia el ancho del visor). La cinta tiene pestañas (Markup, Measure, Insert): un test que pulse
+  una herramienta de otra pestaña debe abrirla antes (`ribbon-tab-measure`, `ribbon-tab-insert`).
+- **Puntos de los E2E:** la parte inferior de la hoja queda bajo la lista de marcas (168 px). Usar y ≤ 0.79 de la
+  hoja; la retícula del plano de prueba (y 0.25 a 0.75) engancha con snap de contenido.
+- **Sin recursos de terceros:** iconos, sellos y cursores son trazos SVG propios; las fuentes son las del sistema
+  y las estándar de PDF.
+
+**Pendiente (por orden sugerido)**
+1. Verificación del usuario (ventana nativa y Revu/Acrobat) de todo lo entregado desde ADR-0039. Lo más
+   dudoso:
+   - claves de medición de Revu tomadas de pymkup (ADR-0051);
+   - sellos dinámicos y /Name propios (ADR-0045);
+   - capas /OCG (ADR-0046);
+   - callout /FreeTextCallout (ADR-0042).
+2. Vista lado a lado: Sync en ambos sentidos (hoy solo visor → panel) y aplicar ahí la alineación de Overlay
+   (ADR-0049/0050).
+3. Rellenar formularios de PDFs ajenos (campos AcroForm no creados por REA).
+4. Firma con certificado digital (alto riesgo: requiere decisión del usuario sobre almacén de certificados).
+5. Posibles mejoras de diseño pedidas por el usuario tras revisar ADR-0044 (cinta con pestañas, paleta "sala
+   de planos").
+
+**Preferencias del usuario (de la conversación)**
+- Responde en español; la interfaz va en inglés.
+- Quiere que REA se parezca a Revu (y a Foxit/Acrobat cuando los cita) y suele mandar capturas.
+- Valora lo visual: "herramienta de diseñador", nada tosco.
+- Pide ejecutar sin preguntar ("continúa").
+
+---
+
 ## 1. Resumen Ejecutivo de Estado
 
 | Fase / Bloque | Estado General | Cobertura / Evidencia |
@@ -46,6 +100,7 @@
 | **Vista lado a lado (ADR-0049)** | **ENTREGADO (verificación nativa PENDIENTE del usuario)** | Document ▸ Side by Side con otro PDF u otra página del documento; panel a la derecha al mismo zoom, con navegación, Sync (misma zona y, con otro PDF, misma página) y cierre; carga diferida. `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 736 tests unitarios (82 archivos), 121 PARITY shipped, bundle principal 783.65 kB, 13 tests cargo, E2E 33/33 ×3 |
 | **Alineación por puntos en Overlay Pages (ADR-0050)** | **ENTREGADO (verificación nativa PENDIENTE del usuario)** | Align en la barra de Overlay: 2 pares (desplazar, girar, escalar) o 3 (afín); puntos numerados por color; se refina sobre una alineación previa; flechas y Reset siguen funcionando. `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 739 tests unitarios (83 archivos), 123 PARITY shipped, bundle principal 786.29 kB, 13 tests cargo, E2E 34/34 ×3 |
 | **Mediciones de Revu: volumen, ángulo, conteo, radio y diámetro (ADR-0051)** | **ENTREGADO (verificación en Revu PENDIENTE del usuario)** | /IT PolygonVolume, PolyLineAngle, PolygonCount y PolygonRadius, /MeasurementTypes y /Depth al guardar; las de Revu se importan como mediciones recalculadas. Nombres tomados de pymkup (sin documentación pública de Bluebeam). `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 741 tests unitarios (84 archivos), 125 PARITY shipped, bundle principal 786.32 kB, 13 tests cargo, E2E 34/34 ×3 |
+| **Atajos de Revu y Pan (ADR-0052)** | **ENTREGADO (verificación nativa PENDIENTE del usuario)** | Atajos de la lista oficial de Revu (P, Shift+P, Shift+N, E, U, D, S, Shift+V, Shift+Alt+U, Alt+L, Alt+P, Ctrl+Shift+F7/F8) con F, O y Shift+Alt+R como alternativos; Pan que desplaza al arrastrar, con Espacio mantenido y con el botón central. `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 743 tests unitarios (85 archivos), 127 PARITY shipped y 0 todo, bundle principal 788.45 kB, 13 tests cargo, E2E 34/34 ×3 |
 
 ---
 

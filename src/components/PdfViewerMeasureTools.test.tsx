@@ -258,7 +258,7 @@ describe('Reglas, menú View ▸ Rulers y cinta (ADR-0029)', () => {
       ['perimeter', 'perimeter', /Perimeter \(Shift\+Alt\+P\)/],
       ['volume', 'volume', /Volume \(Shift\+Alt\+V\)/],
       ['angle', 'angle', /Angle \(Shift\+Alt\+G\)/],
-      ['radius', 'radius', /Radius \(Shift\+Alt\+R\)/],
+      ['radius', 'radius', /Radius \(Shift\+Alt\+U\)/], // atajo de Revu (ADR-0052)
       ['diameter', 'diameter', /Diameter \(Shift\+Alt\+D\)/],
     ] as const) {
       const btn = screen.getByTestId(`tool-measure-${id}`);

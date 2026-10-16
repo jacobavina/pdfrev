@@ -10,7 +10,8 @@ import {
   parseVisibleColumns,
   toggleColumn,
 } from '../core/markup/markupColumns';
-import React, { useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Trash2,
   ChevronDown,
@@ -280,6 +281,26 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
       return next;
     });
   const [listMenu, setListMenu] = useState<null | 'main' | 'columns'>(null);
+  // El menú se monta en <body> con posición fija, encima de las reglas y de los paneles (ADR-0060), como los
+  // desplegables de la cinta; se abre hacia arriba desde el título porque la lista está al pie de la ventana
+  const listMenuBtnRef = useRef<HTMLButtonElement | null>(null);
+  const listMenuRef = useRef<HTMLDivElement | null>(null);
+  const [listMenuPos, setListMenuPos] = useState<{ left: number; bottom: number } | null>(null);
+  useLayoutEffect(() => {
+    if (!listMenu || !listMenuBtnRef.current) return;
+    const r = listMenuBtnRef.current.getBoundingClientRect();
+    setListMenuPos({ left: r.left, bottom: window.innerHeight - r.top + 4 });
+  }, [listMenu]);
+  useEffect(() => {
+    if (!listMenu) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (listMenuBtnRef.current?.contains(t) || listMenuRef.current?.contains(t)) return;
+      setListMenu(null);
+    };
+    window.addEventListener('mousedown', onDown);
+    return () => window.removeEventListener('mousedown', onDown);
+  }, [listMenu]);
   const [filterPageOnly, setFilterPageOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<MarkupType | 'all'>('all');
@@ -305,10 +326,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
   } | null>(null);
 
   React.useEffect(() => {
-    const handleGlobalClick = () => {
-      setContextMenu(null);
-      setListMenu(null);
-    };
+    const handleGlobalClick = () => setContextMenu(null);
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setContextMenu(null);
@@ -755,6 +773,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
           {/* Menú "Markups List ▾" de Revu (ADR-0060): columnas, agrupar por Subject y ocultar */}
           <div className="relative shrink-0">
             <button
+              ref={listMenuBtnRef}
               type="button"
               data-testid="markups-list-menu"
               aria-haspopup="menu"
@@ -769,12 +788,16 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
               <span className="ui-panel-title">Markups List ({displayedMarkups.length})</span>
               <ChevronDown size={13} />
             </button>
-            {listMenu && (
+            {listMenu &&
+              listMenuPos &&
+              createPortal(
               <div
+                ref={listMenuRef}
                 role="menu"
                 data-testid="markups-list-menu-popup"
                 onClick={(e) => e.stopPropagation()}
-                className="absolute left-0 bottom-full mb-1 z-40 w-52 py-1 rounded-md border border-cad-border bg-cad-panel shadow-xl text-[12px] text-gray-200"
+                style={{ position: 'fixed', left: listMenuPos.left, bottom: listMenuPos.bottom, zIndex: 1000 }}
+                className="w-52 py-1 rounded-md border border-cad-border bg-cad-panel shadow-xl text-[12px] text-gray-200"
               >
                 <button
                   type="button"
@@ -867,7 +890,8 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
                     </button>
                   </div>
                 )}
-              </div>
+              </div>,
+              document.body
             )}
           </div>
 

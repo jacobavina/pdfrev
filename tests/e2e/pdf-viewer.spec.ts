@@ -2586,7 +2586,8 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(toggle).toHaveAttribute('aria-pressed', 'false');
 
     await toggle.click();
-    await expect(panel).toBeVisible();
+    // La lista se carga bajo demanda la primera vez que se abre
+    await expect(panel).toBeVisible({ timeout: 15000 });
     const group = panel.locator('[data-testid="markups-group-Rectangle"]');
     await expect(group).toContainText('Rectangle (1)');
     await expect(panel.locator('[data-testid^="markup-row-"]')).toHaveCount(1);
@@ -2594,11 +2595,11 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(panel.locator('[data-testid^="markup-row-"]')).toHaveCount(0);
     await group.click();
 
-    // Markups List ▸ Columns: quitar Layer y poner Page Index
+    // Markups List ▸ Columns: quitar Layer y poner Page Index (el menú se monta sobre toda la ventana)
     await panel.locator('[data-testid="markups-list-menu"]').click();
-    await panel.locator('[data-testid="markups-menu-columns"]').click();
-    await panel.locator('[data-testid="markups-column-toggle-layer"]').click();
-    await panel.locator('[data-testid="markups-column-toggle-pageIndex"]').click();
+    await page.locator('[data-testid="markups-menu-columns"]').click();
+    await page.locator('[data-testid="markups-column-toggle-layer"]').click();
+    await page.locator('[data-testid="markups-column-toggle-pageIndex"]').click();
     await expect(panel.locator('[data-testid="markups-col-layer"]')).toHaveCount(0);
     await expect(panel.locator('[data-testid="markups-col-pageIndex"]')).toHaveText(/Page Index/);
 

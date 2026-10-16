@@ -40,6 +40,8 @@ sin grupos.
    - **Group by Subject.**
    - **Hide Markups List.**
    - Se abre hacia arriba, porque la lista está al pie de la ventana; el submenú tiene altura máxima con desplazamiento.
+   - Se monta en `<body>` con posición fija, como los desplegables de la cinta. Corrección del 2026-10-16: dentro del
+     panel, las reglas lo tapaban junto con sus marcas de visibilidad.
 4. **Grupos por Subject:**
    - Activos por defecto (`rea-markups-group`).
    - Una fila de cabecera por tipo, "Subject (n)", en orden alfabético (al revés si se ordena por Subject descendente),

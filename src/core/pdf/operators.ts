@@ -1,3 +1,4 @@
+import { countSymbolOf, countSymbolsPath, countSymbolSizePt } from '../markup/countSymbols';
 import { hatchOutlineD, hatchStrokes, markupHatch, pathBox } from '../markup/hatch';
 import {
   Markup,
@@ -684,6 +685,15 @@ export function emitMarkupOperators(
     }
 
     case 'count': {
+      // Count de Revu (ADR-0059): el símbolo de cada clic, como en pantalla
+      const symbol = countSymbolOf(markup);
+      if (symbol && markup.points.length >= 1) {
+        const sym = countSymbolsPath(symbol, markup.points.map(toVis), countSymbolSizePt(markup));
+        lines.push(`${f2(sym.width)} w`, '[] 0 d');
+        svgQuadPathToPdf(sym.d);
+        lines.push('S');
+        break;
+      }
       if (markup.points.length >= 1) {
         const center = normalizedToPdfCoordinates(markup.points[0], transform);
         const r = 10;

@@ -1,3 +1,4 @@
+import { countSymbolOf } from '../markup/countSymbols';
 import {
   PDFDocument,
   PDFName,
@@ -695,7 +696,7 @@ ${markup.layer && layerOcg.has(markup.layer) ? `  /OC ${layerOcg.get(markup.laye
         annotDict += `  /Vertices [${x0} ${y1} ${x1} ${y1} ${x1} ${y0} ${x0} ${y0}]\n  /BE << /S /C /I 1 >>\n`;
       } else if (
         (annotTypeSubtype === 'Polygon' || annotTypeSubtype === 'PolyLine') &&
-        markup.points.length >= 2
+        (markup.points.length >= 2 || markup.type === 'count')
       ) {
         const vertexPts = markup.type === 'perimeter' ? [...markup.points, markup.points[0]] : markup.points;
         const vList = vertexPts
@@ -1161,8 +1162,10 @@ function getPdfAnnotSubtype(markup: Markup): string {
   switch (markup.type) {
     case 'rectangle':
       return 'Square';
-    case 'circle':
     case 'count':
+      // Count de Revu (ADR-0059): polígono /IT /PolygonCount con un vértice por clic
+      return countSymbolOf(markup) ? 'Polygon' : 'Circle';
+    case 'circle':
     case 'radius':
     case 'diameter':
       return 'Circle';

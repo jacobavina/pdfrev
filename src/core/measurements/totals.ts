@@ -1,4 +1,5 @@
 import { Markup } from '../../types/markup';
+import { countItems } from '../markup/countSymbols';
 
 /**
  * Totales de takeoff (ADR-0017). Puro: sin React ni stores.
@@ -41,7 +42,8 @@ export function computeMeasureTotals(markups: readonly Markup[], pageIndex?: num
     const entry = byKey.get(key) ?? { category, unit, total: 0, items: 0 };
     entry.items += 1;
     if (category === 'count') {
-      entry.total += 1;
+      // Un conteo de Revu suma todos sus clics (ADR-0059)
+      entry.total += countItems(m);
     } else {
       entry.total += value;
     }

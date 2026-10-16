@@ -1,3 +1,4 @@
+import { countMeasurement } from '../markup/countSymbols';
 import {
   PDFDocument,
   PDFName,
@@ -595,7 +596,12 @@ export async function importPdfAnnotations(
       }
 
       // Conteo, radio y diámetro de Revu (o de REA movidos fuera) sin geometría exacta (ADR-0051/0053)
-      if (!isRea && !exactGeometry && markupType === 'count' && points.length >= 2) {
+      // Count de Revu como polígono (ADR-0059): un vértice por clic, con el símbolo por defecto de Revu
+      if (!isRea && markupType === 'count' && subtype === 'Polygon' && points.length >= 1) {
+        customFields.countSymbol = 'check';
+        measurement = countMeasurement(points.length);
+      }
+      if (!isRea && !exactGeometry && markupType === 'count' && subtype !== 'Polygon' && points.length >= 2) {
         const cx = points.reduce((t, p) => t + p.x, 0) / points.length;
         const cy = points.reduce((t, p) => t + p.y, 0) / points.length;
         points.splice(0, points.length, { x: cx, y: cy });

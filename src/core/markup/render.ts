@@ -1,3 +1,4 @@
+import { countSymbolOf, countSymbolsPath, countSymbolSizePt } from './countSymbols';
 import React from 'react';
 import {
   Markup,
@@ -1274,6 +1275,30 @@ export function getMarkupSvgDescriptor(
     }
 
     case 'count': {
+      // Count de Revu (ADR-0059): el mismo símbolo en cada clic de la marca
+      const symbol = countSymbolOf(markup);
+      if (symbol) {
+        const pxPerPt = transform.zoom ?? transform.scale ?? 1;
+        const pts = markup.points.map((p) => normalizedToScreen(p, transform));
+        const sym = countSymbolsPath(symbol, pts, countSymbolSizePt(markup) * pxPerPt);
+        return {
+          tag: 'g',
+          attrs: { 'data-testid': `markup-count-${markup.id}`, 'data-count-symbol': symbol },
+          children: [
+            {
+              tag: 'path',
+              attrs: {
+                d: sym.d,
+                fill: 'none',
+                stroke: style.strokeColor || '#e02424',
+                strokeWidth: sym.width,
+                strokeLinejoin: 'miter',
+                opacity: baseAttrs.opacity,
+              },
+            },
+          ],
+        };
+      }
       const radius = 14;
       const countIndex = markup.measurement?.countIndex || markup.text || '1';
 

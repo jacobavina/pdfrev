@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import * as toolChestService from '../services/toolChestService';
 import { Markup } from '../types/markup';
+
+type ToolChestService = typeof import('../services/toolChestService');
 import {
   CreatePaletteInput,
   CreateToolInput,
@@ -65,13 +66,19 @@ interface ToolChestState {
 }
 
 export const useToolChestStore = create<ToolChestState>((set, get) => {
-  // Suscripción automática a errores de persistencia en IndexedDB (fallback ruidoso)
-  toolChestService.onToolChestError((info) => {
-    set({
-      isPersistent: false,
-      persistenceError: info,
-    });
-  });
+  // Servicio cargado bajo demanda (ADR-0059): IndexedDB y las paletas no hacen falta para arrancar el visor. Al
+  // cargarlo se suscribe a los errores de persistencia en IndexedDB (fallback ruidoso).
+  let svcPromise: Promise<ToolChestService> | null = null;
+  const svc = () =>
+    (svcPromise ??= import('../services/toolChestService').then((service) => {
+      service.onToolChestError((info) => {
+        set({
+          isPersistent: false,
+          persistenceError: info,
+        });
+      });
+      return service;
+    }));
 
   return {
     palettes: [],
@@ -80,23 +87,23 @@ export const useToolChestStore = create<ToolChestState>((set, get) => {
     activeToolId: null,
     recentTools: [],
     isLoading: false,
-    isPersistent: toolChestService.isToolChestPersistent(),
+    isPersistent: true,
     persistenceError: null,
 
     init: async () => {
       set({ isLoading: true });
       try {
-        const palettes = await toolChestService.getPalettes();
+        const palettes = await (await svc()).getPalettes();
         const activePalId = palettes.length > 0 ? palettes[0].id : null;
-        const tools = await toolChestService.getTools();
-        const recent = await toolChestService.getRecentTools();
+        const tools = await (await svc()).getTools();
+        const recent = await (await svc()).getRecentTools();
 
         set({
           palettes: [...palettes],
           activePaletteId: activePalId,
           tools: [...tools],
           recentTools: [...recent],
-          isPersistent: toolChestService.isToolChestPersistent(),
+          isPersistent: (await svc()).isToolChestPersistent(),
           isLoading: false,
         });
       } catch (err) {
@@ -106,7 +113,7 @@ export const useToolChestStore = create<ToolChestState>((set, get) => {
     },
 
     loadPalettes: async () => {
-      const palettes = await toolChestService.getPalettes();
+      const palettes = await (await svc()).getPalettes();
       set((state) => ({
         palettes: [...palettes],
         activePaletteId:
@@ -115,12 +122,12 @@ export const useToolChestStore = create<ToolChestState>((set, get) => {
     },
 
     loadTools: async (paletteId?: string) => {
-      const tools = await toolChestService.getTools(paletteId);
+      const tools = await (await svc()).getTools(paletteId);
       set({ tools: [...tools] });
     },
 
     loadRecentTools: async () => {
-      const recent = await toolChestService.getRecentTools();
+      const recent = await (await svc()).getRecentTools();
       set({ recentTools: [...recent] });
     },
 
@@ -134,7 +141,7 @@ export const useToolChestStore = create<ToolChestState>((set, get) => {
 
     createPalette: async (name: string, order?: number) => {
       const input: CreatePaletteInput = { name, order };
-      const created = await toolChestService.createPalette(input);
+      const created = await (await svc()).createPalette(input);
       set((state) => ({
         palettes: [...state.palettes, { ...created }],
         activePaletteId: state.activePaletteId || created.id,
@@ -143,14 +150,14 @@ export const useToolChestStore = create<ToolChestState>((set, get) => {
     },
 
     updatePalette: async (id: string, updates: Partial<ToolChestPalette>) => {
-      const updated = await toolChestService.updatePalette(id, updates);
+      const updated = await (await svc()).updatePalette(id, updates);
       set((state) => ({
         palettes: state.palettes.map((p) => (p.id === id ? { ...updated } : p)),
       }));
     },
 
     deletePalette: async (id: string) => {
-      await toolChestService.deletePalette(id);
+      await (await svc()).deletePalette(id);
       set((state) => {
         const remainingPalettes = state.palettes.filter((p) => p.id !== id);
         return {
@@ -167,13 +174,13 @@ export const useToolChestStore = create<ToolChestState>((set, get) => {
     },
 
     reorderPalettes: async (orderedIds: string[]) => {
-      await toolChestService.reorderPalettes(orderedIds);
-      const reordered = await toolChestService.getPalettes();
+      await (await svc()).reorderPalettes(orderedIds);
+      const reordered = await (await svc()).getPalettes();
       set({ palettes: [...reordered] });
     },
 
     createTool: async (input: CreateToolInput) => {
-      const created = await toolChestService.createTool(input);
+      const created = await (await svc()).createTool(input);
       set((state) => ({
         tools: [...state.tools, { ...created }],
       }));
@@ -197,7 +204,7 @@ export const useToolChestStore = create<ToolChestState>((set, get) => {
         mode,
       };
 
-      const created = await toolChestService.createTool(input);
+      const created = await (await svc()).createTool(input);
       set((state) => ({
         tools: [...state.tools, { ...created }],
       }));
@@ -205,14 +212,14 @@ export const useToolChestStore = create<ToolChestState>((set, get) => {
     },
 
     updateTool: async (id: string, updates: Partial<ToolChestTool>) => {
-      const updated = await toolChestService.updateTool(id, updates);
+      const updated = await (await svc()).updateTool(id, updates);
       set((state) => ({
         tools: state.tools.map((t) => (t.id === id ? { ...updated } : t)),
       }));
     },
 
     deleteTool: async (id: string) => {
-      await toolChestService.deleteTool(id);
+      await (await svc()).deleteTool(id);
       set((state) => ({
         tools: state.tools.filter((t) => t.id !== id),
         activeToolId: state.activeToolId === id ? null : state.activeToolId,
@@ -220,8 +227,8 @@ export const useToolChestStore = create<ToolChestState>((set, get) => {
     },
 
     reorderTools: async (paletteId: string, orderedIds: string[]) => {
-      await toolChestService.reorderTools(paletteId, orderedIds);
-      const updatedTools = await toolChestService.getTools();
+      await (await svc()).reorderTools(paletteId, orderedIds);
+      const updatedTools = await (await svc()).getTools();
       set({ tools: [...updatedTools] });
     },
 
@@ -230,7 +237,7 @@ export const useToolChestStore = create<ToolChestState>((set, get) => {
       targetPaletteId: string,
       newOrder?: number
     ) => {
-      const moved = await toolChestService.moveToolToPalette(
+      const moved = await (await svc()).moveToolToPalette(
         toolId,
         targetPaletteId,
         newOrder
@@ -252,20 +259,20 @@ export const useToolChestStore = create<ToolChestState>((set, get) => {
     },
 
     setToolMode: async (toolId: string, mode: ToolChestMode) => {
-      const updated = await toolChestService.updateTool(toolId, { mode });
+      const updated = await (await svc()).updateTool(toolId, { mode });
       set((state) => ({
         tools: state.tools.map((t) => (t.id === toolId ? { ...updated } : t)),
       }));
     },
 
     recordRecent: async (source: Markup | RecentTool) => {
-      await toolChestService.recordRecentTool(source);
-      const updatedRecent = await toolChestService.getRecentTools();
+      await (await svc()).recordRecentTool(source);
+      const updatedRecent = await (await svc()).getRecentTools();
       set({ recentTools: [...updatedRecent] });
     },
 
     clearRecent: async () => {
-      await toolChestService.clearRecentTools();
+      await (await svc()).clearRecentTools();
       set({ recentTools: [] });
     },
 

@@ -1,3 +1,4 @@
+import { countItems } from '../core/markup/countSymbols';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Trash2,
@@ -330,7 +331,7 @@ export const MarkupsList: React.FC = () => {
 
     for (const m of displayedMarkups) {
       if (m.type === 'count') {
-        totalCount += (m.measurement?.value ?? 1);
+        totalCount += countItems(m);
       } else if (m.type === 'length' || m.type === 'polylineMeasure' || m.type === 'perimeter') {
         if (m.measurement) {
           const unit = m.measurement.unit;
@@ -926,7 +927,9 @@ export const MarkupsList: React.FC = () => {
                               ? `${markup.measurement.unit}³`
                               : markup.type === 'angle'
                                 ? '°'
-                                : markup.measurement.unit) : '—'}
+                                : markup.type === 'count'
+                                  ? 'ea'
+                                  : markup.measurement.unit) : '—'}
                       </td>
 
                       {/* Celdas de Columnas Personalizadas (P2-C.3) */}

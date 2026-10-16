@@ -1,3 +1,4 @@
+import { countMeasurement } from '../core/markup/countSymbols';
 import React, { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useDocumentStore } from '../store/useDocumentStore';
@@ -83,7 +84,6 @@ import {
   calculateLength,
   calculatePolylineLength,
   calculateArea,
-  calculateCount,
   calculatePerimeter,
   calculateVolume,
   calculateAngle,
@@ -253,6 +253,23 @@ export const PdfViewer: React.FC = () => {
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', up);
   };
+
+  // Count de Revu (ADR-0059): el conteo en curso termina al cambiar de herramienta (salvo el Pan temporal) o de
+  // página, o con Enter o Esc; el siguiente clic empieza otro conteo
+  useEffect(() => {
+    if (activeTool !== 'count' && activeTool !== 'pan') useToolStore.setState({ activeCountId: null });
+  }, [activeTool]);
+  useEffect(() => {
+    useToolStore.setState({ activeCountId: null });
+  }, [currentPageIndex]);
+  useEffect(() => {
+    if (activeTool !== 'count') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === 'Escape') useToolStore.setState({ activeCountId: null });
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [activeTool]);
 
   // Espacio mantenido: Pan temporal; al soltarlo vuelve la herramienta anterior
   useEffect(() => {
@@ -1589,32 +1606,45 @@ export const PdfViewer: React.FC = () => {
       return;
     }
 
-    // 4. Modo Contador (Takeoff Count)
+    // 4. Modo Contador (Count de Revu, ADR-0059): los clics se suman a la misma marca hasta cambiar de herramienta o
+    // de página, o pulsar Enter o Esc; cada clic se deshace por separado
     if (activeTool === 'count') {
+      const { countSymbol, countScale, activeCountId } = useToolStore.getState();
+      const active = activeCountId ? useMarkupStore.getState().markups.find((m) => m.id === activeCountId) : undefined;
+      if (active && active.type === 'count' && active.pageIndex === currentPageIndex) {
+        const points = [...active.points, pt];
+        useMarkupStore
+          .getState()
+          .reshapeMarkup(
+            active.id,
+            { points: active.points, measurement: active.measurement },
+            { points, measurement: countMeasurement(points.length) },
+            'Add to count'
+          );
+        return;
+      }
       const now = new Date().toISOString();
-      const existingCounts = markups.filter((m) => m.type === 'count').length;
-      const countIndex = existingCounts + 1;
-      const measurement = calculateCount(countIndex);
       const newMarkup: Markup = {
         id: uuidv4(),
         type: 'count',
         pageIndex: currentPageIndex,
         points: [pt],
         style: {
-          strokeColor: currentStyle.strokeColor || '#ff8800',
+          strokeColor: currentStyle.strokeColor || '#e02424',
           fillColor: 'transparent',
-          strokeWidth: 2,
-          opacity: 1,
+          strokeWidth: 1,
+          opacity: currentStyle.opacity ?? 1,
         },
-        text: String(countIndex),
         author: author || 'Reviewer',
         createdAt: now,
         updatedAt: now,
         status: 'pending',
         layer: activeLayer,
-        measurement,
+        measurement: countMeasurement(1),
+        customFields: { countSymbol, countScale },
       };
       addMarkup(newMarkup);
+      useToolStore.setState({ activeCountId: newMarkup.id });
       return;
     }
 

@@ -213,13 +213,13 @@ export function getMarkupBounds(
   }
 
   if (markup.type === 'count' && markup.points.length >= 1) {
+    // Todos los clics del conteo (ADR-0059)
     const r = 0.02;
-    return {
-      x: Math.max(0, markup.points[0].x - r),
-      y: Math.max(0, markup.points[0].y - r),
-      width: r * 2,
-      height: r * 2,
-    };
+    const xs = markup.points.map((p) => p.x);
+    const ys = markup.points.map((p) => p.y);
+    const x0 = Math.max(0, Math.min(...xs) - r);
+    const y0 = Math.max(0, Math.min(...ys) - r);
+    return { x: x0, y: y0, width: Math.max(...xs) + r - x0, height: Math.max(...ys) + r - y0 };
   }
 
   for (const pt of markup.points) {
@@ -565,9 +565,7 @@ export function hitTestMarkup(
 
   // Herramienta de Conteo (Count)
   if (markup.type === 'count' && markup.points.length >= 1) {
-    const center = markup.points[0];
-    const dist = Math.hypot(point.x - center.x, point.y - center.y);
-    return dist <= tolerance + 0.025;
+    return markup.points.some((c) => Math.hypot(point.x - c.x, point.y - c.y) <= tolerance + 0.025);
   }
 
   // 4. Trazo a mano alzada (Freehand con simplificación RDP si N > 50)

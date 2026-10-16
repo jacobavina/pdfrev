@@ -12,6 +12,8 @@ import { isPatternLineStyle } from '../../core/markup/linePatterns';
 import { cloudParams, CLOUD_SIZE_FACTOR, DEFAULT_CLOUD_STEP } from '../../core/markup/revisionCloud';
 import { CloudStylePicker } from './CloudStylePicker';
 import { HatchPreview, HATCH_OPTIONS, HatchOption } from './HatchPreview';
+import { CountSymbolPreview, COUNT_SYMBOL_OPTIONS } from './CountPreview';
+import { clampCountScale, countItems, countScaleOf, countSymbolOf, CountSymbolId } from '../../core/markup/countSymbols';
 import { calloutBoxPaint } from '../../core/markup/calloutLayout';
 import {
   IconPicker,
@@ -108,6 +110,9 @@ export const Ribbon: React.FC = () => {
     setCloudOptions,
     calloutBorder,
     setCalloutBorder,
+    countSymbol,
+    countScale,
+    activeCountId,
   } = useToolStore();
 
   // Barra de propiedades contextual (ADR-0040), como la de Revu: con marcas seleccionadas edita la selección; sin
@@ -174,6 +179,22 @@ export const Ribbon: React.FC = () => {
     }
   };
   const hasFill = Boolean(style.fillColor && style.fillColor !== 'transparent');
+  // Count de Revu (ADR-0059): símbolo, escala y total del conteo seleccionado o del que se está haciendo
+  const selCounts = editingSelection ? selection.filter((m) => m.type === 'count') : [];
+  const countContext = editingSelection ? selCounts.length > 0 && selCounts.length === selection.length : activeTool === 'count';
+  const activeCount = markups.find((m) => m.id === activeCountId);
+  // Lo que edita la barra: los conteos seleccionados o, con la herramienta Count, el conteo en curso
+  const countTargets = editingSelection ? selCounts : activeTool === 'count' && activeCount ? [activeCount] : [];
+  const countSymbolValue: CountSymbolId = countTargets[0] ? countSymbolOf(countTargets[0]) ?? 'circle' : countSymbol;
+  const countScaleValue = countTargets[0] ? countScaleOf(countTargets[0]) : countScale;
+  const countTotal = countTargets.reduce((t, m) => t + countItems(m), 0);
+  const changeCount = (patch: { countSymbol?: CountSymbolId; countScale?: number }) => {
+    if (!editingSelection) useToolStore.setState(patch);
+    if (countTargets.length === 0) return;
+    // Un conteo numerado anterior pasa a ser de Revu con el símbolo elegido
+    const fields = { countSymbol: patch.countSymbol ?? countSymbolValue, countScale: patch.countScale ?? countScaleValue };
+    applyPropertiesToMarkups(countTargets.map((m) => m.id), { customFields: fields }, patch.countSymbol ? 'Count symbol' : 'Count scale');
+  };
   // El patrón discontinuo es proporcional al grosor: se recalcula al cambiar de grosor
   const changeWidth = (w: number) => applyStyle({ strokeWidth: w, dashArray: dashArrayFor(lineStyle, w) });
 
@@ -384,6 +405,38 @@ export const Ribbon: React.FC = () => {
               onChange={changeCloud}
             />
           </div>
+
+          {countContext && (
+            <div className="prop-section" data-testid="ribbon-count-group" title="Count">
+              <span className="prop-label">Count</span>
+              <IconPicker
+                compact
+                testId="ribbon-count-symbol"
+                title="Count symbol"
+                value={countSymbolValue}
+                options={COUNT_SYMBOL_OPTIONS}
+                renderIcon={(id) => <CountSymbolPreview id={id} />}
+                onChange={(id) => changeCount({ countSymbol: id })}
+              />
+              <label className="flex items-center gap-1 text-[11px] text-gray-400" title="Symbol scale (%)">
+                Scale
+                <input
+                  type="number"
+                  data-testid="ribbon-count-scale"
+                  min={10}
+                  max={1000}
+                  step={10}
+                  value={countScaleValue}
+                  onChange={(e) => changeCount({ countScale: clampCountScale(Number(e.target.value)) })}
+                  className="ui-input !h-6 !w-14 !px-1 tabular-nums"
+                />
+                %
+              </label>
+              <span data-testid="ribbon-count-total" className="ui-pill whitespace-nowrap tabular-nums" title="Totals">
+                Totals: Count = {countTotal}
+              </span>
+            </div>
+          )}
 
           <div className="prop-section" title="Fill for closed shapes">
             <span className="prop-label">Fill</span>

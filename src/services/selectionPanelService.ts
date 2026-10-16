@@ -1,5 +1,6 @@
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useUiStore } from '../store/useUiStore';
+import { useToolStore } from '../store/useToolStore';
 import { panelForSelection } from '../core/markup/selectionPanel';
 
 /**
@@ -24,6 +25,8 @@ export function watchSelectionPanels(target: Window = window): () => void {
   const unsubscribe = useMarkupStore.subscribe((state, prev) => {
     if (state.selectedMarkupIds === prev.selectedMarkupIds || state.selectedMarkupIds.length === 0) return;
     if (!useUiStore.getState().autoOpenPanels) return;
+    // Count de Revu (ADR-0059): abrir un panel a mitad del conteo movería la hoja bajo el siguiente clic
+    if (useToolStore.getState().activeTool === 'count') return;
     const same =
       state.selectedMarkupIds.length === prev.selectedMarkupIds.length &&
       state.selectedMarkupIds.every((id) => prev.selectedMarkupIds.includes(id));

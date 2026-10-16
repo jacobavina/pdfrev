@@ -1,3 +1,4 @@
+import { countSymbolOf } from '../core/markup/countSymbols';
 import { revisionCloudPathNormalized, cloudParams } from '../core/markup/revisionCloud';
 import { markupLinePattern } from '../core/markup/linePatterns';
 import { calloutBoxPaint } from '../core/markup/calloutLayout';
@@ -934,7 +935,7 @@ export async function exportMarkupsToPdf(
         case 'dimension': {
           drawViaAppearanceOperators(pdfDoc, page, markup, transform);
           // El valor de las mediciones ya forma parte del /AP (ADR-0032); el conteo conserva su número aparte
-          if (markup.measurement && markup.type === 'count') {
+          if (markup.measurement && markup.type === 'count' && !countSymbolOf(markup)) {
             drawMeasurementLabel(page, markup, transform, helveticaFont);
           }
           break;

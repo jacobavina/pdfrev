@@ -6,12 +6,12 @@
 
 ## 0. Traspaso al siguiente agente (2026-10-15)
 
-**Último hito:** ADR-0058 (la firma sobrevive a los guardados posteriores y REA abre los .pfx de otras herramientas). Fecha del traspaso vigente: 2026-10-16. Las filas de la sección 1 llevan, cada una, el resultado de
+**Último hito:** ADR-0059 (Count de Revu: símbolos, escala y total por marca). Fecha del traspaso vigente: 2026-10-16.
 `node scripts/verify.mjs --with-e2e --e2e-loop 3` de su hito.
 
 **Cómo continuar**
 1. Leer `AGENTS.md`, `CLAUDE.md`, esta sección, `PARITY.md` (0 filas `todo`) y los ADR recientes en
-   `docs/DECISIONS/` (ADR-0039 a ADR-0058).
+   `docs/DECISIONS/` (ADR-0039 a ADR-0059).
 2. Entorno (Windows, Git Bash):
    `export PATH="/c/Program Files/nodejs:/c/Users/jmm_j/.cargo/bin:$PATH"; export NODE_OPTIONS="--use-system-ca"`.
    - Liberar el puerto 1421 antes de Playwright:
@@ -24,9 +24,9 @@
    - Recompilar el nativo.
 
 **Restricciones vigentes que muerden**
-- **Bundle principal:** 796.93 kB de 800 kB tras ADR-0058 (sin cambios desde ADR-0057: la firma va en el chunk de `SignDocumentModal`) (no subir el umbral). Quedan ~3 kB: el siguiente hito
-  con código en el bundle principal debe liberar espacio antes (p. ej. cargar bajo demanda la barra de propiedades
-  o los submenús de MenuBar). Lo nuevo y pesado va con `React.lazy` o
+- **Bundle principal:** 792.57 kB de 800 kB tras ADR-0059 (no subir el umbral). ADR-0059 liberó ~9 kB cargando bajo
+  demanda el servicio del Tool Chest. Lo siguiente con peso en el bundle principal debe liberar espacio antes (p. ej.
+  la barra de propiedades o los submenús de MenuBar). Lo nuevo y pesado va con `React.lazy` o
   `import()` dinámico. Ya se cargan aparte: MarkupsList, paneles derechos, LeftDock, StampPicker,
   CanvasContextMenu, SplitPane, OverlayCanvas/Bar, Rulers, CalibrationModal, contentSnapService, búsqueda,
   persistencia y operadores.
@@ -39,6 +39,12 @@
   y las estándar de PDF.
 
 **Pendiente (por orden sugerido)**
+0. Pedidos del usuario del 2026-10-16, en cola:
+   - **Markups List como Revu:** agrupada por Subject con grupos plegables; menú "Markups List ▾ ▸ Columns" con
+     columnas que se activan o desactivan (Subject, Page Label, Comments, Page Index, Lock, Author, Date, Creation
+     Date, X, Y, Length, Area, Volume, Count, Measurement, Label, Depth, Status, Color, Layer, Width, Height, Unit…),
+     Select All y Manage Columns. Abre cerrada, y cerrada solo queda su icono en la barra inferior.
+   - **Autosize Text de Revu** en callout, cuadro de texto y nota de Cloud+.
 1. Verificación del usuario (ventana nativa y Revu/Acrobat) de todo lo entregado desde ADR-0039. Lo más dudoso:
    - claves de medición de Revu (ADR-0051);
    - sellos (ADR-0045);
@@ -107,6 +113,7 @@
 | **Firma con certificado digital PKCS#12 (.pfx / .p12) y creación de certificado autofirmado (ADR-0056)** | **ENTREGADO (verificación nativa y en Revu/Acrobat PENDIENTE del usuario)** | Generación de pares de claves RSA-2048 SHA-256 y certificados X.509 v3 autofirmados empaquetados en PKCS#12 (.pfx/.p12 cifrado PBES2 PBKDF2-HMAC-SHA256 + AES-256-CBC) o importación de archivos existentes con contraseña; firma incremental ISO 32000-1 §12.8 con diccionario /Type /Sig, /Filter /Adobe.PPKLite, /SubFilter /adbe.pkcs7.detached, /ByteRange exacto y contenedor CMS SignedData detached con firma RSA PKCS#1 v1.5; /SigFlags 3 en /AcroForm; apariencia visual /AP /N con sello técnico ("Digitally signed by...", fecha ISO, motivo, ubicación); verificación criptográfica integrada con WebCrypto; diálogo SignDocumentModal cargado bajo demanda. `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 748 tests unitarios (86 archivos), 132 PARITY shipped y 0 todo, bundle principal 790.47 kB, 13 tests cargo, E2E 34/34 ×3 |
 | **Hatch de Revu en formas cerradas y Cloud+ sin flecha (ADR-0057)** | **ENTREGADO (verificación nativa y en Revu/Acrobat PENDIENTE del usuario)** | Menú Hatch en la barra de propiedades con los 11 patrones de Revu (Brick, Diagonal Brick, Horizontal, Vertical, Diagonal Down/Up, Grid, Weave, Dots 10/20/30 %), del color de la línea, anclados a la página y recortados al contorno en pantalla, `/AP` y aplanado; `/hatch` en `/REA`. Cloud+ crea la nota con directriz diagonal sin flecha, como en Revu. `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 753 tests unitarios (87 archivos), 136 PARITY shipped y 0 todo, bundle principal 796.93 kB, 13 tests cargo, E2E 34/34 ×3 |
 | **La firma sobrevive a los guardados posteriores y .pfx de otras herramientas (ADR-0058)** | **ENTREGADO (verificación nativa, en Windows y en Acrobat/Revu PENDIENTE del usuario)** | El widget `/FT /Sig` firmado (de REA o ajeno) ya no se descarta ni se reescribe: conserva su objeto, su `/V` y su sitio en `/Fields`; los cambios a su marca bloqueada se ignoran y firmar otra vez el campo se rechaza. `verifyPdfSignature` valida firmas con revisiones posteriores (`coversWholeDocument`). `parsePfxCertificate` estructurado: SafeContents en `data` y `encryptedData`, PBES2/AES, 3DES y RC2-40/128 con el KDF de PKCS#12 en TS puro (`pkcs12Ciphers.ts`), BER, cadena de CA (por `localKeyId` o módulo RSA) y verificación del `macData`. `createSelfSignedPfx` escribe `macData` HMAC-SHA256, `localKeyId` y `friendlyName` (OpenSSL 3.5.8 lo lee y verifica el MAC). `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 763 tests unitarios (88 archivos), 145 PARITY shipped y 0 todo, bundle principal 796.93 kB, 13 tests cargo, E2E 34/34 ×3 |
+| **Count de Revu: símbolos, escala y total por marca (ADR-0059)** | **ENTREGADO (verificación nativa y en Revu PENDIENTE del usuario)** | Una marca de conteo reúne todos los clics (Enter o Esc la cierran; deshacer clic a clic) con símbolo Check, Triangle, Square, Circle o Diamond, escala en % y "Totals: Count = N" en la barra; /Polygon /PolygonCount con un vértice por clic; los totales suman los clics; sin panel automático mientras se cuenta. Servicio del Tool Chest cargado bajo demanda (~9 kB menos en el bundle principal). `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 767 tests unitarios (89 archivos), 149 PARITY shipped y 0 todo, bundle principal 792.57 kB, 13 tests cargo, E2E 34/34 ×3 |
 
 ---
 

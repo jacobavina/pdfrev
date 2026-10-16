@@ -67,7 +67,7 @@ export function snapGeometry(markup: Markup): { vertices: MarkupPoint[]; segment
       return p.length >= 3 ? { vertices: p, segments: closedPoly(p) } : { vertices: p, segments: [] };
     }
     case 'count':
-      return { vertices: p.slice(0, 1), segments: [] };
+      return { vertices: markup.customFields?.countSymbol ? p : p.slice(0, 1), segments: [] };
     default:
       return { vertices: [], segments: [] };
   }

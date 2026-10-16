@@ -183,6 +183,28 @@ describe('Nube de forma libre (ADR-0039)', () => {
     expect(ms[1].leaders![0][0]).toEqual(ms[0].points[1]); // vértice más cercano a la esquina superior derecha
   });
 
+  it('Count de Revu: los clics se suman a una sola marca hasta Enter y cada clic se deshace por separado (ADR-0059)', async () => {
+    const svg = await renderViewer();
+    act(() => useToolStore.setState({ activeTool: 'count', countSymbol: 'triangle', countScale: 150, activeCountId: null }));
+    click(svg, 200, 200);
+    click(svg, 300, 220);
+    click(svg, 400, 240);
+    const counts = () => useMarkupStore.getState().markups.filter((m) => m.type === 'count');
+    expect(counts()).toHaveLength(1);
+    expect(counts()[0].points).toHaveLength(3);
+    expect(counts()[0].customFields).toMatchObject({ countSymbol: 'triangle', countScale: 150 });
+    expect(counts()[0].measurement?.formatted).toBe('Count = 3');
+    act(() => useMarkupStore.getState().undo());
+    expect(counts()[0].points).toHaveLength(2);
+    // Enter cierra el conteo: el siguiente clic empieza otro
+    act(() => {
+      fireEvent.keyDown(window, { key: 'Enter' });
+    });
+    click(svg, 500, 300);
+    expect(counts()).toHaveLength(2);
+    expect(counts()[1].points).toHaveLength(1);
+  });
+
   it('Cloud+ como en Revu: la directriz sale de la nube sin flecha (ADR-0057)', async () => {
     const svg = await renderViewer();
     act(() => useToolStore.setState({ activeTool: 'cloudPlus' }));
@@ -207,6 +229,18 @@ describe('Barra de propiedades contextual con fuentes (ADR-0040)', () => {
   beforeEach(() => {
     useDocumentStore.setState({ numPages: 1, currentPageIndex: 0, pdfBytes: new Uint8Array([1]) });
     useToolStore.setState({ activeTool: 'select', currentStyle: { strokeColor: '#e02424', fillColor: 'transparent', strokeWidth: 1, opacity: 1 } });
+  });
+
+  it('la barra de Count muestra el total del conteo seleccionado y cambia su símbolo y su escala (ADR-0059)', () => {
+    const cnt = mk('cn', 'count', [{ x: 0.1, y: 0.1 }, { x: 0.2, y: 0.1 }], { customFields: { countSymbol: 'check', countScale: 100 } });
+    useMarkupStore.setState({ markups: [cnt], selectedMarkupIds: ['cn'] });
+    render(<Ribbon />);
+    expect(screen.getByTestId('ribbon-count-total')).toHaveTextContent('Totals: Count = 2');
+    fireEvent.click(screen.getByTestId('ribbon-count-symbol'));
+    expect(screen.getByTestId('ribbon-count-symbol-option-diamond')).toHaveAccessibleName(/Diamond/);
+    fireEvent.click(screen.getByTestId('ribbon-count-symbol-option-diamond'));
+    fireEvent.change(screen.getByTestId('ribbon-count-scale'), { target: { value: '250' } });
+    expect(useMarkupStore.getState().markups[0].customFields).toMatchObject({ countSymbol: 'diamond', countScale: 250 });
   });
 
   it('el menú Hatch de la barra lista los patrones de Revu y aplica el elegido a la forma seleccionada (ADR-0057)', () => {

@@ -1,3 +1,4 @@
+import type { CountSymbolId } from '../core/markup/countSymbols';
 import { create } from 'zustand';
 import type { CaptionStyle } from '../core/markup/measureCaption';
 import { MarkupStyle, MarkupType } from '../types/markup';
@@ -37,6 +38,11 @@ interface ToolState {
   cloudInvert: boolean;
   /** Borde de la caja de los callouts nuevos (ADR-0042); sin elegir, sigue al relleno. */
   calloutBorder?: boolean;
+  /** Símbolo y escala (%) de los conteos nuevos, como en Revu (ADR-0059). */
+  countSymbol: CountSymbolId;
+  countScale: number;
+  /** Conteo al que se suman los clics de la herramienta Count (ADR-0059); null fuera de un conteo. */
+  activeCountId: string | null;
 
   // Actions
   setActiveTool: (tool: ToolType) => void;
@@ -70,6 +76,9 @@ export const useToolStore = create<ToolState>((set) => ({
   volumeDepth: 1,
   cloudSize: 2,
   cloudInvert: false,
+  countSymbol: 'check',
+  countScale: 100,
+  activeCountId: null,
   measureCaption: 'inline',
   // Flujo de Acrobat por defecto (ADR-0035): clic, clic y un tercer clic para desplazar la línea
   measureLeaders: readStoredLeaders(),

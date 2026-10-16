@@ -19,10 +19,13 @@ import {
   calculateLength,
   calculatePerimeter,
   calculatePolylineLength,
+  calculateAngle,
+  calculateCount,
+  calculateVolume,
 } from '../measurements/calculate';
 
 /** Mediciones cuyo valor se recalcula de la geometría del PDF si esta cambió fuera de REA (ADR-0030). */
-const RECOMPUTED_MEASURES = new Set<MarkupType>(['length', 'polylineMeasure', 'perimeter', 'area']);
+const RECOMPUTED_MEASURES = new Set<MarkupType>(['length', 'polylineMeasure', 'perimeter', 'area', 'volume', 'angle', 'radius']);
 
 export interface ImportAnnotationsResult {
   markups: Markup[];
@@ -344,7 +347,11 @@ export async function importPdfAnnotations(
           }
         }
       } else if (subtype === 'Polygon') {
-        if (!isRea) markupType = intent === 'PolygonDimension' ? 'area' : 'polygon';
+        // Volumen y conteo de Revu (ADR-0051)
+        if (!isRea) {
+          markupType =
+            intent === 'PolygonDimension' ? 'area' : intent === 'PolygonVolume' ? 'volume' : intent === 'PolygonCount' ? 'count' : 'polygon';
+        }
         const vObj = annotDict.get(PDFName.of('Vertices'));
         if (vObj instanceof PDFArray && vObj.size() >= 4) {
           points.length = 0;
@@ -359,7 +366,7 @@ export async function importPdfAnnotations(
           }
         }
       } else if (subtype === 'PolyLine') {
-        if (!isRea) markupType = intent === 'PolyLineDimension' ? 'polylineMeasure' : 'polyLine';
+        if (!isRea) markupType = intent === 'PolyLineDimension' ? 'polylineMeasure' : intent === 'PolyLineAngle' ? 'angle' : 'polyLine';
         const vObj = annotDict.get(PDFName.of('Vertices'));
         if (vObj instanceof PDFArray && vObj.size() >= 4) {
           points.length = 0;
@@ -381,7 +388,8 @@ export async function importPdfAnnotations(
         if (!isRea && markupType === 'polylineMeasure' && closed) markupType = 'perimeter';
         if (markupType === 'perimeter' && closed) points.pop();
       } else if (subtype === 'Circle') {
-        if (!isRea) markupType = 'circle';
+        // Conteo y radio de Revu (ADR-0051); si no, una elipse
+        if (!isRea) markupType = intent === 'PolygonCount' ? 'count' : intent === 'PolygonRadius' ? 'radius' : 'circle';
       } else if (subtype === 'Text') {
         markupType = 'stickyNote';
       } else if (subtype === 'Highlight') {
@@ -480,6 +488,25 @@ export async function importPdfAnnotations(
         if (ocObj instanceof PDFDict) layer = extractPdfStringValue(ocObj.get(PDFName.of('Name'))) || undefined;
       }
 
+      // Conteo y radio de Revu sin geometría de REA (ADR-0051): el punto es el centro de su caja o de sus vértices; el
+      // radio va del centro al borde derecho
+      if (!isRea && !exactGeometry && markupType === 'count' && points.length >= 2) {
+        const cx = points.reduce((t, p) => t + p.x, 0) / points.length;
+        const cy = points.reduce((t, p) => t + p.y, 0) / points.length;
+        points.splice(0, points.length, { x: cx, y: cy });
+        measurement = calculateCount(1);
+      }
+      if (!isRea && !exactGeometry && markupType === 'radius' && subtype === 'Circle' && points.length === 2) {
+        const [a, b] = points;
+        const c = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        points.splice(0, 2, c, { x: Math.max(a.x, b.x), y: c.y });
+      }
+      // Profundidad del volumen de Revu (/Depth)
+      if (!isRea && markupType === 'volume') {
+        const depthObj = annotDict.get(PDFName.of('Depth'));
+        if (depthObj instanceof PDFNumber && depthObj.asNumber() > 0) customFields.volumeDepth = depthObj.asNumber();
+      }
+
       // Medición ajena, o de REA movida en otra aplicación: el valor sale de su geometría y de su /Measure (o de la
       // escala de la página), como lo calcularía Revu/Acrobat (ADR-0030)
       if (RECOMPUTED_MEASURES.has(markupType) && !exactGeometry && points.length >= 2) {
@@ -490,7 +517,12 @@ export async function importPdfAnnotations(
         if (markupType === 'length') measurement = calculateLength(points.slice(0, 2), visualDims, cal);
         else if (markupType === 'polylineMeasure') measurement = calculatePolylineLength(points, visualDims, cal);
         else if (markupType === 'perimeter') measurement = calculatePerimeter(points, visualDims, cal);
-        else if (points.length >= 3) measurement = calculateArea(points, visualDims, cal, false);
+        else if (markupType === 'radius') measurement = calculateLength(points.slice(0, 2), visualDims, cal);
+        else if (markupType === 'angle') {
+          if (points.length >= 3) measurement = calculateAngle(points.slice(0, 3), visualDims, cal);
+        } else if (markupType === 'volume') {
+          if (points.length >= 3) measurement = calculateVolume(points, visualDims, cal, Number(customFields.volumeDepth ?? 1));
+        } else if (points.length >= 3) measurement = calculateArea(points, visualDims, cal, false);
       }
 
       // Opacidad (/CA) y tamaño de fuente (/DA)

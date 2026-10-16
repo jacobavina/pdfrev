@@ -132,6 +132,8 @@ Este documento registra la paridad funcional real implementada en REA, vinculand
 | **Sync de la vista lado a lado: misma zona del plano y misma página** | `shipped` | `src/components/viewer/SplitPane.test.tsx` | `con otro PDF y Sync, sigue la página del visor principal` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Overlay Pages: alinear por 2 o 3 pares de puntos (ADR-0050)** | `shipped` | `src/core/compare/overlayAlign.test.tsx` | `con 2 pares recupera desplazamiento, giro y escala; con 3, también la deformación` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Align guiado punto a punto en la barra de Overlay** | `shipped` | `src/core/compare/overlayAlign.test.tsx` | `la barra guía punto a punto, aplica con 2 pares y muestra escala y giro` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **Volumen, ángulo, conteo, radio y diámetro con las claves de Revu (ADR-0051)** | `shipped` | `src/core/pdf/revuMeasureInterop.test.ts` | `se escriben con la intención y el tipo de medición de Revu, y el volumen con su profundidad` | PENDIENTE DE VERIFICAR por el usuario en Revu |
+| **Mediciones de Revu (volumen, ángulo, conteo, radio) importadas como mediciones** | `shipped` | `src/core/pdf/revuMeasureInterop.test.ts` | `al abrir un PDF de Revu, sus mediciones de volumen, ángulo, conteo y radio vuelven como mediciones de REA` | PENDIENTE DE VERIFICAR por el usuario con un PDF medido en Revu |
 | **Automatización nativa con tauri-driver (Hito P2-X)** | `shipped` | `scripts/native-smoke.mjs` | `Hito P2-X (ADR-0008): Smoke Test de Ventana Nativa con tauri-driver` | Verificado por el usuario en ventana nativa, 2026-10-10 (`npm run test:native:build` sobre HEAD bf7be61: arranque, canvas, IPC Rust y dibujo W3C) |
 
 

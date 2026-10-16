@@ -55,13 +55,18 @@ const rl = (doc: PDFDocument, u: string, c: number): PDFObject =>
   } as never);
 
 describe('Mediciones vivas en Revu y Acrobat (ADR-0030)', () => {
-  it('intención estándar por tipo: Length, Polylength/Perimeter y Area; las demás no tienen equivalente', () => {
+  it('intención por tipo: Length, Polylength/Perimeter y Area estándar; volumen, ángulo, conteo y radio de Revu', () => {
     const p = [{ x: 0.1, y: 0.1 }, { x: 0.2, y: 0.2 }];
     expect(measurementIntentOf(mk('a', 'length', p))).toBe('LineDimension');
     expect(measurementIntentOf(mk('b', 'polylineMeasure', p))).toBe('PolyLineDimension');
     expect(measurementIntentOf(mk('c', 'perimeter', p))).toBe('PolyLineDimension');
     expect(measurementIntentOf(mk('d', 'area', p))).toBe('PolygonDimension');
-    for (const t of ['volume', 'angle', 'radius', 'diameter', 'count', 'line', 'polygon'] as const) {
+    // Intenciones propias de Revu (ADR-0051)
+    expect(measurementIntentOf(mk('e', 'volume', p))).toBe('PolygonVolume');
+    expect(measurementIntentOf(mk('f', 'angle', p))).toBe('PolyLineAngle');
+    expect(measurementIntentOf(mk('g', 'count', p))).toBe('PolygonCount');
+    expect(measurementIntentOf(mk('h', 'radius', p))).toBe('PolygonRadius');
+    for (const t of ['diameter', 'line', 'polygon'] as const) {
       expect(measurementIntentOf(mk('x', t, p))).toBeNull();
     }
   });

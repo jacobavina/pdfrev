@@ -662,6 +662,16 @@ ${markup.layer && layerOcg.has(markup.layer) ? `  /OC ${layerOcg.get(markup.laye
       if (intent) {
         annotDict += `  /IT /${intent}\n  /Measure ${measureDictFor(effectiveCalibration, transform.rotation)}\n`;
       }
+      // Campos de medición de Revu (ADR-0051): tipo y, en el volumen, la profundidad con su unidad
+      const revuType = revuMeasurementType(markup);
+      if (revuType !== null) {
+        annotDict += `  /MeasurementTypes ${revuType}\n`;
+        if (!intent) annotDict += `  /Measure ${measureDictFor(effectiveCalibration, transform.rotation)}\n`;
+      }
+      if (markup.type === 'volume') {
+        const depth = Number(markup.customFields?.volumeDepth ?? 1);
+        annotDict += `  /Depth ${Number.isFinite(depth) && depth > 0 ? depth : 1}\n  /DepthUnit [${escapePdfString(effectiveCalibration.unit)}]\n`;
+      }
       if (annotTypeSubtype === 'FreeText') {
         // Mismos tamaños por defecto que la pantalla y el /AP (llamada 10 pt, texto 12 pt)
         const fontPt = markup.style.fontSize ?? (markup.type === 'callout' ? 10 : 12);
@@ -1015,6 +1025,31 @@ export function measurementIntentOf(markup: Markup): string | null {
       return 'PolyLineDimension';
     case 'area':
       return 'PolygonDimension';
+    // Intenciones propias de Revu (ADR-0051), las que leen sus herramientas de medición
+    case 'volume':
+      return 'PolygonVolume';
+    case 'angle':
+      return 'PolyLineAngle';
+    case 'count':
+      return 'PolygonCount';
+    case 'radius':
+      return 'PolygonRadius';
+    default:
+      return null;
+  }
+}
+
+/** Tipo de medición de Revu (/MeasurementTypes, ADR-0051): conteo, volumen, diámetro y ángulo. */
+export function revuMeasurementType(markup: Markup): number | null {
+  switch (markup.type) {
+    case 'count':
+      return 128;
+    case 'volume':
+      return 132;
+    case 'diameter':
+      return 384;
+    case 'angle':
+      return 1152;
     default:
       return null;
   }

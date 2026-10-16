@@ -203,4 +203,5 @@ plan y `AGENTS.md`, **gana `AGENTS.md`**.
 | 2026-10-15 | Claude (Opus 5.5) | ADR-0048: Shift a 45° y cajas cuadradas; cursores visibles sobre la hoja. |
 | 2026-10-15 | Claude (Opus 5.5) | ADR-0049: vista lado a lado (Split View) con Sync. |
 | 2026-10-15 | Claude (Opus 5.5) | ADR-0050: alineación por 2 o 3 pares de puntos en Overlay Pages. |
+| 2026-10-15 | Claude (Opus 5.5) | ADR-0051: volumen, ángulo, conteo, radio y diámetro con las claves de medición de Revu. |
 

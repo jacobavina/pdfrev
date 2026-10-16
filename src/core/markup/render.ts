@@ -37,7 +37,7 @@ import { calloutLeaderLayout, calloutBoxPaint, CALLOUT_LANDING_PT } from './call
 import { linePatternPrimitives, markupLinePattern, patternOutlineOf, PatternLineStyleId } from './linePatterns';
 import { stampById, stampTextOf } from './stamps';
 import { stampArt } from './stampArt';
-import { fieldTypeOf, fieldDisplayText, isFieldChecked } from './formFields';
+import { fieldTypeOf, fieldDisplayText, isFieldChecked, signatureDisplayLines } from './formFields';
 import {
   getHelveticaTextWidth,
   getHelveticaCharWidth,
@@ -874,18 +874,28 @@ export function getMarkupSvgDescriptor(
       };
     }
 
-    // Campo de formulario (ADR-0027): misma presentación que su /AP
+    // Campo de formulario (ADR-0027 / ADR-0056): misma presentación que su /AP
     case 'formField': {
       const r = getRectGeometry(p1Screen, p2Screen);
       const ft = fieldTypeOf(markup);
       const name = String(markup.customFields?.fieldName ?? '');
+      const sigLines = ft === 'signature' ? signatureDisplayLines(markup) : null;
       const children: SvgRenderDescriptor[] = [
         {
           tag: ft === 'radio' ? 'ellipse' : 'rect',
           attrs:
             ft === 'radio'
               ? { cx: r.x + r.width / 2, cy: r.y + r.height / 2, rx: r.width / 2, ry: r.height / 2, fill: '#eef4ff', stroke: '#64748b', strokeWidth: 1 }
-              : { x: r.x, y: r.y, width: r.width, height: r.height, rx: ft === 'button' ? 4 : 0, fill: ft === 'button' ? '#e2e8f0' : '#eef4ff', stroke: '#64748b', strokeWidth: 1 },
+              : {
+                  x: r.x,
+                  y: r.y,
+                  width: r.width,
+                  height: r.height,
+                  rx: ft === 'button' ? 4 : 0,
+                  fill: sigLines ? '#ecfdf5' : ft === 'button' ? '#e2e8f0' : '#eef4ff',
+                  stroke: sigLines ? '#059669' : '#64748b',
+                  strokeWidth: 1,
+                },
         },
       ];
       const fs = Math.max(6, Math.min(r.height * 0.6, 12));
@@ -894,6 +904,34 @@ export function getMarkupSvgDescriptor(
         children.push({ tag: 'path', attrs: { d: `M${r.x + r.width * 0.2} ${r.y + r.height * 0.55}L${r.x + r.width * 0.42} ${r.y + r.height * 0.78}L${r.x + r.width * 0.82} ${r.y + r.height * 0.25}`, fill: 'none', stroke: '#111827', strokeWidth: Math.max(1, r.width * 0.12) } });
       } else if (ft === 'radio' && isFieldChecked(markup)) {
         children.push({ tag: 'ellipse', attrs: { cx: r.x + r.width / 2, cy: r.y + r.height / 2, rx: r.width * 0.25, ry: r.height * 0.25, fill: '#111827' } });
+      } else if (sigLines) {
+        const hFs = Math.max(6, Math.min(r.height * 0.28, 10));
+        const dFs = Math.max(5, Math.min(r.height * 0.22, 8));
+        children.push({
+          tag: 'text',
+          attrs: {
+            x: r.x + 6,
+            y: r.y + r.height * 0.42,
+            fontSize: hFs,
+            fontWeight: 'bold',
+            fill: '#065f46',
+            fontFamily: 'Helvetica, Arial, sans-serif',
+          },
+          textNode: sigLines.headline,
+        });
+        if (sigLines.details) {
+          children.push({
+            tag: 'text',
+            attrs: {
+              x: r.x + 6,
+              y: r.y + r.height * 0.76,
+              fontSize: dFs,
+              fill: '#047857',
+              fontFamily: 'Helvetica, Arial, sans-serif',
+            },
+            textNode: sigLines.details,
+          });
+        }
       } else if (txt) {
         children.push({
           tag: 'text',

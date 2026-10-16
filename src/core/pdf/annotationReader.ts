@@ -871,6 +871,11 @@ function importForeignWidget(
     const mk = annotDict.lookup(PDFName.of('MK'));
     const ca = mk instanceof PDFDict ? extractPdfStringValue(mk.get(PDFName.of('CA'))) : '';
     fields.buttonCaption = ca || fieldName || 'Button';
+  } else if (fieldType === 'signature') {
+    if (vObj instanceof PDFDict) {
+      readSigDictIntoFields(vObj, fields);
+      fields.foreignReadOnly = 1;
+    }
   } else if (fieldType === 'text') {
     fields.fieldValue = vStr;
   }
@@ -879,6 +884,22 @@ function importForeignWidget(
   const bc = mk instanceof PDFDict ? pdfColorArrayToHex(mk.get(PDFName.of('BC'))) : undefined;
   const bg = mk instanceof PDFDict ? pdfColorArrayToHex(mk.get(PDFName.of('BG'))) : undefined;
   return { fields, strokeColor: bc || '#2563eb', fillColor: bg };
+}
+
+/** Extrae los datos del diccionario de firma (/Type /Sig) en los campos del modelo (ADR-0056). */
+function readSigDictIntoFields(sigDict: PDFDict, fields: Record<string, string | number>): void {
+  fields.sigSigned = 1;
+  const signer = extractPdfStringValue(sigDict.get(PDFName.of('Name')));
+  if (signer) fields.sigSigner = signer;
+  const reason = extractPdfStringValue(sigDict.get(PDFName.of('Reason')));
+  if (reason) fields.sigReason = reason;
+  const location = extractPdfStringValue(sigDict.get(PDFName.of('Location')));
+  if (location) fields.sigLocation = location;
+  const rawDate = extractPdfStringValue(sigDict.get(PDFName.of('M')));
+  if (rawDate) {
+    const m = /^D:(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/.exec(rawDate);
+    fields.sigDate = m ? `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}Z` : rawDate;
+  }
 }
 
 /** Valor, destino o adjunto actuales de una marca interactiva de REA, leídos del propio PDF. */
@@ -921,6 +942,14 @@ function syncInteractiveFields(
     if (type === 'checkbox' || type === 'radio') {
       const as = annotDict.get(PDFName.of('AS'));
       if (as instanceof PDFName) fields.fieldValue = as.asString() === '/Off' ? 'Off' : 'Yes';
+    } else if (type === 'signature') {
+      const own = annotDict.lookup(PDFName.of('V'));
+      const parent = annotDict.lookup(PDFName.of('Parent'));
+      const v = own ?? (parent instanceof PDFDict ? parent.lookup(PDFName.of('V')) : undefined);
+      if (v instanceof PDFDict) {
+        readSigDictIntoFields(v, fields);
+        markup.locked = true;
+      }
     } else {
       const own = annotDict.lookup(PDFName.of('V'));
       const parent = annotDict.lookup(PDFName.of('Parent'));

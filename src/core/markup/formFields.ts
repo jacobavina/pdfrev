@@ -67,6 +67,26 @@ export function radioExportValue(markup: Markup): string {
   return raw.replace(/[^A-Za-z0-9_-]/g, '') || 'Choice1';
 }
 
+/** ¿Está firmado digitalmente el campo de firma? */
+export function isSignatureSigned(markup: Markup): boolean {
+  return markup.customFields?.sigSigned === 1;
+}
+
+/** Líneas visibles de un campo de firma firmado (firmante, fecha y motivo/lugar). */
+export function signatureDisplayLines(markup: Markup): { headline: string; details: string } | null {
+  if (!isSignatureSigned(markup)) return null;
+  const signer = String(markup.customFields?.sigSigner || markup.author || 'Signer');
+  const headline = `Digitally signed by ${signer}`;
+  const parts: string[] = [];
+  if (markup.customFields?.sigDate) {
+    const raw = String(markup.customFields.sigDate);
+    parts.push(`Date: ${raw.slice(0, 19).replace('T', ' ')}`);
+  }
+  if (markup.customFields?.sigReason) parts.push(`Reason: ${markup.customFields.sigReason}`);
+  if (markup.customFields?.sigLocation) parts.push(`Location: ${markup.customFields.sigLocation}`);
+  return { headline, details: parts.join(' · ') };
+}
+
 /** Texto visible del campo: valor, opción elegida o rótulo del botón. */
 export function fieldDisplayText(markup: Markup): string {
   const v = markup.customFields?.fieldValue;
@@ -77,9 +97,12 @@ export function fieldDisplayText(markup: Markup): string {
       return typeof v === 'string' ? v : '';
     case 'button':
       return typeof markup.customFields?.buttonCaption === 'string' ? markup.customFields.buttonCaption : 'Button';
-    case 'signature':
-      return 'Sign here';
+    case 'signature': {
+      const sig = signatureDisplayLines(markup);
+      return sig ? sig.headline : 'Sign here';
+    }
     default:
       return '';
   }
 }
+

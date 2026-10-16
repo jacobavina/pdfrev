@@ -15,7 +15,7 @@ import { dimensionGeometry, dimensionTextBaseline, defaultDimensionLinePoint } f
 import { getHelveticaTextWidth } from '../markup/helveticaMetrics';
 import { stampById, stampTextOf } from '../markup/stamps';
 import { stampArt } from '../markup/stampArt';
-import { fieldTypeOf, fieldDisplayText, isFieldChecked } from '../markup/formFields';
+import { fieldTypeOf, fieldDisplayText, isFieldChecked, signatureDisplayLines } from '../markup/formFields';
 import { revisionCloudPathNormalized, cloudParams } from '../markup/revisionCloud';
 import { linePatternPrimitives, markupLinePattern, patternOutlineOf } from '../markup/linePatterns';
 import { calloutBoxPaint } from '../markup/calloutLayout';
@@ -857,7 +857,7 @@ export function emitMarkupOperators(
       break;
     }
 
-    // Campo de formulario (ADR-0027): fondo, borde y valor; casillas y opciones con su marca si están activas
+    // Campo de formulario (ADR-0027 / ADR-0056): fondo, borde y valor; casillas y opciones con su marca si están activas
     case 'formField': {
       if (markup.points.length < 2) break;
       const a = toVis(markup.points[0]);
@@ -867,8 +867,13 @@ export function emitMarkupOperators(
       const w = Math.abs(b.x - a.x);
       const h = Math.abs(b.y - a.y);
       const ft = fieldTypeOf(markup);
-      const border = { r: 0.39, g: 0.45, b: 0.55 };
-      const bg = ft === 'button' ? { r: 0.886, g: 0.91, b: 0.941 } : { r: 0.933, g: 0.957, b: 1 };
+      const sigLines = ft === 'signature' ? signatureDisplayLines(markup) : null;
+      const border = sigLines ? { r: 0.02, g: 0.588, b: 0.412 } : { r: 0.39, g: 0.45, b: 0.55 };
+      const bg = sigLines
+        ? { r: 0.925, g: 0.992, b: 0.961 }
+        : ft === 'button'
+          ? { r: 0.886, g: 0.91, b: 0.941 }
+          : { r: 0.933, g: 0.957, b: 1 };
       lines.push('1 w', rgbOp(border, 'RG'), rgbOp(bg, 'rg'));
       if (ft === 'radio') {
         const c = visToPdf({ x: x + w / 2, y: y + h / 2 });
@@ -896,6 +901,15 @@ export function emitMarkupOperators(
           lines.push(`${f2(Math.max(1, w * 0.12))} w`, '0 0 0 RG');
           pathPdf([visToPdf({ x: x + w * 0.2, y: y + h * 0.55 }), visToPdf({ x: x + w * 0.42, y: y + h * 0.78 }), visToPdf({ x: x + w * 0.82, y: y + h * 0.25 })], false);
           lines.push('S');
+        }
+        break;
+      }
+      if (sigLines) {
+        const hFs = Math.max(6, Math.min(h * 0.28, 10));
+        const dFs = Math.max(5, Math.min(h * 0.22, 8));
+        textVis(sigLines.headline, { x: x + 6, y: y + h * 0.42 }, hFs, { r: 0.024, g: 0.373, b: 0.275 }, 'left', true);
+        if (sigLines.details) {
+          textVis(sigLines.details, { x: x + 6, y: y + h * 0.76 }, dFs, { r: 0.016, g: 0.471, b: 0.341 }, 'left', false);
         }
         break;
       }

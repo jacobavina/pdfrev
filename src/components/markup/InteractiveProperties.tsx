@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { Markup } from '../../types/markup';
 import { useMarkupStore } from '../../store/useMarkupStore';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useAttachmentStore, formatBytes } from '../../store/useAttachmentStore';
-import { fieldTypeDef, fieldTypeOf, fieldOptions } from '../../core/markup/formFields';
+import { fieldTypeDef, fieldTypeOf, fieldOptions, isSignatureSigned } from '../../core/markup/formFields';
 import { isAllowedLinkUrl, normalizeLinkUrl, openExternalUrl, goToPageNumber, saveAttachment } from '../../services/linkService';
+
+const SignDocumentModal = lazy(() => import('../modals/SignDocumentModal'));
 
 const inputCls =
   'w-full ui-input';
@@ -51,6 +53,7 @@ const CommitInput: React.FC<{
 export const InteractiveProperties: React.FC<{ markup: Markup }> = ({ markup }) => {
   const { applyPropertiesToMarkups, markups } = useMarkupStore();
   const numPages = useDocumentStore((s) => s.numPages);
+  const [showSignModal, setShowSignModal] = useState(false);
   const set = (fields: Record<string, string | number | undefined>, desc: string) =>
     applyPropertiesToMarkups([markup.id], { customFields: fields }, desc);
   const label = (t: string) => <label className="text-gray-400 font-medium">{t}</label>;
@@ -203,9 +206,41 @@ export const InteractiveProperties: React.FC<{ markup: Markup }> = ({ markup }) 
           </>
         )}
         {ft === 'signature' && (
-          <p className="text-gray-500 leading-snug">
-            Unsigned signature field. It can be signed with a digital ID in Revu or Acrobat.
-          </p>
+          <>
+            {isSignatureSigned(markup) ? (
+              <div data-testid="prop-sig-signed-info" className="flex flex-col gap-1 rounded border border-emerald-700/60 bg-emerald-950/30 p-2 text-emerald-300">
+                <span className="font-semibold">Digitally signed by {String(markup.customFields?.sigSigner ?? 'Signer')}</span>
+                {markup.customFields?.sigDate && (
+                  <span className="text-emerald-400/80">Date: {String(markup.customFields.sigDate).slice(0, 19).replace('T', ' ')}</span>
+                )}
+                {markup.customFields?.sigReason && (
+                  <span className="text-emerald-400/80">Reason: {String(markup.customFields.sigReason)}</span>
+                )}
+                {markup.customFields?.sigLocation && (
+                  <span className="text-emerald-400/80">Location: {String(markup.customFields.sigLocation)}</span>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <p className="text-gray-500 leading-snug">
+                  Sign this field with a PKCS#12 (.pfx / .p12) Digital ID or create a new self-signed certificate.
+                </p>
+                <button
+                  type="button"
+                  data-testid="prop-sig-sign-btn"
+                  onClick={() => setShowSignModal(true)}
+                  className="self-start px-2.5 py-1 rounded bg-cad-accent text-white font-medium hover:brightness-110"
+                >
+                  Sign Document…
+                </button>
+              </div>
+            )}
+            {showSignModal && (
+              <Suspense fallback={null}>
+                <SignDocumentModal markup={markup} onClose={() => setShowSignModal(false)} />
+              </Suspense>
+            )}
+          </>
         )}
       </section>
     );

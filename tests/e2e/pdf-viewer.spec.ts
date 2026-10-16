@@ -2034,6 +2034,30 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     // El comentario es un campo editable: el nombre del archivo está en su valor
     await expect(row.locator('input[type="text"]').first()).toHaveValue('RFI-012.txt');
     await expect(overlaySvg.locator('g[data-testid^="markup-attachment-"]')).toHaveCount(1);
+
+    // 4. Digital Signature (ADR-0056): crear campo de firma y firmarlo con un certificado digital autofirmado
+    await page.locator('[data-testid="menu-herramientas"]').click();
+    await page.locator('[data-testid="menu-tools-signature"]').hover();
+    await page.locator('[data-testid="menu-field-signature"]').click();
+    const box4 = (await overlaySvg.boundingBox())!;
+    await page.mouse.click(box4.x + box4.width * 0.65, box4.y + box4.height * 0.35);
+    const sigField = overlaySvg.locator('g[data-testid^="markup-field-"]').last();
+    await expect(sigField).toContainText('Sign here');
+    // Abrir el panel de propiedades si está plegado y firmar el campo
+    const propsPanel = page.locator('[data-testid="properties-inspector-panel"]');
+    if ((await propsPanel.getAttribute('data-collapsed')) === 'true') {
+      await page.locator('[data-testid="expand-properties-btn"]').click();
+    }
+    await page.locator('[data-testid="prop-sig-sign-btn"]').click();
+    await expect(page.locator('[data-testid="sign-document-modal"]')).toBeVisible();
+    await page.locator('[data-testid="sig-mode-create"]').click();
+    await page.locator('[data-testid="sig-create-name"]').fill('Elena Vance, PE');
+    await page.locator('[data-testid="sig-create-password"]').fill('rea-2026');
+    await page.locator('[data-testid="sig-location"]').fill('Mexico City');
+    await page.locator('[data-testid="sig-confirm-btn"]').click();
+    await expect(page.locator('[data-testid="sign-document-modal"]')).toHaveCount(0);
+    await expect(sigField).toContainText('Digitally signed by Elena Vance, PE');
+    await expect(page.locator('[data-testid="prop-sig-signed-info"]')).toContainText('Elena Vance, PE');
   });
   test('Mediciones Angle, Radius y Volume con reglas (ADR-0029): atajos Shift+Alt, profundidad y Ctrl+R', async ({
     page,

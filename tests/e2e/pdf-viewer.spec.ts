@@ -2499,6 +2499,17 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.locator('[data-testid="split-next"]').click();
     await expect(page.locator('[data-testid="split-page"]')).toHaveText('3 / 3');
     await expect(page.locator('[data-testid="split-sync"]')).toHaveAttribute('aria-pressed', 'true');
+    // ADR-0054: al acercar y desplazar el panel derecho, el visor principal sigue la misma posición
+    await page.locator('button[title="Zoom in (+)"]').click();
+    await page.locator('button[title="Zoom in (+)"]').click();
+    await page.locator('[data-testid="split-scroll"]').evaluate((el) => {
+      el.scrollTop = 120;
+      el.scrollLeft = 90;
+      el.dispatchEvent(new Event('scroll'));
+    });
+    await expect
+      .poll(async () => page.locator('[data-testid="pdf-viewer-container"]').evaluate((el) => Math.round(el.scrollTop)))
+      .toBeGreaterThan(80);
     await page.locator('[data-testid="split-close"]').click();
     await expect(pane).toHaveCount(0);
   });

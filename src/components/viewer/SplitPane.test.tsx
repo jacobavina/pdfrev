@@ -4,7 +4,8 @@ import { SplitPane } from './SplitPane';
 import { useSplitStore } from '../../store/useSplitStore';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useMarkupStore } from '../../store/useMarkupStore';
-import { scrollToCenter, viewCenterOnPage } from '../../core/compare/splitSync';
+import { useOverlayStore } from '../../store/useOverlayStore';
+import { mainToSplitCenter, scrollToCenter, splitToMainCenter, viewCenterOnPage } from '../../core/compare/splitSync';
 import { Markup } from '../../types/markup';
 
 vi.mock('../../services/pdfService', () => ({
@@ -27,6 +28,7 @@ const rect = (id: string, pageIndex: number): Markup => ({
 describe('Vista lado a lado (ADR-0049)', () => {
   beforeEach(() => {
     useSplitStore.getState().close();
+    useOverlayStore.getState().close();
     useDocumentStore.setState({ pdfDoc: { numPages: 3 } as never, numPages: 3, currentPageIndex: 0, scale: 1, rotation: 0 });
     useMarkupStore.setState({ markups: [rect('p1', 1), rect('p0', 0)], selectedMarkupIds: [] });
   });
@@ -69,4 +71,39 @@ describe('Vista lado a lado (ADR-0049)', () => {
     expect(screen.getByTestId('split-page')).toHaveTextContent('4 / 5');
     expect(screen.queryByTestId('split-markups')).toBeNull();
   });
+
+  it('sincronización en ambos sentidos: desplazar o cambiar de página en el panel derecho mueve al visor principal y respeta la alineación (ADR-0054)', async () => {
+    act(() => useSplitStore.getState().start({ name: 'Rev B.pdf', bytes: new Uint8Array([1]), pageCount: 5, pageIndex: 0 }));
+    // Alineación activa con desfase de +80 pt en X y -60 pt en Y sobre página de 800×600 pt
+    useOverlayStore.setState({ offset: { x: 80, y: -60 } });
+    await act(async () => {
+      render(<SplitPane />);
+    });
+    // Cambiar de página desde el panel derecho con otro PDF y Sync actualiza currentPageIndex del visor principal
+    fireEvent.click(screen.getByTestId('split-next'));
+    expect(screen.getByTestId('split-page')).toHaveTextContent('2 / 5');
+    expect(useDocumentStore.getState().currentPageIndex).toBe(1);
+    expect(useSplitStore.getState().driver).toBe('split');
+
+    // Desplazar el panel derecho publica splitView con la alineación aplicada hacia el visor principal
+    const scrollEl = screen.getByTestId('split-scroll');
+    const pageEl = scrollEl.firstElementChild as HTMLElement;
+    vi.spyOn(scrollEl, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 400, height: 300 } as DOMRect);
+    vi.spyOn(pageEl, 'getBoundingClientRect').mockReturnValue({ left: -200, top: -150, width: 800, height: 600 } as DOMRect);
+    Object.defineProperty(scrollEl, 'scrollLeft', { value: 200, configurable: true });
+    Object.defineProperty(scrollEl, 'scrollTop', { value: 150, configurable: true });
+    fireEvent.scroll(scrollEl);
+
+    const sv = useSplitStore.getState().splitView!;
+    expect(useSplitStore.getState().driver).toBe('split');
+    // Centro en split = (0.5, 0.5) -> en main con offset (+80, -60) sobre 800×600 = (0.6, 0.4)
+    expect(sv.nx).toBeCloseTo(0.6, 5);
+    expect(sv.ny).toBeCloseTo(0.4, 5);
+    // Y la inversa devuelve (0.5, 0.5)
+    const inv = mainToSplitCenter(sv, { width: 800, height: 600 }, useOverlayStore.getState().matrix, useOverlayStore.getState().offset);
+    expect(inv.nx).toBeCloseTo(0.5, 5);
+    expect(inv.ny).toBeCloseTo(0.5, 5);
+    expect(splitToMainCenter(inv, { width: 800, height: 600 }, useOverlayStore.getState().matrix, useOverlayStore.getState().offset).nx).toBeCloseTo(0.6, 5);
+  });
 });
+

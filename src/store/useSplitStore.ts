@@ -16,12 +16,17 @@ export interface SplitState {
   sync: boolean;
   /** Centro de la vista del visor principal, normalizado sobre su página activa (lo publica el visor). */
   mainView: { pageIndex: number; nx: number; ny: number } | null;
+  /** Centro de la vista del panel lado a lado, normalizado sobre la página activa (ADR-0054). */
+  splitView: { pageIndex: number; nx: number; ny: number } | null;
+  /** Último panel que originó el movimiento sincronizado ('main' | 'split'). */
+  driver: 'main' | 'split' | null;
 
   start: (source: { name: string; bytes: Uint8Array | null; pageCount: number; pageIndex?: number }) => void;
   close: () => void;
   setPage: (index: number) => void;
   setSync: (sync: boolean) => void;
   setMainView: (view: { pageIndex: number; nx: number; ny: number }) => void;
+  setSplitView: (view: { pageIndex: number; nx: number; ny: number }) => void;
 }
 
 const INITIAL = {
@@ -32,6 +37,8 @@ const INITIAL = {
   pageCount: 0,
   sync: true,
   mainView: null as SplitState['mainView'],
+  splitView: null as SplitState['splitView'],
+  driver: null as SplitState['driver'],
 };
 
 export const useSplitStore = create<SplitState>((set, get) => ({
@@ -48,5 +55,7 @@ export const useSplitStore = create<SplitState>((set, get) => ({
   close: () => set({ ...INITIAL }),
   setPage: (index) => set({ pageIndex: Math.max(0, Math.min(get().pageCount - 1, index)) }),
   setSync: (sync) => set({ sync }),
-  setMainView: (mainView) => set({ mainView }),
+  setMainView: (mainView) => set({ mainView, driver: 'main' }),
+  setSplitView: (splitView) => set({ splitView, driver: 'split' }),
 }));
+

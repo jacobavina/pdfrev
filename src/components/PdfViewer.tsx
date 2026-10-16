@@ -4,7 +4,7 @@ import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useToolStore, ToolType, cloudCreationFields } from '../store/useToolStore';
 import { useSplitStore } from '../store/useSplitStore';
-import { viewCenterOnPage } from '../core/compare/splitSync';
+import { scrollToCenter, viewCenterOnPage } from '../core/compare/splitSync';
 import type { RenderResult } from '../services/pdfService';
 import { PageCanvas } from './viewer/PageCanvas';
 import {
@@ -281,8 +281,11 @@ export const PdfViewer: React.FC = () => {
     };
   }, []);
 
-  // Vista lado a lado (ADR-0049): el panel se centra en el mismo punto del plano que el visor
+  // Vista lado a lado (ADR-0049 / ADR-0054): sincronización en ambos sentidos
   const splitActive = useSplitStore((s) => s.active);
+  const splitSync = useSplitStore((s) => s.sync);
+  const splitView = useSplitStore((s) => s.splitView);
+  const splitDriver = useSplitStore((s) => s.driver);
   const publishSplitView = useCallback(() => {
     if (!useSplitStore.getState().active) return;
     const el = containerRef.current;
@@ -610,24 +613,46 @@ export const PdfViewer: React.FC = () => {
 
   const handleContainerScroll = () => {
     updateViewCenter();
-    publishSplitView();
     const el = containerRef.current;
-    if (!isContinuous || !el) return;
     const prog = programmaticScrollRef.current;
-    programmaticScrollRef.current = null;
-    if (prog && Math.abs(prog.top - el.scrollTop) < 1 && Math.abs(prog.left - el.scrollLeft) < 1) return;
+    const isProg = Boolean(prog && el && Math.abs(prog.top - el.scrollTop) < 1 && Math.abs(prog.left - el.scrollLeft) < 1);
+    if (isProg) {
+      programmaticScrollRef.current = null;
+    } else {
+      publishSplitView();
+    }
+    if (!isContinuous || !el || isProg) return;
     const rect = el.getBoundingClientRect();
     const probeY = lastPointerRef.current?.y ?? rect.top + el.clientHeight / 2;
     const i = pageIndexAtClientY(probeY);
     if (i !== null) activatePage(i);
   };
 
-  // Al abrir el panel lado a lado, al cambiar de zoom o de página: el panel sigue al visor
+  // Al abrir el panel lado a lado, al cambiar de zoom o de página desde el visor: el panel sigue al visor
   useEffect(() => {
-    if (!splitActive) return;
+    if (!splitActive || useSplitStore.getState().driver === 'split') return;
     const id = requestAnimationFrame(publishSplitView);
     return () => cancelAnimationFrame(id);
   }, [splitActive, scale, currentPageIndex, publishSplitView]);
+
+  // Sincronización inversa (split -> main, ADR-0054): el visor principal se desplaza hacia el centro del panel derecho
+  useLayoutEffect(() => {
+    if (!splitActive || !splitSync || splitDriver !== 'split' || !splitView) return;
+    const el = containerRef.current;
+    const pageEl = pageContainerRef.current;
+    if (!el || !pageEl) return;
+    const target = scrollToCenter(
+      splitView.nx,
+      splitView.ny,
+      pageViewport,
+      { x: pageEl.offsetLeft, y: pageEl.offsetTop },
+      { width: el.clientWidth, height: el.clientHeight },
+      { width: el.scrollWidth, height: el.scrollHeight }
+    );
+    setScrollProgrammatically(el, target.left, target.top);
+    updateViewCenter();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [splitActive, splitSync, splitDriver, splitView, pageViewport]);
 
   // Navegación externa (miniaturas, barra de estado, búsqueda): llevar la página a la vista
   useLayoutEffect(() => {

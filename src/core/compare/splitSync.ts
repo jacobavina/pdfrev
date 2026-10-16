@@ -1,5 +1,7 @@
+import { applyAffine, IDENTITY, invertAffine, Linear, Pt } from './overlayAlign';
+
 /**
- * Sincronización de la vista lado a lado (ADR-0049). Puro: trabaja con rectángulos en píxeles de pantalla.
+ * Sincronización de la vista lado a lado (ADR-0049 / ADR-0054). Puro: trabaja con rectángulos en píxeles de pantalla.
  */
 
 export interface RectLike {
@@ -35,3 +37,37 @@ export function scrollToCenter(
     top: clamp(pageOffset.y + ny * page.height - client.height / 2, scrollSize.height - client.height),
   };
 }
+
+/**
+ * Convierte un centro normalizado (0..1) del visor principal al centro equivalente en la hoja comparada,
+ * deshaciendo la alineación T(p_other) = matrix·p_other + offset (en pt de página) si está definida.
+ */
+export function mainToSplitCenter(
+  center: { nx: number; ny: number },
+  pagePt: { width: number; height: number },
+  matrix: Linear = IDENTITY,
+  offset: Pt = { x: 0, y: 0 }
+): { nx: number; ny: number } {
+  if (!(pagePt.width > 0) || !(pagePt.height > 0)) return center;
+  const q: Pt = { x: center.nx * pagePt.width, y: center.ny * pagePt.height };
+  const o = invertAffine(matrix, offset, q);
+  if (!o) return center;
+  return { nx: o.x / pagePt.width, ny: o.y / pagePt.height };
+}
+
+/**
+ * Convierte un centro normalizado (0..1) del panel lado a lado al centro equivalente en el visor principal,
+ * aplicando la alineación T(p_other) = matrix·p_other + offset (en pt de página) si está definida.
+ */
+export function splitToMainCenter(
+  center: { nx: number; ny: number },
+  pagePt: { width: number; height: number },
+  matrix: Linear = IDENTITY,
+  offset: Pt = { x: 0, y: 0 }
+): { nx: number; ny: number } {
+  if (!(pagePt.width > 0) || !(pagePt.height > 0)) return center;
+  const p: Pt = { x: center.nx * pagePt.width, y: center.ny * pagePt.height };
+  const b = applyAffine(matrix, offset, p);
+  return { nx: b.x / pagePt.width, ny: b.y / pagePt.height };
+}
+

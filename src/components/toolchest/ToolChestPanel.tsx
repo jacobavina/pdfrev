@@ -80,7 +80,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
     <aside
       data-testid="tool-chest-panel"
       data-collapsed="false"
-      className="w-[268px] bg-cad-panel border-l border-cad-border flex flex-col select-none z-10 transition-all duration-200 overflow-hidden text-[12px]"
+      className="w-[268px] bg-cad-panel border-l border-cad-border flex flex-col select-none z-10 transition-all duration-200 overflow-hidden text-xs"
     >
       {/* 1. Cabecera del Panel */}
       <div className="h-10 px-3 border-b border-cad-border flex items-center justify-between shrink-0">
@@ -114,7 +114,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
       {!isPersistent && persistenceError && (
         <div
           data-testid="tool-chest-persistence-warning"
-          className="px-3 py-1.5 bg-amber-500/10 border-b border-cad-border text-[11px] text-amber-600 dark:text-amber-300 flex items-center space-x-1.5"
+          className="px-3 py-1.5 bg-amber-500/10 border-b border-cad-border text-2xs text-amber-600 dark:text-amber-300 flex items-center space-x-1.5"
         >
           <AlertCircle size={13} className="shrink-0 text-amber-400" />
           <span className="truncate">In-memory (data not saved to disk)</span>
@@ -204,9 +204,9 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
         </div>
 
         {activeTools.length === 0 ? (
-          <div className="p-4 text-center text-[12px] text-gray-500 border border-dashed border-cad-border rounded-lg my-2">
+          <div className="p-4 text-center text-xs text-gray-500 border border-dashed border-cad-border rounded-lg my-2">
             <p className="font-medium text-gray-400 mb-1">Empty palette</p>
-            <p className="text-[11px]">
+            <p className="text-2xs">
               Right-click a markup in the list or drag to add tools here.
             </p>
           </div>
@@ -238,7 +238,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
                     <div className="text-xs text-gray-200 font-medium truncate">
                       {tool.name || tool.type}
                     </div>
-                    <div className="text-[10px] text-gray-500 truncate capitalize">
+                    <div className="text-2xs text-gray-500 truncate capitalize">
                       {tool.type}
                     </div>
                   </div>
@@ -251,10 +251,10 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
                       e.stopPropagation();
                       toggleToolMode(tool.id);
                     }}
-                    className={`px-1.5 py-0.5 text-[10px] font-bold rounded transition-colors uppercase ${
+                    className={`px-1.5 py-0.5 text-2xs font-bold rounded transition-colors uppercase ${
                       tool.mode === 'properties'
                         ? 'bg-amber-500 text-gray-950 hover:bg-amber-400'
-                        : 'bg-blue-600 text-white hover:bg-blue-500'
+                        : 'bg-cad-accent-fill text-white hover:brightness-110'
                     }`}
                     title={
                       tool.mode === 'properties'
@@ -295,7 +295,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
             {recentTools.length > 0 && (
               <button
                 onClick={() => clearRecent()}
-                className="ui-btn ui-btn-danger !h-6 !px-1.5 !text-[11px]"
+                className="ui-btn ui-btn-danger !h-6 !px-1.5 !text-2xs"
                 title="Clear recent tools"
                 data-testid="clear-recent-tools-btn"
               >
@@ -305,7 +305,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
           </div>
 
           {recentTools.length === 0 ? (
-            <p className="text-[11px] text-gray-500 italic p-1">No recent tools</p>
+            <p className="text-2xs text-gray-500 italic p-1">No recent tools</p>
           ) : (
             <div className="grid grid-cols-5 gap-1.5">
               {recentTools.map((recent) => (

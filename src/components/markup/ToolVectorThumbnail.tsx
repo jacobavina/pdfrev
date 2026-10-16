@@ -201,10 +201,10 @@ export const ToolVectorThumbnail: React.FC<ToolVectorThumbnailProps> = ({
       {/* Indicador de Modo (Badge pequeño en esquina superior derecha) */}
       {showModeBadge && (
         <span
-          className={`absolute -top-1 -right-1 px-1 py-0.2 text-[9px] font-bold rounded shadow-sm uppercase ${
+          className={`absolute -top-1 -right-1 px-1 py-0.2 text-2xs font-bold rounded shadow-sm uppercase ${
             mode === 'properties'
               ? 'bg-amber-500 text-gray-950'
-              : 'bg-blue-600 text-white'
+              : 'bg-cad-accent-fill text-white'
           }`}
           data-testid={`tool-mode-badge-${mode}`}
           title={mode === 'properties' ? 'Modo Propiedad' : 'Modo Dibujo'}

@@ -48,7 +48,7 @@ export const LinkDialog: React.FC<{
           if (e.key === 'Escape') onCancel();
         }}
       >
-        <div className="text-sm font-semibold text-cad-strong">Hyperlink</div>
+        <div className="text-base font-semibold text-cad-strong">Hyperlink</div>
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="radio" checked={mode === 'url'} onChange={() => setMode('url')} data-testid="link-mode-url" />
           Open a web address
@@ -87,7 +87,7 @@ export const LinkDialog: React.FC<{
             type="button"
             data-testid="link-confirm"
             onClick={confirm}
-            className="px-3 py-1 rounded bg-cad-accent text-white hover:opacity-90"
+            className="px-3 py-1 rounded bg-cad-accent-fill text-white hover:opacity-90"
           >
             OK
           </button>

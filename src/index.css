@@ -13,7 +13,7 @@
     --cad-panel: 248 249 251;
     --cad-subtle: 241 243 247;
     --cad-border: 220 225 232;
-    --cad-accent: 29 108 208;
+    --cad-accent: 23 85 164;
     --cad-hover: 233 237 243;
     --cad-canvas: 196 203 213;
     --cad-strong: 15 19 26;
@@ -22,6 +22,15 @@
     --cad-field: 237 240 245;
     --cad-field-hover: 229 233 240;
     --cad-sheet-shadow: 15 23 42;
+    /* Acento sólido con texto blanco (≥ 4.5:1); --cad-accent queda para texto, bordes e iconos */
+    --cad-accent-fill: 29 108 208;
+
+    /* Escala tipográfica única de la interfaz (rediseño de legibilidad): nada funcional por debajo de 11 px */
+    --fs-2xs: 11px;
+    --fs-xs: 12px;
+    --fs-sm: 13px;
+    --fs-base: 14px;
+    --fs-lg: 16px;
 
     /* Escala gray invertida: el "texto claro" de los componentes pasa a texto oscuro legible */
     --gray-50: 9 12 17;
@@ -29,7 +38,7 @@
     --gray-200: 29 35 44;
     --gray-300: 48 56 67;
     --gray-400: 82 92 106;
-    --gray-500: 112 122 136;
+    --gray-500: 96 104 116;
     --gray-600: 148 157 170;
     --gray-700: 188 195 206;
     --gray-800: 214 219 227;
@@ -42,7 +51,8 @@
     --cad-panel: 29 33 39;
     --cad-subtle: 35 40 47;
     --cad-border: 45 51 60;
-    --cad-accent: 74 152 245;
+    --cad-accent: 138 189 249;
+    --cad-accent-fill: 57 118 190;
     --cad-hover: 39 45 53;
     --cad-canvas: 13 15 19;
     --cad-strong: 243 245 248;
@@ -56,8 +66,8 @@
     --gray-100: 240 243 247;
     --gray-200: 224 228 234;
     --gray-300: 200 206 215;
-    --gray-400: 150 159 172;
-    --gray-500: 108 117 131;
+    --gray-400: 173 180 190;
+    --gray-500: 151 158 168;
     --gray-600: 76 85 98;
     --gray-700: 56 64 76;
     --gray-800: 34 41 51;
@@ -76,7 +86,7 @@
     color: rgb(var(--gray-200));
     /* Tipografía de interfaz (ADR-0036): la variable de Windows 11, con Inter y el sistema como respaldo */
     font-family: 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', Inter, system-ui, -apple-system, sans-serif;
-    font-size: 12.5px;
+    font-size: var(--fs-sm);
     -webkit-font-smoothing: antialiased;
     font-feature-settings: 'tnum' 0;
   }
@@ -154,7 +164,7 @@
     background: rgb(var(--cad-field));
     color: rgb(var(--gray-200));
     padding: 0 8px;
-    font-size: 12px;
+    font-size: var(--fs-xs);
     outline: none;
     transition: border-color 0.12s, background-color 0.12s, box-shadow 0.12s;
     min-width: 0;
@@ -185,7 +195,7 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
-    font-size: 12px;
+    font-size: var(--fs-xs);
     font-weight: 500;
     color: rgb(var(--gray-300));
     background: transparent;
@@ -204,7 +214,7 @@
     color: rgb(var(--gray-200));
   }
   .ui-btn-primary {
-    background: rgb(var(--cad-accent));
+    background: rgb(var(--cad-accent-fill));
     color: #fff;
   }
   .ui-btn-primary:hover:not(:disabled) {
@@ -225,7 +235,7 @@
     min-height: 28px;
   }
   .ui-label {
-    font-size: 11.5px;
+    font-size: var(--fs-xs);
     color: rgb(var(--gray-400));
     white-space: nowrap;
     overflow: hidden;
@@ -234,13 +244,13 @@
 
   /* Encabezado de panel y título de sección */
   .ui-panel-title {
-    font-size: 12px;
+    font-size: var(--fs-xs);
     font-weight: 600;
     color: rgb(var(--cad-strong));
     letter-spacing: 0.01em;
   }
   .ui-section-title {
-    font-size: 11px;
+    font-size: var(--fs-2xs);
     font-weight: 600;
     color: rgb(var(--gray-300));
     letter-spacing: 0.02em;
@@ -267,7 +277,7 @@
 
   /* Insignia discreta (contadores) */
   .ui-badge {
-    font-size: 10.5px;
+    font-size: var(--fs-2xs);
     padding: 1px 6px;
     border-radius: 999px;
     background: rgb(var(--cad-field));
@@ -289,7 +299,7 @@
     position: relative;
     height: 28px;
     padding: 0 12px;
-    font-size: 12px;
+    font-size: var(--fs-xs);
     font-weight: 500;
     color: rgb(var(--gray-400));
     transition: color 0.12s;
@@ -330,7 +340,7 @@
     background: rgb(var(--cad-border));
   }
   .ribbon-group-label {
-    font-size: 9.5px;
+    font-size: var(--fs-2xs);
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -372,7 +382,7 @@
     height: 20px;
   }
   .ribbon-tool-label {
-    font-size: 10.5px;
+    font-size: var(--fs-2xs);
     line-height: 1;
     white-space: nowrap;
   }
@@ -393,7 +403,7 @@
     border-left: 1px solid rgb(var(--cad-border));
   }
   .prop-label {
-    font-size: 9.5px;
+    font-size: var(--fs-2xs);
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -462,7 +472,7 @@
     height: 20px;
     padding: 0 8px;
     border-radius: 999px;
-    font-size: 11px;
+    font-size: var(--fs-2xs);
     font-weight: 500;
     background: rgb(var(--cad-field));
     color: rgb(var(--gray-300));

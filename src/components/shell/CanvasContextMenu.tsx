@@ -75,7 +75,7 @@ export const CanvasContextMenu: React.FC<{ x: number; y: number; onClose: () => 
     >
       <span className="w-4 flex justify-center">{icon}</span>
       <span className="flex-1">{label}</span>
-      {opts.shortcut && <span className="text-[10px] font-mono text-gray-500">{opts.shortcut}</span>}
+      {opts.shortcut && <span className="text-2xs font-mono text-gray-500">{opts.shortcut}</span>}
     </button>
   );
 
@@ -88,14 +88,14 @@ export const CanvasContextMenu: React.FC<{ x: number; y: number; onClose: () => 
       style={{ left, top }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      <div className="px-3 py-1 text-[10px] uppercase tracking-wider text-gray-500 truncate">
+      <div className="px-3 py-1 text-2xs uppercase tracking-wider text-gray-500 truncate">
         {selected.length > 1 ? `${selected.length} markups` : markupTypeLabel(first.type)}
       </div>
       {item('canvas-menu-properties', <SlidersHorizontal size={13} />, 'Properties', () =>
         useUiStore.getState().requestPropertiesPanel()
       )}
       <div className="my-1 border-t border-cad-border" />
-      <div className="px-3 py-0.5 text-[10px] uppercase tracking-wider text-gray-500">Status</div>
+      <div className="px-3 py-0.5 text-2xs uppercase tracking-wider text-gray-500">Status</div>
       {VALID_MARKUP_STATUSES.map((status) => (
         <button
           key={status}

@@ -134,7 +134,7 @@ export const SplitPane: React.FC = () => {
 
   return (
     <aside data-testid="split-pane" className="w-1/2 min-w-0 flex flex-col border-l border-cad-border bg-cad-canvas">
-      <div className="h-9 shrink-0 flex items-center gap-2 px-2.5 bg-cad-panel border-b border-cad-border text-[12px] select-none">
+      <div className="h-9 shrink-0 flex items-center gap-2 px-2.5 bg-cad-panel border-b border-cad-border text-xs select-none">
         <Columns2 size={14} className="text-gray-400 shrink-0" />
         <span className="font-semibold text-cad-strong truncate" title={sourceName} data-testid="split-source">
           {sourceName}
@@ -171,7 +171,7 @@ export const SplitPane: React.FC = () => {
           aria-pressed={sync}
           onClick={() => setSync(!sync)}
           title={sync ? 'Synchronized with the main view (click to unlink)' : 'Not synchronized (click to follow the main view)'}
-          className={`ui-btn !h-6 !px-2 !text-[11.5px] ${sync ? '!bg-cad-accent/15 !text-cad-accent' : ''}`}
+          className={`ui-btn !h-6 !px-2 !text-xs ${sync ? '!bg-cad-accent/15 !text-cad-accent' : ''}`}
         >
           <Link2 size={13} />
           Sync

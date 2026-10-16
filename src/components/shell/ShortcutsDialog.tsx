@@ -51,14 +51,14 @@ export const ShortcutsDialog: React.FC = () => {
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 h-10 border-b border-cad-border">
-          <span className="font-semibold text-cad-strong text-sm">Keyboard Shortcuts</span>
+          <span className="font-semibold text-cad-strong text-base">Keyboard Shortcuts</span>
           <button onClick={() => setShortcutsOpen(false)} title="Close" className="p-1 rounded hover:bg-cad-hover">
             <X size={15} />
           </button>
         </div>
         <div className="grid grid-cols-2 gap-6 p-4">
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-2">General</div>
+            <div className="text-2xs uppercase tracking-wider text-gray-500 mb-2">General</div>
             {GENERAL.map(([k, d]) => (
               <div key={k} className="flex justify-between gap-3 py-1 border-b border-cad-border/60">
                 <span>{d}</span>
@@ -67,7 +67,7 @@ export const ShortcutsDialog: React.FC = () => {
             ))}
           </div>
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-2">Tools</div>
+            <div className="text-2xs uppercase tracking-wider text-gray-500 mb-2">Tools</div>
             {toolShortcuts.map((t) => (
               <div key={t.type} className="flex justify-between gap-3 py-1 border-b border-cad-border/60">
                 <span>{t.short}</span>

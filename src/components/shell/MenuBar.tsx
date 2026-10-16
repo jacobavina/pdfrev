@@ -446,10 +446,10 @@ export const MenuBar: React.FC = () => {
   return (
     <header
       ref={barRef as React.RefObject<HTMLElement>}
-      className="h-8 min-w-0 bg-cad-panel border-b border-cad-border flex items-center px-2 text-[13px] text-gray-200 select-none z-30 relative"
+      className="h-8 min-w-0 bg-cad-panel border-b border-cad-border flex items-center px-2 text-sm text-gray-200 select-none z-30 relative"
     >
       <div className="flex items-center gap-2 pr-3 mr-1 border-r border-cad-border shrink-0">
-        <span className="w-[22px] h-[22px] rounded-md bg-cad-accent text-white text-[11px] font-bold flex items-center justify-center">
+        <span className="w-[22px] h-[22px] rounded-md bg-cad-accent-fill text-white text-2xs font-bold flex items-center justify-center">
           R
         </span>
         <span className="font-semibold text-cad-strong tracking-wide">REA</span>
@@ -494,8 +494,8 @@ export const MenuBar: React.FC = () => {
                         aria-expanded={openSub === entry.label}
                         data-testid={entry.testId}
                         onClick={() => setOpenSub(openSub === entry.label ? null : entry.label)}
-                        className={`w-full flex items-center justify-between gap-6 px-2 py-1.5 rounded-md text-left text-gray-200 hover:bg-cad-accent hover:text-white ${
-                          openSub === entry.label ? 'bg-cad-accent text-white' : ''
+                        className={`w-full flex items-center justify-between gap-6 px-2 py-1.5 rounded-md text-left text-gray-200 hover:bg-cad-accent-fill hover:text-white ${
+                          openSub === entry.label ? 'bg-cad-accent-fill text-white' : ''
                         }`}
                       >
                         <span className="flex items-center gap-2">
@@ -527,7 +527,7 @@ export const MenuBar: React.FC = () => {
                                   setOpenSub(null);
                                   sub.onSelect?.();
                                 }}
-                                className="w-full flex items-center justify-between gap-6 px-2 py-1.5 rounded-md text-left text-gray-200 hover:bg-cad-accent hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-200"
+                                className="w-full flex items-center justify-between gap-6 px-2 py-1.5 rounded-md text-left text-gray-200 hover:bg-cad-accent-fill hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-200"
                               >
                                 <span className="flex items-center gap-2">
                                   <span
@@ -539,7 +539,7 @@ export const MenuBar: React.FC = () => {
                                   </span>
                                   {sub.label}
                                 </span>
-                                {sub.shortcut && <span className="text-[11px] text-gray-500 font-mono">{sub.shortcut}</span>}
+                                {sub.shortcut && <span className="text-2xs text-gray-500 font-mono">{sub.shortcut}</span>}
                               </button>
                             )
                           )}
@@ -558,7 +558,7 @@ export const MenuBar: React.FC = () => {
                         setOpenMenu(null);
                         entry.onSelect?.();
                       }}
-                      className="w-full flex items-center justify-between gap-6 px-2 py-1.5 rounded-md text-left text-gray-200 hover:bg-cad-accent hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-200"
+                      className="w-full flex items-center justify-between gap-6 px-2 py-1.5 rounded-md text-left text-gray-200 hover:bg-cad-accent-fill hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-200"
                     >
                       <span className="flex items-center gap-2">
                         <span
@@ -570,7 +570,7 @@ export const MenuBar: React.FC = () => {
                         </span>
                         {entry.label}
                       </span>
-                      {entry.shortcut && <span className="text-[11px] text-gray-500 font-mono">{entry.shortcut}</span>}
+                      {entry.shortcut && <span className="text-2xs text-gray-500 font-mono">{entry.shortcut}</span>}
                     </button>
                   )
                 )}

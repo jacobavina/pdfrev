@@ -89,7 +89,7 @@ export function IconPicker<T extends string | number>({
           compact ? 'h-[20px] px-1' : 'h-7 px-1.5 w-full justify-between'
         }`}
       >
-        <span className="flex items-center">{value === null ? <span className="text-[11px] text-gray-400 px-1">— mixed —</span> : renderIcon(value)}</span>
+        <span className="flex items-center">{value === null ? <span className="text-2xs text-gray-400 px-1">— mixed —</span> : renderIcon(value)}</span>
         <ChevronDown size={11} className="text-gray-500 shrink-0" />
       </button>
       {open &&
@@ -124,7 +124,7 @@ export function IconPicker<T extends string | number>({
                 {withLabels ? (
                   <>
                     <span className="w-3.5 shrink-0 text-cad-accent">{o.value === value && <Check size={13} />}</span>
-                    <span className="w-[112px] shrink-0 text-left text-[11.5px] whitespace-nowrap">{o.label}</span>
+                    <span className="w-[112px] shrink-0 text-left text-xs whitespace-nowrap">{o.label}</span>
                     {renderIcon(o.value)}
                   </>
                 ) : (
@@ -210,7 +210,7 @@ export const StrokeWidthPreview: React.FC<{ width: number }> = ({ width }) => (
     <svg width={30} height={12} aria-hidden="true">
       <line x1={2} y1={6} x2={28} y2={6} stroke="currentColor" strokeWidth={Math.max(0.6, Math.min(width, 8) * 1.1)} strokeLinecap="butt" />
     </svg>
-    <span className="text-[10px] font-mono text-gray-400 w-6 text-right">{width}</span>
+    <span className="text-2xs font-mono text-gray-400 w-6 text-right">{width}</span>
   </span>
 );
 
@@ -233,7 +233,7 @@ export const OpacityPreview: React.FC<{ opacity: number; color?: string }> = ({ 
       <rect x={7} y={0} width={7} height={7} fill="#e5e7eb" />
       <rect x={0} y={0} width={14} height={14} fill={color} fillOpacity={opacity} stroke="currentColor" strokeWidth={0.8} />
     </svg>
-    <span className="text-[10px] font-mono text-gray-400 w-7 text-right">{Math.round(opacity * 100)}%</span>
+    <span className="text-2xs font-mono text-gray-400 w-7 text-right">{Math.round(opacity * 100)}%</span>
   </span>
 );
 
@@ -242,7 +242,7 @@ export const StampPreview: React.FC<{ id: string }> = ({ id }) => {
   const def = stampById(id);
   return (
     <span
-      className="inline-flex items-center justify-center px-1.5 h-[16px] rounded-sm text-[9px] font-bold tracking-wide whitespace-nowrap"
+      className="inline-flex items-center justify-center px-1.5 h-[18px] rounded-sm text-2xs font-bold tracking-wide whitespace-nowrap"
       style={{ color: def.color, border: `1.5px solid ${def.color}`, borderRadius: 4, background: '#ffffffd9' }}
     >
       {def.label}

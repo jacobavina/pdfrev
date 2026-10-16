@@ -229,7 +229,7 @@ export const InteractiveProperties: React.FC<{ markup: Markup }> = ({ markup }) 
                   type="button"
                   data-testid="prop-sig-sign-btn"
                   onClick={() => setShowSignModal(true)}
-                  className="self-start px-2.5 py-1 rounded bg-cad-accent text-white font-medium hover:brightness-110"
+                  className="self-start px-2.5 py-1 rounded bg-cad-accent-fill text-white font-medium hover:brightness-110"
                 >
                   Sign Document…
                 </button>

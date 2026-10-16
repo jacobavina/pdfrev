@@ -107,7 +107,7 @@ const COLUMN_CLASS: Partial<Record<MarkupColumnId, string>> = {
   status: 'w-28 text-center',
   color: 'w-14 text-center',
   layer: 'w-24',
-  unit: 'w-14 text-center tabular-nums text-[11px]',
+  unit: 'w-14 text-center tabular-nums text-2xs',
 };
 const MIN_LIST_HEIGHT = 120;
 
@@ -665,7 +665,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
       case 'date':
       case 'creationDate':
         return (
-          <td key={id} className="py-1.5 px-2 text-gray-400 tabular-nums text-[11px] whitespace-nowrap">
+          <td key={id} className="py-1.5 px-2 text-gray-400 tabular-nums text-2xs whitespace-nowrap">
             {formatDate(id === 'date' ? markup.updatedAt || markup.createdAt : markup.createdAt)}
           </td>
         );
@@ -676,7 +676,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
             <select
               value={markup.status}
               onChange={(e) => updateMarkupStatus(markup.id, e.target.value as MarkupStatus)}
-              className={`text-[11px] font-medium py-0.5 pl-2 pr-1 rounded-full border-0 outline-none cursor-pointer ${statusInfo.bg} ${statusInfo.text}`}
+              className={`text-2xs font-medium py-0.5 pl-2 pr-1 rounded-full border-0 outline-none cursor-pointer ${statusInfo.bg} ${statusInfo.text}`}
             >
               <option value="pending" className="bg-cad-dark text-amber-300">
                 Pending
@@ -737,7 +737,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
           onClick={() => toggleGroup(g.subject)}
           className="cursor-pointer bg-cad-subtle/70 hover:bg-cad-hover/70"
         >
-          <td colSpan={span} className="py-1 px-2 text-[11.5px] font-semibold text-gray-200">
+          <td colSpan={span} className="py-1 px-2 text-xs font-semibold text-gray-200">
             <span className="inline-flex items-center gap-1">
               {collapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
               {g.subject} ({g.items.length})
@@ -767,7 +767,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
         />
       {/* Barra de cabecera del panel de marcas */}
       <div
-        className="h-10 border-b border-cad-border shrink-0 bg-cad-panel px-3 flex items-center justify-between gap-3 text-[12px]"
+        className="h-10 border-b border-cad-border shrink-0 bg-cad-panel px-3 flex items-center justify-between gap-3 text-xs"
       >
         <div className="flex items-center gap-3 min-w-0">
           {/* Menú "Markups List ▾" de Revu (ADR-0060): columnas, agrupar por Subject y ocultar */}
@@ -797,7 +797,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
                 data-testid="markups-list-menu-popup"
                 onClick={(e) => e.stopPropagation()}
                 style={{ position: 'fixed', left: listMenuPos.left, bottom: listMenuPos.bottom, zIndex: 1000 }}
-                className="w-52 py-1 rounded-md border border-cad-border bg-cad-panel shadow-xl text-[12px] text-gray-200"
+                className="w-52 py-1 rounded-md border border-cad-border bg-cad-panel shadow-xl text-xs text-gray-200"
               >
                 <button
                   type="button"
@@ -837,7 +837,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
                   className="w-full h-7 px-2.5 flex items-center justify-between hover:bg-cad-hover"
                 >
                   <span>Hide Markups List</span>
-                  <span className="text-gray-500 text-[11px]">Alt+L</span>
+                  <span className="text-gray-500 text-2xs">Alt+L</span>
                 </button>
                 {listMenu === 'columns' && (
                   <div
@@ -897,7 +897,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
 
           <div
             data-testid="markups-toolbar"
-            className="flex items-center gap-1.5 min-w-0 text-[12px]"
+            className="flex items-center gap-1.5 min-w-0 text-xs"
           >
             {/* Búsqueda rápida por texto o autor */}
             <input
@@ -969,7 +969,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
             )}
 
             {/* Indicador de orden actual */}
-            <span className="text-gray-500 text-[11px] whitespace-nowrap pl-1">
+            <span className="text-gray-500 text-2xs whitespace-nowrap pl-1">
               Sort: <span className="text-gray-300 capitalize">{sortField ?? 'natural'}</span> {sortField ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
             </span>
           </div>
@@ -1052,8 +1052,8 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
               No markups match the applied filters.
             </div>
           ) : (
-            <table className="w-full text-left border-collapse text-[12px]">
-              <thead className="bg-cad-panel text-gray-500 text-[10px] uppercase tracking-[0.06em] sticky top-0 shadow-[inset_0_-1px_0_rgb(var(--cad-border))] z-10">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead className="bg-cad-panel text-gray-500 text-2xs uppercase tracking-[0.06em] sticky top-0 shadow-[inset_0_-1px_0_rgb(var(--cad-border))] z-10">
                 <tr>
                   <th className="py-1.5 px-2.5 w-8 font-medium"></th>
                   {visibleColumns.map((id) => {
@@ -1168,7 +1168,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
                           } else {
                             content = (
                               <span
-                                className="text-rose-400 font-mono text-[11px] bg-rose-950/60 px-1 py-0.5 rounded border border-rose-800"
+                                className="text-rose-400 font-mono text-2xs bg-rose-950/60 px-1 py-0.5 rounded border border-rose-800"
                                 title={evalRes.message}
                                 data-testid={`cell-error-${evalRes.error}`}
                               >
@@ -1337,7 +1337,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
             className="bg-cad-panel border border-cad-border rounded-xl shadow-[0_24px_64px_rgba(0,0,0,0.38)] w-full max-w-md p-5 text-xs text-gray-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-sm font-semibold text-cad-strong mb-3">
+            <h3 className="text-base font-semibold text-cad-strong mb-3">
               Create Custom Column
             </h3>
             <form onSubmit={handleCreateColumn} className="space-y-3">
@@ -1411,14 +1411,14 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
                   {!formulaValidation.ok && newColExpr.trim().length > 0 && (
                     <p
                       data-testid="formula-syntax-error"
-                      className="text-rose-400 text-[11px] mt-1 flex items-center space-x-1"
+                      className="text-rose-400 text-2xs mt-1 flex items-center space-x-1"
                     >
                       <AlertTriangle size={12} className="inline mr-1" />
                       <span>{formulaValidation.message}</span>
                     </p>
                   )}
                   {formulaValidation.ok && newColExpr.trim().length > 0 && (
-                    <p className="text-emerald-400 text-[11px] mt-1">
+                    <p className="text-emerald-400 text-2xs mt-1">
                       ✓ Valid expression
                     </p>
                   )}
@@ -1462,7 +1462,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
             className="bg-cad-panel border border-cad-border rounded-xl shadow-[0_24px_64px_rgba(0,0,0,0.38)] w-full max-w-sm p-5 text-xs text-gray-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-sm font-semibold text-rose-300 mb-2 flex items-center space-x-1.5">
+            <h3 className="text-base font-semibold text-rose-300 mb-2 flex items-center space-x-1.5">
               <AlertTriangle size={16} className="text-rose-400" />
               <span>Delete Custom Column</span>
             </h3>
@@ -1485,7 +1485,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
                   removeCustomColumn(columnToDelete.id);
                   setColumnToDelete(null);
                 }}
-                className="ui-btn !bg-rose-600 !text-white hover:!bg-rose-500"
+                className="ui-btn !bg-rose-600 !text-white hover:!bg-rose-700"
               >
                 Delete
               </button>
@@ -1542,7 +1542,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
           <div className="border-t border-cad-border my-1" />
 
           {/* Sección de Estados Técnicos (P2-C.2) */}
-          <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+          <div className="px-3 py-1 text-2xs font-semibold text-gray-400 uppercase tracking-wider">
             Status
           </div>
 

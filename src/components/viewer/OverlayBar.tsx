@@ -39,7 +39,7 @@ export const OverlayBar: React.FC = () => {
   return (
     <div
       data-testid="overlay-bar"
-      className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-2 py-1.5 rounded-xl bg-cad-panel border border-cad-border shadow-[0_10px_32px_rgba(0,0,0,0.28)] text-[12px] text-gray-200 whitespace-nowrap"
+      className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-2 py-1.5 rounded-xl bg-cad-panel border border-cad-border shadow-[0_10px_32px_rgba(0,0,0,0.28)] text-xs text-gray-200 whitespace-nowrap"
     >
       <span className="ui-panel-title px-1">Overlay</span>
       <span className="w-px h-4 bg-cad-border" />

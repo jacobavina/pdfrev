@@ -1,0 +1,35 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "text-occlusion",
+        "value": "*",
+        "files": [
+          "http://localhost:1421"
+        ],
+        "createdAt": "2026-10-16T22:17:46.689Z",
+        "reason": "Falso positivo confirmado: los 17 'span' tapados son la capa de texto de PDF.js (div.textLayer), una copia transparente (color rgba(0,0,0,0)) y seleccionable del texto del propio plano que queda bajo la capa SVG de marcas por diseño; la necesita Text Highlight (A.6). No es texto de la interfaz. El detector no extrae valor para esta regla, así que el waiver cubre la URL."
+      },
+      {
+        "rule": "tiny-text",
+        "value": "*",
+        "files": [
+          "http://localhost:1421"
+        ],
+        "createdAt": "2026-10-16T22:17:48.489Z",
+        "reason": "Mismo origen: los 3 'body text' de 10-11 px son spans de div.textLayer con el tamaño que dicta el PDF (no se pueden agrandar sin desalinear la selección con el dibujo). La interfaz no tiene texto bajo 11 px: lo vigila src/designScale.test.ts."
+      },
+      {
+        "rule": "undersized-ui-text",
+        "value": "*",
+        "files": [
+          "http://localhost:1421"
+        ],
+        "createdAt": "2026-10-16T22:17:50.284Z",
+        "reason": "Mismo origen: los 11 textos de 8 px restantes son las cotas 50-650 del plano de prueba dentro de div.textLayer, transparentes. Toda la interfaz quedó en la escala 11/12/13/14/16 px; como este waiver cubre la URL, src/designScale.test.ts falla si vuelve a aparecer un tamaño de interfaz bajo 11 px o fuera de la escala."
+      }
+    ]
+  }
+}

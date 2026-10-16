@@ -286,7 +286,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
     <aside
       data-testid="measurements-panel"
       data-collapsed="false"
-      className="w-[288px] bg-cad-panel border-l border-cad-border flex flex-col text-[12px] select-none min-h-0"
+      className="w-[288px] bg-cad-panel border-l border-cad-border flex flex-col text-xs select-none min-h-0"
     >
       <div className="flex items-center justify-between px-3 h-10 border-b border-cad-border shrink-0">
         <span className="ui-panel-title">Measure</span>
@@ -306,7 +306,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
             <span className="text-gray-400">Page {currentPageIndex + 1}</span>
             <span
               data-testid="measurements-scale"
-              className={`px-1.5 rounded text-[11px] font-mono ${
+              className={`px-1.5 rounded text-2xs font-mono ${
                 isCalibrated
                   ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
                   : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
@@ -645,7 +645,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
 
         <Section title="Totals">
           <div className="flex items-center justify-end">
-            <div className="flex p-0.5 rounded-md bg-cad-field text-[11px]">
+            <div className="flex p-0.5 rounded-md bg-cad-field text-2xs">
               {(['page', 'document'] as const).map((s) => (
                 <button
                   key={s}
@@ -667,7 +667,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
           ) : (
             <table data-testid="measurements-totals" className="w-full border-collapse">
               <thead>
-                <tr className="text-gray-500 text-[10px] uppercase">
+                <tr className="text-gray-500 text-2xs uppercase">
                   <th className="text-left font-medium pb-1">Type</th>
                   <th className="text-right font-medium pb-1">Qty</th>
                   <th className="text-right font-medium pb-1">Total</th>
@@ -712,7 +712,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
                         setSelectedMarkupIds([m.id]);
                       }}
                       className={`w-full flex items-center justify-between px-2 py-1 rounded text-left ${
-                        selected ? 'bg-cad-accent text-white' : 'hover:bg-cad-hover text-gray-200'
+                        selected ? 'bg-cad-accent-fill text-white' : 'hover:bg-cad-hover text-gray-200'
                       }`}
                     >
                       <span className="truncate">

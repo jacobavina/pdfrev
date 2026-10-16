@@ -63,7 +63,7 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
       </div>
       <div className="flex items-center justify-between w-full mt-1.5 px-1">
         <span
-          className={`text-[11.5px] tabular-nums font-medium ${
+          className={`text-xs tabular-nums font-medium ${
             isActive ? 'text-blue-400 font-bold' : 'text-gray-400 group-hover:text-gray-200'
           }`}
         >
@@ -145,7 +145,7 @@ export const ThumbnailsSidebar: React.FC = () => {
       }`}
     >
       {/* Sidebar Header */}
-      <div className="h-10 px-3 border-b border-cad-border flex items-center justify-between text-[12px] text-gray-300">
+      <div className="h-10 px-3 border-b border-cad-border flex items-center justify-between text-xs text-gray-300">
         {!isCollapsed && (
           <div className="flex items-center space-x-1.5">
             <Layers size={14} className="text-gray-400" />

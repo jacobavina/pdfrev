@@ -204,7 +204,7 @@ export const SignDocumentModal: React.FC<SignDocumentModalProps> = ({ markup, on
         className="w-[420px] rounded-lg border border-cad-border bg-cad-panel p-4 text-xs text-gray-200 shadow-2xl flex flex-col gap-3"
       >
         <div className="flex items-center justify-between border-b border-cad-border pb-2">
-          <h3 className="text-sm font-semibold text-white">
+          <h3 className="text-base font-semibold text-white">
             Sign Document — {String(markup.customFields?.fieldName ?? 'Signature')}
           </h3>
           <button
@@ -379,7 +379,7 @@ export const SignDocumentModal: React.FC<SignDocumentModalProps> = ({ markup, on
             type="submit"
             data-testid="sig-confirm-btn"
             disabled={busy}
-            className="px-3 py-1 rounded bg-cad-accent text-white font-medium hover:brightness-110 disabled:opacity-50"
+            className="px-3 py-1 rounded bg-cad-accent-fill text-white font-medium hover:brightness-110 disabled:opacity-50"
           >
             {busy ? 'Signing…' : 'Sign Document'}
           </button>

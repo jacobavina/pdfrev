@@ -132,7 +132,7 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
         }}
         placeholder={colorPresets ? 'Type a note...' : 'Type a comment...'}
       />
-      <div className="flex justify-between items-center px-1 py-0.5 bg-gray-50 text-[10px] text-gray-500 rounded mt-0.5">
+      <div className="flex justify-between items-center px-1 py-0.5 bg-gray-50 text-2xs text-gray-500 rounded mt-0.5">
         <span>Enter: save | Esc: cancel</span>
       </div>
     </div>

@@ -127,7 +127,7 @@ export const SearchBar: React.FC = () => {
   return (
     <div
       data-testid="search-bar"
-      className="absolute top-14 right-6 z-40 flex items-center space-x-1.5 rounded-xl border border-cad-border bg-cad-panel/95 px-3 py-1.5 text-[12px] text-gray-200 shadow-[0_10px_32px_rgba(0,0,0,0.28)] backdrop-blur"
+      className="absolute top-14 right-6 z-40 flex items-center space-x-1.5 rounded-xl border border-cad-border bg-cad-panel/95 px-3 py-1.5 text-xs text-gray-200 shadow-[0_10px_32px_rgba(0,0,0,0.28)] backdrop-blur"
     >
       <Search size={14} className="text-gray-400" />
       <input
@@ -141,7 +141,7 @@ export const SearchBar: React.FC = () => {
         className="w-48 rounded border border-gray-600 bg-cad-dark px-2 py-1 text-xs text-cad-strong focus:border-blue-500 focus:outline-none"
       />
 
-      <span data-testid="search-count" className="min-w-[65px] font-mono text-[11px] text-gray-300">
+      <span data-testid="search-count" className="min-w-[65px] font-mono text-2xs text-gray-300">
         {countText}
       </span>
 
@@ -176,7 +176,7 @@ export const SearchBar: React.FC = () => {
         }}
         title="Match case"
         className={`rounded p-1 transition-colors ${
-          caseSensitive ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-cad-dark hover:text-white'
+          caseSensitive ? 'bg-cad-accent-fill text-white' : 'text-gray-400 hover:bg-cad-dark hover:text-white'
         }`}
       >
         <CaseSensitive size={14} />
@@ -191,7 +191,7 @@ export const SearchBar: React.FC = () => {
         }}
         title="Palabras completas"
         className={`rounded p-1 transition-colors ${
-          wholeWord ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-cad-dark hover:text-white'
+          wholeWord ? 'bg-cad-accent-fill text-white' : 'text-gray-400 hover:bg-cad-dark hover:text-white'
         }`}
       >
         <WholeWord size={14} />

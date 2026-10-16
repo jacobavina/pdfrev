@@ -9,10 +9,19 @@ export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
+    // Escala tipográfica única (11/12/13/14/16 px): ningún texto funcional por debajo de 11 px ni tamaños sueltos
+    fontSize: {
+      '2xs': ['var(--fs-2xs)', { lineHeight: '1.35' }],
+      xs: ['var(--fs-xs)', { lineHeight: '1.4' }],
+      sm: ['var(--fs-sm)', { lineHeight: '1.45' }],
+      base: ['var(--fs-base)', { lineHeight: '1.5' }],
+      lg: ['var(--fs-lg)', { lineHeight: '1.5' }],
+    },
     extend: {
       colors: {
         cad: {
           dark: v('cad-dark'),
+          'accent-fill': v('cad-accent-fill'),
           panel: v('cad-panel'),
           subtle: v('cad-subtle'),
           border: v('cad-border'),

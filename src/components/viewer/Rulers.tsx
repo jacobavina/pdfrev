@@ -107,7 +107,7 @@ export const Rulers: React.FC<{ hostRef: React.RefObject<HTMLDivElement> }> = ({
     <>
       <div
         data-testid="ruler-corner"
-        className="absolute left-0 top-0 z-20 bg-cad-panel border-r border-b border-cad-border text-[9px] text-gray-400 flex items-center justify-center"
+        className="absolute left-0 top-0 z-20 bg-cad-panel border-r border-b border-cad-border text-2xs text-gray-400 flex items-center justify-center"
         style={{ width: RULER_SIZE, height: RULER_SIZE }}
         title={`Ruler units: ${calib.unit}`}
       >
@@ -123,11 +123,11 @@ export const Rulers: React.FC<{ hostRef: React.RefObject<HTMLDivElement> }> = ({
         <g stroke="currentColor" strokeWidth={1} shapeRendering="crispEdges">
           {ticksX.map((t) => tickLine(t, true))}
         </g>
-        <g fill="currentColor" fontSize={9} fontFamily="Helvetica, Arial, sans-serif">
+        <g fill="currentColor" fontSize={11} fontFamily="Helvetica, Arial, sans-serif">
           {ticksX
             .filter((t) => t.label !== undefined)
             .map((t) => (
-              <text key={`t${t.pos}`} x={t.pos + 2} y={9}>
+              <text key={`t${t.pos}`} x={t.pos + 2} y={11}>
                 {t.label}
               </text>
             ))}
@@ -144,11 +144,11 @@ export const Rulers: React.FC<{ hostRef: React.RefObject<HTMLDivElement> }> = ({
         <g stroke="currentColor" strokeWidth={1} shapeRendering="crispEdges">
           {ticksY.map((t) => tickLine(t, false))}
         </g>
-        <g fill="currentColor" fontSize={9} fontFamily="Helvetica, Arial, sans-serif">
+        <g fill="currentColor" fontSize={11} fontFamily="Helvetica, Arial, sans-serif">
           {ticksY
             .filter((t) => t.label !== undefined)
             .map((t) => (
-              <text key={`t${t.pos}`} x={9} y={t.pos + 2} transform={`rotate(-90 9 ${t.pos + 2})`} textAnchor="end">
+              <text key={`t${t.pos}`} x={11} y={t.pos + 2} transform={`rotate(-90 11 ${t.pos + 2})`} textAnchor="end">
                 {t.label}
               </text>
             ))}

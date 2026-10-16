@@ -53,7 +53,7 @@ const DocumentTab: React.FC = () => {
   return (
     <div className="h-9 bg-cad-panel border-b border-cad-border flex items-end px-2 shrink-0" data-testid="document-tabs">
       <div
-        className="relative flex items-center gap-2 h-9 px-3 text-[12px] text-cad-strong max-w-[22rem] shadow-[inset_0_-2px_0_rgb(var(--cad-accent))]"
+        className="relative flex items-center gap-2 h-9 px-3 text-xs text-cad-strong max-w-[22rem] shadow-[inset_0_-2px_0_rgb(var(--cad-accent))]"
         title={filePath ?? fileName}
       >
         <FileText size={13} className="text-gray-400 shrink-0" />

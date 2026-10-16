@@ -279,11 +279,11 @@ export const Ribbon: React.FC = () => {
         </div>
         <div className="flex-1" />
         {activeDef && activeDef.type !== 'select' && (
-          <div className="flex items-center gap-1.5 text-[11px] text-gray-400 pr-1" data-testid="ribbon-active-tool">
+          <div className="flex items-center gap-1.5 text-2xs text-gray-400 pr-1" data-testid="ribbon-active-tool">
             <span className="w-1.5 h-1.5 rounded-full bg-cad-accent" aria-hidden="true" />
             <span className="text-gray-300">{activeDef.short}</span>
             {activeDef.shortcut && (
-              <kbd className="px-1 rounded border border-cad-border text-[10px] font-sans text-gray-400">{activeDef.shortcut}</kbd>
+              <kbd className="px-1 rounded border border-cad-border text-2xs font-sans text-gray-400">{activeDef.shortcut}</kbd>
             )}
           </div>
         )}
@@ -360,7 +360,7 @@ export const Ribbon: React.FC = () => {
                   value={activeFieldType}
                   options={FIELD_TYPES.map((f) => ({ value: f.id, label: f.label }))}
                   renderIcon={(id) => (
-                    <span className="flex items-center gap-1 text-[10.5px]">
+                    <span className="flex items-center gap-1 text-2xs">
                       {fieldTypeIcon(id, 13)}
                       <span className="whitespace-nowrap">{fieldTypeDef(id).label}</span>
                     </span>
@@ -443,7 +443,7 @@ export const Ribbon: React.FC = () => {
                 renderIcon={(id) => <CountSymbolPreview id={id} />}
                 onChange={(id) => changeCount({ countSymbol: id })}
               />
-              <label className="flex items-center gap-1 text-[11px] text-gray-400" title="Symbol scale (%)">
+              <label className="flex items-center gap-1 text-2xs text-gray-400" title="Symbol scale (%)">
                 Scale
                 <input
                   type="number"
@@ -506,7 +506,7 @@ export const Ribbon: React.FC = () => {
                 aria-pressed={boxBorder}
                 onClick={toggleBoxBorder}
                 title={boxBorder ? 'Text box border: on' : 'Text box border: off'}
-                className={`ml-1 h-6 px-1.5 rounded-md flex items-center gap-1 text-[11px] ${
+                className={`ml-1 h-6 px-1.5 rounded-md flex items-center gap-1 text-2xs ${
                   boxBorder ? 'bg-cad-accent/15 text-cad-accent' : 'text-gray-400 hover:bg-cad-hover'
                 }`}
               >
@@ -564,7 +564,7 @@ export const Ribbon: React.FC = () => {
             data-testid="ribbon-font-family"
             value={font.family}
             onChange={(e) => applyStyle({ fontFamily: e.target.value })}
-            className="ui-input !h-6 w-[92px] !text-[11.5px]"
+            className="ui-input !h-6 w-[92px] !text-xs"
             title="Font"
           >
             {CAPTION_FAMILIES.map((f) => (
@@ -583,7 +583,7 @@ export const Ribbon: React.FC = () => {
               const v = Number(e.target.value);
               if (v >= 6 && v <= 72) applyStyle({ fontSize: v });
             }}
-            className="ui-input !h-6 w-[46px] !px-1.5 !text-[11.5px]"
+            className="ui-input !h-6 w-[46px] !px-1.5 !text-xs"
             title="Font size (pt)"
           />
           <button
@@ -617,14 +617,14 @@ export const Ribbon: React.FC = () => {
               disabled={!editingSelection}
               onClick={() => toggleFormat(key)}
               title={editingSelection ? title : `${title} (select a markup first)`}
-              className={`w-6 h-6 rounded-md text-[12.5px] ${cls} disabled:opacity-35 ${
+              className={`w-6 h-6 rounded-md text-sm ${cls} disabled:opacity-35 ${
                 font[key] ? 'bg-cad-accent/15 text-cad-accent' : 'text-gray-300 hover:bg-cad-hover'
               }`}
             >
               {glyph}
             </button>
           ))}
-          <label className="flex items-center gap-1 text-[11px] text-gray-400" title="Text color">
+          <label className="flex items-center gap-1 text-2xs text-gray-400" title="Text color">
             <span className="font-semibold">A</span>
             <input
               type="color"

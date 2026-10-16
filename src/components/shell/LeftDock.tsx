@@ -17,11 +17,11 @@ const PanelShell: React.FC<{ title: string; testId: string; children: React.Reac
   testId,
   children,
 }) => (
-  <aside data-testid={testId} className="w-60 bg-cad-panel border-r border-cad-border flex flex-col select-none min-h-0 text-[12px]">
+  <aside data-testid={testId} className="w-60 bg-cad-panel border-r border-cad-border flex flex-col select-none min-h-0 text-xs">
     <div className="h-10 px-3 border-b border-cad-border flex items-center ui-panel-title shrink-0">
       {title}
     </div>
-    <div className="flex-1 overflow-y-auto text-[12px] text-gray-200">{children}</div>
+    <div className="flex-1 overflow-y-auto text-xs text-gray-200">{children}</div>
   </aside>
 );
 
@@ -137,7 +137,7 @@ const PdfLayersSection: React.FC = () => {
               type="button"
               data-testid="pdf-layers-show-all"
               onClick={() => setAllPdfLayersVisible(true)}
-              className="ui-btn !h-6 !px-1.5 !text-[11px]"
+              className="ui-btn !h-6 !px-1.5 !text-2xs"
             >
               Show all
             </button>
@@ -145,7 +145,7 @@ const PdfLayersSection: React.FC = () => {
               type="button"
               data-testid="pdf-layers-hide-all"
               onClick={() => setAllPdfLayersVisible(false)}
-              className="ui-btn !h-6 !px-1.5 !text-[11px]"
+              className="ui-btn !h-6 !px-1.5 !text-2xs"
             >
               Hide all
             </button>
@@ -157,7 +157,7 @@ const PdfLayersSection: React.FC = () => {
       ) : (
         <table className="w-full text-left">
           <thead>
-            <tr className="text-[11px] text-gray-500 border-b border-cad-border">
+            <tr className="text-2xs text-gray-500 border-b border-cad-border">
               <th className="font-medium px-2 py-1">Layer</th>
               <th className="font-medium px-2 py-1 w-14 text-center">Visible</th>
             </tr>
@@ -243,7 +243,7 @@ const LayersPanel: React.FC = () => {
           })}
         </ul>
       )}
-      <p className="px-3 py-2 text-[11px] text-gray-500 leading-snug border-t border-cad-border">
+      <p className="px-3 py-2 text-2xs text-gray-500 leading-snug border-t border-cad-border">
         Hiding a layer hides its markups on the drawing and prevents selecting them. The PDF is not modified.
       </p>
     </PanelShell>

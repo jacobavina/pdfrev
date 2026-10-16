@@ -3808,7 +3808,7 @@ export const PdfViewer: React.FC = () => {
 
       {!pdfBytes && !isLoading && !error && (
         <div className="m-auto text-center text-white/90">
-          <p className="text-base font-semibold mb-1">No document open</p>
+          <p className="text-lg font-semibold mb-1">No document open</p>
           <p className="text-xs">Use File → Open PDF (Ctrl+O) or the Open button on the ribbon</p>
         </div>
       )}

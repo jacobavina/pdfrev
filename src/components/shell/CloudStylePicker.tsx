@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 /**
  * Tamaño e inversión de la nube (ADR-0041), como el botón junto al tipo de línea de Revu: un festón con un
@@ -95,7 +95,7 @@ export const CloudStylePicker: React.FC<CloudStylePickerProps> = ({ size, invert
             aria-label="Cloud style"
             data-testid="ribbon-cloud-style-panel"
             style={{ position: 'fixed', left: pos.left, top: pos.top, zIndex: 1000 }}
-            className="bg-cad-panel border border-cad-border rounded-md shadow-lg p-2.5 flex flex-col gap-2 text-[11.5px] text-gray-200 min-w-[150px]"
+            className="bg-cad-panel border border-cad-border rounded-md shadow-lg p-2.5 flex flex-col gap-2 text-xs text-gray-200 min-w-[150px]"
           >
             <label className="flex items-center gap-2">
               <span className="w-8 text-gray-400">Size</span>
@@ -106,18 +106,18 @@ export const CloudStylePicker: React.FC<CloudStylePickerProps> = ({ size, invert
                     aria-label="Increase size"
                     data-testid="ribbon-cloud-size-up"
                     onClick={() => stepBy(0.25)}
-                    className="h-[11px] px-1 text-[8px] leading-none text-gray-400 hover:text-cad-strong"
+                    className="h-[11px] px-1 grid place-items-center text-gray-400 hover:text-cad-strong"
                   >
-                    ▲
+                    <ChevronUp size={10} aria-hidden="true" />
                   </button>
                   <button
                     type="button"
                     aria-label="Decrease size"
                     data-testid="ribbon-cloud-size-down"
                     onClick={() => stepBy(-0.25)}
-                    className="h-[11px] px-1 text-[8px] leading-none text-gray-400 hover:text-cad-strong"
+                    className="h-[11px] px-1 grid place-items-center text-gray-400 hover:text-cad-strong"
                   >
-                    ▼
+                    <ChevronDown size={10} aria-hidden="true" />
                   </button>
                 </span>
                 <input

@@ -64,7 +64,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
       <aside
         data-testid="properties-inspector-panel"
         data-collapsed="false"
-        className="w-[268px] bg-cad-panel border-l border-cad-border flex flex-col text-[12px] select-none"
+        className="w-[268px] bg-cad-panel border-l border-cad-border flex flex-col text-xs select-none"
       >
         <div className="h-10 px-3 flex items-center justify-between border-b border-cad-border shrink-0">
           <span className="ui-panel-title">Properties</span>
@@ -255,7 +255,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
     <aside
       data-testid="properties-inspector-panel"
       data-collapsed="false"
-      className="w-[268px] bg-cad-panel border-l border-cad-border flex flex-col text-[12px] select-none overflow-y-auto"
+      className="w-[268px] bg-cad-panel border-l border-cad-border flex flex-col text-xs select-none overflow-y-auto"
     >
       <div className="h-10 px-3 flex items-center justify-between border-b border-cad-border shrink-0 sticky top-0 bg-cad-panel z-10">
         <div className="flex items-center gap-2 min-w-0">
@@ -268,7 +268,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
             data-testid="prop-lock-btn"
             onClick={toggleLockSelectedMarkups}
             title={isAllLocked ? 'Unlock markup(s)' : 'Lock markup(s)'}
-            className={`ui-btn !h-6 !px-1.5 !text-[11px] ${isAllLocked ? '!text-amber-500' : ''}`}
+            className={`ui-btn !h-6 !px-1.5 !text-2xs ${isAllLocked ? '!text-amber-500' : ''}`}
           >
             {isAllLocked ? <Lock size={12} className="text-amber-400" /> : <LockOpen size={12} />}
             <span>{isAllLocked ? 'Locked' : 'Lock'}</span>
@@ -300,7 +300,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
               onChange={(e) => handleStrokeColorChange(e.target.value)}
               className="ui-swatch !w-5 !h-5"
             />
-            <span className="text-gray-200 text-[11.5px] tabular-nums uppercase">
+            <span className="text-gray-200 text-xs tabular-nums uppercase">
               {strokeColor === MIXED_VALUE ? MIXED_VALUE : colorLabel(strokeColor as string)}
             </span>
           </div>
@@ -317,7 +317,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
               onChange={(e) => handleFillColorChange(e.target.value)}
               className="ui-swatch !w-5 !h-5"
             />
-            <span className="flex-1 text-gray-200 text-[11.5px] tabular-nums uppercase truncate">
+            <span className="flex-1 text-gray-200 text-xs tabular-nums uppercase truncate">
               {fillColor === MIXED_VALUE ? MIXED_VALUE : fillColor ? colorLabel(fillColor as string) : 'None'}
             </span>
             {fillColor && fillColor !== MIXED_VALUE && (
@@ -325,7 +325,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
                 type="button"
                 onClick={() => handleFillColorChange('')}
                 title="No fill"
-                className="text-gray-400 hover:text-rose-500 text-[13px] leading-none px-0.5"
+                className="text-gray-400 hover:text-rose-500 text-sm leading-none px-0.5"
               >
                 ×
               </button>
@@ -362,7 +362,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
             onChange={(e) => handleOpacityChange(e.target.value)}
             className="flex-1 min-w-0 cursor-pointer ui-range"
           />
-            <span className="w-9 text-right text-gray-300 text-[11.5px] tabular-nums">
+            <span className="w-9 text-right text-gray-300 text-xs tabular-nums">
               {opacity === MIXED_VALUE ? MIXED_VALUE : `${Math.round((opacity as number) * 100)}%`}
             </span>
           </div>

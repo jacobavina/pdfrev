@@ -123,12 +123,12 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({ pageIndex, p
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[1px]" data-testid="calibration-modal">
-      <div className="w-[400px] rounded-xl bg-cad-panel border border-cad-border p-5 shadow-[0_24px_64px_rgba(0,0,0,0.38)] text-[12px] text-gray-200">
-        <h3 className="mb-3 text-[14px] font-semibold text-cad-strong">Calibrate Page Scale ({pageIndex + 1})</h3>
+      <div className="w-[400px] rounded-xl bg-cad-panel border border-cad-border p-5 shadow-[0_24px_64px_rgba(0,0,0,0.38)] text-xs text-gray-200">
+        <h3 className="mb-3 text-base font-semibold text-cad-strong">Calibrate Page Scale ({pageIndex + 1})</h3>
 
         {!hasPoints ? (
           <>
-            <p className="mb-4 text-[12px] text-gray-400" data-testid="calibration-no-points">
+            <p className="mb-4 text-xs text-gray-400" data-testid="calibration-no-points">
               Click the start and the end of a known distance on the drawing. Snap helps you land exactly on its
               extension lines.
             </p>
@@ -153,7 +153,7 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({ pageIndex, p
           </>
         ) : (
           <>
-            <p className="mb-4 text-[12px] text-gray-400" data-testid="calibration-measured">
+            <p className="mb-4 text-xs text-gray-400" data-testid="calibration-measured">
               Distance on the drawing: <strong>{ptDistance.toFixed(2)} pt</strong>
               {current && (
                 <>
@@ -166,7 +166,7 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({ pageIndex, p
             <div className="mb-4 space-y-3">
               <div className="flex gap-2">
                 <label className="flex-1">
-                  <span className="mb-1 block text-[11.5px] text-gray-400">Known distance</span>
+                  <span className="mb-1 block text-xs text-gray-400">Known distance</span>
                   <input
                     type="text"
                     inputMode="decimal"
@@ -185,7 +185,7 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({ pageIndex, p
                   />
                 </label>
                 <label className="w-36">
-                  <span className="mb-1 block text-[11.5px] text-gray-400">Unit</span>
+                  <span className="mb-1 block text-xs text-gray-400">Unit</span>
                   <select
                     value={unit}
                     onChange={(e) => {
@@ -206,7 +206,7 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({ pageIndex, p
               </div>
 
               <label className="block">
-                <span className="mb-1 block text-[11.5px] text-gray-400">Precision</span>
+                <span className="mb-1 block text-xs text-gray-400">Precision</span>
                 <select
                   value={precision}
                   onChange={(e) => setPrecision(e.target.value)}
@@ -222,7 +222,7 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({ pageIndex, p
               </label>
 
               {numPages > 1 && (
-                <label className="flex items-center gap-2 text-[12px] text-gray-300">
+                <label className="flex items-center gap-2 text-xs text-gray-300">
                   <input
                     type="checkbox"
                     checked={allPages}

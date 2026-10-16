@@ -117,7 +117,7 @@ export const StampPicker: React.FC<{ value: string; onChange: (id: string) => vo
           >
             {STAMP_GROUPS.map((group) => (
               <section key={group} data-testid={`${testId}-group-${group.replace(/\s+/g, '-').toLowerCase()}`}>
-                <h3 className="sticky top-0 z-10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-400 bg-cad-subtle border-b border-cad-border">
+                <h3 className="sticky top-0 z-10 px-3 py-1.5 text-2xs font-semibold uppercase tracking-[0.08em] text-gray-400 bg-cad-subtle border-b border-cad-border">
                   {group === 'Dynamic' ? 'Dynamic stamps' : group === 'Standard' ? 'Standard stamps' : group}
                 </h3>
                 <div className="p-2 flex flex-wrap gap-1.5">

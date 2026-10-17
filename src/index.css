@@ -43,8 +43,9 @@
 @layer base {
   /*
    * Sistema visual "sala de planos" (ADR-0044). La hoja es lo más luminoso de la pantalla: la rodea un pozo más
-   * oscuro que el cromo, y el cromo usa neutros grafito con un leve tinte azul de plano (nunca gris puro). Un único
-   * acento, azul cianotipo, marca selección, foco y herramienta activa; el rojo queda para las marcas del dibujo.
+   * oscuro que el cromo. El cromo usa neutros grafito y, en tema claro, el mantel es un gris neutro sin tinte
+   * (ADR-0068: diferencia máxima entre canales R/G/B ≤ 10). Un único acento, azul cianotipo, marca selección,
+   * foco, la pestaña activa y la R de la marca; el rojo queda para las marcas del dibujo.
    */
   :root {
     --cad-dark: 233 236 241;
@@ -53,7 +54,7 @@
     --cad-border: 220 225 232;
     --cad-accent: 23 85 164;
     --cad-hover: 233 237 243;
-    --cad-canvas: 166 175 188;
+    --cad-canvas: 165 168 171;
     --cad-strong: 15 19 26;
     --cad-ribbon: 248 249 251;
     --cad-status: 238 241 245;

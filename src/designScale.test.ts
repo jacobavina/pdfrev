@@ -137,4 +137,18 @@ describe('Escala tipográfica y contraste de la interfaz (ADR-0062)', () => {
     expect(custom).toMatch(/HIGHLIGHT_ACCENT = tok\('icon-highlight'\)/);
     expect(custom).toMatch(/PEN_ACCENT = tok\('icon-pen'\)/);
   });
+
+  it('en tema claro el mantel es un gris neutro (diferencia máxima entre canales ≤ 10) y sigue más oscuro que los paneles (ADR-0068)', () => {
+    const t = themeTokens(read('src/index.css'));
+    const spread = (x: number[]) => Math.max(...x) - Math.min(...x);
+    const sum = (x: number[]) => x[0] + x[1] + x[2];
+    // Si alguien reintroduce el tinte azulado del mantel claro, esta prueba se pone roja
+    expect(spread(t.light['cad-canvas']), 'tema claro: el mantel no puede teñirse').toBeLessThanOrEqual(10);
+    // Invariante de ADR-0064: el pozo separa la hoja y el cromo en ambos temas
+    expect(sum(t.light['cad-canvas'])).toBeLessThan(sum(t.light['cad-panel']));
+    expect(sum(t.dark['cad-canvas'])).toBeLessThan(sum(t.dark['cad-panel']));
+    // El mantel del tema oscuro no se toca en este hito
+    expect(t.dark['cad-canvas']).toEqual([13, 15, 19]);
+  });
+
 });

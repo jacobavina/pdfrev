@@ -6,12 +6,12 @@
 
 ## 0. Traspaso al siguiente agente (2026-10-15)
 
-**Último hito:** ADR-0067 (callout y nube con tipo de línea; callout con dos clics). Antes, ADR-0066 (acentos de los iconos como tokens `--icon-*` y desplegables enteros dentro de la ventana). Fecha del traspaso vigente: 2026-10-16.
+**Último hito:** ADR-0068 (pase final estético: mantel neutro, miniaturas sin sombra, marca discreta y una sola convención de mayúsculas). Antes, ADR-0067 (callout y nube con tipo de línea; callout con dos clics). Fecha del traspaso vigente: 2026-10-16.
 `node scripts/verify.mjs --with-e2e --e2e-loop 3` de su hito.
 
 **Cómo continuar**
 1. Leer `AGENTS.md`, `CLAUDE.md`, esta sección, `PARITY.md` (0 filas `todo`) y los ADR recientes en
-   `docs/DECISIONS/` (ADR-0039 a ADR-0067).
+   `docs/DECISIONS/` (ADR-0039 a ADR-0068).
 2. Entorno (Windows, Git Bash):
    `export PATH="/c/Program Files/nodejs:/c/Users/jmm_j/.cargo/bin:$PATH"; export NODE_OPTIONS="--use-system-ca"`.
    - Liberar el puerto 1421 antes de Playwright:
@@ -137,6 +137,7 @@
 | **Sistema visual (ADR-0065)** | **ENTREGADO (juicio visual PENDIENTE del usuario)** | IBM Plex Sans/Mono vendorizadas (OFL-1.1, ATTRIBUTION.md con SHA-256), Mono solo para datos; iconos 16/18/20 con trazo 1.75; acento solo para selección, foco, pestaña activa y marca; un swatch con desplegable para Línea y Relleno; sin chip de selección; banda de documentos separada; foco de 2 px; espaciado 4/8/12/16; elevación en tres niveles; `docs/DESIGN.md`; ningún color literal en componentes. `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 784 tests unitarios (93 archivos), 168 PARITY shipped y 0 todo, bundle principal 784.31 kB, 13 tests cargo, E2E 35/35 ×3; impeccable URL y src/ exit 0 |
 | **Acentos de iconos y desplegables enteros (ADR-0066)** | **ENTREGADO (verificación nativa PENDIENTE del usuario)** | Los iconos recuperan sus acentos (barra amarilla del resaltador, punteado violeta de las mediciones y del snap, punta azul del lápiz, colores por tipo de la lista de marcas) como tokens `--icon-*`, sin literales. Las listas de tipo de línea, extremos, grosor y color se desplazan para quedar enteras dentro de la ventana (a la izquierda junto al borde derecho; hacia arriba sin sitio debajo). `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 787 tests unitarios (94 archivos), 171 PARITY shipped y 0 todo, bundle principal 785.02 kB, 13 tests cargo, E2E 35/35 ×3; impeccable URL y src/ exit 0 |
 | **Callout y nube con tipo de línea; callout con dos clics (ADR-0067)** | **ENTREGADO (verificación nativa y en Revu/Acrobat PENDIENTE del usuario)** | El tipo de línea del callout discontinúa la directriz y el borde de la caja en pantalla y en el /AP (cada directriz recupera el discontinuo tras la punta); el callout se crea con clic en la punta y clic donde va el texto, o arrastrando; Solid y los discontinuos dejan la nube como nube (igual que la Cloud+) y la lista muestra su discontinuo; solo un patrón la vuelve rectángulo. `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 790 tests unitarios (94 archivos), 174 PARITY shipped y 0 todo, bundle principal 785.23 kB, 13 tests cargo, E2E 35/35 ×3; impeccable URL y src/ exit 0 |
+| **Pase final estético: mantel neutro, miniaturas sin sombra, marca discreta y mayúsculas unificadas (ADR-0068)** | **ENTREGADO (juicio visual PENDIENTE del usuario)** | Mantel claro neutro `165 168 171` (probados `185 188 191` y `165 168 171`; elegido por 2.39:1 hoja-mantel, Δcanal 6, sin tinte); miniaturas con borde de 1 px con `--cad-border` y sin sombra, con guard anti `shadow-*` de lista blanca; marca "R REA" sin pastilla (R en acento como texto); cinta con una sola convención de mayúsculas y grafía canónica "Cloud+". `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 794 tests unitarios (94 archivos), 178 PARITY shipped y 0 todo, bundle principal 785.20 kB, 13 tests cargo, E2E 35/35 ×3; impeccable URL y src/ exit 0; `npm.cmd run test:native` en verde |
 
 ---
 

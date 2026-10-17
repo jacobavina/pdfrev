@@ -1,6 +1,6 @@
 # Sistema visual de REA
 
-Fuente única del aspecto de la interfaz (ADR-0044, ADR-0062, ADR-0064, ADR-0065 y ADR-0066). Los valores viven en
+Fuente única del aspecto de la interfaz (ADR-0044, ADR-0062, ADR-0064, ADR-0065, ADR-0066 y ADR-0068). Los valores viven en
 `src/index.css` (tokens) y `tailwind.config.js` (escala de Tailwind). Los componentes solo usan tokens: lo vigilan
 `src/designScale.test.ts` y `src/components/shell/Redesign.test.tsx`. Si algo de este documento cambia, cambia
 también su prueba.
@@ -29,18 +29,18 @@ o en Tailwind (`bg-cad-panel`, `text-gray-400`…). Los tokens `cad-*` y `gray-*
 | `--cad-field`, `--cad-field-hover` | Campos de formulario |
 | `--cad-hover` | Hover y estado "activo/pulsado" neutro (herramienta activa, interruptores, riel) |
 | `--cad-border` | Bordes de 1 px (nivel 2 de elevación) |
-| `--cad-canvas` | Mantel bajo la hoja: siempre más oscuro que los paneles |
+| `--cad-canvas` | Mantel bajo la hoja: siempre más oscuro que los paneles. En tema claro es un gris NEUTRO: `165 168 171` (ADR-0068, Δcanal ≤ 10; candidatos probados `185 188 191` y `165 168 171`, elegido el segundo por 2.39:1 de contraste hoja-mantel sin teñir la pantalla) |
 | `--cad-strong` | Texto e iconos fuertes; fondo del botón principal |
 | `--gray-200` … `--gray-600` | Texto: 200 normal, 300/400 secundario, 500 atenuado (≥ 4.5:1 sobre todos los fondos) |
 | `--cad-accent` | **Acento**: solo selección, foco, pestaña activa y marca (≥ 4.5:1 como texto) |
-| `--cad-accent-fill` | Acento sólido bajo texto blanco (≥ 4.5:1): selección resaltada y logo |
+| `--cad-accent-fill` | Acento sólido bajo texto blanco (≥ 4.5:1): selección resaltada (la marca ya no usa pastilla, ADR-0068) |
 | `--cad-sheet-shadow` | Sombra de la hoja |
 | `--icon-highlight`, `--icon-measure`, `--icon-pen` | Acentos semánticos de los iconos (ADR-0066): barra del resaltador, punteado de las mediciones y snap, punta del lápiz. No son estado y no cambian con el tema |
 | `--ov-*` | Overlay de edición sobre la hoja: tiradores (`ov-handle`, `ov-count`), avisos (`ov-warn`), vistas previas (`ov-preview`), búsqueda (`ov-find*`), snap (`ov-snap`), halo blanco (`ov-halo`) |
 
 **Reglas del acento:**
 - **Sí:** fila, página, sello u opción seleccionados; la marca ✓ de lo elegido; el rectángulo y los tiradores de
-  selección; el anillo de foco; la pestaña activa (subrayado o barra lateral del riel); el logo.
+  selección; el anillo de foco; la pestaña activa (subrayado o barra lateral del riel); la R de la marca, como texto en el acento y sin pastilla rellena (ADR-0068).
 - **No:** herramienta activa, interruptores pulsados, botón principal, hover de menús, avisos. Todos ellos usan
   `--cad-hover` + `--cad-strong`.
 
@@ -103,7 +103,24 @@ Tres niveles:
 | 2, borde | Separación de regiones, campos, tabla | 1 px de `--cad-border` |
 | 3, flotante | Menús, popovers, diálogos, avisos, editor en línea y la hoja sobre el mantel | `shadow-float` (`--shadow-float`); la hoja, `sheet-shadow` |
 
+Las miniaturas de página van a **nivel 2**: borde de 1 px con `--cad-border`, sin sombra (ADR-0068). El guard de
+`src/designScale.test.ts` rechaza cualquier utilidad `shadow-*` fuera de la lista blanca documentada de flotantes
+(menús, popovers, avisos, diálogos, editor en línea y barras sobre el lienzo).
+
 ## 7. Foco
 
 Anillo de 2 px con `--cad-accent`, separado 1 px. Siempre visible: con teclado (`:focus-visible`) y en los campos de
 texto, y ninguna utilidad `outline-none` lo apaga.
+
+## 8. Mayúsculas y jerarquía en la cinta (ADR-0068)
+
+Una sola convención, en dos niveles:
+
+| Nivel | Elemento | Convención |
+|---|---|---|
+| Herramientas | Etiquetas bajo el icono (Select, Pan, Text, Cloud+…) | **Mayúscula Inicial**, escrita así en los datos (`toolDefinitions.tsx`); ningún `text-transform` la altera |
+| Grupos | Rótulos de grupo (SELECT, TEXT & REVIEW, DRAW) | **MAYÚSCULAS por CSS** (`text-transform: uppercase`) con tracking deliberado de 0.08 em, altura fija de 12 px y una sola línea (`white-space: nowrap`) |
+| Pestañas | Markup, Measure, Insert | Mayúscula Inicial, como las herramientas |
+
+La grafía canónica de la herramienta combinada es **Cloud+** (en la cinta, el menú Tools y la lista de tipos de
+marca), nunca "Cloud Plus" ni "CloudPlus". Lo vigila `src/designScale.test.ts`.

@@ -2625,4 +2625,60 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(panel).toBeHidden();
     await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   });
+
+  test('Cloud+ con tiradores: la nube se redimensiona, la llamada queda fija y un Ctrl+Z revierte (ADR-0069)', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+
+    // 1. Crear Cloud+ arrastrando: grupo nube + llamada, seleccionado al crearse
+    const cloudPlusBtn = page.locator('button[title*="Cloud+"]');
+    await expect(cloudPlusBtn).toBeVisible();
+    await cloudPlusBtn.click();
+    const svgBox = await overlaySvg.boundingBox();
+    expect(svgBox).not.toBeNull();
+    if (!svgBox) return;
+    const startX = svgBox.x + 150;
+    const startY = svgBox.y + 150;
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(svgBox.x + 300, svgBox.y + 250);
+    await page.mouse.up();
+    const calloutText = overlaySvg.locator('text:has-text("Cloud+ note")').last();
+    await expect(calloutText).toBeVisible();
+
+    // 2. Pasar a Select y pinchar la nube: la selección es el grupo completo (nube + llamada)
+    await page.locator('button[title*="Select (V)"]').click();
+    await page.mouse.click(startX + 50, startY + 50);
+
+    // 3. La capa de puntos de control existe y la nube tiene sus cuatro tiradores
+    await expect(page.locator('[data-testid="control-points-layer"]')).toBeVisible();
+    await expect(page.locator('[data-testid^="control-point-"]')).toHaveCount(4);
+
+    // 4. Forma de la nube y posición de la llamada antes del arrastre
+    const cloudPath = overlaySvg.locator('path[d*="C"]').last();
+    const dBefore = await cloudPath.getAttribute('d');
+    const textXBefore = await calloutText.getAttribute('x');
+    const textYBefore = await calloutText.getAttribute('y');
+
+    // 5. Arrastrar la esquina superior izquierda: solo cambia la nube
+    const handle = (await page.locator('[data-testid="control-point-0"]').boundingBox())!;
+    await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(handle.x + 60, handle.y + 40, { steps: 5 });
+    await page.mouse.up();
+
+    await expect.poll(async () => cloudPath.getAttribute('d')).not.toBe(dBefore);
+    // La llamada no se movió: el texto y la directriz siguen donde estaban
+    expect(await calloutText.getAttribute('x')).toBe(textXBefore);
+    expect(await calloutText.getAttribute('y')).toBe(textYBefore);
+
+    // 6. Un solo Ctrl+Z devuelve la nube a su forma anterior, con la llamada intacta
+    await page.keyboard.press('Control+z');
+    await expect.poll(async () => cloudPath.getAttribute('d')).toBe(dBefore);
+    expect(await calloutText.getAttribute('x')).toBe(textXBefore);
+    expect(await calloutText.getAttribute('y')).toBe(textYBefore);
+  });
 });

@@ -103,3 +103,18 @@ export function applyControlPointDrag(markup: Markup, index: number, target: Mar
 export function controlPointShape(markup: Pick<Markup, 'type'>, index: number): 'circle' | 'square' {
   return markup.type === 'callout' && index >= 4 ? 'square' : 'circle';
 }
+
+/**
+ * Miembro que editan los puntos de control según la selección (ADR-0069):
+ * - exactamente una marca seleccionada → esa marca (comportamiento actual);
+ * - una selección que es exactamente UN grupo (todas las marcas comparten el mismo groupId) → el miembro
+ *   redimensionable del grupo: la nube (cloud o cloudPlus); la llamada queda fija y su directriz no se mueve;
+ * - cualquier otra selección (varios grupos, marcas sueltas o un grupo sin nube) → null: sin tiradores.
+ */
+export function editableControlPointTarget(selection: Markup[]): Markup | null {
+  if (selection.length === 0) return null;
+  if (selection.length === 1) return selection[0];
+  const gid = selection[0].groupId;
+  if (!gid || !selection.every((m) => m.groupId === gid)) return null;
+  return selection.find((m) => m.type === 'cloud' || m.type === 'cloudPlus') ?? null;
+}

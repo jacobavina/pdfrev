@@ -55,7 +55,7 @@ const CanvasContextMenu = React.lazy(() => import('./shell/CanvasContextMenu').t
 import { runPageOperation } from './shell/appActions';
 import { translucentFill } from '../core/markup/typeLabels';
 import { defaultDimensionLinePoint } from '../core/markup/dimension';
-import { controlPointsOf, applyControlPointDrag, controlPointShape } from '../core/markup/controlPoints';
+import { controlPointsOf, applyControlPointDrag, controlPointShape, editableControlPointTarget } from '../core/markup/controlPoints';
 import { revisionCloudPathNormalized } from '../core/markup/revisionCloud';
 import { calloutBoxFromDrag, CALLOUT_LANDING_PT } from '../core/markup/calloutLayout';
 import { snapPoint, SnapResult } from '../core/markup/snap';
@@ -3163,11 +3163,11 @@ export const PdfViewer: React.FC = () => {
               );
             })}
 
-            {/* Puntos de control (ADR-0021): capa propia, solo con una marca seleccionada y no bloqueada */}
+            {/* Puntos de control (ADR-0021): capa propia. Edita una marca suelta o la nube de un único grupo
+                seleccionado (Cloud+: la llamada queda fija, ADR-0069); nunca sobre marcas bloqueadas */}
             {activeTool === 'select' &&
-              selectedMarkupIds.length === 1 &&
               (() => {
-                const markup = pageMarkups.find((m) => m.id === selectedMarkupIds[0]);
+                const markup = editableControlPointTarget(markups.filter((m) => selectedMarkupIds.includes(m.id)));
                 if (!markup || markup.locked) return null;
                 const cps = controlPointsOf(markup);
                 if (!cps) return null;

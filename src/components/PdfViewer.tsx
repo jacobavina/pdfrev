@@ -1678,10 +1678,13 @@ export const PdfViewer: React.FC = () => {
           return;
         }
         if (isClosedMultiPointTool(activeTool)) {
-          // Clic cerca del primer vértice: cerrar la figura
+          // Clic cerca del primer vértice: cerrar la figura (medido en píxeles de pantalla para no cerrar
+          // prematuramente figuras pequeñas, columnas o rectángulos ortogonales al clicar el 4.° vértice)
           const firstPt = polygonPoints[0];
-          const distToFirst = Math.hypot(pt.x - firstPt.x, pt.y - firstPt.y);
-          if (distToFirst < 0.02 && polygonPoints.length >= 3) {
+          const W = viewportTransform.width || 1;
+          const H = viewportTransform.height || 1;
+          const distPx = Math.hypot((pt.x - firstPt.x) * W, (pt.y - firstPt.y) * H);
+          if (distPx <= 8 && polygonPoints.length >= 3) {
             finalizeMultiPoint(polygonPoints);
             return;
           }

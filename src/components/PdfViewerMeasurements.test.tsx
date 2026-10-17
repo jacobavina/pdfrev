@@ -225,4 +225,107 @@ describe('PdfViewer - Área por polígono, capas ocultas y menú contextual (ADR
     });
     expect(screen.queryByTestId('canvas-context-menu')).toBeNull();
   });
+
+  it('cutout ortogonal / rectangular de 4 vértices con altura menor a 0.02 no se cierra en el 3er vértice y se completa con 4 puntos', async () => {
+    const initialArea: Markup = {
+      id: 'area-cutout-test',
+      type: 'area',
+      pageIndex: 0,
+      points: [
+        { x: 100 / 800, y: 100 / 600 },
+        { x: 500 / 800, y: 100 / 600 },
+        { x: 500 / 800, y: 500 / 600 },
+        { x: 100 / 800, y: 500 / 600 },
+      ],
+      style: { strokeColor: '#0284c7', strokeWidth: 2, opacity: 1 },
+      author: 'Tester',
+      createdAt: '2026-10-17T00:00:00Z',
+      updatedAt: '2026-10-17T00:00:00Z',
+      status: 'pending',
+    };
+    useMarkupStore.setState({ markups: [initialArea] });
+    await act(async () => {
+      render(<PdfViewer />);
+    });
+
+    // Iniciar cutout
+    act(() => {
+      useUiStore.getState().startCutout('area-cutout-test');
+      useToolStore.getState().setActiveTool('area');
+    });
+    const svg = screen.getByTestId('markup-overlay-svg');
+
+    // Clic en los 4 vértices de un recorte rectangular de 20 x 10 px sobre 800 x 600:
+    // Altura = 10 / 600 = 0.01667 < 0.02 (con el cálculo anterior en normalizado disparaba el cierre en el 3er punto)
+    for (const [x, y] of [
+      [200, 200], // vértice 1
+      [220, 200], // vértice 2
+      [220, 210], // vértice 3
+      [200, 210], // vértice 4 (no debe cerrar anticipadamente en triángulo)
+    ]) {
+      act(() => click(svg, x, y));
+    }
+
+    // El 4.° vértice está colocado, el recorte aún no se ha cerrado
+    expect(useMarkupStore.getState().markups[0].cutouts).toBeUndefined();
+
+    // 5.° clic sobre el primer vértice [200, 200] para cerrar la figura
+    act(() => click(svg, 200, 200));
+
+    const updatedArea = useMarkupStore.getState().markups[0];
+    expect(updatedArea.cutouts).toHaveLength(1);
+    expect(updatedArea.cutouts![0]).toHaveLength(4);
+    expect(updatedArea.cutouts![0][0]).toEqual({ x: 200 / 800, y: 200 / 600 });
+    expect(updatedArea.cutouts![0][1]).toEqual({ x: 220 / 800, y: 200 / 600 });
+    expect(updatedArea.cutouts![0][2]).toEqual({ x: 220 / 800, y: 210 / 600 });
+    expect(updatedArea.cutouts![0][3]).toEqual({ x: 200 / 800, y: 210 / 600 });
+    expect(useUiStore.getState().activeCutoutTargetId).toBeNull();
+  });
+
+  it('cutout ortogonal / rectangular de 4 vértices se puede cerrar también con la tecla Enter', async () => {
+    const initialArea: Markup = {
+      id: 'area-cutout-enter',
+      type: 'area',
+      pageIndex: 0,
+      points: [
+        { x: 100 / 800, y: 100 / 600 },
+        { x: 500 / 800, y: 100 / 600 },
+        { x: 500 / 800, y: 500 / 600 },
+        { x: 100 / 800, y: 500 / 600 },
+      ],
+      style: { strokeColor: '#0284c7', strokeWidth: 2, opacity: 1 },
+      author: 'Tester',
+      createdAt: '2026-10-17T00:00:00Z',
+      updatedAt: '2026-10-17T00:00:00Z',
+      status: 'pending',
+    };
+    useMarkupStore.setState({ markups: [initialArea] });
+    await act(async () => {
+      render(<PdfViewer />);
+    });
+
+    act(() => {
+      useUiStore.getState().startCutout('area-cutout-enter');
+      useToolStore.getState().setActiveTool('area');
+    });
+    const svg = screen.getByTestId('markup-overlay-svg');
+
+    for (const [x, y] of [
+      [300, 300],
+      [330, 300],
+      [330, 315],
+      [300, 315],
+    ]) {
+      act(() => click(svg, x, y));
+    }
+
+    act(() => {
+      fireEvent.keyDown(window, { key: 'Enter' });
+    });
+
+    const updatedArea = useMarkupStore.getState().markups[0];
+    expect(updatedArea.cutouts).toHaveLength(1);
+    expect(updatedArea.cutouts![0]).toHaveLength(4);
+    expect(useUiStore.getState().activeCutoutTargetId).toBeNull();
+  });
 });

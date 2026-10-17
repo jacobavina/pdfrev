@@ -84,6 +84,11 @@
     --ov-check-a: 156 163 175;
     --ov-check-b: 229 231 235;
 
+    /* Acentos de color de los iconos (ADR-0066): resaltado amarillo, medición violeta, lápiz azul */
+    --icon-measure: 167 139 250;
+    --icon-highlight: 250 204 21;
+    --icon-pen: 59 130 246;
+
     /* Elevación (ADR-0065): plano, borde de 1 px y sombra sutil solo para lo flotante (menús, popovers, diálogos) */
     --shadow-float: 0 8px 24px rgb(0 0 0 / 0.28);
 

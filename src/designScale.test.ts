@@ -117,7 +117,7 @@ describe('Escala tipográfica y contraste de la interfaz (ADR-0062)', () => {
     expect(css.slice(css.indexOf('  .panel-header {'), css.indexOf('}', css.indexOf('  .panel-header {')))).toMatch(/height: 32px;/);
   });
 
-  it('iconos en 16, 18 o 20 px y con un único trazo de 1.75 para Lucide y los propios (ADR-0065)', () => {
+  it('iconos en 16, 18 o 20 px con trazo base de 1.75 para Lucide y los propios, y sus acentos de color son tokens (ADR-0065, ADR-0066)', () => {
     const sizes: string[] = [];
     for (const f of sourceFiles(path.join('src', 'components'))) {
       for (const m of read(f).matchAll(/<([A-Z]\w*)\b[^>]*?\bsize=\{(\d+)\}/gs)) {
@@ -132,7 +132,9 @@ describe('Escala tipográfica y contraste de la interfaz (ADR-0062)', () => {
     const custom = read(path.join('src', 'components', 'shell', 'customIcons.tsx'));
     expect(custom).toMatch(/strokeWidth = 1\.75/);
     expect(custom).toMatch(/className="rea-icon"/);
-    // Ningún trazo propio más grueso o más fino dentro de los iconos
-    expect(custom.match(/strokeWidth=\{[0-9.]+\}/g) ?? []).toEqual([]);
+    // Los acentos de color de los iconos (resaltado, medición, lápiz) son tokens del tema (ADR-0066)
+    expect(custom).toMatch(/MEASURE_ACCENT = tok\('icon-measure'\)/);
+    expect(custom).toMatch(/HIGHLIGHT_ACCENT = tok\('icon-highlight'\)/);
+    expect(custom).toMatch(/PEN_ACCENT = tok\('icon-pen'\)/);
   });
 });

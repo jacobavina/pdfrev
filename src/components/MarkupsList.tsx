@@ -153,64 +153,64 @@ function getMarkupIcon(type: MarkupType) {
   const I = (node: React.ReactNode, cls: string) => <span className={`inline-flex ${cls}`}>{node}</span>;
   switch (type) {
     case 'rectangle':
-      return I(<RectangleToolIcon size={16} />, 'text-gray-400');
+      return I(<RectangleToolIcon size={16} />, 'text-orange-400');
     case 'line':
-      return I(<LineToolIcon size={16} />, 'text-gray-400');
+      return I(<LineToolIcon size={16} />, 'text-blue-400');
     case 'polyLine':
-      return I(<PolylineToolIcon size={16} />, 'text-gray-400');
+      return I(<PolylineToolIcon size={16} />, 'text-cyan-400');
     case 'polygon':
-      return I(<PolygonToolIcon size={16} />, 'text-gray-400');
+      return I(<PolygonToolIcon size={16} />, 'text-cyan-400');
     case 'cloud':
-      return I(<CloudIcon size={16} />, 'text-gray-400');
+      return I(<CloudIcon size={16} />, 'text-emerald-400');
     case 'cloudPlus':
-      return I(<CloudPlusIcon size={16} />, 'text-gray-400');
+      return I(<CloudPlusIcon size={16} />, 'text-emerald-400');
     case 'text':
-      return I(<TextBoxIcon size={16} />, 'text-gray-400');
+      return I(<TextBoxIcon size={16} />, 'text-purple-400');
     case 'callout':
-      return I(<CalloutIcon size={16} />, 'text-gray-400');
+      return I(<CalloutIcon size={16} />, 'text-purple-400');
     case 'circle':
-      return I(<EllipseToolIcon size={16} />, 'text-gray-400');
+      return I(<EllipseToolIcon size={16} />, 'text-yellow-400');
     case 'stickyNote':
-      return I(<NoteIcon size={16} />, 'text-gray-400');
+      return I(<NoteIcon size={16} />, 'text-amber-400');
     case 'highlightVector':
     case 'highlight':
-      return I(<HighlighterIcon size={16} />, 'text-gray-400');
+      return I(<HighlighterIcon size={16} />, 'text-yellow-400');
     case 'highlightText':
-      return I(<TextHighlightIcon size={16} />, 'text-gray-400');
+      return I(<TextHighlightIcon size={16} />, 'text-yellow-400');
     case 'underline':
-      return I(<UnderlineIcon size={16} />, 'text-gray-400');
+      return I(<UnderlineIcon size={16} />, 'text-pink-400');
     case 'strikeOut':
-      return I(<StrikeoutIcon size={16} />, 'text-gray-400');
+      return I(<StrikeoutIcon size={16} />, 'text-rose-400');
     case 'freehand':
-      return I(<PenIcon size={16} />, 'text-gray-400');
+      return I(<PenIcon size={16} />, 'text-blue-400');
     case 'stamp':
-      return I(<Stamp size={16} />, 'text-gray-400');
+      return I(<Stamp size={16} />, 'text-emerald-500');
     case 'link':
-      return I(<Link2 size={16} />, 'text-gray-400');
+      return I(<Link2 size={16} />, 'text-blue-500');
     case 'fileAttachment':
-      return I(<Paperclip size={16} />, 'text-gray-400');
+      return I(<Paperclip size={16} />, 'text-amber-600');
     case 'formField':
-      return I(<FormInput size={16} />, 'text-gray-400');
+      return I(<FormInput size={16} />, 'text-slate-400');
     case 'dimension':
-      return I(<DimensionIcon size={16} />, 'text-gray-400');
+      return I(<DimensionIcon size={16} />, 'text-sky-400');
     case 'length':
-      return I(<LengthMeasureIcon size={16} />, 'text-gray-400');
+      return I(<LengthMeasureIcon size={16} />, 'text-violet-400');
     case 'polylineMeasure':
-      return I(<PolylengthIcon size={16} />, 'text-gray-400');
+      return I(<PolylengthIcon size={16} />, 'text-violet-400');
     case 'area':
-      return I(<AreaMeasureIcon size={16} />, 'text-gray-400');
+      return I(<AreaMeasureIcon size={16} />, 'text-violet-400');
     case 'count':
-      return I(<CountMeasureIcon size={16} />, 'text-gray-400');
+      return I(<CountMeasureIcon size={16} />, 'text-violet-400');
     case 'perimeter':
-      return I(<PerimeterMeasureIcon size={16} />, 'text-gray-400');
+      return I(<PerimeterMeasureIcon size={16} />, 'text-violet-400');
     case 'volume':
-      return I(<VolumeMeasureIcon size={16} />, 'text-gray-400');
+      return I(<VolumeMeasureIcon size={16} />, 'text-violet-400');
     case 'angle':
-      return I(<AngleMeasureIcon size={16} />, 'text-gray-400');
+      return I(<AngleMeasureIcon size={16} />, 'text-violet-400');
     case 'radius':
-      return I(<RadiusMeasureIcon size={16} />, 'text-gray-400');
+      return I(<RadiusMeasureIcon size={16} />, 'text-violet-400');
     case 'diameter':
-      return I(<DiameterMeasureIcon size={16} />, 'text-gray-400');
+      return I(<DiameterMeasureIcon size={16} />, 'text-violet-400');
     default:
       return <HelpCircle size={16} className="text-gray-400" />;
   }

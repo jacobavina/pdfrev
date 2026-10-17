@@ -18,7 +18,7 @@ export const ColorPicker: React.FC<{
   onChange: (value: string) => void;
 }> = ({ testId, title, value, options, allowNone, customTestId, onChange }) => {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  const [pos, setPos] = useState<{ left: number; top: number; anchorTop: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const popRef = useRef<HTMLDivElement | null>(null);
   const none = !value || value === 'transparent' || value === 'none';
@@ -26,8 +26,16 @@ export const ColorPicker: React.FC<{
   useLayoutEffect(() => {
     if (!open || !btnRef.current) return;
     const r = btnRef.current.getBoundingClientRect();
-    setPos({ left: r.left, top: r.bottom + 4 });
+    setPos({ left: r.left, top: r.bottom + 4, anchorTop: r.top });
   }, [open]);
+  // Siempre entero dentro de la ventana (ADR-0066)
+  useLayoutEffect(() => {
+    if (!open || !pos || !popRef.current) return;
+    const pr = popRef.current.getBoundingClientRect();
+    const left = Math.max(8, Math.min(pos.left, window.innerWidth - pr.width - 8));
+    const top = pos.top + pr.height > window.innerHeight - 8 ? Math.max(8, pos.anchorTop - pr.height - 4) : pos.top;
+    if (Math.abs(left - pos.left) > 0.5 || Math.abs(top - pos.top) > 0.5) setPos({ ...pos, left, top });
+  }, [open, pos]);
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {

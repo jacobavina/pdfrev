@@ -1,6 +1,6 @@
 # Sistema visual de REA
 
-Fuente única del aspecto de la interfaz (ADR-0044, ADR-0062, ADR-0064 y ADR-0065). Los valores viven en
+Fuente única del aspecto de la interfaz (ADR-0044, ADR-0062, ADR-0064, ADR-0065 y ADR-0066). Los valores viven en
 `src/index.css` (tokens) y `tailwind.config.js` (escala de Tailwind). Los componentes solo usan tokens: lo vigilan
 `src/designScale.test.ts` y `src/components/shell/Redesign.test.tsx`. Si algo de este documento cambia, cambia
 también su prueba.
@@ -35,6 +35,7 @@ o en Tailwind (`bg-cad-panel`, `text-gray-400`…). Los tokens `cad-*` y `gray-*
 | `--cad-accent` | **Acento**: solo selección, foco, pestaña activa y marca (≥ 4.5:1 como texto) |
 | `--cad-accent-fill` | Acento sólido bajo texto blanco (≥ 4.5:1): selección resaltada y logo |
 | `--cad-sheet-shadow` | Sombra de la hoja |
+| `--icon-highlight`, `--icon-measure`, `--icon-pen` | Acentos semánticos de los iconos (ADR-0066): barra del resaltador, punteado de las mediciones y snap, punta del lápiz. No son estado y no cambian con el tema |
 | `--ov-*` | Overlay de edición sobre la hoja: tiradores (`ov-handle`, `ov-count`), avisos (`ov-warn`), vistas previas (`ov-preview`), búsqueda (`ov-find*`), snap (`ov-snap`), halo blanco (`ov-halo`) |
 
 **Reglas del acento:**
@@ -66,11 +67,20 @@ Escala 4 / 8 / 12 / 16 px en cabeceras de panel, cinta, secciones de estilo y ri
 
 ## 4. Iconos
 
-- Lucide y los propios (`customIcons.tsx`): un único trazo de **1.75** sobre la rejilla de 24 (`svg.lucide`,
-  `svg.rea-icon`). Ningún trazo propio dentro de un icono.
+- Lucide y los propios (`customIcons.tsx`): trazo base de **1.75** sobre la rejilla de 24 (`svg.lucide`,
+  `svg.rea-icon`). Los propios llevan detalles interiores más finos o más gruesos solo en su acento de color.
 - Tamaños fijos: **16** (controles, listas, barra de estado), **18** (herramientas de la cinta), **20** (acciones
   grandes).
-- Color: el del texto. Inactivo `gray-400`; hover y activo `cad-strong`. Los iconos no codifican tipos con colores.
+- Color: el del texto. Inactivo `gray-400`; hover y activo `cad-strong`.
+- Acentos (ADR-0066): el resaltador lleva su barra amarilla (`icon-highlight`), las mediciones su punteado violeta
+  (`icon-measure`) y el lápiz su punta azul (`icon-pen`), siempre con `tok()`. Los iconos por tipo de la lista de
+  marcas conservan su color por tipo. Nunca se usa `cad-accent` en un icono que no esté seleccionado o activo.
+
+## 4.1 Desplegables
+
+Los desplegables (`IconPicker`, `ColorPicker`) se montan en `<body>` con posición fija y quedan siempre enteros dentro
+de la ventana: si no caben a la derecha se desplazan a la izquierda y si no caben debajo se abren hacia arriba
+(margen de 8 px).
 
 ## 5. Radios
 

@@ -45,15 +45,24 @@ export function IconPicker<T extends string | number>({
   withLabels,
 }: IconPickerProps<T>) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ left: number; top: number; minWidth: number } | null>(null);
+  const [pos, setPos] = useState<{ left: number; top: number; minWidth: number; anchorTop: number } | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
 
   useLayoutEffect(() => {
     if (!open || !buttonRef.current) return;
     const r = buttonRef.current.getBoundingClientRect();
-    setPos({ left: r.left, top: r.bottom + 2, minWidth: r.width });
+    setPos({ left: r.left, top: r.bottom + 2, minWidth: r.width, anchorTop: r.top });
   }, [open]);
+  // Siempre entera dentro de la ventana (ADR-0066): si no cabe a la derecha se desplaza a la izquierda y si no cabe
+  // debajo se abre hacia arriba (el panel de Propiedades está pegado al borde derecho)
+  useLayoutEffect(() => {
+    if (!open || !pos || !listRef.current) return;
+    const lr = listRef.current.getBoundingClientRect();
+    const left = Math.max(8, Math.min(pos.left, window.innerWidth - lr.width - 8));
+    const top = pos.top + lr.height > window.innerHeight - 8 ? Math.max(8, pos.anchorTop - lr.height - 2) : pos.top;
+    if (Math.abs(left - pos.left) > 0.5 || Math.abs(top - pos.top) > 0.5) setPos({ ...pos, left, top });
+  }, [open, pos]);
 
   useEffect(() => {
     if (!open) return;

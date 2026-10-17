@@ -27,6 +27,7 @@ import {
 import { formatWithCalibration } from '../../core/measurements/scale';
 import { rescaleVolumeDepth } from '../../core/measurements/calculate';
 import { captionStyleOf } from '../../core/markup/measureCaption';
+import { tok } from '../viewer/paint';
 
 const CATEGORY_LABEL = { length: 'Length', area: 'Area', count: 'Count', volume: 'Volume', other: 'Other' } as const;
 const USER_PRESETS_KEY = 'rea-scale-presets';
@@ -92,10 +93,10 @@ const SNAP_TITLES = {
 const SnapIcon: React.FC<{ kind: 'endpoint' | 'midpoint' | 'nearest' | 'intersection' }> = ({ kind }) => (
   <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden="true">
     {kind === 'intersection' ? <path d="M4 20 20 4M4 4l16 16" /> : <path d="M4 20 20 4" />}
-    {kind === 'intersection' && <circle cx="12" cy="12" r="3.5" />}
-    {kind === 'endpoint' && <rect x="16" y="1" width="6" height="6" />}
-    {kind === 'midpoint' && <path d="m12 8.5 3.5 6h-7z" />}
-    {kind === 'nearest' && <path d="M9.5 9.5h5v5h-5zM12 12l7 7" />}
+    {kind === 'intersection' && <circle cx="12" cy="12" r="3.5" stroke={tok('icon-measure')} />}
+    {kind === 'endpoint' && <rect x="16" y="1" width="6" height="6" stroke={tok('icon-measure')} />}
+    {kind === 'midpoint' && <path d="m12 8.5 3.5 6h-7z" stroke={tok('icon-measure')} />}
+    {kind === 'nearest' && <path d="M9.5 9.5h5v5h-5zM12 12l7 7" stroke={tok('icon-measure')} />}
   </svg>
 );
 

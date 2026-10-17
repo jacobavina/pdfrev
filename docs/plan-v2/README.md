@@ -1,6 +1,6 @@
 # Plan Maestro v2 — REA hacia interoperabilidad real con Revu y Acrobat
 
-> **Estado: EN EJECUCIÓN.** El usuario aprobó el plan y se ha ejecutado por hitos con ADR propio (hasta ADR-0065,
+> **Estado: EN EJECUCIÓN.** El usuario aprobó el plan y se ha ejecutado por hitos con ADR propio (hasta ADR-0066,
 > 2026-10-15; ver el registro de sesiones al final y `docs/STATUS.md` §0, "Traspaso al siguiente agente"). Lo que
 > se haga a partir de aquí sigue las mismas reglas: ADR, PARITY con test literal y verify ×3.
 >
@@ -217,4 +217,5 @@ plan y `AGENTS.md`, **gana `AGENTS.md`**.
 | 2026-10-16 | Claude (Opus 5.5) | ADR-0063: flechas por fuera en distancias cortas, símbolos del conteo individuales y rueda del zoom de doble clic. |
 | 2026-10-16 | Claude (Opus 5.5) | ADR-0064: estructura y densidad (una fila de navegación, estilo en el panel de Propiedades, lienzo como sujeto); chrome 189 → 109 px. |
 | 2026-10-16 | Claude (Opus 5.5) | ADR-0065: sistema visual (IBM Plex, iconos, disciplina de color, docs/DESIGN.md y pruebas de tokens). |
+| 2026-10-16 | Claude (Opus 5.5) | ADR-0066: acentos de color de los iconos como tokens y desplegables de estilo enteros dentro de la ventana. |
 

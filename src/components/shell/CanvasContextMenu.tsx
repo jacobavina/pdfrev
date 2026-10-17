@@ -1,9 +1,26 @@
 import React, { useEffect, useRef } from 'react';
-import { SlidersHorizontal, Reply, Copy, CopyPlus, Lock, LockOpen, Trash2, Check } from 'lucide-react';
+import {
+  SlidersHorizontal,
+  Reply,
+  Copy,
+  CopyPlus,
+  Lock,
+  LockOpen,
+  Trash2,
+  Check,
+  FlipHorizontal2,
+  FlipVertical2,
+} from 'lucide-react';
 import { useMarkupStore } from '../../store/useMarkupStore';
 import { useUiStore } from '../../store/useUiStore';
 import { MarkupStatus, VALID_MARKUP_STATUSES } from '../../types/markup';
 import { markupTypeLabel } from '../../core/markup/typeLabels';
+import {
+  AlignMode,
+  alignSelectedMarkups,
+  distributeSelectedMarkups,
+  flipSelectedMarkups,
+} from '../../core/markup/transformTools';
 
 const STATUS_LABELS: Record<MarkupStatus, string> = {
   pending: 'Pending',
@@ -21,6 +38,15 @@ const STATUS_DOT: Record<MarkupStatus, string> = {
   cancelled: 'bg-zinc-400',
 };
 
+const ALIGN_OPTIONS: { mode: AlignMode; short: string; title: string }[] = [
+  { mode: 'left', short: 'L', title: 'Align Left' },
+  { mode: 'center', short: 'C', title: 'Align Center' },
+  { mode: 'right', short: 'R', title: 'Align Right' },
+  { mode: 'top', short: 'T', title: 'Align Top' },
+  { mode: 'middle', short: 'M', title: 'Align Middle' },
+  { mode: 'bottom', short: 'B', title: 'Align Bottom' },
+];
+
 /**
  * Menú contextual de marcas sobre el plano (ADR-0017). Actúa sobre la selección actual, que el visor
  * ajusta antes de abrirlo (clic derecho sobre una marca no seleccionada la selecciona).
@@ -32,6 +58,9 @@ export const CanvasContextMenu: React.FC<{ x: number; y: number; onClose: () => 
   const selected = markups.filter((m) => selectedMarkupIds.includes(m.id));
   const first = selected[0];
   const allLocked = selected.length > 0 && selected.every((m) => m.locked);
+  const unitKeys = new Set(selected.map((m) => (m.groupId ? `g:${m.groupId}` : `i:${m.id}`)));
+  const canAlign = unitKeys.size >= 2 && !allLocked;
+  const canDistribute = unitKeys.size >= 3 && !allLocked;
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
@@ -52,7 +81,7 @@ export const CanvasContextMenu: React.FC<{ x: number; y: number; onClose: () => 
 
   // Mantener el menú dentro de la ventana
   const left = Math.min(x, window.innerWidth - 230);
-  const top = Math.min(y, window.innerHeight - 360);
+  const top = Math.min(y, window.innerHeight - 440);
 
   const item = (
     testId: string,
@@ -121,6 +150,90 @@ export const CanvasContextMenu: React.FC<{ x: number; y: number; onClose: () => 
           {first.status === status && <Check size={16} className="text-cad-accent" />}
         </button>
       ))}
+      <div className="my-1 border-t border-cad-border" />
+      <div className="px-3 py-0.5 text-2xs uppercase tracking-wider text-gray-500">Transform</div>
+      <div className="flex items-center gap-1 px-2 py-1">
+        <button
+          type="button"
+          data-testid="canvas-menu-flip-horizontal"
+          disabled={allLocked}
+          title="Flip Horizontal"
+          onClick={() => {
+            flipSelectedMarkups('horizontal');
+            onClose();
+          }}
+          className="flex-1 flex items-center justify-center gap-1 px-1.5 py-1 rounded border border-cad-border text-gray-200 hover:bg-cad-hover disabled:opacity-40"
+        >
+          <FlipHorizontal2 size={16} />
+          <span className="text-2xs">Flip H</span>
+        </button>
+        <button
+          type="button"
+          data-testid="canvas-menu-flip-vertical"
+          disabled={allLocked}
+          title="Flip Vertical"
+          onClick={() => {
+            flipSelectedMarkups('vertical');
+            onClose();
+          }}
+          className="flex-1 flex items-center justify-center gap-1 px-1.5 py-1 rounded border border-cad-border text-gray-200 hover:bg-cad-hover disabled:opacity-40"
+        >
+          <FlipVertical2 size={16} />
+          <span className="text-2xs">Flip V</span>
+        </button>
+      </div>
+      {unitKeys.size >= 2 && (
+        <div className="px-2 pb-1 space-y-1">
+          <div className="grid grid-cols-6 gap-0.5">
+            {ALIGN_OPTIONS.map((opt) => (
+              <button
+                key={opt.mode}
+                type="button"
+                data-testid={`canvas-menu-align-${opt.mode}`}
+                disabled={!canAlign}
+                title={opt.title}
+                onClick={() => {
+                  alignSelectedMarkups(opt.mode);
+                  onClose();
+                }}
+                className="px-1 py-0.5 text-2xs rounded border border-cad-border text-gray-200 hover:bg-cad-hover disabled:opacity-40"
+              >
+                {opt.short}
+              </button>
+            ))}
+          </div>
+          {unitKeys.size >= 3 && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                data-testid="canvas-menu-distribute-horizontal"
+                disabled={!canDistribute}
+                title="Distribute Horizontally"
+                onClick={() => {
+                  distributeSelectedMarkups('horizontal');
+                  onClose();
+                }}
+                className="flex-1 px-1.5 py-0.5 text-2xs rounded border border-cad-border text-gray-200 hover:bg-cad-hover disabled:opacity-40"
+              >
+                Dist. H
+              </button>
+              <button
+                type="button"
+                data-testid="canvas-menu-distribute-vertical"
+                disabled={!canDistribute}
+                title="Distribute Vertically"
+                onClick={() => {
+                  distributeSelectedMarkups('vertical');
+                  onClose();
+                }}
+                className="flex-1 px-1.5 py-0.5 text-2xs rounded border border-cad-border text-gray-200 hover:bg-cad-hover disabled:opacity-40"
+              >
+                Dist. V
+              </button>
+            </div>
+          )}
+        </div>
+      )}
       <div className="my-1 border-t border-cad-border" />
       {item('canvas-menu-copy', <Copy size={16} />, 'Copy', () => useMarkupStore.getState().copySelectedMarkups(), {
         shortcut: 'Ctrl+C',

@@ -197,6 +197,7 @@ Este documento registra la paridad funcional real implementada en REA, vinculand
 | **Ondulado de texto (`squiggly`): renderizado SVG en la base del renglón (ADR-0072)** | `shipped` | `src/core/markup/render.test.ts` | `genera descriptor path sinusoidal en la base para squiggly (ADR-0072)` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Ondulado de texto (`squiggly`): emisión de operadores PDF `/AP /N` (ADR-0072)** | `shipped` | `src/core/pdf/operators.test.ts` | `emite camino en zigzag en la base para squiggly (ADR-0072)` | PENDIENTE DE VERIFICAR por el usuario en Revu/Acrobat |
 | **Ondulado de texto (`squiggly`): importación de `/Subtype /Squiggly` ajeno con `/QuadPoints` (ADR-0072)** | `shipped` | `src/core/pdf/annotationReader.test.ts` | `importa anotación ajena /Subtype /Squiggly con /QuadPoints como marca squiggly (ADR-0072)` | PENDIENTE DE VERIFICAR por el usuario en Revu/Acrobat |
+| **Alinear, distribuir y voltear marcas seleccionadas en un comando atómico deshacible (ADR-0073)** | `shipped` | `src/core/markup/transformTools.test.ts` | `alinea, distribuye y voltea horizontal y verticalmente un conjunto de marcas y revierte con un solo undo` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Automatización nativa con tauri-driver (Hito P2-X)** | `shipped` | `scripts/native-smoke.mjs` | `Hito P2-X (ADR-0008): Smoke Test de Ventana Nativa con tauri-driver` | Verificado por el usuario en ventana nativa, 2026-10-10 (`npm run test:native:build` sobre HEAD bf7be61: arranque, canvas, IPC Rust y dibujo W3C) |
 
 

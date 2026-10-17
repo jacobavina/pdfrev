@@ -74,7 +74,7 @@ interface MarkupState {
    * modificado. No entra en el historial, igual que la propia escala.
    */
   remeasureMarkups: (markups: Markup[]) => void;
-  commitMoveMarkups: (moves: MoveMarkupItem[]) => void;
+  commitMoveMarkups: (moves: MoveMarkupItem[], description?: string) => void;
   /** Cambio de forma por puntos de control (ADR-0021): puntos y, si aplica, medida y texto en un solo paso. */
   reshapeMarkup: (id: string, before: ReshapePatch, after: ReshapePatch, description?: string) => void;
   /** Tipo de línea "Nube" (ADR-0021): rectángulo/polígono ↔ nube, en un solo paso deshacible. */
@@ -705,7 +705,7 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
       }));
     },
 
-    commitMoveMarkups: (moves: MoveMarkupItem[]) => {
+    commitMoveMarkups: (moves: MoveMarkupItem[], description?: string) => {
       if (moves.length === 0) return;
       const currentMarkups = get().markups;
       // Filtrar movimientos de marcas bloqueadas
@@ -715,7 +715,8 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
       });
       if (allowedMoves.length === 0) return;
 
-      const desc = allowedMoves.length === 1 ? 'Move markup' : `Move ${allowedMoves.length} markups`;
+      const desc =
+        description || (allowedMoves.length === 1 ? 'Move markup' : `Move ${allowedMoves.length} markups`);
       const now = new Date().toISOString();
 
       const command: Command = {

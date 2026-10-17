@@ -25,7 +25,7 @@ import { translucentFill } from '../../core/markup/typeLabels';
 import { CAPTION_FAMILIES, CAPTIONED_MEASURES, captionFontOf, markupFontOf, BOX_TEXT_COLOR } from '../../core/markup/measureCaption';
 import type { MarkupStyle } from '../../types/markup';
 
-const STROKE_WIDTHS = [0.5, 1, 1.5, 2, 3, 5, 8];
+const STROKE_WIDTHS = [0, 0.5, 1, 1.5, 2, 3, 5, 8];
 
 
 const OPACITIES = [1, 0.75, 0.5, 0.25];
@@ -81,8 +81,14 @@ export const StyleSection: React.FC = () => {
     editingSelection && selection.some((m) => (m.style.strokeWidth ?? 1) !== (selection[0].style.strokeWidth ?? 1));
   const toggleFormat = (key: 'bold' | 'italic') => {
     if (!editingSelection) return;
-    const next = { bold: key === 'bold' ? !font.bold : font.bold, italic: key === 'italic' ? !font.italic : font.italic };
+    const next = { ...selection[0].textFormat, bold: key === 'bold' ? !font.bold : font.bold, italic: key === 'italic' ? !font.italic : font.italic };
     applyPropertiesToMarkups(selection.map((m) => m.id), { textFormat: next }, key === 'bold' ? 'Bold' : 'Italic');
+  };
+  const currentAlign = editingSelection ? (selection[0].textFormat?.align ?? 'left') : 'left';
+  const setAlign = (align: 'left' | 'center' | 'right') => {
+    if (!editingSelection) return;
+    const next = { ...selection[0].textFormat, align };
+    applyPropertiesToMarkups(selection.map((m) => m.id), { textFormat: next }, `Align text ${align}`);
   };
 
   // Tipo de línea (ADR-0041): el de la marca seleccionada; sin selección, el de las marcas nuevas (Cloud con la
@@ -383,6 +389,42 @@ export const StyleSection: React.FC = () => {
               }`}
             >
               {glyph}
+            </button>
+          ))}
+          {(
+            [
+              ['left', 'Align Left', [2, 5, 2]],
+              ['center', 'Align Center', [2, 3.5, 2]],
+              ['right', 'Align Right', [2, 5, 2]],
+            ] as const
+          ).map(([alignKey, title]) => (
+            <button
+              key={alignKey}
+              type="button"
+              data-testid={`ribbon-text-align-${alignKey}`}
+              aria-pressed={currentAlign === alignKey}
+              disabled={!editingSelection}
+              onClick={() => setAlign(alignKey)}
+              title={editingSelection ? title : `${title} (select a markup first)`}
+              className={`w-6 h-6 rounded-md grid place-items-center disabled:opacity-35 ${
+                currentAlign === alignKey ? 'bg-cad-hover text-cad-strong' : 'text-gray-300 hover:bg-cad-hover'
+              }`}
+            >
+              <svg width={16} height={16} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} aria-hidden="true">
+                <line x1={2} y1={4} x2={14} y2={4} />
+                <line
+                  x1={alignKey === 'right' ? 6 : alignKey === 'center' ? 4 : 2}
+                  y1={8}
+                  x2={alignKey === 'left' ? 10 : alignKey === 'center' ? 12 : 14}
+                  y2={8}
+                />
+                <line
+                  x1={alignKey === 'right' ? 4 : alignKey === 'center' ? 3 : 2}
+                  y1={12}
+                  x2={alignKey === 'left' ? 12 : alignKey === 'center' ? 13 : 14}
+                  y2={12}
+                />
+              </svg>
             </button>
           ))}
           <label className="flex items-center gap-1 text-2xs text-gray-400" title="Text color">

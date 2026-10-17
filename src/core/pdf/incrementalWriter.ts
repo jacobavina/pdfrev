@@ -544,7 +544,10 @@ endstream`;
       // Diccionario base común
       const strokeParsed = parseCssColorRgb(markup.style.strokeColor);
       const fillParsed = parseCssColorRgb(markup.style.fillColor);
-      const strokeWidth = Math.max(1, markup.style.strokeWidth ?? 1);
+      const strokeWidth =
+        markup.type === 'text'
+          ? Math.max(0, markup.style.strokeWidth ?? 1)
+          : Math.max(1, markup.style.strokeWidth ?? 1);
 
       let colorEntry = '';
       if (strokeParsed) {
@@ -587,6 +590,24 @@ endstream`;
       }
       if (markup.style.hatch) {
         reaDict += ` /hatch ${escapePdfString(markup.style.hatch)}`;
+      }
+      if (markup.style.fontFamily) {
+        reaDict += ` /fontFamily ${escapePdfString(markup.style.fontFamily)}`;
+      }
+      if (markup.style.textColor) {
+        reaDict += ` /textColor ${escapePdfString(markup.style.textColor)}`;
+      }
+      if (markup.style.fillColor === 'transparent' || markup.style.fillColor === 'none') {
+        reaDict += ` /noFill 1`;
+      }
+      if (markup.textFormat?.align) {
+        reaDict += ` /textAlign ${escapePdfString(markup.textFormat.align)}`;
+      }
+      if (markup.textFormat?.bold) {
+        reaDict += ` /bold 1`;
+      }
+      if (markup.textFormat?.italic) {
+        reaDict += ` /italic 1`;
       }
       // Geometría exacta de REA (ida y vuelta sin pérdidas). /rect fija la caja con la que se escribió: si otra
       // aplicación mueve la anotación, el lector lo detecta y usa la geometría estándar del PDF.
@@ -759,7 +780,8 @@ ${markup.layer && layerOcg.has(markup.layer) ? `  /OC ${layerOcg.get(markup.laye
           markup.type === 'callout' ? boxH : Math.max(26, boxH),
           markup.type === 'callout' ? 'callout' : 'text'
         );
-        annotDict += `  /DA (/Helv ${fontPt} Tf 0 0 0 rg)\n`;
+        const qVal = markup.textFormat?.align === 'center' ? 1 : markup.textFormat?.align === 'right' ? 2 : 0;
+        annotDict += `  /DA (/Helv ${fontPt} Tf 0 0 0 rg)\n  /Q ${qVal}\n`;
         // Callout estándar (ADR-0042): directriz /CL, flecha /LE y caja de texto /RD, como los de Revu y Acrobat
         const co = calloutPdfLayout(markup, transform);
         if (co) {

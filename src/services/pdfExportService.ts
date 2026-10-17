@@ -767,16 +767,18 @@ export async function exportMarkupsToPdf(
           const y = Math.min(p1.y, p2.y);
           const width = Math.max(80, Math.abs(p2.x - p1.x));
           const height = Math.max(26, Math.abs(p2.y - p1.y));
+          const noFill = markup.style.fillColor === 'transparent' || markup.style.fillColor === 'none';
 
-          // Fondo
+          // Fondo y borde
           page.drawRectangle({
             x,
             y,
             width,
             height,
-            color: fillColorParsed.color ?? rgb(1, 0.98, 0.9),
-            borderColor: strokeColorParsed.color ?? rgb(0.8, 0.8, 0.8),
-            borderWidth: 1,
+            color: noFill ? undefined : (fillColorParsed.color ?? rgb(1, 0.98, 0.9)),
+            borderColor: strokeWidth > 0 ? (strokeColorParsed.color ?? rgb(0.8, 0.8, 0.8)) : undefined,
+            borderWidth: strokeWidth > 0 ? strokeWidth : 0,
+            borderDashArray: dashArray,
             opacity: 0.95,
           });
 
@@ -786,12 +788,20 @@ export async function exportMarkupsToPdf(
 
           const fontSize = markup.style.fontSize ?? 10;
           const lines = wrapText(sanitized.text, width - 12, fontSize, helveticaFont);
+          const align = markup.textFormat?.align ?? 'left';
 
           let lineY = y + height - fontSize - 6;
           for (const line of lines) {
             if (lineY < y + 4) break;
+            const lineWidth = helveticaFont.widthOfTextAtSize(line, fontSize);
+            const lineX =
+              align === 'center'
+                ? x + (width - lineWidth) / 2
+                : align === 'right'
+                  ? x + width - 6 - lineWidth
+                  : x + 6;
             page.drawText(line, {
-              x: x + 6,
+              x: lineX,
               y: lineY,
               size: fontSize,
               font: helveticaFont,

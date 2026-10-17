@@ -143,6 +143,7 @@
 | **Hito A.1: respuestas e hilos en marcas (`/IRT /RT /R`) y estados de revisión con historial (`/StateModel Review`) (ADR-0071)** | **ENTREGADO (verificación nativa y en Revu/Acrobat PENDIENTE del usuario)** | Modelo `MarkupReply` y `MarkupStatusTransition` en `Markup` y `.bbx.json`; comandos deshacibles `addMarkupReply`, `updateMarkupReply`, `deleteMarkupReply` y `updateMarkupStatus` con historial; escritura e importación incremental PDF de cadenas `/IRT /RT /R` (resolución transitiva hasta la raíz sin crear `stickyNote` sueltas) y secuencia `/StateModel (Review)` donde el último estado prevalece; árbol de respuestas plegable y compositor inline en `MarkupsList`, `Reply…` en menús contextuales y exportación CSV/PDF. `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 807 tests unitarios (96 archivos), 185 PARITY shipped y 0 todo, bundle principal 787.21 kB, 13 tests cargo, E2E 36/36 ×3; impeccable URL y src/ exit 0; `npm.cmd run test:native` en verde |
 | **Hito A.2: ondulado de texto (`squiggly`, `/Subtype /Squiggly`, atajo `Shift+U`) (ADR-0072)** | **ENTREGADO (verificación nativa y en Revu/Acrobat PENDIENTE del usuario)** | Tipo `'squiggly'` en `VALID_MARKUP_TYPES`, herramienta `Squiggly (Shift+U)` en la cinta (`TEXT_LAYER_TOOLS`), render SVG en zigzag sobre la base del renglón, emisión de operadores `/AP /N` y exportación vectorial, persistencia incremental e importación de `/Subtype /Squiggly` con `/QuadPoints`. `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 810 tests unitarios (96 archivos), 188 PARITY shipped y 0 todo, bundle principal 788.12 kB, 13 tests cargo, E2E 36/36 ×3; impeccable URL y src/ exit 0; `npm.cmd run test:native` en verde |
 | **Hito A.3: alinear, distribuir y voltear marcas (`transformTools.ts`) (ADR-0073)** | **ENTREGADO (verificación nativa PENDIENTE del usuario)** | Núcleo puro `transformTools.ts` (`alignMarkups` en 6 modos, `distributeMarkups` horizontal/vertical, `flipMarkups` horizontal/vertical respetando grupos y marcas bloqueadas), comando atómico deshacible en `useMarkupStore` y controles en `CanvasContextMenu` y `Edit ▸ Align & Flip` con carga diferida (`transformTools-*.js`, 4.07 kB). `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 822 tests unitarios (97 archivos), 189 PARITY shipped y 0 todo, bundle principal 790.10 kB, 13 tests cargo, E2E 36/36 ×3; impeccable URL y src/ exit 0; `npm.cmd run test:native` en verde |
+| **Hito A.4: cuadro de texto (`/FreeText`) con borde, relleno y alineación (`/Q`) y cierre E2E del Escenario S1 (ADR-0074)** | **ENTREGADO (verificación nativa y en Revu/Acrobat PENDIENTE del usuario)** | Grosor de borde (`strokeWidth` incluido `0 pt`), color de relleno (`fillColor` incluido `'transparent'`) y alineación de texto (`left`, `center`, `right`) en pantalla (`render.ts`), `/AP /N` (`operators.ts`), exportación vectorial (`pdfExportService.ts`), botones en `StyleSection.tsx` e ida y vuelta PDF con `/Q 0|1|2` (`incrementalWriter.ts`, `annotationReader.ts`). Cierre de la Fase A con el test E2E integral del Escenario S1. `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 823 tests unitarios (98 archivos), 191 PARITY shipped y 0 todo, bundle principal 790.78 kB, 13 tests cargo, E2E 37/37 ×3; impeccable URL y src/ exit 0; `npm.cmd run test:native` en verde |
 
 ---
 
@@ -233,11 +234,11 @@
 
 ## 3. Registro de Puertas de Calidad Actual
 
-- **Pruebas Unitarias:** 476 / 476 pasadas en Vitest (`src/`) distribuidas en 42 suites (+38 tests nuevos).
-- **Auditoría Literal de Paridad:** Superada (`node scripts/parity-check.mjs`: 27 shipped verificadas literalmente, 1 todo con guion).
-- **Pruebas Rust:** 11 / 11 pasadas en `cargo test` (`src-tauri/`).
-- **Compilación de Producción:** Exitosa (`tsc && vite build`), bundle principal medido en 709.83 kB <= 800 kB (puerta de calidad superada).
-- **Pruebas E2E:** 15 / 15 en Playwright suite (`tests/e2e/pdf-viewer.spec.ts`) en 3 pasadas consecutivas verdes.
+- **Pruebas Unitarias:** 823 / 823 pasadas en Vitest (`src/`) distribuidas en 98 suites.
+- **Auditoría Literal de Paridad:** Superada (`node scripts/parity-check.mjs`: 191 shipped verificadas literalmente, 0 todo con guion).
+- **Pruebas Rust:** 13 / 13 pasadas en `cargo test` (`src-tauri/`).
+- **Compilación de Producción:** Exitosa (`tsc && vite build`), bundle principal medido en 790.78 kB <= 800 kB (puerta de calidad superada).
+- **Pruebas E2E:** 37 / 37 en Playwright suite (`tests/e2e/pdf-viewer.spec.ts`) en 3 pasadas consecutivas verdes.
 - **Smoke Test Nativo (P2-X):** Implementado y superado localmente con `tauri-driver` (`npm run test:native` y `verify.mjs --with-native`). Adhesión WebDriver, render de canvas, IPC real de Rust y acciones W3C.
 - **Warnings en Consola:** 0 warnings reportados.
 - **Árbol de Git:** En rama `master`.

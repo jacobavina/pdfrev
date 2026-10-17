@@ -2336,8 +2336,9 @@ export const PdfViewer: React.FC = () => {
           });
         }
 
-        // Si es una marca de texto, abrir inmediatamente el editor inline
+        // Si es una marca de texto, seleccionarla y abrir inmediatamente el editor inline
         if (activeTool === 'text') {
+          setSelectedMarkupIds([newId]);
           setInlineEditing({
             markupId: newId,
             initialText: 'Note',

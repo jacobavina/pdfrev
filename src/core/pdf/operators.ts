@@ -339,7 +339,7 @@ export function emitMarkupOperators(
     angle: number,
     fontSize: number,
     color: { r: number; g: number; b: number },
-    align: 'left' | 'center',
+    align: 'left' | 'center' | 'right',
     bold = false,
     fontRes?: { name: string; base: string },
     metrics?: Pick<CaptionFont, 'family' | 'bold'>
@@ -348,8 +348,18 @@ export function emitMarkupOperators(
     const width = metrics ? captionTextWidth(text, fontSize, metrics) : getHelveticaTextWidth(text, fontSize) * (bold ? 1.07 : 1);
     const cos = Math.cos(angle);
     const sin = Math.sin(angle);
-    const x0 = align === 'center' ? origin.x - (cos * width) / 2 : origin.x;
-    const y0 = align === 'center' ? origin.y - (sin * width) / 2 : origin.y;
+    const x0 =
+      align === 'center'
+        ? origin.x - (cos * width) / 2
+        : align === 'right'
+          ? origin.x - cos * width
+          : origin.x;
+    const y0 =
+      align === 'center'
+        ? origin.y - (sin * width) / 2
+        : align === 'right'
+          ? origin.y - sin * width
+          : origin.y;
     const resName = fontRes?.name ?? (bold ? AP_BOLD_FONT_NAME : AP_FONT_NAME);
     lines.push('q', 'BT', `/${resName} ${f2(fontSize)} Tf`, rgbOp(color, 'rg'));
     lines.push(`${cos.toFixed(4)} ${sin.toFixed(4)} ${(-sin).toFixed(4)} ${cos.toFixed(4)} ${f2(x0)} ${f2(y0)} Tm`);
@@ -372,7 +382,7 @@ export function emitMarkupOperators(
     originVis: Pt,
     fontSize: number,
     color: { r: number; g: number; b: number },
-    align: 'left' | 'center' = 'left',
+    align: 'left' | 'center' | 'right' = 'left',
     bold = false,
     font?: CaptionFont
   ) => {
@@ -845,15 +855,22 @@ export function emitMarkupOperators(
       const y = Math.min(a.y, b.y);
       const w = Math.max(80, Math.abs(b.x - a.x));
       const h = Math.max(26, Math.abs(b.y - a.y));
-      lines.push('1 w', rgbOp(fillParsed ?? { r: 1, g: 0.984, b: 0.91 }, 'rg'));
+      const strokeW = markup.style.strokeWidth ?? 1;
+      const hasBorder = strokeParsed !== null && strokeW > 0;
+      const noFill = markup.style.fillColor === 'transparent' || markup.style.fillColor === 'none';
+      const boxFill = noFill ? null : (fillParsed ?? { r: 1, g: 0.984, b: 0.91 });
+      if (hasBorder) lines.push(`${strokeW.toFixed(2)} w`);
+      if (boxFill) lines.push(rgbOp(boxFill, 'rg'));
       pathPdf([visToPdf({ x, y }), visToPdf({ x: x + w, y }), visToPdf({ x: x + w, y: y + h }), visToPdf({ x, y: y + h })], true);
-      lines.push(strokeParsed ? 'B' : 'f');
+      lines.push(boxFill && hasBorder ? 'B' : boxFill ? 'f' : hasBorder ? 'S' : 'n');
       const tb = boxFont(12);
       // Autosize Text (ADR-0061): el tamaño que llena la caja
       const fontSize = effectiveTextSize(markup, tb.font.size, w, h, 'text');
+      const align = markup.textFormat?.align ?? 'left';
+      const textX = align === 'center' ? x + w / 2 : align === 'right' ? x + w - 6 : x + 6;
       wrapCalloutText(markup.text || '', w - 12, fontSize).forEach((line, i) => {
         const baseline = y + 4 + fontSize + i * (fontSize + 2);
-        if (baseline <= y + h) textVis(line, { x: x + 6, y: baseline }, fontSize, tb.color, 'left', false, tb.font);
+        if (baseline <= y + h) textVis(line, { x: textX, y: baseline }, fontSize, tb.color, align, false, tb.font);
       });
       break;
     }
@@ -906,8 +923,10 @@ export function emitMarkupOperators(
       // Autosize Text (ADR-0061): el tamaño que llena la caja
       const fontSize = effectiveTextSize(markup, cf.size, bx.width, bx.height, 'callout');
       const maxTextWidth = Math.max(CALLOUT_MIN_BOX_WIDTH - 16, bx.width - 16);
+      const calloutAlign = markup.textFormat?.align ?? 'left';
+      const calloutTextX = calloutAlign === 'center' ? bx.x + bx.width / 2 : calloutAlign === 'right' ? bx.x + bx.width - 6 : bx.x + 6;
       wrapCalloutText(markup.text || '', maxTextWidth, fontSize).forEach((line, i) => {
-        textVis(line, { x: bx.x + 6, y: bx.y + 4 + fontSize + i * (fontSize + 3) }, fontSize, cColor, 'left', false, cf);
+        textVis(line, { x: calloutTextX, y: bx.y + 4 + fontSize + i * (fontSize + 3) }, fontSize, cColor, calloutAlign, false, cf);
       });
       break;
     }

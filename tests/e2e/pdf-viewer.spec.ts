@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import fs from 'fs';
 
 test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   // Estas pruebas hacen clic por coordenadas con el ancho del visor fijo: sin abrir paneles al seleccionar
@@ -2680,5 +2681,102 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect.poll(async () => cloudPath.getAttribute('d')).toBe(dBefore);
     expect(await calloutText.getAttribute('x')).toBe(textXBefore);
     expect(await calloutText.getAttribute('y')).toBe(textYBefore);
+  });
+
+  test('Escenario S1 (ADR-0074): responde a una marca en MarkupsList, cambia estados, alinea marcas y verifica persistencia', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    const markupsPanel = page.locator('[data-testid="markups-list-panel"]');
+    await expect(markupsPanel).toBeVisible();
+    await expect(page.locator('[data-testid="markup-row-calibration-markup-1"]')).toBeVisible();
+
+    const svgBox = (await overlaySvg.boundingBox())!;
+
+    // 1. Crear un cuadro de texto (Text Box) y configurar su alineación centrada y grosor de borde (ADR-0074)
+    await page.locator('[data-testid="tool-text"]').click();
+    await page.mouse.move(svgBox.x + 220, svgBox.y + 140);
+    await page.mouse.down();
+    await page.mouse.move(svgBox.x + 380, svgBox.y + 200, { steps: 5 });
+    await page.mouse.up();
+
+    const editorInput = page.locator('[data-testid="inline-text-editor-input"]');
+    await expect(editorInput).toBeVisible();
+    await editorInput.fill('Revisar junta sismica Eje B');
+    await page.keyboard.press('Enter');
+    await expect(editorInput).toHaveCount(0);
+    await page.locator('[data-testid="tool-select"]').click();
+
+    // Abrir el panel de Propiedades, centrar el texto y poner borde de 3 pt
+    await page.locator('[data-testid="expand-properties-btn"]').click();
+    await page.locator('[data-testid="ribbon-text-align-center"]').click();
+    await expect(page.locator('[data-testid="ribbon-text-align-center"]')).toHaveAttribute('aria-pressed', 'true');
+    await page.locator('[data-testid="ribbon-stroke-width"]').click();
+    await page.locator('[data-testid="ribbon-stroke-width-option-3"]').click();
+    await page.locator('[data-testid="collapse-properties-btn"]').click();
+
+    const textGroup = overlaySvg.locator('g[data-testid^="markup-g-"]').last();
+    const textRect = textGroup.locator('rect:not([data-testid="selection-bbox"])');
+    await expect(textRect).toHaveAttribute('stroke-width', '3');
+    await expect(textGroup.locator('text').first()).toHaveAttribute('text-anchor', 'middle');
+
+    // 2. Responder en hilo a la marca existente en MarkupsList (ADR-0071)
+    await page.locator('[data-testid="reply-markup-btn-calibration-markup-1"]').click();
+    const replyInput = page.locator('[data-testid="reply-composer-input"]');
+    await expect(replyInput).toBeVisible();
+    await replyInput.fill('Confirmado en obra por estructurista');
+    await page.locator('[data-testid="reply-composer-submit"]').click();
+
+    const replyRow = markupsPanel.locator('[data-testid^="markup-reply-row-"]');
+    await expect(replyRow).toHaveCount(1);
+    await expect(replyRow.locator('input[type="text"]').first()).toHaveValue('Confirmado en obra por estructurista');
+
+    // 3. Cambiar el estado de revisión de ambas marcas
+    const calibRow = page.locator('[data-testid="markup-row-calibration-markup-1"]');
+    await calibRow.locator('select').selectOption('accepted');
+    const textRow = markupsPanel.locator('tr[data-testid^="markup-row-"]').last();
+    await textRow.locator('select').selectOption('completed');
+
+    // 4. Multiselección de ambas marcas y alineación a la izquierda desde Edit ▸ Align & Flip (ADR-0073)
+    const calibRect = overlaySvg
+      .locator('[data-testid="markup-g-calibration-markup-1"] rect:not([data-testid="selection-bbox"])');
+    const calibXBefore = parseFloat((await calibRect.getAttribute('x'))!);
+    const textXBefore = parseFloat((await textRect.getAttribute('x'))!);
+    expect(textXBefore).toBeGreaterThan(calibXBefore + 20);
+
+    // El cuadro de texto ya está seleccionado; añadimos calibration-markup-1 con su casilla
+    await calibRow.locator('input[type="checkbox"]').click();
+    await expect(overlaySvg.locator('rect[data-testid="selection-bbox"]')).toHaveCount(2);
+
+    await page.locator('[data-testid="menu-editar"]').click();
+    await page.locator('[data-testid="menu-edit-transform"]').hover();
+    await page.locator('[data-testid="menu-align-left"]').click();
+
+    await expect.poll(async () => parseFloat((await textRect.getAttribute('x'))!)).toBeCloseTo(calibXBefore, 1);
+
+    // Deshacer y rehacer la alineación
+    await page.locator('header').click();
+    await page.keyboard.press('Control+z');
+    await expect.poll(async () => parseFloat((await textRect.getAttribute('x'))!)).toBeCloseTo(textXBefore, 1);
+    await page.keyboard.press('Control+y');
+    await expect.poll(async () => parseFloat((await textRect.getAttribute('x'))!)).toBeCloseTo(calibXBefore, 1);
+
+    // 5. Guardar con Ctrl+S y verificar que el PDF descargado contiene las anotaciones estándar de S1
+    const downloadPromise = page.waitForEvent('download');
+    await page.keyboard.press('Control+s');
+    const download = await downloadPromise;
+    const savedPath = await download.path();
+    expect(savedPath).not.toBeNull();
+    const savedBytes = fs.readFileSync(savedPath!);
+    const pdfContent = savedBytes.toString('latin1');
+    expect(pdfContent).toContain('/Subtype /FreeText');
+    expect(pdfContent).toContain('/Q 1');
+    expect(pdfContent).toContain('/IRT');
+    expect(pdfContent).toContain('/RT /R');
+    expect(pdfContent).toContain('/StateModel (Review)');
+    expect(pdfContent).toContain('/State (Accepted)');
+    expect(pdfContent).toContain('/State (Completed)');
   });
 });

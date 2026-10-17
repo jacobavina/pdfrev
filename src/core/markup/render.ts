@@ -1485,14 +1485,22 @@ export function getMarkupSvgDescriptor(
       const fontPx = calloutSize * pxPerPt;
       const maxTextWidth = Math.max(CALLOUT_MIN_BOX_WIDTH - 16, geom.box.width / pxPerPt - 16) * pxPerPt;
       const calloutLines = wrapCalloutText(markup.text || '', maxTextWidth, fontPx);
+      const calloutAlign = markup.textFormat?.align ?? 'left';
+      const calloutTextX =
+        calloutAlign === 'center'
+          ? geom.box.x + geom.box.width / 2
+          : calloutAlign === 'right'
+            ? geom.box.x + geom.box.width - 6 * pxPerPt
+            : geom.box.x + 6 * pxPerPt;
       calloutLines.forEach((line, i) => {
         children.push({
           tag: 'text',
           attrs: {
-            x: geom.box.x + 6 * pxPerPt,
+            x: calloutTextX,
             y: geom.box.y + (4 + calloutSize + i * (calloutSize + 3)) * pxPerPt,
             fontSize: fontPx,
             ...fontAttrs(calloutFont),
+            ...(calloutAlign === 'center' ? { textAnchor: 'middle' } : calloutAlign === 'right' ? { textAnchor: 'end' } : {}),
             className: 'pointer-events-none',
           },
           textNode: line,
@@ -1506,7 +1514,7 @@ export function getMarkupSvgDescriptor(
       };
     }
 
-    // C1: Rama text devuelve tag 'text' válido
+    // C1: Rama text devuelve tag 'text' válido con borde, relleno y alineación (ADR-0074)
     case 'text': {
       const rect = getRectGeometry(p1Screen, p2Screen);
       const width = Math.max(80, rect.width);
@@ -1517,9 +1525,18 @@ export function getMarkupSvgDescriptor(
       const boxFont = markupFontOf(markup, 12, BOX_TEXT_COLOR);
       const textSize = effectiveTextSize(markup, boxFont.size, width / textPxPerPt, height / textPxPerPt, 'text');
       const textLines = wrapCalloutText(markup.text || 'Note', width / textPxPerPt - 12, textSize);
+      const align = markup.textFormat?.align ?? 'left';
+      const textX =
+        align === 'center'
+          ? rect.x + width / 2
+          : align === 'right'
+            ? rect.x + width - 6 * textPxPerPt
+            : rect.x + 6 * textPxPerPt;
+      const strokeW = style.strokeWidth ?? 1;
+      const hasBorder = strokeW > 0 && style.strokeColor !== 'transparent' && style.strokeColor !== 'none';
       return {
         tag: 'g',
-        attrs: { className: 'cursor-text' },
+        attrs: { className: 'cursor-text', opacity: baseAttrs.opacity ?? 1 },
         children: [
           {
             tag: 'rect',
@@ -1529,8 +1546,9 @@ export function getMarkupSvgDescriptor(
               width,
               height,
               fill: style.fillColor || '#fffbe8',
-              stroke: style.strokeColor,
-              strokeWidth: 1,
+              stroke: hasBorder ? style.strokeColor : 'none',
+              strokeWidth: hasBorder ? strokeW : 0,
+              ...(hasBorder && baseAttrs.strokeDasharray ? { strokeDasharray: baseAttrs.strokeDasharray } : {}),
               rx: 2,
             },
           },
@@ -1538,10 +1556,11 @@ export function getMarkupSvgDescriptor(
             (line, i): SvgRenderDescriptor => ({
               tag: 'text',
               attrs: {
-                x: rect.x + 6 * textPxPerPt,
+                x: textX,
                 y: rect.y + (4 + textSize + i * (textSize + 2)) * textPxPerPt,
                 fontSize: textSize * textPxPerPt,
                 ...fontAttrs(boxFont),
+                ...(align === 'center' ? { textAnchor: 'middle' } : align === 'right' ? { textAnchor: 'end' } : {}),
                 className: 'pointer-events-none',
               },
               textNode: line,

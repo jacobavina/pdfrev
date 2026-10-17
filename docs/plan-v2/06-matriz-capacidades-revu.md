@@ -42,10 +42,10 @@
 | Flecha / línea con extremos | ✅ ADR-0014 (bc7ddb6) + ADR-0018 (f0abc85) · PARITY «Flechas y tipos de línea…(ADR-0018)» y «Extremos y patrón de línea en el PDF (/AP, /LE, /BS) con ida y vuelta» | — | M | I |
 | Nube de revisión (+ Cloud+) | ✅ ADR-0021/0039/0041/0069 · PARITY «Nubes de revisión con arcStep persistido…», «Cloud+ como grupo indivisible…», «Nube y Cloud+ de forma libre…», «Nube como la de Revu…», «Cloud+ con directriz sin flecha…» y «Tiradores de Cloud+…» | — | M | I |
 | Callout | ✅ ADR-0042/0067 · PARITY «Callout / Nota técnica con directriz conectada», «Callout de Revu/Foxit…», «Callout con directriz horizontal…», «Callout con dos clics…» | — | M | I |
-| Cuadro de texto con borde/relleno | 🟡 Texto ✅ ADR-0061 (314e56f) · PARITY «Autosize Text de Revu…»; borde y relleno se dibujan en pantalla y /AP (`src/core/markup/render.ts`: rect con fill y stroke), pero sin test dedicado | P3-H.2 | M | I |
+| Cuadro de texto con borde/relleno | ✅ ADR-0061 (314e56f) + ADR-0074 · PARITY «Autosize Text de Revu…» y «Cuadro de texto (/FreeText) con borde, relleno y alineación (/Q) en pantalla, /AP e ida y vuelta (ADR-0074)» | — | M | I |
 | Nota adhesiva | ✅ · PARITY «Nota adhesiva técnica (`stickyNote`)» | — | S | I |
 | Resaltador vectorial / de texto | ✅ · PARITY «Resaltador vectorial (`highlightVector`)» y «Resaltado de texto (`highlightText` con TextLayer)» | — | M | I |
-| Subrayado, tachado, ondulado de texto | 🟡 Subrayado y tachado ✅ ADR-0014 (bc7ddb6) · PARITY «Herramientas Revu y portapapeles…»; ondulado ⬜ (grep `squiggly`: vacío) | P3-H.3 | M | I |
+| Subrayado, tachado, ondulado de texto | ✅ ADR-0014 (bc7ddb6) + ADR-0072 (71a71c3) · PARITY «Herramientas Revu y portapapeles…», «Ondulado de texto (`squiggly`): renderizado SVG en la base del renglón (ADR-0072)», «Ondulado de texto (`squiggly`): emisión de operadores PDF `/AP /N` (ADR-0072)» y «Ondulado de texto (`squiggly`): importación de `/Subtype /Squiggly` ajeno con `/QuadPoints` (ADR-0072)» | — | M | I |
 | Insertar/reemplazar texto (caret) | ⬜ (grep `caret` en src: vacío) | P3-H.3 | C | I |
 | Lápiz (mano alzada) | ✅ (`freehand`) · PARITY «Atajos de teclado de Revu (P, …) (ADR-0052)» y hit-testing por tipo en `src/utils/coordinates.test.ts` | — | S | I |
 | Borrador de trazo | ⬜ | P3-H.2 | C | I |
@@ -53,7 +53,7 @@
 | Sellos (estáticos y dinámicos) | ✅ ADR-0026 (444000d) + ADR-0040 (330d88a) + ADR-0045 (b03a318) · PARITY «Sellos en el PDF (/Stamp con /Name estándar)…», «Sellos de Revu…», «Sellos de Foxit…», «Texto dinámico de los sellos…» y «Selector de sellos por secciones…» | — | M | I |
 | Hipervínculo | ✅ ADR-0027 (46a9c3d) · PARITY «Hyperlink, File Attachment y campos de formulario desde Tools (ADR-0027)» y «Enlaces propios del PDF navegables con un clic» | — | S | I |
 | Copiar/pegar/duplicar (también entre páginas) | ✅ ADR-0014 (bc7ddb6) · `src/store/useMarkupStore.test.ts` (copySelectedMarkups, pasteMarkups con nuevo groupId, duplicateSelectedMarkups) + PARITY «Herramientas Revu y portapapeles…» | — | M | K I |
-| Alinear/distribuir, voltear/rotar marca | 🟡 Rotar ✅ ADR-0039 (330d88a) · PARITY «Tiradores de Revu: vértices pequeños, escalar por las esquinas y rotar»; alinear/distribuir/voltear ⬜ | P3-H.5 | S | I |
+| Alinear/distribuir, voltear/rotar marca | ✅ ADR-0039 (330d88a) + ADR-0073 (dc52e2b) · PARITY «Tiradores de Revu: vértices pequeños, escalar por las esquinas y rotar» y «Alinear, distribuir y voltear marcas seleccionadas en un comando atómico deshacible (ADR-0073)» | — | S | I |
 | Bloquear marca | ✅ ADR-0014 (bc7ddb6) · PARITY «Herramientas Revu y portapapeles…» (test `marcas bloqueadas quedan protegidas contra borrado, movimiento y actualización de propiedades`) | — | S | I |
 | Orden Z (traer/enviar al fondo) | ⬜ | P3-H.5 | C | I |
 | Mover / transformar / multiselección (marquee) | ✅ · PARITY «Move y Transform con umbral 4px…» y «Multiselección con Marquee…» | — | M | K I |
@@ -68,8 +68,8 @@
 |---|---|---|---|---|
 | Lista de marcas, selección bidireccional | ✅ ADR-0060 · PARITY «Tabla técnica `MarkupsList` con sincronización bidireccional» y «Markups List de Revu: abre cerrada…» | — | M | K I |
 | Filtrar y ordenar | ✅ (C.1) · PARITY «P2-C.1: Filtrado multifactor y ordenación estable con benchmark < 10ms (Bloque C)» | — | M | K I |
-| Estados de revisión (menú contextual) | ✅ P2-C.2 (d310a87) · PARITY «P2-C.2: Menú contextual de estados técnicos con comando de historial (Bloque C)» | — | M | I |
-| Respuestas / hilos | ⬜ (grep `inReplyTo|replyTo|thread` en src: vacío) | P3-E.2 | M | I |
+| Estados de revisión (menú contextual) | ✅ P2-C.2 (d310a87) + ADR-0071 (db18bcf) · PARITY «P2-C.2: Menú contextual de estados técnicos con comando de historial (Bloque C)» y «Estados de revisión (/StateModel Review): preservación de múltiples transiciones en ida y vuelta PDF (ADR-0071)» | — | M | I |
+| Respuestas / hilos | ✅ ADR-0071 (db18bcf) · PARITY «Respuestas en hilo (/IRT /RT /R): persistencia e ida y vuelta en el PDF incremental (ADR-0071)», «Importación de cadenas transitivas de respuestas /IRT de Revu y Acrobat (ADR-0071)» y «Árbol de respuestas en MarkupsList, menú contextual Reply y exportación CSV/PDF (ADR-0071)» | — | M | I |
 | Columnas personalizadas | ✅ P2-C.3 (fbbb4d9, 2937fc3, 8109a6f; persistencia 91c474b/bf7be61) · PARITY «P2-C.3: Parser de columnas personalizadas sin eval y persistencia en .bbx.json (Bloque C)», «Columnas de Revu en la lista de marcas…» y «Grupos por Subject y texto de cada columna» | — | M | K |
 | Resumen de marcas (PDF/CSV) | ✅ P2-C.4 (e6a7b8a) · PARITY «P2-C.4: Exportación estructurada a CSV con BOM y Reporte Resumen PDF (Bloque C)» | — | M | I |
 | Anotaciones foráneas (importar PDFs de otros) | ✅ ADR-0013 (adc9ff1) + ADR-0053 (c1f9efb) + ADR-0055 (b65adb3) · PARITY «Cotas de Revu/Acrobat (/Line con /LL) importadas como cota», «Mediciones hechas en Acrobat/Revu se abren…», «Distancias de Acrobat con /LL se importan…», «Callout /FreeTextCallout y sellos /Stamp de otras aplicaciones…», «Capa de anotaciones ajenas leída de su /OC» e «Importar y rellenar formularios AcroForm…» | — | **M** | K I |

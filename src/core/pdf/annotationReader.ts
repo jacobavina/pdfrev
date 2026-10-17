@@ -622,6 +622,11 @@ export async function importPdfAnnotations(
       let layer: string | undefined;
       let lineStyle: string | undefined;
       let hatch: string | undefined;
+      let fontFamily: string | undefined;
+      let textColor: string | undefined;
+      let reaAlign: 'left' | 'center' | 'right' | undefined;
+      let reaBold = false;
+      let reaItalic = false;
       let exactGeometry = false;
       if (isRea && reaObj instanceof PDFDict) {
         const readPts = (arr: unknown): MarkupPoint[] | null => {
@@ -677,6 +682,17 @@ export async function importPdfAnnotations(
         lineStyle = extractPdfStringValue(reaObj.get(PDFName.of('lineStyle'))) || undefined;
         // Hatch de formas cerradas (ADR-0057)
         hatch = extractPdfStringValue(reaObj.get(PDFName.of('hatch'))) || undefined;
+        fontFamily = extractPdfStringValue(reaObj.get(PDFName.of('fontFamily'))) || undefined;
+        textColor = extractPdfStringValue(reaObj.get(PDFName.of('textColor'))) || undefined;
+        if (reaObj.get(PDFName.of('noFill')) instanceof PDFNumber && !fillColor) {
+          fillColor = 'transparent';
+        }
+        const rawAlign = extractPdfStringValue(reaObj.get(PDFName.of('textAlign')));
+        if (rawAlign === 'left' || rawAlign === 'center' || rawAlign === 'right') {
+          reaAlign = rawAlign;
+        }
+        reaBold = reaObj.get(PDFName.of('bold')) instanceof PDFNumber;
+        reaItalic = reaObj.get(PDFName.of('italic')) instanceof PDFNumber;
       }
 
       // Callout ajeno o movido en Revu/Acrobat (ADR-0042/0053): caja de texto desde /Rect - /RD y directriz desde /CL
@@ -789,6 +805,24 @@ export async function importPdfAnnotations(
       const daMatch = /([\d.]+)\s+Tf/.exec(extractPdfStringValue(annotDict.get(PDFName.of('DA'))));
       if (daMatch && Number(daMatch[1]) > 0) fontSize = Number(daMatch[1]);
 
+      // Alineación de texto estándar (/Q: 0=left, 1=center, 2=right) y formato (ADR-0074)
+      let textAlign: 'left' | 'center' | 'right' | undefined = reaAlign;
+      const qObj = annotDict.get(PDFName.of('Q'));
+      if (qObj instanceof PDFNumber) {
+        const qNum = qObj.asNumber();
+        if (qNum === 1) textAlign = 'center';
+        else if (qNum === 2) textAlign = 'right';
+        else if (qNum === 0 && (reaAlign !== undefined || !isRea)) textAlign = 'left';
+      }
+      const textFormat =
+        textAlign !== undefined || reaBold || reaItalic
+          ? {
+              ...(reaBold ? { bold: true } : {}),
+              ...(reaItalic ? { italic: true } : {}),
+              ...(textAlign !== undefined ? { align: textAlign } : {}),
+            }
+          : undefined;
+
       // Comprobar bandera de bloqueo (/F bit 8 = 128 o /Ff ReadOnly en campos ajenos)
       let locked = customFields.foreignReadOnly === 1;
       delete customFields.foreignReadOnly;
@@ -838,6 +872,8 @@ export async function importPdfAnnotations(
           strokeWidth,
           opacity,
           ...(fontSize !== undefined ? { fontSize } : {}),
+          ...(fontFamily ? { fontFamily } : {}),
+          ...(textColor ? { textColor } : {}),
           lineEndingStart,
           lineEndingEnd,
           dashArray,
@@ -845,6 +881,7 @@ export async function importPdfAnnotations(
           ...(hatch ? { hatch } : {}),
         },
         text: text || undefined,
+        ...(textFormat ? { textFormat } : {}),
         author,
         status: 'pending',
         createdAt: dateStr,

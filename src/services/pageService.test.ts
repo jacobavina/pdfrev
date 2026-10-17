@@ -5,6 +5,7 @@ import {
   executeDeletePage,
   executeInsertBlankPage,
   executeExtractPage,
+  executeReorderPage,
 } from './pageService';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
@@ -145,5 +146,58 @@ describe('pageService - Integración de Operaciones de Página (Paquete 5)', () 
       'pdf',
       expect.any(Uint8Array)
     );
+  });
+
+  describe('executeReorderPage (ADR-0082)', () => {
+    it('reordena página 0 a posición 2, actualiza marcas, calibraciones, página activa y estado dirty', async () => {
+      const success = await executeReorderPage(0, 2);
+      expect(success).toBe(true);
+
+      // Total de páginas se mantiene
+      expect(useDocumentStore.getState().numPages).toBe(3);
+      // La página activa sigue a la página movida (ahora índice 2)
+      expect(useDocumentStore.getState().currentPageIndex).toBe(2);
+
+      // Marcas remapeadas
+      const markups = useMarkupStore.getState().markups;
+      expect(markups).toHaveLength(3);
+      expect(markups.find((m) => m.id === 'm0')?.pageIndex).toBe(2);
+      expect(markups.find((m) => m.id === 'm1')?.pageIndex).toBe(0);
+      expect(markups.find((m) => m.id === 'm2')?.pageIndex).toBe(1);
+
+      // Calibraciones remapeadas
+      const calibrations = useCalibrationStore.getState().calibrations;
+      expect(calibrations[0].scale).toBe(0.02); // antigua pág 1
+      expect(calibrations[1].scale).toBe(0.05); // antigua pág 2
+      expect(calibrations[2].scale).toBe(0.01); // antigua pág 0
+
+      // El documento debe quedar marcado como sucio (dirty)
+      expect(useMarkupStore.getState().isDirty).toBe(true);
+    });
+
+    it('reordena hacia atrás (2 a 0)', async () => {
+      useDocumentStore.setState({ currentPageIndex: 2 });
+      const success = await executeReorderPage(2, 0);
+      expect(success).toBe(true);
+
+      expect(useDocumentStore.getState().currentPageIndex).toBe(0);
+      const markups = useMarkupStore.getState().markups;
+      expect(markups.find((m) => m.id === 'm2')?.pageIndex).toBe(0);
+      expect(markups.find((m) => m.id === 'm0')?.pageIndex).toBe(1);
+      expect(markups.find((m) => m.id === 'm1')?.pageIndex).toBe(2);
+    });
+
+    it('devuelve true de inmediato si fromIndex es igual a toIndex sin alterar estado', async () => {
+      const success = await executeReorderPage(1, 1);
+      expect(success).toBe(true);
+    });
+
+    it('rechaza índices fuera de rango', async () => {
+      const success1 = await executeReorderPage(-1, 2);
+      expect(success1).toBe(false);
+
+      const success2 = await executeReorderPage(0, 10);
+      expect(success2).toBe(false);
+    });
   });
 });

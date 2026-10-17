@@ -15,6 +15,7 @@ vi.mock('../services/pageService', () => ({
   executeDeletePage: vi.fn().mockResolvedValue(true),
   executeInsertBlankPage: vi.fn().mockResolvedValue(true),
   executeExtractPage: vi.fn().mockResolvedValue(true),
+  executeReorderPage: vi.fn().mockResolvedValue(true),
 }));
 
 describe('ThumbnailsSidebar - Operaciones de Página (Paquete 5)', () => {
@@ -77,6 +78,60 @@ describe('ThumbnailsSidebar - Operaciones de Página (Paquete 5)', () => {
     fireEvent.click(deleteBtn0);
     await waitFor(() => {
       expect(pageService.executeDeletePage).toHaveBeenCalledWith(0);
+    });
+  });
+
+  it('renderiza botones de mover página y ejecuta reordenación (ADR-0082)', async () => {
+    render(<ThumbnailsSidebar />);
+
+    // Página 0: solo puede bajar
+    expect(screen.queryByTestId('page-move-up-btn-0')).not.toBeInTheDocument();
+    const moveDown0 = screen.getByTestId('page-move-down-btn-0');
+    expect(moveDown0).toBeInTheDocument();
+
+    fireEvent.click(moveDown0);
+    await waitFor(() => {
+      expect(pageService.executeReorderPage).toHaveBeenCalledWith(0, 1);
+    });
+
+    // Página 1: solo puede subir
+    expect(screen.queryByTestId('page-move-down-btn-1')).not.toBeInTheDocument();
+    const moveUp1 = screen.getByTestId('page-move-up-btn-1');
+    expect(moveUp1).toBeInTheDocument();
+
+    fireEvent.click(moveUp1);
+    await waitFor(() => {
+      expect(pageService.executeReorderPage).toHaveBeenCalledWith(1, 0);
+    });
+  });
+
+  it('soporta reordenación mediante drag and drop (ADR-0082)', async () => {
+    render(<ThumbnailsSidebar />);
+
+    const thumb0 = screen.getByTestId('thumbnail-0');
+    const thumb1 = screen.getByTestId('thumbnail-1');
+
+    expect(thumb0).toHaveAttribute('draggable', 'true');
+
+    // Simular drag & drop de miniatura 0 a miniatura 1
+    const dataTransfer = {
+      data: {} as Record<string, string>,
+      setData: vi.fn((k: string, v: string) => {
+        dataTransfer.data[k] = v;
+      }),
+      getData: vi.fn((k: string) => dataTransfer.data[k] || ''),
+      effectAllowed: 'none',
+      dropEffect: 'none',
+    };
+
+    fireEvent.dragStart(thumb0, { dataTransfer });
+    expect(dataTransfer.setData).toHaveBeenCalledWith('text/plain', '0');
+
+    fireEvent.dragOver(thumb1, { dataTransfer });
+    fireEvent.drop(thumb1, { dataTransfer });
+
+    await waitFor(() => {
+      expect(pageService.executeReorderPage).toHaveBeenCalledWith(0, 1);
     });
   });
 });

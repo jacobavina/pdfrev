@@ -8,10 +8,14 @@ import {
   deletePdfPage,
   insertBlankPdfPage,
   extractPdfPage,
+  reorderPdfPages,
   remapMarkupsOnPageDeletion,
   remapMarkupsOnPageInsertion,
+  remapMarkupsOnPageReorder,
   remapCalibrationsOnPageDeletion,
   remapCalibrationsOnPageInsertion,
+  remapCalibrationsOnPageReorder,
+  remapViewportsOnPageReorder,
 } from '../core/pages/pageOperations';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
@@ -159,3 +163,78 @@ export async function executeExtractPage(pageIndex: number): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Reordena una página del documento de fromIndex a toIndex (ADR-0082).
+ * Sincroniza PDF, marcas, calibraciones, viewports, página activa y estado de guardado.
+ */
+export async function executeReorderPage(
+  fromIndex: number,
+  toIndex: number
+): Promise<boolean> {
+  const { pdfBytes, filePath, fileName, numPages, currentPageIndex, setDocument, setCurrentPage } =
+    useDocumentStore.getState();
+  const { markups, setMarkups } = useMarkupStore.getState();
+  const { calibrations, viewports } = useCalibrationStore.getState();
+
+  if (!pdfBytes) {
+    showToast('No document open to reorder.');
+    return false;
+  }
+
+  if (fromIndex < 0 || fromIndex >= numPages || toIndex < 0 || toIndex >= numPages) {
+    showToast('Page index out of range.');
+    return false;
+  }
+
+  if (fromIndex === toIndex) {
+    return true;
+  }
+
+  try {
+    const updatedBytes = await reorderPdfPages(pdfBytes, fromIndex, toIndex);
+    const newPdfDoc = await loadPdfDocument(updatedBytes);
+
+    // Remapear marcas
+    const remappedMarkups = remapMarkupsOnPageReorder(markups, fromIndex, toIndex);
+    setMarkups(remappedMarkups);
+
+    // Remapear calibraciones y viewports
+    const remappedCalibrations = remapCalibrationsOnPageReorder(calibrations, fromIndex, toIndex);
+    const remappedViewports = remapViewportsOnPageReorder(viewports, fromIndex, toIndex);
+    useCalibrationStore.setState({
+      calibrations: remappedCalibrations,
+      viewports: remappedViewports,
+    });
+
+    // Actualizar documento con nuevos bytes y pdfDoc
+    setDocument(filePath, fileName || 'document.pdf', updatedBytes, newPdfDoc.numPages, newPdfDoc);
+
+    // Actualizar página activa: seguir a la página movida si era la actual, o ajustar si fue desplazada
+    let newCurrentPage = currentPageIndex;
+    if (currentPageIndex === fromIndex) {
+      newCurrentPage = toIndex;
+    } else if (fromIndex < toIndex) {
+      if (currentPageIndex > fromIndex && currentPageIndex <= toIndex) {
+        newCurrentPage = currentPageIndex - 1;
+      }
+    } else {
+      if (currentPageIndex >= toIndex && currentPageIndex < fromIndex) {
+        newCurrentPage = currentPageIndex + 1;
+      }
+    }
+    setCurrentPage(newCurrentPage);
+
+    // Marcar documento como modificado
+    useMarkupStore.getState().markDirty();
+
+    showToast(`Page ${fromIndex + 1} moved to position ${toIndex + 1}.`);
+    return true;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[PageService] Error reordenando página:', msg);
+    showToast(`Error reordering page: ${msg}`);
+    return false;
+  }
+}
+

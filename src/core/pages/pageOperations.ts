@@ -3,7 +3,7 @@
  * Rotación, eliminación, inserción en blanco y extracción, con remapeo consistente de marcas y calibraciones.
  */
 
-import { Markup, PageCalibration } from '../../types/markup';
+import { Markup, PageCalibration, MeasurementViewport } from '../../types/markup';
 
 export interface PageDimensions {
   width: number;
@@ -112,6 +112,35 @@ export async function extractPdfPage(
 }
 
 /**
+ * Reordena una página del documento moviéndola de fromIndex a toIndex (ADR-0082).
+ */
+export async function reorderPdfPages(
+  pdfBytes: Uint8Array,
+  fromIndex: number,
+  toIndex: number
+): Promise<Uint8Array> {
+  const { PDFDocument } = await import('pdf-lib');
+  const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
+  const totalPages = pdfDoc.getPageCount();
+
+  if (fromIndex < 0 || fromIndex >= totalPages) {
+    throw new Error(`Source page index out of range: ${fromIndex} (total: ${totalPages})`);
+  }
+  if (toIndex < 0 || toIndex >= totalPages) {
+    throw new Error(`Target page index out of range: ${toIndex} (total: ${totalPages})`);
+  }
+  if (fromIndex === toIndex) {
+    return pdfBytes;
+  }
+
+  const page = pdfDoc.getPage(fromIndex);
+  pdfDoc.removePage(fromIndex);
+  pdfDoc.insertPage(toIndex, page);
+
+  return pdfDoc.save();
+}
+
+/**
  * Remapea el conjunto de marcas al eliminar una página.
  * - Elimina las marcas que residían en la página borrada.
  * - Decrementa en 1 el `pageIndex` de las marcas posteriores.
@@ -147,6 +176,38 @@ export function remapMarkupsOnPageInsertion(
         ...m,
         pageIndex: m.pageIndex + 1,
       };
+    }
+    return m;
+  });
+}
+
+/**
+ * Remapea el conjunto de marcas al reordenar una página de fromIndex a toIndex (ADR-0082).
+ */
+export function remapMarkupsOnPageReorder(
+  markups: Markup[],
+  fromIndex: number,
+  toIndex: number
+): Markup[] {
+  if (fromIndex === toIndex) return markups;
+
+  return markups.map((m) => {
+    const p = m.pageIndex;
+    let newP = p;
+    if (p === fromIndex) {
+      newP = toIndex;
+    } else if (fromIndex < toIndex) {
+      if (p > fromIndex && p <= toIndex) {
+        newP = p - 1;
+      }
+    } else {
+      if (p >= toIndex && p < fromIndex) {
+        newP = p + 1;
+      }
+    }
+
+    if (newP !== p) {
+      return { ...m, pageIndex: newP };
     }
     return m;
   });
@@ -195,5 +256,65 @@ export function remapCalibrationsOnPageInsertion(
     }
   }
 
+  return updated;
+}
+
+/**
+ * Remapea un diccionario indexado por número de página al reordenar páginas (ADR-0082).
+ */
+export function remapRecordOnPageReorder<T>(
+  record: Record<number, T>,
+  fromIndex: number,
+  toIndex: number
+): Record<number, T> {
+  if (fromIndex === toIndex) return { ...record };
+
+  const updated: Record<number, T> = {};
+  for (const [keyStr, val] of Object.entries(record)) {
+    const p = parseInt(keyStr, 10);
+    if (isNaN(p)) continue;
+
+    let newP = p;
+    if (p === fromIndex) {
+      newP = toIndex;
+    } else if (fromIndex < toIndex) {
+      if (p > fromIndex && p <= toIndex) {
+        newP = p - 1;
+      }
+    } else {
+      if (p >= toIndex && p < fromIndex) {
+        newP = p + 1;
+      }
+    }
+    updated[newP] = val;
+  }
+  return updated;
+}
+
+/**
+ * Remapea las calibraciones de página al reordenar páginas (ADR-0082).
+ */
+export function remapCalibrationsOnPageReorder(
+  calibrations: Record<number, PageCalibration>,
+  fromIndex: number,
+  toIndex: number
+): Record<number, PageCalibration> {
+  return remapRecordOnPageReorder(calibrations, fromIndex, toIndex);
+}
+
+/**
+ * Remapea los viewports de escala de medición por página al reordenar páginas (ADR-0082).
+ */
+export function remapViewportsOnPageReorder(
+  viewports: Record<number, MeasurementViewport[]>,
+  fromIndex: number,
+  toIndex: number
+): Record<number, MeasurementViewport[]> {
+  const remapped = remapRecordOnPageReorder(viewports, fromIndex, toIndex);
+  const updated: Record<number, MeasurementViewport[]> = {};
+  for (const [keyStr, list] of Object.entries(remapped)) {
+    const p = Number(keyStr);
+    updated[p] = (list ?? []).map((vp) => (vp.pageIndex !== p ? { ...vp, pageIndex: p } : vp));
+  }
   return updated;
 }

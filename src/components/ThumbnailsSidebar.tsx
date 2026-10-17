@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { renderThumbnail } from '../services/pdfService';
-import { ChevronLeft, ChevronRight, Layers, RotateCw, Trash2, PlusSquare, Download } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Layers, RotateCw, Trash2, PlusSquare, Download, ChevronUp, ChevronDown } from 'lucide-react';
 
 interface ThumbnailItemProps {
   pageIndex: number;
@@ -20,6 +20,7 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
   onClick,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   useEffect(() => {
     let isCancelled = false;
@@ -53,10 +54,32 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
   return (
     <div
       data-testid={`thumbnail-${pageIndex}`}
+      draggable={totalNumPages > 1}
+      onDragStart={(e) => {
+        e.dataTransfer.setData('text/plain', String(pageIndex));
+        e.dataTransfer.effectAllowed = 'move';
+      }}
+      onDragOver={(e) => {
+        if (totalNumPages <= 1) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        setIsDragOver(true);
+      }}
+      onDragLeave={() => setIsDragOver(false)}
+      onDrop={async (e) => {
+        e.preventDefault();
+        setIsDragOver(false);
+        const fromStr = e.dataTransfer.getData('text/plain');
+        const fromIndex = parseInt(fromStr, 10);
+        if (!isNaN(fromIndex) && fromIndex !== pageIndex) {
+          const { executeReorderPage } = await import('../services/pageService');
+          await executeReorderPage(fromIndex, pageIndex);
+        }
+      }}
       onClick={onClick}
       className={`group cursor-pointer flex flex-col items-center p-2 rounded-lg transition-all ${
         isActive ? 'bg-cad-accent/10 ring-2 ring-cad-accent' : 'hover:bg-cad-hover ring-1 ring-transparent'
-      }`}
+      } ${isDragOver ? 'border-t-2 border-cad-accent bg-cad-hover/80' : ''}`}
     >
       <div className="bg-white rounded-md overflow-hidden border border-cad-border flex items-center justify-center min-h-[90px] w-full">
         <canvas ref={canvasRef} className="max-w-full h-auto block" />
@@ -70,6 +93,36 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
           Page {pageIndex + 1}
         </span>
         <div className="flex items-center space-x-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          {totalNumPages > 1 && pageIndex > 0 && (
+            <button
+              type="button"
+              data-testid={`page-move-up-btn-${pageIndex}`}
+              onClick={async (e) => {
+                e.stopPropagation();
+                const { executeReorderPage } = await import('../services/pageService');
+                await executeReorderPage(pageIndex, pageIndex - 1);
+              }}
+              title="Move page up"
+              className="p-0.5 rounded text-gray-400 hover:text-cad-strong hover:bg-cad-subtle"
+            >
+              <ChevronUp size={16} />
+            </button>
+          )}
+          {totalNumPages > 1 && pageIndex < totalNumPages - 1 && (
+            <button
+              type="button"
+              data-testid={`page-move-down-btn-${pageIndex}`}
+              onClick={async (e) => {
+                e.stopPropagation();
+                const { executeReorderPage } = await import('../services/pageService');
+                await executeReorderPage(pageIndex, pageIndex + 1);
+              }}
+              title="Move page down"
+              className="p-0.5 rounded text-gray-400 hover:text-cad-strong hover:bg-cad-subtle"
+            >
+              <ChevronDown size={16} />
+            </button>
+          )}
           <button
             type="button"
             data-testid={`page-rotate-btn-${pageIndex}`}

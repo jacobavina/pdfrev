@@ -99,7 +99,7 @@
 
 | Capacidad | REA hoy | Fase / hito | Prio. | Público |
 |---|---|---|---|---|
-| Insertar/eliminar/reordenar/rotar/extraer páginas | 🟡 Insertar/eliminar/rotar/extraer ✅ ADR-0016 (d5a0fdf) · `src/core/pages/pageOperations.test.ts` (11 tests); reordenar ⬜ (`pageOperations.ts` elimina pero no mueve) | P5-C.1 | M | K I |
+| Insertar/eliminar/reordenar/rotar/extraer páginas | ✅ ADR-0016 (d5a0fdf) + ADR-0082 · PARITY «Insertar, eliminar, rotar, extraer y reordenar páginas…» con drag & drop y remapeo de marcas y calibraciones | P5-C.1 (C.2) | M | K I |
 | Recortar páginas | ⬜ (el CropBox solo se usa para coordenadas, no para recortar) | P5-C.2 | S | K |
 | Encabezados, pies, numeración, marca de agua | ⬜ (grep `watermark`: vacío) | P5-C.2 | S | I |
 | Combinar PDFs | ⬜ (grep `mergePdf`: vacío) | P5-C.3 | M | K I |

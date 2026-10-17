@@ -5,12 +5,16 @@ import {
   deletePdfPage,
   insertBlankPdfPage,
   extractPdfPage,
+  reorderPdfPages,
   remapMarkupsOnPageDeletion,
   remapMarkupsOnPageInsertion,
+  remapMarkupsOnPageReorder,
   remapCalibrationsOnPageDeletion,
   remapCalibrationsOnPageInsertion,
+  remapCalibrationsOnPageReorder,
+  remapViewportsOnPageReorder,
 } from './pageOperations';
-import { Markup, PageCalibration } from '../../types/markup';
+import { Markup, PageCalibration, MeasurementViewport } from '../../types/markup';
 
 describe('Page Operations & Markup Remapping (Paquete 5)', () => {
   let samplePdfBytes: Uint8Array;
@@ -89,6 +93,51 @@ describe('Page Operations & Markup Remapping (Paquete 5)', () => {
     });
   });
 
+  describe('reorderPdfPages (ADR-0082)', () => {
+    it('mueve una página hacia adelante (de 0 a 2) y preserva el resto de páginas', async () => {
+      // PDF sintético con tamaños distintos para identificar cada hoja
+      const doc = await PDFDocument.create();
+      doc.addPage([100, 100]); // Hoja A
+      doc.addPage([200, 200]); // Hoja B
+      doc.addPage([300, 300]); // Hoja C
+      const bytes = await doc.save();
+
+      const reordered = await reorderPdfPages(bytes, 0, 2);
+      const reloaded = await PDFDocument.load(reordered);
+
+      expect(reloaded.getPageCount()).toBe(3);
+      expect(reloaded.getPage(0).getSize().width).toBe(200); // Hoja B ahora es primera
+      expect(reloaded.getPage(1).getSize().width).toBe(300); // Hoja C ahora es segunda
+      expect(reloaded.getPage(2).getSize().width).toBe(100); // Hoja A ahora es tercera
+    });
+
+    it('mueve una página hacia atrás (de 2 a 0)', async () => {
+      const doc = await PDFDocument.create();
+      doc.addPage([100, 100]); // Hoja A
+      doc.addPage([200, 200]); // Hoja B
+      doc.addPage([300, 300]); // Hoja C
+      const bytes = await doc.save();
+
+      const reordered = await reorderPdfPages(bytes, 2, 0);
+      const reloaded = await PDFDocument.load(reordered);
+
+      expect(reloaded.getPageCount()).toBe(3);
+      expect(reloaded.getPage(0).getSize().width).toBe(300); // Hoja C pasa al inicio
+      expect(reloaded.getPage(1).getSize().width).toBe(100); // Hoja A se desplaza
+      expect(reloaded.getPage(2).getSize().width).toBe(200); // Hoja B se desplaza
+    });
+
+    it('devuelve los mismos bytes si fromIndex es igual a toIndex', async () => {
+      const result = await reorderPdfPages(samplePdfBytes, 1, 1);
+      expect(result).toBe(samplePdfBytes);
+    });
+
+    it('lanza error si fromIndex o toIndex están fuera de rango', async () => {
+      await expect(reorderPdfPages(samplePdfBytes, -1, 1)).rejects.toThrow('out of range');
+      await expect(reorderPdfPages(samplePdfBytes, 0, 10)).rejects.toThrow('out of range');
+    });
+  });
+
   describe('Remapeo de Marcas en Eliminación e Inserción', () => {
     const mockMarkups: Markup[] = [
       { id: 'm0', type: 'rectangle', pageIndex: 0 } as Markup,
@@ -126,9 +175,38 @@ describe('Page Operations & Markup Remapping (Paquete 5)', () => {
       expect(remapped[3].id).toBe('m2');
       expect(remapped[3].pageIndex).toBe(3);
     });
+
+    it('remapMarkupsOnPageReorder hacia adelante (de 0 a 2) desplaza la página 0 a 2 y las intermedias a la izquierda', () => {
+      const remapped = remapMarkupsOnPageReorder(mockMarkups, 0, 2);
+
+      // m0 pasa de 0 a 2
+      expect(remapped.find((m) => m.id === 'm0')?.pageIndex).toBe(2);
+      // m1_a y m1_b pasan de 1 a 0
+      expect(remapped.find((m) => m.id === 'm1_a')?.pageIndex).toBe(0);
+      expect(remapped.find((m) => m.id === 'm1_b')?.pageIndex).toBe(0);
+      // m2 pasa de 2 a 1
+      expect(remapped.find((m) => m.id === 'm2')?.pageIndex).toBe(1);
+    });
+
+    it('remapMarkupsOnPageReorder hacia atrás (de 2 a 0) desplaza la página 2 a 0 y las intermedias a la derecha', () => {
+      const remapped = remapMarkupsOnPageReorder(mockMarkups, 2, 0);
+
+      // m2 pasa de 2 a 0
+      expect(remapped.find((m) => m.id === 'm2')?.pageIndex).toBe(0);
+      // m0 pasa de 0 a 1
+      expect(remapped.find((m) => m.id === 'm0')?.pageIndex).toBe(1);
+      // m1_a y m1_b pasan de 1 a 2
+      expect(remapped.find((m) => m.id === 'm1_a')?.pageIndex).toBe(2);
+      expect(remapped.find((m) => m.id === 'm1_b')?.pageIndex).toBe(2);
+    });
+
+    it('remapMarkupsOnPageReorder con from === to devuelve las marcas intactas', () => {
+      const remapped = remapMarkupsOnPageReorder(mockMarkups, 1, 1);
+      expect(remapped).toBe(mockMarkups);
+    });
   });
 
-  describe('Remapeo de Calibraciones', () => {
+  describe('Remapeo de Calibraciones y Viewports (ADR-0082)', () => {
     const mockCalibrations: Record<number, PageCalibration> = {
       0: { scale: 0.01, unit: 'm', precision: 2 },
       1: { scale: 0.02, unit: 'm', precision: 2 },
@@ -150,6 +228,35 @@ describe('Page Operations & Markup Remapping (Paquete 5)', () => {
       expect(remapped[1]).toBeUndefined(); // nueva página en blanco no calibrada
       expect(remapped[2].scale).toBe(0.02);
       expect(remapped[3].scale).toBe(0.05);
+    });
+
+    it('remapCalibrationsOnPageReorder reasigna las escalas correctamente (0 -> 2)', () => {
+      const remapped = remapCalibrationsOnPageReorder(mockCalibrations, 0, 2);
+
+      expect(remapped[0].scale).toBe(0.02); // antigua pág 1
+      expect(remapped[1].scale).toBe(0.05); // antigua pág 2
+      expect(remapped[2].scale).toBe(0.01); // antigua pág 0
+    });
+
+    it('remapCalibrationsOnPageReorder reasigna las escalas correctamente (2 -> 0)', () => {
+      const remapped = remapCalibrationsOnPageReorder(mockCalibrations, 2, 0);
+
+      expect(remapped[0].scale).toBe(0.05); // antigua pág 2
+      expect(remapped[1].scale).toBe(0.01); // antigua pág 0
+      expect(remapped[2].scale).toBe(0.02); // antigua pág 1
+    });
+
+    it('remapViewportsOnPageReorder reasigna los viewports por página', () => {
+      const mockViewports: Record<number, MeasurementViewport[]> = {
+        0: [{ id: 'vp0', name: 'Detail A', pageIndex: 0, bounds: { x: 0, y: 0, width: 100, height: 100 }, calibration: { scale: 0.1, unit: 'm' } }],
+        1: [{ id: 'vp1', name: 'Detail B', pageIndex: 1, bounds: { x: 0, y: 0, width: 100, height: 100 }, calibration: { scale: 0.2, unit: 'm' } }],
+      };
+
+      const remapped = remapViewportsOnPageReorder(mockViewports, 0, 1);
+      expect(remapped[0][0].id).toBe('vp1');
+      expect(remapped[0][0].pageIndex).toBe(0);
+      expect(remapped[1][0].id).toBe('vp0');
+      expect(remapped[1][0].pageIndex).toBe(1);
     });
   });
 });

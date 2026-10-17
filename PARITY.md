@@ -213,6 +213,8 @@ Este documento registra la paridad funcional real implementada en REA, vinculand
 | **Cloud+ con distancia de llamada adaptativa al zoom y dimensionamiento dinámico (ADR-0081)** | `shipped` | `src/components/RevuEditing.test.tsx` | `Cloud+ rectangular: la caja de texto se adapta al zoom y permanece inmediatamente adyacente a la nube` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Flechas por fuera en cotas cortas (Dimension) en pantalla y en /AP de PDF (ADR-0081)** | `shipped` | `src/core/markup/outsideArrows.test.ts` | `en una cota corta las puntas van por fuera apuntando hacia dentro tanto en pantalla como en el /AP de PDF` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa y en Revu/Acrobat |
 | **Reordenar marcas seleccionadas en el orden Z (traer al frente, enviar al fondo, avanzar, retroceder) (ADR-0081)** | `shipped` | `src/store/useMarkupStore.test.ts` | `reordena marcas seleccionadas en el orden Z (front, back, forward, backward) con undo atómico y protege bloqueadas` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **Insertar, eliminar, rotar, extraer y reordenar páginas remapeando marcas, calibraciones y enlaces (ADR-0082)** | `shipped` | `src/core/pages/pageOperations.test.ts` | `mueve una página hacia adelante (de 0 a 2) y preserva el resto de páginas` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+
 
 
 

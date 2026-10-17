@@ -1665,11 +1665,15 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(badge).toBeVisible();
     await expect(badge).toHaveText(/1 markup/);
 
-    const strokeWidthInput = inspectorPanel.locator('[data-testid="prop-stroke-width"]');
-    await expect(strokeWidthInput).toBeVisible();
+    // El grosor se edita en la sección de estilo del panel (ADR-0064: la tira de la cinta y el campo numérico del
+    // inspector se unieron en un solo selector)
+    const strokeWidthPicker = inspectorPanel.locator('[data-testid="ribbon-stroke-width"]');
+    await expect(strokeWidthPicker).toBeVisible();
 
-    // 3. Modificar grosor de trazo en el inspector a 6
-    await strokeWidthInput.fill('6');
+    // 3. Modificar grosor de trazo en el inspector a 5 pt
+    await strokeWidthPicker.click();
+    await page.locator('[data-testid="ribbon-stroke-width-option-5"]').click();
+    await expect(strokeWidthPicker).toHaveAttribute('data-value', '5');
 
     // Deshacer con Ctrl+Z
     await page.keyboard.press('Control+z');
@@ -1828,9 +1832,13 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
       await page.locator(`[data-testid="${picker}-option-${value}"]`).click();
       await expect(page.locator(`[data-testid="${picker}"]`)).toHaveAttribute('data-value', value);
     };
+    // El estilo se elige en el panel de Propiedades (ADR-0064), que arranca plegado; se cierra antes de dibujar
+    // para que el visor recupere su ancho (la prueba dibuja por coordenadas)
+    await page.locator('[data-testid="expand-properties-btn"]').click();
     await pick('ribbon-line-style', 'dashed');
     await pick('ribbon-line-start', 'circle');
     await pick('ribbon-line-end', 'openArrow');
+    await page.locator('[data-testid="collapse-properties-btn"]').click();
     await page.locator('[data-testid="tool-line"]').click();
     await drag(at(0.6, 0.6), at(0.85, 0.6));
     await expect(groups).toHaveCount(before + 2);
@@ -2329,7 +2337,8 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const after = await overlaySvg.locator('[data-testid="control-point-0"]').boundingBox();
     expect(Math.abs(after!.x - before!.x) + Math.abs(after!.y - before!.y)).toBeGreaterThan(5); // giró
 
-    // Barra de propiedades: con la nube seleccionada, edita la selección
+    // Estilo en el panel de Propiedades (ADR-0064): con la nube seleccionada, edita la selección
+    await page.locator('[data-testid="expand-properties-btn"]').click();
     await expect(page.locator('[data-testid="ribbon-group-style"]')).toContainText('1 selected');
     await expect(page.locator('[data-testid="ribbon-font-bold"]')).toBeEnabled();
   });
@@ -2345,11 +2354,15 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     // Herramienta Nube: Size 3 e Invert desde la barra, como en Revu
     await page.locator('header').click();
     await page.keyboard.press('c');
+    // El estilo se elige en el panel de Propiedades (ADR-0064); se cierra antes de dibujar para que el visor
+    // recupere su ancho (la prueba dibuja por coordenadas)
+    await page.locator('[data-testid="expand-properties-btn"]').click();
     await expect(page.locator('[data-testid="ribbon-line-style"]')).toHaveAttribute('data-value', 'cloud');
     await page.locator('[data-testid="ribbon-cloud-style"]').click();
     await page.locator('[data-testid="ribbon-cloud-size"]').fill('3');
     await page.locator('[data-testid="ribbon-cloud-size"]').press('Enter');
     await page.locator('header').click(); // cierra el desplegable sin cambiar de herramienta
+    await page.locator('[data-testid="collapse-properties-btn"]').click();
     const a = at(0.6, 0.15);
     const b = at(0.85, 0.35);
     await page.mouse.move(a.x, a.y);
@@ -2368,6 +2381,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     expect(vertex.y - corner.y).toBeGreaterThan(20);
 
     // Tipo de línea Tracks a la nube seleccionada: deja de ser nube y se dibuja con carriles y traviesas
+    await page.locator('[data-testid="expand-properties-btn"]').click();
     await page.locator('[data-testid="ribbon-line-style"]').click();
     await expect(page.locator('[data-testid="ribbon-line-style-list"]')).toContainText('Fenceline Square');
     await page.locator('[data-testid="ribbon-line-style-option-tracks"]').click();

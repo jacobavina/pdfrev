@@ -65,6 +65,7 @@ import { useToolStore, ToolType } from '../../store/useToolStore';
 import { useSearchStore } from '../../store/useSearchStore';
 import { useUiStore } from '../../store/useUiStore';
 import { QuickAccessToolbar } from './QuickAccessToolbar';
+import { RibbonTabs } from './Ribbon';
 import { useCalibrationStore } from '../../store/useCalibrationStore';
 import { openPdfDialog } from '../../services/fileDialogService';
 import { useAutoSave } from '../../hooks/useAutoSave';
@@ -580,9 +581,12 @@ export const MenuBar: React.FC = () => {
         ))}
       </nav>
 
-      <QuickAccessToolbar />
+      {/* Una sola fila de navegación (ADR-0064): las pestañas de la cinta van junto a los menús */}
+      <div data-testid="nav-ribbon-tabs" className="self-stretch flex items-stretch ml-2 pl-2 border-l border-cad-border shrink-0">
+        <RibbonTabs />
+      </div>
 
-      {/* Centro: título del documento (zona neutra) */}
+      {/* Centro: título del documento (zona neutra: un clic aquí no hace nada) */}
       <div className="flex-1 min-w-0 flex items-center justify-center gap-1.5 text-gray-400 text-xs px-3">
         {fileName && (
           <>
@@ -595,6 +599,9 @@ export const MenuBar: React.FC = () => {
           </>
         )}
       </div>
+
+      {/* Acceso rápido a la derecha (ADR-0064): con las pestañas en esta fila, el centro queda para el título */}
+      <QuickAccessToolbar />
 
       <button
         type="button"

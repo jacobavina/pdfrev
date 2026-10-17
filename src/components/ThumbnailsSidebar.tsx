@@ -145,7 +145,7 @@ export const ThumbnailsSidebar: React.FC = () => {
       }`}
     >
       {/* Sidebar Header */}
-      <div className="h-10 px-3 border-b border-cad-border flex items-center justify-between text-xs text-gray-300">
+      <div className="panel-header text-xs text-gray-300">
         {!isCollapsed && (
           <div className="flex items-center space-x-1.5">
             <Layers size={14} className="text-gray-400" />

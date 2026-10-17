@@ -18,8 +18,8 @@ const PanelShell: React.FC<{ title: string; testId: string; children: React.Reac
   children,
 }) => (
   <aside data-testid={testId} className="w-60 bg-cad-panel border-r border-cad-border flex flex-col select-none min-h-0 text-xs">
-    <div className="h-10 px-3 border-b border-cad-border flex items-center ui-panel-title shrink-0">
-      {title}
+    <div className="panel-header">
+      <span className="ui-panel-title">{title}</span>
     </div>
     <div className="flex-1 overflow-y-auto text-xs text-gray-200">{children}</div>
   </aside>

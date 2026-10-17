@@ -1,3 +1,4 @@
+import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { PdfViewer } from './PdfViewer';
@@ -10,6 +11,15 @@ import { useCalibrationStore } from '../store/useCalibrationStore';
 import { useToolStore } from '../store/useToolStore';
 import { useUiStore } from '../store/useUiStore';
 import { Markup } from '../types/markup';
+import { StyleSection } from './shell/StyleSection';
+/** La cinta y la sección de estilo, que desde ADR-0064 vive en el panel de Propiedades. */
+const RibbonWithStyle: React.FC = () => (
+  <>
+    <Ribbon />
+    <StyleSection />
+  </>
+);
+
 
 vi.mock('../services/pdfService', () => ({
   renderPageToCanvas: vi.fn().mockResolvedValue({ width: 800, height: 600, hasText: true }),
@@ -101,7 +111,7 @@ describe('Estilo de Acrobat en la interfaz (ADR-0032)', () => {
   });
 
   it('la cinta ofrece las flechas invertidas de Acrobat como extremos', () => {
-    render(<Ribbon />);
+    render(<RibbonWithStyle />);
     fireEvent.click(screen.getByTestId('ribbon-line-end'));
     expect(screen.getByTestId('ribbon-line-end-option-rOpenArrow')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('ribbon-line-end-option-rClosedArrow'));
@@ -159,8 +169,8 @@ describe('Estilo de Acrobat en la interfaz (ADR-0032)', () => {
     };
     useMarkupStore.setState({ markups: [len], selectedMarkupIds: ['len-insp'] });
     render(<PropertiesInspectorPanel defaultCollapsed={false} />);
-    // Sin extremos guardados, la distancia muestra flechas cerradas
-    expect(screen.getByTestId('prop-line-ending-start')).toHaveAttribute('data-value', 'closedArrow');
+    // Sin extremos guardados, la distancia muestra flechas cerradas (en la sección de estilo del panel, ADR-0064)
+    expect(screen.getByTestId('ribbon-line-start')).toHaveAttribute('data-value', 'closedArrow');
     fireEvent.change(screen.getByTestId('prop-caption'), { target: { value: 'top' } });
     expect(useMarkupStore.getState().markups[0].customFields?.captionStyle).toBe('top');
   });

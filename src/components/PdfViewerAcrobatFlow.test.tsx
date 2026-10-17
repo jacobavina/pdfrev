@@ -173,11 +173,12 @@ describe('Texto del valor: fuente, tamaño, color, negrita y cursiva (ADR-0035)'
   it('en el inspector de propiedades', () => {
     useMarkupStore.setState({ markups: [length], selectedMarkupIds: ['len-a'] });
     render(<PropertiesInspectorPanel defaultCollapsed={false} />);
-    expect(screen.getByTestId('prop-font-size')).toHaveValue(8);
-    fireEvent.change(screen.getByTestId('prop-font-family'), { target: { value: 'Courier' } });
-    fireEvent.change(screen.getByTestId('prop-text-color'), { target: { value: '#16a34a' } });
-    fireEvent.click(screen.getByTestId('prop-text-bold'));
-    fireEvent.click(screen.getByTestId('prop-text-italic'));
+    // Desde ADR-0064 los controles de texto son los de la sección de estilo del panel
+    expect(screen.getByTestId('ribbon-font-size')).toHaveValue(8);
+    fireEvent.change(screen.getByTestId('ribbon-font-family'), { target: { value: 'Courier' } });
+    fireEvent.change(screen.getByTestId('ribbon-text-color'), { target: { value: '#16a34a' } });
+    fireEvent.click(screen.getByTestId('ribbon-font-bold'));
+    fireEvent.click(screen.getByTestId('ribbon-font-italic'));
     const m = useMarkupStore.getState().markups[0];
     expect(m.style.fontFamily).toBe('Courier');
     expect(m.style.textColor).toBe('#16a34a');

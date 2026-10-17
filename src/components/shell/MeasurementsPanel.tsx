@@ -288,7 +288,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
       data-collapsed="false"
       className="w-[288px] bg-cad-panel border-l border-cad-border flex flex-col text-xs select-none min-h-0"
     >
-      <div className="flex items-center justify-between px-3 h-10 border-b border-cad-border shrink-0">
+      <div className="panel-header">
         <span className="ui-panel-title">Measure</span>
         <button
           onClick={() => setIsCollapsed(true)}

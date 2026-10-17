@@ -1,3 +1,4 @@
+import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { PdfViewer } from './PdfViewer';
@@ -10,6 +11,15 @@ import { useUiStore } from '../store/useUiStore';
 import { cloudRadius } from '../core/markup/revisionCloud';
 import { SELECTION_GAP_PX } from '../core/markup/transformHandles';
 import { Markup, MarkupType } from '../types/markup';
+import { StyleSection } from './shell/StyleSection';
+/** La cinta y la sección de estilo, que desde ADR-0064 vive en el panel de Propiedades. */
+const RibbonWithStyle: React.FC = () => (
+  <>
+    <Ribbon />
+    <StyleSection />
+  </>
+);
+
 
 vi.mock('../services/pdfService', () => ({
   renderPageToCanvas: vi.fn().mockResolvedValue({ width: 800, height: 600, hasText: true }),
@@ -46,7 +56,7 @@ beforeEach(() => {
 
 describe('Tipos de línea en la barra de propiedades (ADR-0041)', () => {
   it('la lista muestra marca, nombre y dibujo de cada tipo, con los patrones aparte, como en Revu', () => {
-    render(<Ribbon />);
+    render(<RibbonWithStyle />);
     fireEvent.click(screen.getByTestId('ribbon-line-style'));
     const list = screen.getByTestId('ribbon-line-style-list');
     expect(list).toHaveTextContent('Dashed 6');
@@ -57,7 +67,7 @@ describe('Tipos de línea en la barra de propiedades (ADR-0041)', () => {
 
   it('con selección aplica el patrón en un paso deshacible; Cloud convierte el rectángulo en nube', () => {
     useMarkupStore.setState({ markups: [rect, line], selectedMarkupIds: ['rc', 'ln'] });
-    render(<Ribbon />);
+    render(<RibbonWithStyle />);
     fireEvent.click(screen.getByTestId('ribbon-line-style'));
     fireEvent.click(screen.getByTestId('ribbon-line-style-option-cloud'));
     let [r, l] = useMarkupStore.getState().markups;
@@ -73,7 +83,7 @@ describe('Tipos de línea en la barra de propiedades (ADR-0041)', () => {
   });
 
   it('sin selección define el tipo de línea, el tamaño y la inversión de las nubes nuevas', () => {
-    render(<Ribbon />);
+    render(<RibbonWithStyle />);
     // El botón de tamaño de nube solo se habilita con el tipo de línea Cloud
     expect(screen.getByTestId('ribbon-cloud-style')).toBeDisabled();
     fireEvent.click(screen.getByTestId('ribbon-line-style'));
@@ -93,7 +103,7 @@ describe('Tipos de línea en la barra de propiedades (ADR-0041)', () => {
 
   it('Size e Invert editan la nube seleccionada', () => {
     useMarkupStore.setState({ markups: [mk('cl', 'cloud', rect.points, { customFields: { arcStep: 20 } })], selectedMarkupIds: ['cl'] });
-    render(<Ribbon />);
+    render(<RibbonWithStyle />);
     fireEvent.click(screen.getByTestId('ribbon-cloud-style'));
     fireEvent.click(screen.getByTestId('ribbon-cloud-size-up'));
     expect(useMarkupStore.getState().markups[0].customFields?.arcStep).toBe(22.5);

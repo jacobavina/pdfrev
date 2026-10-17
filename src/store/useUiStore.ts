@@ -50,6 +50,8 @@ const THEME_STORAGE_KEY = 'rea-theme';
 const VIEW_MODE_STORAGE_KEY = 'rea-view-mode';
 const RULERS_STORAGE_KEY = 'rea-rulers';
 const AUTO_PANELS_STORAGE_KEY = 'rea-auto-panels';
+export type RibbonTabId = 'markup' | 'measure' | 'insert';
+
 const LIST_AT_START_STORAGE_KEY = 'rea-markups-list-at-start';
 
 /** La lista de marcas abre cerrada, como en Revu (ADR-0060), salvo con View ▸ Open Markups List at Start. */
@@ -147,6 +149,9 @@ interface UiState {
   /** Se incrementa cada vez que algo pide abrir el panel de propiedades (menú contextual, menú Ver). */
   /** Panel derecho abierto (ADR-0044): uno a la vez, como los paneles de Revu; null = todos plegados. */
   rightPanel: RightPanelId | null;
+  /** Pestaña de la cinta (ADR-0064): va en la fila de menús y sigue a la herramienta activa. */
+  ribbonTab: RibbonTabId;
+  setRibbonTab: (tab: RibbonTabId) => void;
   /** Lista de marcas abierta (ADR-0060); cerrada solo queda su botón en la barra de estado. Alt+L la alterna. */
   markupsListOpen: boolean;
   /** Abrir la lista de marcas al arrancar (View ▸ Open Markups List at Start). */
@@ -201,6 +206,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   hiddenLayers: [],
   cursorPt: null,
   rightPanel: null,
+  ribbonTab: 'markup',
+  setRibbonTab: (ribbonTab) => set({ ribbonTab }),
   markupsListOpen: readStoredListAtStart(),
   markupsListAtStart: readStoredListAtStart(),
   propertiesOpenRequest: 0,

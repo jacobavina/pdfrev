@@ -1,3 +1,4 @@
+import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
@@ -18,6 +19,15 @@ import { emitMarkupOperators, PageTransformInfo } from '../core/pdf/operators';
 import { saveIncrementalMarkups } from '../core/pdf/incrementalWriter';
 import { importPdfAnnotations } from '../core/pdf/annotationReader';
 import { Markup, MarkupType } from '../types/markup';
+import { StyleSection } from './shell/StyleSection';
+/** La cinta y la sección de estilo, que desde ADR-0064 vive en el panel de Propiedades. */
+const RibbonWithStyle: React.FC = () => (
+  <>
+    <Ribbon />
+    <StyleSection />
+  </>
+);
+
 
 vi.mock('../services/pdfService', () => ({
   renderPageToCanvas: vi.fn().mockResolvedValue({ width: 800, height: 600, hasText: true }),
@@ -144,7 +154,7 @@ describe('Tipo de flecha del callout configurable (ADR-0042)', () => {
 
   it('la barra muestra la flecha abierta del callout y permite cambiarla por cerrada, círculo o ninguna', () => {
     useMarkupStore.setState({ markups: [callout], selectedMarkupIds: ['co'] });
-    render(<Ribbon />);
+    render(<RibbonWithStyle />);
     const start = screen.getByTestId('ribbon-line-start');
     expect(start).toHaveAttribute('data-value', 'openArrow');
     fireEvent.click(start);
@@ -167,7 +177,7 @@ describe('Borde de la caja del callout (ADR-0042)', () => {
 
   it('el borde se elige aparte del relleno: borde sin relleno, relleno sin borde, en pantalla y en el PDF', () => {
     useMarkupStore.setState({ markups: [callout], selectedMarkupIds: ['co'] });
-    render(<Ribbon />);
+    render(<RibbonWithStyle />);
     const btn = screen.getByTestId('ribbon-callout-border');
     expect(btn).toHaveAttribute('aria-pressed', 'false');
     fireEvent.click(btn);
@@ -189,7 +199,7 @@ describe('Borde de la caja del callout (ADR-0042)', () => {
 
   it('con la herramienta Callout, el botón define el borde de los callouts nuevos', () => {
     useToolStore.setState({ activeTool: 'callout' });
-    render(<Ribbon />);
+    render(<RibbonWithStyle />);
     fireEvent.click(screen.getByTestId('ribbon-callout-border'));
     expect(useToolStore.getState().calloutBorder).toBe(true);
   });

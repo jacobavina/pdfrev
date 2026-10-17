@@ -1,3 +1,4 @@
+import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { PdfViewer } from './PdfViewer';
@@ -10,6 +11,15 @@ import { useUiStore } from '../store/useUiStore';
 import { scaleMarkup, rotateMarkup, canRotate, canScale, markupBounds } from '../core/markup/transformHandles';
 import { emitMarkupOperators } from '../core/pdf/operators';
 import { Markup, MarkupType } from '../types/markup';
+import { StyleSection } from './shell/StyleSection';
+/** La cinta y la sección de estilo, que desde ADR-0064 vive en el panel de Propiedades. */
+const RibbonWithStyle: React.FC = () => (
+  <>
+    <Ribbon />
+    <StyleSection />
+  </>
+);
+
 
 vi.mock('../services/pdfService', () => ({
   renderPageToCanvas: vi.fn().mockResolvedValue({ width: 800, height: 600, hasText: true }),
@@ -247,7 +257,7 @@ describe('Barra de propiedades contextual con fuentes (ADR-0040)', () => {
   it('Autosize Text de la barra se activa en el callout seleccionado y en los callouts nuevos (ADR-0061)', () => {
     const co = mk('ca', 'callout', [{ x: 0.1, y: 0.1 }, { x: 0.3, y: 0.15 }], { text: 'Hola', leaders: [[{ x: 0.05, y: 0.3 }]] });
     useMarkupStore.setState({ markups: [co], selectedMarkupIds: ['ca'] });
-    const { unmount } = render(<Ribbon />);
+    const { unmount } = render(<RibbonWithStyle />);
     const btn = screen.getByTestId('ribbon-autosize-text');
     expect(btn).toHaveAttribute('aria-pressed', 'false');
     fireEvent.click(btn);
@@ -259,19 +269,19 @@ describe('Barra de propiedades contextual con fuentes (ADR-0040)', () => {
     // Sin selección, con la herramienta Callout, define los callouts nuevos; en un rectángulo no aplica
     useMarkupStore.setState({ selectedMarkupIds: [] });
     useToolStore.setState({ activeTool: 'callout', autoSizeText: false });
-    const second = render(<Ribbon />);
+    const second = render(<RibbonWithStyle />);
     fireEvent.click(screen.getByTestId('ribbon-autosize-text'));
     expect(useToolStore.getState().autoSizeText).toBe(true);
     second.unmount();
     useToolStore.setState({ activeTool: 'rectangle' });
-    render(<Ribbon />);
+    render(<RibbonWithStyle />);
     expect(screen.getByTestId('ribbon-autosize-text')).toBeDisabled();
   });
 
   it('la barra de Count muestra el total del conteo seleccionado y cambia su símbolo y su escala (ADR-0059)', () => {
     const cnt = mk('cn', 'count', [{ x: 0.1, y: 0.1 }, { x: 0.2, y: 0.1 }], { customFields: { countSymbol: 'check', countScale: 100 } });
     useMarkupStore.setState({ markups: [cnt], selectedMarkupIds: ['cn'] });
-    render(<Ribbon />);
+    render(<RibbonWithStyle />);
     expect(screen.getByTestId('ribbon-count-total')).toHaveTextContent('Totals: Count = 2');
     fireEvent.click(screen.getByTestId('ribbon-count-symbol'));
     expect(screen.getByTestId('ribbon-count-symbol-option-diamond')).toHaveAccessibleName(/Diamond/);
@@ -283,7 +293,7 @@ describe('Barra de propiedades contextual con fuentes (ADR-0040)', () => {
   it('el menú Hatch de la barra lista los patrones de Revu y aplica el elegido a la forma seleccionada (ADR-0057)', () => {
     const rect = mk('rh', 'rectangle', [{ x: 0.1, y: 0.1 }, { x: 0.3, y: 0.3 }]);
     useMarkupStore.setState({ markups: [rect], selectedMarkupIds: ['rh'] });
-    render(<Ribbon />);
+    render(<RibbonWithStyle />);
     fireEvent.click(screen.getByTestId('ribbon-hatch'));
     const list = screen.getByTestId('ribbon-hatch-list');
     expect(list).toHaveTextContent('(None)');
@@ -298,7 +308,7 @@ describe('Barra de propiedades contextual con fuentes (ADR-0040)', () => {
 
   it('con selección edita la marca (no el estilo por defecto), incluido el tipo de letra', () => {
     useMarkupStore.setState({ markups: [callout], selectedMarkupIds: ['co'] });
-    render(<Ribbon />);
+    render(<RibbonWithStyle />);
     expect(screen.getByTestId('ribbon-group-style')).toHaveTextContent('Properties · 1 selected');
     fireEvent.change(screen.getByTestId('ribbon-font-family'), { target: { value: 'Times' } });
     fireEvent.change(screen.getByTestId('ribbon-font-size'), { target: { value: '14' } });
@@ -312,7 +322,7 @@ describe('Barra de propiedades contextual con fuentes (ADR-0040)', () => {
 
   it('sin selección define el estilo de las marcas nuevas; negrita y cursiva piden una selección', () => {
     useMarkupStore.setState({ markups: [callout], selectedMarkupIds: [] });
-    render(<Ribbon />);
+    render(<RibbonWithStyle />);
     expect(screen.getByTestId('ribbon-group-style')).toHaveTextContent('Style (new markups)');
     fireEvent.change(screen.getByTestId('ribbon-font-family'), { target: { value: 'Courier' } });
     expect(useToolStore.getState().currentStyle.fontFamily).toBe('Courier');
@@ -323,7 +333,7 @@ describe('Barra de propiedades contextual con fuentes (ADR-0040)', () => {
   it('con una herramienta de dibujo activa define el estilo de lo que se va a dibujar aunque haya selección', () => {
     useMarkupStore.setState({ markups: [callout], selectedMarkupIds: ['co'] });
     useToolStore.setState({ activeTool: 'line' });
-    render(<Ribbon />);
+    render(<RibbonWithStyle />);
     expect(screen.getByTestId('ribbon-group-style')).toHaveTextContent('Style (new markups)');
     fireEvent.change(screen.getByTestId('ribbon-font-family'), { target: { value: 'Times' } });
     expect(useToolStore.getState().currentStyle.fontFamily).toBe('Times');

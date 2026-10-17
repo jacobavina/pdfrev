@@ -51,9 +51,9 @@ const DocumentTab: React.FC = () => {
   const isDirty = useMarkupStore((s) => s.isDirty);
   if (!fileName) return null;
   return (
-    <div className="h-9 bg-cad-panel border-b border-cad-border flex items-end px-2 shrink-0" data-testid="document-tabs">
+    <div className="h-7 bg-cad-panel border-b border-cad-border flex items-end px-2 shrink-0" data-testid="document-tabs">
       <div
-        className="relative flex items-center gap-2 h-9 px-3 text-xs text-cad-strong max-w-[22rem] shadow-[inset_0_-2px_0_rgb(var(--cad-accent))]"
+        className="relative flex items-center gap-2 h-7 px-3 text-xs text-cad-strong max-w-[22rem] shadow-[inset_0_-2px_0_rgb(var(--cad-accent))]"
         title={filePath ?? fileName}
       >
         <FileText size={13} className="text-gray-400 shrink-0" />
@@ -169,6 +169,8 @@ export const App: React.FC = () => {
               layer: 'Calibration',
             });
           }
+          // El panel de Propiedades arranca plegado (ADR-0064): la selección de la demo no lo abre; lo abre el usuario
+          useUiStore.getState().setRightPanel(null);
         }
       } catch (err) {
         console.warn('No se pudo cargar el PDF de prueba inicial:', err);
@@ -183,8 +185,9 @@ export const App: React.FC = () => {
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-cad-dark">
       {/* 1. Barra de menús (<header>) y cinta de herramientas agrupada (ADR-0017) */}
+      {/* Una sola fila de navegación: los menús llevan las pestañas de la cinta (ADR-0064) */}
       <MenuBar />
-      <Ribbon />
+      <Ribbon showTabs={false} />
       <Suspense fallback={null}>
         <SearchBar />
       </Suspense>

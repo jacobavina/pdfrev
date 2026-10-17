@@ -48,7 +48,8 @@ describe('PropertiesInspectorPanel (P2-C.6 / ADR-0012)', () => {
 
     expect(screen.getByTestId('selection-count-badge')).toHaveTextContent('1 markup');
     expect(screen.getByTestId('prop-stroke-color')).toHaveValue('#ff0000');
-    expect(screen.getByTestId('prop-stroke-width')).toHaveValue(3);
+    // El estilo lo muestra la sección de estilo del panel (ADR-0064)
+    expect(screen.getByTestId('ribbon-stroke-width')).toHaveAttribute('data-value', '3');
     expect(screen.getByTestId('prop-status')).toHaveValue('pending');
     expect(screen.getByTestId('prop-author')).toHaveValue('Arquitecto Principal');
     expect(screen.getByTestId('prop-text')).toHaveValue('Nota inicial');
@@ -91,8 +92,8 @@ describe('PropertiesInspectorPanel (P2-C.6 / ADR-0012)', () => {
     expect(screen.getByTestId('selection-count-badge')).toHaveTextContent('2 markups');
 
     // Grosor difiere: input numérico debe tener placeholder '—'
-    const strokeWidthInput = screen.getByTestId('prop-stroke-width');
-    expect(strokeWidthInput).toHaveAttribute('placeholder', '—');
+    // Grosores distintos: la sección de estilo muestra "— mixed —" (ADR-0064)
+    expect(screen.getByTestId('ribbon-stroke-width')).toHaveAttribute('data-value', '');
 
     // Estado difiere: select debe tener valor ''
     const statusSelect = screen.getByTestId('prop-status');

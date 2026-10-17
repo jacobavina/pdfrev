@@ -83,7 +83,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
       className="w-[268px] bg-cad-panel border-l border-cad-border flex flex-col select-none z-10 transition-all duration-200 overflow-hidden text-xs"
     >
       {/* 1. Cabecera del Panel */}
-      <div className="h-10 px-3 border-b border-cad-border flex items-center justify-between shrink-0">
+      <div className="panel-header">
         <div className="flex items-center space-x-1.5">
           <Briefcase size={14} className="text-gray-400" />
           <span className="ui-panel-title">Tool Chest</span>

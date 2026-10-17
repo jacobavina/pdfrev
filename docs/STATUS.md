@@ -6,12 +6,12 @@
 
 ## 0. Traspaso al siguiente agente (2026-10-15)
 
-**Último hito:** ADR-0063 (flechas por fuera en distancias cortas, símbolos del conteo individuales y rueda del zoom de doble clic). Fecha del traspaso vigente: 2026-10-16.
+**Último hito:** ADR-0064 (estructura y densidad: una fila de navegación, estilo en el panel de Propiedades, lienzo como sujeto). Fecha del traspaso vigente: 2026-10-16.
 `node scripts/verify.mjs --with-e2e --e2e-loop 3` de su hito.
 
 **Cómo continuar**
 1. Leer `AGENTS.md`, `CLAUDE.md`, esta sección, `PARITY.md` (0 filas `todo`) y los ADR recientes en
-   `docs/DECISIONS/` (ADR-0039 a ADR-0063).
+   `docs/DECISIONS/` (ADR-0039 a ADR-0064).
 2. Entorno (Windows, Git Bash):
    `export PATH="/c/Program Files/nodejs:/c/Users/jmm_j/.cargo/bin:$PATH"; export NODE_OPTIONS="--use-system-ca"`.
    - Liberar el puerto 1421 antes de Playwright:
@@ -24,10 +24,18 @@
    - Recompilar el nativo.
 
 **Restricciones vigentes que muerden**
+- **Estructura (ADR-0064):**
+  - Las pestañas de la cinta van en la fila de menús; la cinta se monta con `showTabs={false}`.
+  - El estilo de las marcas está en `StyleSection`, dentro del panel de Propiedades, que arranca plegado. Una E2E que lo
+    use lo abre con `expand-properties-btn`.
+  - Si luego dibuja por coordenadas, lo cierra antes, porque el panel cambia el ancho del visor.
+  - El centro de `<header>` es zona neutra: las E2E hacen clic ahí para quitar el foco.
+  - `Redesign.test.tsx` vigila la estructura.
 - **Diseño (ADR-0062):** solo la escala `text-2xs/xs/sm/base/lg` (11/12/13/14/16 px) y los tokens de color; nada de
   `text-[Npx]`. `src/designScale.test.ts` lo exige y comprueba 4.5:1. `npx.cmd impeccable detect http://localhost:1421`
   y `src/` deben dar exit 0; los únicos waivers (capa de texto de PDF.js) están en `.impeccable/config.json`.
-- **Bundle principal:** 797.17 kB de 800 kB tras ADR-0063 (no subir el umbral); quedan ~3 kB. ADR-0059 liberó ~9 kB cargando bajo
+- **Bundle principal:** 783.92 kB de 800 kB tras ADR-0064 (no subir el umbral); la sección de estilo se carga con el panel
+  de Propiedades. ADR-0059 liberó ~9 kB cargando bajo
   demanda el servicio del Tool Chest. Lo siguiente con peso en el bundle principal debe liberar espacio antes (p. ej.
   la barra de propiedades o los submenús de MenuBar). Lo nuevo y pesado va con `React.lazy` o
   `import()` dinámico. Ya se cargan aparte: MarkupsList, paneles derechos, LeftDock, StampPicker,
@@ -117,6 +125,7 @@
 | **Autosize Text de Revu (ADR-0061)** | **ENTREGADO (verificación nativa y en Revu/Acrobat PENDIENTE del usuario)** | Botón Autosize Text en la barra (callouts, cuadros de texto y nota de Cloud+): el texto toma el mayor tamaño que cabe en su caja y crece o encoge al redimensionarla; mismo tamaño en pantalla, /AP y /DA; el cuadro de texto envuelve y escala con el zoom como su /AP. `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 773 tests unitarios (91 archivos), 156 PARITY shipped y 0 todo, bundle principal 795.73 kB, 13 tests cargo, E2E 35/35 ×3 |
 | **Legibilidad: escala tipográfica única y contraste AA (ADR-0062)** | **ENTREGADO (medición del usuario PENDIENTE con impeccable)** | Escala 11/12/13/14/16 px como variables y único `fontSize` de Tailwind; nada funcional bajo 11 px (cinta, barra de propiedades, reglas). Tokens con 4.5:1 en ambos temas (gris atenuado, acento y nuevo acento sólido). Oclusión y texto diminuto: falso positivo de la capa de texto de PDF.js, waiver con motivo en `.impeccable/config.json` y guardarraíl `src/designScale.test.ts`. impeccable detect URL: exit 2 → exit 0; src/: exit 0. `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 775 tests unitarios (92 archivos), 158 PARITY shipped y 0 todo, bundle principal 795.91 kB, 13 tests cargo, E2E 35/35 ×3; `npm.cmd run test:native` en verde |
 | **Flechas por fuera, conteo individual y rueda del zoom de doble clic (ADR-0063)** | **ENTREGADO (verificación nativa PENDIENTE del usuario)** | Distancia corta: las puntas van por fuera apuntando hacia dentro con un tramo exterior, en pantalla, /AP y aplanado. Count: un recuadro y un tirador verde por símbolo, que lo mueve solo; el total sigue siendo uno. Rueda con el control de zoom de doble clic: hacia uno acerca. `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 778 tests unitarios (93 archivos), 161 PARITY shipped y 0 todo, bundle principal 797.17 kB, 13 tests cargo, E2E 35/35 ×3 |
+| **Estructura y densidad de la ventana (ADR-0064)** | **ENTREGADO (juicio visual PENDIENTE del usuario)** | Una sola fila de navegación (menús + pestañas de la cinta); la tira de propiedades pasa al panel de Propiedades (StyleSection), que arranca plegado y pierde sus campos duplicados; herramientas planas sin tarjeta, activa sin acento, divisores de grupo; cabeceras de panel con barra propia; lienzo claro más oscuro (token). Chrome a 1440×900: 189 → 109 px (5 → 3 bandas). `node scripts/verify.mjs --with-e2e --e2e-loop 3`: VERIFY EXITOSO — 781 tests unitarios (93 archivos), 165 PARITY shipped y 0 todo, bundle principal 783.92 kB, 13 tests cargo, E2E 35/35 ×3; impeccable URL y src/ exit 0 |
 
 ---
 

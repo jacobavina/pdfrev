@@ -33,12 +33,15 @@ describe('Sistema visual de herramienta de diseño (ADR-0036)', () => {
     useMarkupStore.setState({ markups: [rect], selectedMarkupIds: ['r-ds'] });
     render(<PropertiesInspectorPanel defaultCollapsed={false} />);
     const panel = screen.getByTestId('properties-inspector-panel');
-    expect(panel.querySelectorAll('.ui-row').length).toBeGreaterThanOrEqual(8);
-    expect(panel).toHaveTextContent('0284C7');
-    expect(panel).toHaveTextContent('0284C7 · 15%');
+    // Desde ADR-0064 el estilo es la sección de estilo (colores como selector y muestras) y las filas de etiqueta y
+    // control quedan para los datos de revisión
+    expect(panel).toContainElement(screen.getByTestId('properties-style'));
+    expect(panel.querySelectorAll('.ui-row').length).toBeGreaterThanOrEqual(3);
+    expect(screen.getByTestId('prop-stroke-color')).toHaveValue('#0284c7');
+    expect(screen.getByTestId('prop-fill-color')).toHaveValue('#0284c7');
     expect(panel).not.toHaveTextContent('rgba(');
     // Campos con el estilo común
-    expect(screen.getByTestId('prop-stroke-width')).toHaveClass('ui-input');
+    expect(screen.getByTestId('prop-author')).toHaveClass('ui-input');
     expect(screen.getByTestId('selection-count-badge')).toHaveClass('ui-badge');
   });
 

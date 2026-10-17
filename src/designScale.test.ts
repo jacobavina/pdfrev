@@ -197,4 +197,29 @@ describe('Escala tipográfica y contraste de la interfaz (ADR-0062)', () => {
     // El texto REA sigue en el color fuerte, con tracking de marca
     expect(brand).toMatch(/font-semibold text-cad-strong tracking-wide/);
   });
+
+  it('la cinta usa una sola convención de mayúsculas: herramientas en Mayúscula Inicial y grupos en mayúsculas con tracking, en una sola línea, y una sola grafía para Cloud+ (ADR-0068)', () => {
+    const defs = read(path.join('src', 'components', 'shell', 'toolDefinitions.tsx'));
+    const shorts = [...defs.matchAll(/short: '([^']+)'/g)].map((m) => m[1]);
+    expect(shorts.length).toBeGreaterThan(20);
+    // Herramientas en Mayúscula Inicial, escritas en los datos (sin text-transform en CSS)
+    for (const s of shorts) expect(s, `short ${s}`).toMatch(/^[A-Z][a-zA-Z0-9]*(\+[A-Za-z0-9]*)?$/);
+    // Grafía canónica de la herramienta combinada: "Cloud+", nunca "Cloud Plus" ni "CloudPlus"
+    expect(defs).toMatch(/type: 'cloudPlus', label: 'Cloud\+ \(K\)', short: 'Cloud\+'/);
+    for (const l of defs.matchAll(/label: '([^']+)'/g)) expect(l[1], `label ${l[1]}`).not.toMatch(/Cloud\s?Plus/);
+    const typeLabels = read(path.join('src', 'core', 'markup', 'typeLabels.ts'));
+    expect(typeLabels).toMatch(/cloudPlus: 'Cloud\+'/);
+    expect(typeLabels).not.toMatch(/Cloud\s?Plus/);
+    // Grupos: en mayúsculas por CSS, con tracking deliberado y altura fija, sin partir en dos líneas
+    const css = read('src/index.css');
+    const groupLabel = css.slice(css.indexOf('  .ribbon-group-label {'), css.indexOf('}', css.indexOf('  .ribbon-group-label {')));
+    expect(groupLabel).toMatch(/text-transform: uppercase;/);
+    expect(groupLabel).toMatch(/letter-spacing: 0\.08em;/);
+    expect(groupLabel).toMatch(/white-space: nowrap;/);
+    expect(groupLabel).toMatch(/height: 12px;/);
+    // Las etiquetas de herramienta no se transforman: la convención vive en los datos
+    const toolLabel = css.slice(css.indexOf('  .ribbon-tool-label {'), css.indexOf('}', css.indexOf('  .ribbon-tool-label {')));
+    expect(toolLabel).not.toMatch(/text-transform/);
+  });
+
 });

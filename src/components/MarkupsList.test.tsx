@@ -348,10 +348,13 @@ describe('MarkupsList Context Menu (Añadir a Tool Chest B.4)', () => {
       render(<MarkupsList />);
       const csvBtn = screen.getByTestId('export-csv-button');
       const pdfBtn = screen.getByTestId('export-pdf-report-button');
+      const appendBtn = screen.getByTestId('append-pdf-report-button');
       expect(csvBtn).toBeInTheDocument();
       expect(pdfBtn).toBeInTheDocument();
+      expect(appendBtn).toBeInTheDocument();
       expect(csvBtn).toHaveTextContent('CSV');
       expect(pdfBtn).toHaveTextContent('PDF Report');
+      expect(appendBtn).toHaveTextContent('Append Summary');
     });
   });
 });

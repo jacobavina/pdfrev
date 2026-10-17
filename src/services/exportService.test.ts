@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, PDFName, PDFArray, PDFDict } from 'pdf-lib';
+import * as pdfjs from 'pdfjs-dist';
 import {
   sanitizeCsvCell,
   escapeCsvField,
   buildCsvContent,
   buildPdfReportContent,
+  appendPdfSummaryReport,
 } from './exportService';
 import { Markup, BbxCustomColumn } from '../types/markup';
 
@@ -192,6 +194,144 @@ describe('Export Service (P2-C.4)', () => {
       const bytes = await buildPdfReportContent('Plano-Denso.pdf', manyMarkups);
       const pdfDoc = await PDFDocument.load(bytes);
       expect(pdfDoc.getPageCount()).toBeGreaterThanOrEqual(2);
+    });
+
+    it('genera hipervínculos /Link en el reporte PDF hacia la página de cada marca tanto en reporte anexo como independiente', async () => {
+      const markups: Markup[] = [
+        {
+          id: 'mk-p0',
+          type: 'area',
+          subject: 'Piso Cerámico',
+          pageIndex: 0,
+          text: 'Zona A',
+          author: 'Aparejador',
+          status: 'accepted',
+          createdAt: '2026-10-17T10:00:00Z',
+          updatedAt: '2026-10-17T10:00:00Z',
+          style: { strokeColor: '#0055ff', strokeWidth: 1, opacity: 1 },
+          points: [{ x: 0.1, y: 0.1 }, { x: 0.3, y: 0.1 }, { x: 0.3, y: 0.3 }],
+          measurement: { value: 25.5, unit: 'm', formatted: '25.50 m²' },
+          unitPrice: 35,
+          cost: 892.5,
+        },
+        {
+          id: 'mk-p1',
+          type: 'count',
+          subject: 'Puertas Cortafuegos',
+          pageIndex: 1,
+          text: 'Puerta EI2-60',
+          author: 'Inspector',
+          status: 'pending',
+          createdAt: '2026-10-17T10:00:00Z',
+          updatedAt: '2026-10-17T10:00:00Z',
+          style: { strokeColor: '#ff2200', strokeWidth: 1, opacity: 1 },
+          points: [{ x: 0.5, y: 0.5 }],
+          measurement: { value: 1, unit: 'm', formatted: '1' },
+          unitPrice: 450,
+          cost: 450,
+        },
+      ];
+
+      // 1. Reporte independiente (Standalone): enlaces con /GoToR hacia el plano y destino de página
+      const standaloneBytes = await buildPdfReportContent('Plano-Estructural.pdf', markups);
+      const standaloneDoc = await PDFDocument.load(standaloneBytes);
+      const reportPage = standaloneDoc.getPages()[0];
+      const annots = reportPage.node.Annots() as PDFArray;
+      expect(annots).toBeDefined();
+      expect(annots.size()).toBe(2);
+
+      const annot0Dict = standaloneDoc.context.lookup(annots.get(0)) as PDFDict;
+      expect(annot0Dict.get(PDFName.of('Subtype'))?.toString()).toBe('/Link');
+      const action0 = annot0Dict.get(PDFName.of('A')) as PDFDict;
+      expect(action0.get(PDFName.of('S'))?.toString()).toBe('/GoToR');
+      // Conforme a ISO 32000-1 §12.6.4.3 y §7.11.2, /F debe ser un PDFString (File Specification)
+      expect(action0.get(PDFName.of('F'))?.toString()).toContain('Plano-Estructural.pdf');
+
+      // 2. Reporte anexo (Appended): páginas añadidas al final del plano con enlaces internos /GoTo /Dest a cada hoja
+      const blueprintDoc = await PDFDocument.create();
+      blueprintDoc.addPage([800, 600]); // Hoja 1 (índice 0)
+      blueprintDoc.addPage([800, 600]); // Hoja 2 (índice 1)
+      const blueprintBytes = await blueprintDoc.save();
+
+      const combinedBytes = await appendPdfSummaryReport(blueprintBytes, 'Plano-Estructural.pdf', markups);
+      const combinedDoc = await PDFDocument.load(combinedBytes);
+      expect(combinedDoc.getPageCount()).toBe(3); // 2 hojas de plano + 1 hoja de informe
+
+      const combinedReportPage = combinedDoc.getPages()[2];
+      const combinedAnnots = combinedReportPage.node.Annots() as PDFArray;
+      expect(combinedAnnots.size()).toBe(2);
+
+      const combinedAnnot0 = combinedDoc.context.lookup(combinedAnnots.get(0)) as PDFDict;
+      expect(combinedAnnot0.get(PDFName.of('Subtype'))?.toString()).toBe('/Link');
+      const dest0 = combinedAnnot0.get(PDFName.of('Dest')) as PDFArray;
+      expect(dest0.get(0).toString()).toBe(combinedDoc.getPage(0).ref.toString());
+
+      const combinedAnnot1 = combinedDoc.context.lookup(combinedAnnots.get(1)) as PDFDict;
+      const dest1 = combinedAnnot1.get(PDFName.of('Dest')) as PDFArray;
+      expect(dest1.get(0).toString()).toBe(combinedDoc.getPage(1).ref.toString());
+
+      // 3. Verificación con PDF.js: los enlaces son reconocidos como Links estándar con rectángulos válidos
+      const pdf = await pdfjs.getDocument({ data: combinedBytes, disableFontFace: true }).promise;
+      const pdfJsRepPage = await pdf.getPage(3);
+      const pdfJsAnnots = await pdfJsRepPage.getAnnotations();
+      expect(pdfJsAnnots).toHaveLength(2);
+      expect(pdfJsAnnots[0].subtype).toBe('Link');
+      expect(pdfJsAnnots[0].rect).toBeDefined();
+      expect(pdfJsAnnots[0].rect[2] - pdfJsAnnots[0].rect[0]).toBeGreaterThan(10);
+      await pdf.destroy();
+    });
+
+    it('permite desactivar la generación de enlaces si includeHyperlinks es false', async () => {
+      const markups: Markup[] = [
+        {
+          id: 'mk-no-link',
+          type: 'line',
+          pageIndex: 0,
+          text: 'Trazado',
+          author: 'Autor',
+          status: 'pending',
+          createdAt: '2026-10-17T10:00:00Z',
+          updatedAt: '2026-10-17T10:00:00Z',
+          style: { strokeColor: '#000000', strokeWidth: 1, opacity: 1 },
+          points: [{ x: 0, y: 0 }, { x: 1, y: 1 }],
+        },
+      ];
+
+      const bytes = await buildPdfReportContent('Doc.pdf', markups, { includeHyperlinks: false });
+      const doc = await PDFDocument.load(bytes);
+      const annots = doc.getPages()[0].node.Annots();
+      expect(!annots || annots.size() === 0).toBe(true);
+    });
+
+    it('incluye resumen de Subject y costes totales en el encabezado cuando existen mediciones de takeoff', async () => {
+      const takeoffMarkups: Markup[] = [
+        {
+          id: 't-1',
+          type: 'area',
+          subject: 'Pintura Epoxi',
+          pageIndex: 0,
+          text: 'Suelo nave',
+          author: 'Medidor',
+          status: 'accepted',
+          createdAt: '2026-10-17T10:00:00Z',
+          updatedAt: '2026-10-17T10:00:00Z',
+          style: { strokeColor: '#00aa00', strokeWidth: 1, opacity: 1 },
+          points: [{ x: 0, y: 0 }],
+          measurement: { value: 100, unit: 'm', formatted: '100.00 m²' },
+          unitPrice: 20,
+          cost: 2000, // $2,000.00
+        },
+      ];
+
+      const bytes = await buildPdfReportContent('Nave-Industrial.pdf', takeoffMarkups);
+      const pdf = await pdfjs.getDocument({ data: bytes, disableFontFace: true }).promise;
+      const p = await pdf.getPage(1);
+      const content = await p.getTextContent();
+      const strings = content.items.map((it) => ('str' in it ? it.str : '')).join(' ');
+      expect(strings).toContain('Takeoff & Markup Summary Report');
+      expect(strings).toContain('Pintura Epoxi');
+      expect(strings).toContain('Total Takeoff Cost: $2000.00');
+      await pdf.destroy();
     });
   });
 });

@@ -590,6 +590,24 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
     }
   };
 
+  const handleAppendPdfReport = async () => {
+    const pdfBytes = useDocumentStore.getState().pdfBytes;
+    if (!pdfBytes) {
+      showToast('No PDF document loaded to append summary to.');
+      return;
+    }
+    try {
+      const { appendPdfSummaryReport, saveExportFileWithDialog } = await import('../services/exportService');
+      const defaultBase = fileName ? fileName.replace(/\.[^/.]+$/, '') : 'document';
+      const defaultName = `${defaultBase}-with-summary.pdf`;
+      const bytes = await appendPdfSummaryReport(pdfBytes, fileName || 'PDF document', displayedMarkups);
+      await saveExportFileWithDialog(defaultName, 'pdf', bytes);
+    } catch (err) {
+      console.error('Error al anexar Reporte PDF:', err);
+      showToast(`Error appending summary report to PDF: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
   // Altura de la lista: redimensionable con el separador superior y recordada entre sesiones
   const [listHeight, setListHeight] = useState<number>(() => {
     try {
@@ -630,6 +648,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
     if (!exportRequest || exportRequest.seq === lastExportSeq.current) return;
     lastExportSeq.current = exportRequest.seq;
     if (exportRequest.kind === 'csv') void handleExportCsv();
+    else if (exportRequest.kind === 'append-report') void handleAppendPdfReport();
     else void handleExportPdfReport();
     // Solo debe reaccionar a peticiones nuevas
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1081,10 +1100,20 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
               data-testid="export-pdf-report-button"
               onClick={handleExportPdfReport}
               className="ui-btn !h-7 !px-2"
-              title="Generate PDF summary report"
+              title="Generate PDF summary report with hyperlinks"
             >
               <FileText size={16} className="text-gray-400" />
               <span>PDF Report</span>
+            </button>
+
+            <button
+              data-testid="append-pdf-report-button"
+              onClick={handleAppendPdfReport}
+              className="ui-btn !h-7 !px-2"
+              title="Append summary report with hyperlinks to current PDF"
+            >
+              <FileText size={16} className="text-blue-400" />
+              <span>Append Summary</span>
             </button>
 
             <button

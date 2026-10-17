@@ -449,8 +449,8 @@ export const MenuBar: React.FC = () => {
       ref={barRef as React.RefObject<HTMLElement>}
       className="h-8 min-w-0 bg-cad-panel border-b border-cad-border flex items-center px-2 text-sm text-gray-200 select-none z-30 relative"
     >
-      <div className="flex items-center gap-2 pr-3 mr-1 border-r border-cad-border shrink-0">
-        <span className="w-[22px] h-[22px] rounded-md bg-cad-accent-fill text-white text-2xs font-bold flex items-center justify-center">
+      <div className="flex items-center gap-1 pr-3 mr-1 border-r border-cad-border shrink-0" aria-label="REA">
+        <span aria-hidden="true" className="text-cad-accent font-bold leading-none">
           R
         </span>
         <span className="font-semibold text-cad-strong tracking-wide">REA</span>

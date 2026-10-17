@@ -187,4 +187,14 @@ describe('Escala tipográfica y contraste de la interfaz (ADR-0062)', () => {
     expect(offenders).toEqual([]);
   });
 
+
+  it('la marca "R REA" va sin pastilla rellena: la R en el acento y el resto en el color fuerte (ADR-0068)', () => {
+    const menu = read(path.join('src', 'components', 'shell', 'MenuBar.tsx'));
+    const brand = menu.slice(menu.indexOf('aria-label="REA"'), menu.indexOf('</div>', menu.indexOf('aria-label="REA"')));
+    // La R es texto en el acento (marca), sin fondo sólido
+    expect(brand).toMatch(/text-cad-accent font-bold/);
+    expect(brand).not.toMatch(/bg-cad-accent-fill/);
+    // El texto REA sigue en el color fuerte, con tracking de marca
+    expect(brand).toMatch(/font-semibold text-cad-strong tracking-wide/);
+  });
 });

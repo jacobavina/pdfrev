@@ -1,6 +1,6 @@
 # Plan Maestro v2 — REA hacia interoperabilidad real con Revu y Acrobat
 
-> **Estado: EN EJECUCIÓN.** El usuario aprobó el plan y se ha ejecutado por hitos con ADR propio (hasta ADR-0062,
+> **Estado: EN EJECUCIÓN.** El usuario aprobó el plan y se ha ejecutado por hitos con ADR propio (hasta ADR-0063,
 > 2026-10-15; ver el registro de sesiones al final y `docs/STATUS.md` §0, "Traspaso al siguiente agente"). Lo que
 > se haga a partir de aquí sigue las mismas reglas: ADR, PARITY con test literal y verify ×3.
 >
@@ -214,4 +214,5 @@ plan y `AGENTS.md`, **gana `AGENTS.md`**.
 | 2026-10-16 | Claude (Opus 5.5) | ADR-0060: Markups List como la de Revu (abre cerrada, columnas elegibles y grupos por Subject). |
 | 2026-10-16 | Claude (Opus 5.5) | ADR-0061: Autosize Text de Revu en callouts, cuadros de texto y nota de Cloud+. |
 | 2026-10-16 | Claude (Opus 5.5) | ADR-0062: legibilidad (escala tipográfica única, contraste AA, waiver de la capa de texto de PDF.js). |
+| 2026-10-16 | Claude (Opus 5.5) | ADR-0063: flechas por fuera en distancias cortas, símbolos del conteo individuales y rueda del zoom de doble clic. |
 

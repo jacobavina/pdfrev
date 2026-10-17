@@ -31,6 +31,8 @@ const corners = (a: MarkupPoint, b: MarkupPoint): MarkupPoint[] => {
 /** Puntos de control visibles de una marca, o null si no se edita por vértices. */
 export function controlPointsOf(markup: Markup): MarkupPoint[] | null {
   const pts = markup.points;
+  // Count de Revu (ADR-0063): un tirador en cada símbolo, que lo mueve solo a él; el conteo sigue siendo uno
+  if (markup.type === 'count' && markup.customFields?.countSymbol && pts?.length) return pts.map((p) => ({ ...p }));
   if (!pts || pts.length < 2) return null;
   if ((BOX_TYPES.has(markup.type) || POLYGONIZABLE_TYPES.has(markup.type)) && pts.length === 2) {
     return corners(pts[0], pts[1]);

@@ -11,7 +11,7 @@ import {
   STICKY_NOTE_COLORS,
 } from '../../types/markup';
 import { normalizedToScreen } from '../../utils/coordinates';
-import { lineEndingShape, lineEndingSize, endpointAngles, CALLOUT_ARROW_HALF_ANGLE } from './lineEndings';
+import { lineEndingShape, lineEndingSize, endpointAngles, outsideArrowLayout, CALLOUT_ARROW_HALF_ANGLE } from './lineEndings';
 import {
   CaptionText,
   MEASURE_CAPTION_COLOR,
@@ -1195,7 +1195,28 @@ export function getMarkupSvgDescriptor(
         attrs: { ...baseAttrs, fill: 'none', x1: u.x, y1: u.y, x2: w.x, y2: w.y, ...(testId ? { 'data-testid': testId } : {}) },
       });
       const lineGroup: SvgRenderDescriptor = { tag: 'g', attrs: {}, children: pieces.map((p) => segment(p)) };
-      const withEnds = withLineEndings(lineGroup, [geom.a, geom.b], ends, transform, baseAttrs.opacity);
+      // Distancia corta (como Revu): las puntas no caben dentro y van por fuera, apuntando hacia dentro
+      const outside = outsideArrowLayout(geom.a, geom.b, inset, ends);
+      let withEnds: SvgRenderDescriptor;
+      if (outside) {
+        const widthScreen = (style.strokeWidth || 1) * (transform.scale || 1);
+        const tips = [
+          [geom.a, outside.start, ends.lineEndingStart],
+          [geom.b, outside.end, ends.lineEndingEnd],
+        ] as const;
+        const arrows = tips
+          .map(([pt, ang, ending]) =>
+            ending && ending !== 'none' ? createLineEndingDescriptor(pt, ang, ending, style.strokeColor, widthScreen, inset) : null
+          )
+          .filter((d): d is SvgRenderDescriptor => d !== null);
+        withEnds = {
+          tag: 'g',
+          attrs: { opacity: baseAttrs.opacity, 'data-arrows': 'outside' },
+          children: [lineGroup, ...outside.stubs.map((p) => segment(p)), ...arrows],
+        };
+      } else {
+        withEnds = withLineEndings(lineGroup, [geom.a, geom.b], ends, transform, baseAttrs.opacity);
+      }
       // Líneas de referencia continuas aunque la medida sea discontinua
       const leaders = geom.leaders.map((p) => {
         const d = segment(p, 'distance-leader');

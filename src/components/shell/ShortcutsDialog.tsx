@@ -16,7 +16,7 @@ const GENERAL: [string, string][] = [
   ['Ctrl+4 / Ctrl+5', 'Single page / Continuous pages'],
   ['Ctrl+3', 'Dark mode'],
   ['Ctrl+Shift+R / Ctrl+Shift+X', 'Rotate page / Extract page'],
-  ['Double-click + wheel', 'Zoom in / out at the double-clicked point'],
+  ['Double-click + wheel', 'Zoom at the double-clicked point: wheel toward you zooms in, away zooms out'],
   ['Enter / double-click', 'Close polygon, polyline or area'],
   ['Esc', 'Cancel the stroke or close menus'],
   ['Shift (while drawing)', 'Straight line at 0°/45°/90°; square or circle'],

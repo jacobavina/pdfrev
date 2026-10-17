@@ -13,7 +13,7 @@ import {
   wrapCalloutText,
   CALLOUT_MIN_BOX_WIDTH,
 } from '../markup/render';
-import { lineEndingShape, lineEndingSize, endpointAngles, shapeExtent, Pt, CALLOUT_ARROW_HALF_ANGLE } from '../markup/lineEndings';
+import { lineEndingShape, lineEndingSize, endpointAngles, outsideArrowLayout, shapeExtent, Pt, CALLOUT_ARROW_HALF_ANGLE } from '../markup/lineEndings';
 import { dimensionGeometry, dimensionTextBaseline, defaultDimensionLinePoint } from '../markup/dimension';
 import { getHelveticaTextWidth } from '../markup/helveticaMetrics';
 import { stampById, stampTextOf } from '../markup/stamps';
@@ -414,9 +414,10 @@ export function emitMarkupOperators(
   const emitLineEndings = (
     pdfPts: Pt[],
     endings: Pick<Markup['style'], 'lineEndingStart' | 'lineEndingEnd'> = markup.style,
-    halfAngle?: number
+    halfAngle?: number,
+    angleOverride?: { start: number; end: number }
   ) => {
-    const angles = endpointAngles(pdfPts);
+    const angles = angleOverride ?? endpointAngles(pdfPts);
     if (!angles) return;
     const size = lineEndingSize(strokeWidth);
     const items: [Pt, number, Markup['style']['lineEndingStart']][] = [
@@ -573,7 +574,17 @@ export function emitMarkupOperators(
         pathPdf([visToPdf(u), visToPdf(w)], false);
         lines.push('S');
       }
-      emitLineEndings([visToPdf(a), visToPdf(b)], ends);
+      // Distancia corta (como Revu): puntas por fuera, apuntando hacia dentro, con un tramo exterior en cada extremo
+      const pa = visToPdf(a);
+      const pb = visToPdf(b);
+      const outside = outsideArrowLayout(pa, pb, lineEndingSize(strokeWidth), ends);
+      if (outside) {
+        for (const [u, w] of outside.stubs) {
+          pathPdf([u, w], false);
+          lines.push('S');
+        }
+      }
+      emitLineEndings([pa, pb], ends, undefined, outside ?? undefined);
       if (layout) captionPdf(layout.caption);
       break;
     }

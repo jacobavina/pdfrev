@@ -118,3 +118,32 @@ export function shapeExtent(shape: LineEndingShape): Pt[] {
   }
   return shape.points;
 }
+
+/**
+ * Distancia corta, como en Revu y en CAD: si las dos puntas de flecha no caben entre los extremos (menos de 2.5
+ * puntas), van por fuera apuntando hacia dentro y de cada extremo sale un tramo de línea que las sostiene. Devuelve
+ * los ángulos ya girados para `lineEndingShape` y los dos tramos exteriores, o null si las puntas caben dentro.
+ */
+export function outsideArrowLayout(
+  a: Pt,
+  b: Pt,
+  size: number,
+  endings: { lineEndingStart?: string; lineEndingEnd?: string }
+): { start: number; end: number; stubs: [Pt, Pt][] } | null {
+  const isArrow = (e?: string) => e === 'openArrow' || e === 'closedArrow';
+  if (!isArrow(endings.lineEndingStart) && !isArrow(endings.lineEndingEnd)) return null;
+  const len = Math.hypot(b.x - a.x, b.y - a.y);
+  if (!(len > 0) || !(size > 0) || len >= size * 2.5) return null;
+  const ux = (b.x - a.x) / len;
+  const uy = (b.y - a.y) / len;
+  const stub = size * 1.6;
+  return {
+    // endpointAngles da el sentido "hacia fuera" en cada extremo; girado media vuelta, la flecha apunta hacia dentro
+    start: Math.atan2(uy, ux),
+    end: Math.atan2(-uy, -ux),
+    stubs: [
+      [a, { x: a.x - ux * stub, y: a.y - uy * stub }],
+      [b, { x: b.x + ux * stub, y: b.y + uy * stub }],
+    ],
+  };
+}

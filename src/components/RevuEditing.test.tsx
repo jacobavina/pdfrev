@@ -205,6 +205,19 @@ describe('Nube de forma libre (ADR-0039)', () => {
     expect(counts()[1].points).toHaveLength(1);
   });
 
+  it('un conteo seleccionado muestra un recuadro y un tirador verde por símbolo, no una caja que los englobe (ADR-0063)', async () => {
+    const cnt = mk('cs', 'count', [{ x: 0.1, y: 0.1 }, { x: 0.4, y: 0.2 }, { x: 0.7, y: 0.6 }], {
+      customFields: { countSymbol: 'check', countScale: 100 },
+    });
+    useMarkupStore.setState({ markups: [cnt], selectedMarkupIds: ['cs'] });
+    await renderViewer();
+    act(() => useToolStore.setState({ activeTool: 'select' }));
+    expect(screen.getAllByTestId('selection-bbox')).toHaveLength(3);
+    const handles = screen.getByTestId('control-points-layer').querySelectorAll('circle');
+    expect(handles).toHaveLength(3);
+    expect(handles[0].getAttribute('fill')).toBe('#4c9a3f');
+  });
+
   it('Cloud+ como en Revu: la directriz sale de la nube sin flecha (ADR-0057)', async () => {
     const svg = await renderViewer();
     act(() => useToolStore.setState({ activeTool: 'cloudPlus' }));

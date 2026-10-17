@@ -1,5 +1,5 @@
 import { isAutosizeText } from '../core/markup/autosizeText';
-import { countMeasurement } from '../core/markup/countSymbols';
+import { countMeasurement, countSymbolSizePt } from '../core/markup/countSymbols';
 import React, { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useDocumentStore } from '../store/useDocumentStore';
@@ -780,11 +780,12 @@ export const PdfViewer: React.FC = () => {
     const el = containerRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
-      // Con el control de zoom abierto (doble clic), la rueda acerca/aleja en ese punto sin Ctrl, como en Revu
+      // Con el control de zoom abierto (doble clic), la rueda acerca/aleja en ese punto sin Ctrl, como en Revu:
+      // girarla hacia uno acerca y hacia delante aleja (ADR-0063; al revés que Ctrl+rueda)
       const widget = zoomWidgetRef.current;
       if (widget) {
         e.preventDefault();
-        zoomAtClientPoint(widget.x, widget.y, e.deltaY < 0 ? 1.15 : 1 / 1.15);
+        zoomAtClientPoint(widget.x, widget.y, e.deltaY > 0 ? 1.15 : 1 / 1.15);
         return;
       }
       if (!e.ctrlKey && !e.metaKey) return;
@@ -2997,6 +2998,31 @@ export const PdfViewer: React.FC = () => {
 
                   {/* Bounding box de selección activa */}
                   {isSelected && (() => {
+                    // Count de Revu (ADR-0063): cada símbolo con su propio recuadro, no una caja que los englobe
+                    if (markup.type === 'count' && markup.customFields?.countSymbol) {
+                      const half = (countSymbolSizePt(markup) * (scale || 1)) / 2 + 3;
+                      return (
+                        <g data-testid="selection-count-items" className="pointer-events-none">
+                          {markup.points.map((pt, i) => {
+                            const c = normalizedToScreen(pt, viewportTransform);
+                            return (
+                              <rect
+                                key={i}
+                                data-testid="selection-bbox"
+                                x={c.x - half}
+                                y={c.y - half}
+                                width={half * 2}
+                                height={half * 2}
+                                fill="none"
+                                stroke={markup.locked ? '#f59e0b' : '#3b82f6'}
+                                strokeWidth={1}
+                                strokeDasharray="3 2"
+                              />
+                            );
+                          })}
+                        </g>
+                      );
+                    }
                     let b: { minX: number; minY: number; maxX: number; maxY: number };
                     if (markup.type === 'stickyNote') {
                       const unscaledW = pageViewport.width / (scale || 1.0);
@@ -3170,7 +3196,8 @@ export const PdfViewer: React.FC = () => {
                           cx={scr.x}
                           cy={scr.y}
                           r={3.5}
-                          fill="#d9b93a"
+                          // Los del conteo, verdes como en Revu (ADR-0063)
+                          fill={markup.type === 'count' ? '#4c9a3f' : '#d9b93a'}
                           stroke="#3f3f46"
                           strokeWidth={1}
                           className="cursor-crosshair"

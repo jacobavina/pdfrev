@@ -149,12 +149,13 @@ describe('Cota, puntos de control y zoom con doble clic (ADR-0020/0021)', () => 
     act(() => {
       fireEvent.doubleClick(screen.getByTestId('markup-overlay-svg'), { clientX: 700, clientY: 50 });
     });
+    // Como en Revu (ADR-0063): con el control abierto, la rueda hacia uno acerca y hacia delante aleja
     act(() => {
-      fireEvent.wheel(container, { deltaY: -100, clientX: 700, clientY: 50 });
+      fireEvent.wheel(container, { deltaY: 100, clientX: 700, clientY: 50 });
     });
     expect(useDocumentStore.getState().scale).toBe(1.15);
     act(() => {
-      fireEvent.wheel(screen.getByTestId('zoom-widget'), { deltaY: 100, clientX: 700, clientY: 50 });
+      fireEvent.wheel(screen.getByTestId('zoom-widget'), { deltaY: -100, clientX: 700, clientY: 50 });
     });
     expect(useDocumentStore.getState().scale).toBe(1);
   });

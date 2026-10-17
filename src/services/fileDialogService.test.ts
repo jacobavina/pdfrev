@@ -5,6 +5,7 @@ import * as pdfService from './pdfService';
 import { registerToastListener } from './toastService';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useDocumentStore } from '../store/useDocumentStore';
+import { useDocumentTabsStore } from '../store/useDocumentTabsStore';
 import { PDFDocumentProxy } from 'pdfjs-dist';
 import fs from 'fs';
 import path from 'path';
@@ -51,6 +52,7 @@ describe('summarizeMigrationWarnings (Z.2b)', () => {
 describe('fileDialogService - Carga de Documentos y Avisos BBX (Z.2 / Z.2b)', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    useDocumentTabsStore.getState().closeAllTabs();
     useMarkupStore.getState().setMarkups([]);
     useDocumentStore.getState().closeDocument();
   });
@@ -221,5 +223,34 @@ describe('fileDialogService - Carga de Documentos y Avisos BBX (Z.2 / Z.2b)', ()
     await loadPdfData('C:/proyectos/documentoB.pdf', 'documentoB.pdf', fixturePdfBytes);
     // El documento B no debe arrastrar las columnas de A
     expect(useDocumentStore.getState().customColumns).toBeUndefined();
+  });
+
+  it('al abrir un segundo documento registra pestañas independientes y preserva las marcas del primero (ADR-0083)', async () => {
+    const dummyPdfDoc1 = { numPages: 1 } as unknown as PDFDocumentProxy;
+    const dummyPdfDoc2 = { numPages: 2 } as unknown as PDFDocumentProxy;
+    vi.spyOn(pdfService, 'loadPdfDocument')
+      .mockResolvedValueOnce(dummyPdfDoc1)
+      .mockResolvedValueOnce(dummyPdfDoc2);
+
+    vi.spyOn(bbxPersistenceService, 'loadBbxForPdf').mockResolvedValue(null);
+
+    // 1. Abrir Doc 1
+    await loadPdfData('C:/planos/plano1.pdf', 'plano1.pdf', fixturePdfBytes);
+    useMarkupStore.getState().addMarkup({ id: 'm-doc1', type: 'rectangle', pageIndex: 0 } as any);
+
+    // 2. Abrir Doc 2
+    await loadPdfData('C:/planos/plano2.pdf', 'plano2.pdf', fixturePdfBytes);
+    expect(useDocumentTabsStore.getState().tabs).toHaveLength(2);
+
+    // Pestaña activa es Doc 2
+    expect(useDocumentStore.getState().fileName).toBe('plano2.pdf');
+    expect(useMarkupStore.getState().markups).toHaveLength(0);
+
+    // Conmutar a Doc 1
+    const tab1 = useDocumentTabsStore.getState().tabs[0];
+    useDocumentTabsStore.getState().switchTab(tab1.id);
+
+    expect(useDocumentStore.getState().fileName).toBe('plano1.pdf');
+    expect(useMarkupStore.getState().markups.map((m) => m.id)).toContain('m-doc1');
   });
 });

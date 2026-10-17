@@ -95,6 +95,25 @@ export async function loadPdfData(
   fileName: string,
   bytes: Uint8Array
 ): Promise<void> {
+  // 0. Si el archivo ya está abierto en una pestaña, conmutamos a ella; si no, capturamos la pestaña activa
+  // previa ANTES de sobreescribir los stores con el documento nuevo (ADR-0083).
+  try {
+    const { useDocumentTabsStore } = await import('../store/useDocumentTabsStore');
+    const tabsState = useDocumentTabsStore.getState();
+    if (filePath) {
+      const existingTab = tabsState.tabs.find((t) => t.filePath && t.filePath === filePath);
+      if (existingTab) {
+        tabsState.switchTab(existingTab.id);
+        return;
+      }
+    }
+    if (tabsState.activeTabId) {
+      tabsState.captureActiveTab();
+    }
+  } catch {
+    // Si no está disponible en este entorno, continuar con carga habitual
+  }
+
   const { setDocument, setError, setCustomColumns } = useDocumentStore.getState();
   const { setMarkups } = useMarkupStore.getState();
 
@@ -175,6 +194,42 @@ export async function loadPdfData(
     } else {
       setMarkups([]);
     }
+  }
+
+  // 3. Registrar / sincronizar sesión en useDocumentTabsStore (ADR-0083)
+  try {
+    const { useDocumentTabsStore } = await import('../store/useDocumentTabsStore');
+    const docState = useDocumentStore.getState();
+    const markupState = useMarkupStore.getState();
+    const calState = useCalibrationStore.getState();
+    const attachState = useAttachmentStore.getState();
+    const uiState = useUiStore.getState();
+
+    if (docState.pdfBytes && docState.pdfDoc) {
+      useDocumentTabsStore.getState().openDocumentInTab({
+        filePath: docState.filePath,
+        fileName: docState.fileName || fileName,
+        pdfBytes: docState.pdfBytes,
+        pdfDoc: docState.pdfDoc,
+        numPages: docState.numPages,
+        currentPageIndex: docState.currentPageIndex,
+        scale: docState.scale,
+        rotation: docState.rotation,
+        pageDimensions: { ...docState.pageDimensions },
+        pageHasText: { ...docState.pageHasText },
+        customColumns: docState.customColumns ? [...docState.customColumns] : undefined,
+        importedAnnotationIds: [...docState.importedAnnotationIds],
+        markups: [...markupState.markups],
+        selectedMarkupIds: [...markupState.selectedMarkupIds],
+        isDirty: false,
+        calibrations: { ...calState.calibrations },
+        viewports: { ...calState.viewports },
+        attachments: { ...attachState.files },
+        hiddenLayers: [...uiState.hiddenLayers],
+      }, true);
+    }
+  } catch (tabsErr) {
+    console.warn('[Tabs] No se pudo registrar la pestaña:', tabsErr);
   }
 }
 

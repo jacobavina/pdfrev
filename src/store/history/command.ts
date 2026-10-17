@@ -65,4 +65,13 @@ export class HistoryManager {
     this.undoStack = [];
     this.redoStack = [];
   }
+
+  public getStacks(): { undoStack: Command[]; redoStack: Command[] } {
+    return { undoStack: [...this.undoStack], redoStack: [...this.redoStack] };
+  }
+
+  public setStacks(stacks: { undoStack: Command[]; redoStack: Command[] }): void {
+    this.undoStack = [...stacks.undoStack];
+    this.redoStack = [...stacks.redoStack];
+  }
 }

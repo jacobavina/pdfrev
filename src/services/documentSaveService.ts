@@ -75,6 +75,12 @@ export async function saveDocumentAs(): Promise<boolean> {
       const ok = await writeTo(target);
       if (ok) {
         useDocumentStore.getState().setFileLocation(target, baseName(target));
+        try {
+          const { useDocumentTabsStore } = await import('../store/useDocumentTabsStore');
+          useDocumentTabsStore.getState().updateActiveTabLocation(target, baseName(target));
+        } catch {
+          // ignore
+        }
         showToast(`Saved as ${baseName(target)}`);
       }
       return ok;

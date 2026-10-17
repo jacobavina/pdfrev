@@ -23,7 +23,7 @@
 | Zoom, rotación de vista | 🟡 Zoom ✅ ADR-0019/0023 (28f3240/724c53e) · PARITY «Atajos de vista de Revu (Ctrl+9/0/8/4/5/3)» y «Control de zoom con doble clic en el plano»; rotación de vista implementada (View ▸ Rotate View 90°) sin test dedicado | P5-B.5 | M | K I |
 | Mano, ajustar a ancho/página, zoom a ventana | 🟡 Pan ✅ ADR-0052 (4c6f951) · PARITY «Pan: arrastrar, Espacio mantenido y botón central»; ajustar a ancho/página ✅ ADR-0019 (28f3240) · PARITY «Vista continua, ajustar a página/ancho…»; zoom a ventana ⬜ | P5-B.5 | M | K I |
 | Vista continua multipágina | ✅ ADR-0019 (28f3240) · PARITY «Vista continua, ajustar a página/ancho, Ctrl+rueda, cota (Shift+L), puntos de control y zoom con doble clic (ADR-0019/0020/0021)» | — | M | K I |
-| Pestañas / varios documentos | ⬜ (un documento a la vez) | P5-B.2 | M | K I |
+| Pestañas / varios documentos | ✅ ADR-0083 · `src/store/useDocumentTabsStore.test.ts` (8) y `DocumentBar.test.tsx` (5) · PARITY «Pestañas multi-documento con sesiones independientes…» | — | M | K I |
 | Miniaturas | ✅ ADR-0016/0037 (d5a0fdf/665bdff) · `src/components/ThumbnailsSidebar.test.tsx` (2 tests) | — | M | K I |
 | Marcadores (índice) | 🟡 Panel implementado (ADR-0017, 5319ddd) con el índice del PDF; sin test automatizado ni fila PARITY | P5-B.3 | S | I |
 | Etiquetas de página | ⬜ (grep `PageLabel`: vacío) | P5-B.3 | S | K |

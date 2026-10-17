@@ -1,5 +1,4 @@
 import React, { Suspense, lazy, useEffect, useRef } from 'react';
-import { FileText } from 'lucide-react';
 import { PdfViewer } from './components/PdfViewer';
 import { MenuBar } from './components/shell/MenuBar';
 import { Ribbon } from './components/shell/Ribbon';
@@ -31,6 +30,9 @@ const SearchBar = lazy(() => import('./components/SearchBar').then((m) => ({ def
 const ShortcutsDialog = lazy(() =>
   import('./components/shell/ShortcutsDialog').then((m) => ({ default: m.ShortcutsDialog }))
 );
+const DocumentBar = lazy(() =>
+  import('./components/shell/DocumentBar').then((m) => ({ default: m.DocumentBar }))
+);
 /** Hueco de la barra lateral plegada mientras carga el panel. */
 const SidePanelFallback: React.FC = () => null;
 // Panel izquierdo (miniaturas, marcadores y capas) en su propio fragmento: presupuesto del bundle (ADR-0045)
@@ -44,26 +46,6 @@ const SplitPane = lazy(() => import('./components/viewer/SplitPane'));
 // Lista de marcas bajo demanda (ADR-0035): libera presupuesto del bundle principal; mientras carga se reserva su barra
 const MarkupsList = lazy(() => import('./components/MarkupsList').then((m) => ({ default: m.MarkupsList })));
 import fixtureMeta from '../fixtures/test-blueprint.meta.json';
-
-/** Pestaña del documento abierto sobre el área de trabajo. */
-const DocumentTab: React.FC = () => {
-  const { fileName, filePath } = useDocumentStore();
-  const isDirty = useMarkupStore((s) => s.isDirty);
-  if (!fileName) return null;
-  return (
-    // Banda de documentos (ADR-0065): tono más oscuro que la cinta para separarlas; la pestaña activa, del tono del panel
-    <div className="h-7 bg-cad-dark border-y border-cad-border flex items-end px-2 shrink-0" data-testid="document-tabs">
-      <div
-        className="relative flex items-center gap-2 h-7 px-3 text-xs text-cad-strong bg-cad-panel border-x border-cad-border max-w-[22rem] shadow-[inset_0_-2px_0_rgb(var(--cad-accent))]"
-        title={filePath ?? fileName}
-      >
-        <FileText size={16} className="text-gray-400 shrink-0" />
-        <span className="truncate">{fileName}</span>
-        {isDirty && filePath && <span className="text-amber-600 dark:text-amber-400">●</span>}
-      </div>
-    </div>
-  );
-};
 
 export const App: React.FC = () => {
   const { pdfBytes, setLoading } = useDocumentStore();
@@ -199,7 +181,9 @@ export const App: React.FC = () => {
           <LeftDock />
         </Suspense>
         <div className="flex-1 min-w-0 flex flex-col">
-          <DocumentTab />
+          <Suspense fallback={<div className="h-7 bg-cad-dark border-y border-cad-border shrink-0" />}>
+            <DocumentBar />
+          </Suspense>
           <div className="flex-1 min-h-0 flex">
           <div
             ref={viewerHostRef}

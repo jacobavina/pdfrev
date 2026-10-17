@@ -864,14 +864,26 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
         </Section>
 
         <Section title="Export">
-          <button
-            type="button"
-            onClick={() => useUiStore.getState().requestExport('csv')}
-            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded border border-cad-border hover:bg-cad-hover"
-            title="Export the markups list with measurements to CSV (Excel)"
-          >
-            <FileSpreadsheet size={16} /> Export to CSV
-          </button>
+          <div className="flex flex-col gap-1.5">
+            <button
+              type="button"
+              data-testid="measurements-export-xlsx-button"
+              onClick={() => useUiStore.getState().requestExport('xlsx')}
+              className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded border border-cad-border hover:bg-cad-hover text-xs"
+              title="Export takeoff schedule with live formulas to Excel (.xlsx)"
+            >
+              <FileSpreadsheet size={16} /> Export to Excel (.xlsx)
+            </button>
+            <button
+              type="button"
+              data-testid="measurements-export-csv-button"
+              onClick={() => useUiStore.getState().requestExport('csv')}
+              className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded border border-cad-border hover:bg-cad-hover text-xs"
+              title="Export the markups list with measurements to CSV"
+            >
+              <FileSpreadsheet size={16} /> Export to CSV
+            </button>
+          </div>
         </Section>
       </div>
     </aside>

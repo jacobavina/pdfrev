@@ -520,16 +520,36 @@ export async function appendPdfSummaryReport(
   });
 }
 
+export type { XlsxExportOptions } from './xlsxExportService';
+
+/**
+ * Genera el contenido binario de una exportación Takeoff en Excel (.xlsx) con fórmulas vivas
+ * mediante importación diferida de xlsxExportService (ADR-0080).
+ */
+export async function buildXlsxTakeoffContent(
+  docTitle: string,
+  markups: readonly Markup[],
+  options?: import('./xlsxExportService').XlsxExportOptions
+): Promise<Uint8Array> {
+  const { exportTakeoffToXlsx } = await import('./xlsxExportService');
+  return exportTakeoffToXlsx(docTitle, markups, options);
+}
+
 /**
  * Guarda un archivo exportado mediante Tauri (comando Rust atómico save_export_file)
  * o descarga vía Blob en el navegador.
  */
 export async function saveExportFileWithDialog(
   defaultName: string,
-  extension: 'csv' | 'pdf',
+  extension: 'csv' | 'pdf' | 'xlsx',
   bytes: Uint8Array
 ): Promise<boolean> {
-  const filterName = extension === 'csv' ? 'CSV file (*.csv)' : 'PDF document (*.pdf)';
+  const filterName =
+    extension === 'csv'
+      ? 'CSV file (*.csv)'
+      : extension === 'xlsx'
+      ? 'Excel Workbook (*.xlsx)'
+      : 'PDF document (*.pdf)';
 
   try {
     if (isTauriEnvironment()) {
@@ -554,7 +574,12 @@ export async function saveExportFileWithDialog(
       return true;
     } else {
       // Fallback navegador
-      const mime = extension === 'csv' ? 'text/csv;charset=utf-8;' : 'application/pdf';
+      const mime =
+        extension === 'csv'
+          ? 'text/csv;charset=utf-8;'
+          : extension === 'xlsx'
+          ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          : 'application/pdf';
       const blob = new Blob([bytes.buffer as ArrayBuffer], { type: mime });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');

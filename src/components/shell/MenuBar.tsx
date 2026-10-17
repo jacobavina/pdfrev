@@ -203,6 +203,7 @@ export const MenuBar: React.FC = () => {
           submenu: [
             { icon: <FileDown size={16} />, label: 'PDF with Flattened Markups…', onSelect: () => exportFlattenedPdf(), disabled: !hasDoc, testId: 'menu-export-flattened' },
             { icon: <FileSpreadsheet size={16} />, label: 'Markups List (CSV)…', onSelect: () => requestExport('csv'), disabled: !hasDoc, testId: 'menu-export-csv' },
+            { icon: <FileSpreadsheet size={16} />, label: 'Takeoff Schedule (Excel .xlsx)…', onSelect: () => requestExport('xlsx'), disabled: !hasDoc, testId: 'menu-export-xlsx' },
             { icon: <ClipboardList size={16} />, label: 'Markup Summary Report (PDF)…', onSelect: () => requestExport('report'), disabled: !hasDoc, testId: 'menu-export-report' },
             { icon: <FilePlus2 size={16} />, label: 'Append Summary to PDF…', onSelect: () => requestExport('append-report'), disabled: !hasDoc, testId: 'menu-export-append-report' },
           ],

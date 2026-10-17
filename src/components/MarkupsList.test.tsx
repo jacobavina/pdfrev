@@ -344,15 +344,18 @@ describe('MarkupsList Context Menu (Añadir a Tool Chest B.4)', () => {
   });
 
   describe('Botones de Exportación (P2-C.4)', () => {
-    it('renderiza los botones de exportar CSV y Reporte PDF en la cabecera', () => {
+    it('renderiza los botones de exportar CSV, Excel (.xlsx) y Reporte PDF en la cabecera', () => {
       render(<MarkupsList />);
       const csvBtn = screen.getByTestId('export-csv-button');
+      const xlsxBtn = screen.getByTestId('export-xlsx-button');
       const pdfBtn = screen.getByTestId('export-pdf-report-button');
       const appendBtn = screen.getByTestId('append-pdf-report-button');
       expect(csvBtn).toBeInTheDocument();
+      expect(xlsxBtn).toBeInTheDocument();
       expect(pdfBtn).toBeInTheDocument();
       expect(appendBtn).toBeInTheDocument();
       expect(csvBtn).toHaveTextContent('CSV');
+      expect(xlsxBtn).toHaveTextContent('Excel (.xlsx)');
       expect(pdfBtn).toHaveTextContent('PDF Report');
       expect(appendBtn).toHaveTextContent('Append Summary');
     });

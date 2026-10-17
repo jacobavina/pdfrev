@@ -608,6 +608,22 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
     }
   };
 
+  const handleExportXlsx = async () => {
+    try {
+      const { buildXlsxTakeoffContent, saveExportFileWithDialog } = await import('../services/exportService');
+      const defaultBase = fileName ? fileName.replace(/\.[^/.]+$/, '') : 'takeoff';
+      const defaultName = `${defaultBase}-takeoff-schedule.xlsx`;
+      const bytes = await buildXlsxTakeoffContent(fileName || 'PDF document', displayedMarkups, {
+        customColumns,
+        evaluatedFields: evaluationMatrix,
+      });
+      await saveExportFileWithDialog(defaultName, 'xlsx', bytes);
+    } catch (err) {
+      console.error('Error al exportar Excel (.xlsx):', err);
+      showToast(`Error exporting Excel (.xlsx): ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
   // Altura de la lista: redimensionable con el separador superior y recordada entre sesiones
   const [listHeight, setListHeight] = useState<number>(() => {
     try {
@@ -649,6 +665,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
     lastExportSeq.current = exportRequest.seq;
     if (exportRequest.kind === 'csv') void handleExportCsv();
     else if (exportRequest.kind === 'append-report') void handleAppendPdfReport();
+    else if (exportRequest.kind === 'xlsx') void handleExportXlsx();
     else void handleExportPdfReport();
     // Solo debe reaccionar a peticiones nuevas
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1094,6 +1111,16 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
             >
               <FileSpreadsheet size={16} className="text-gray-400" />
               <span>CSV</span>
+            </button>
+
+            <button
+              data-testid="export-xlsx-button"
+              onClick={handleExportXlsx}
+              className="ui-btn !h-7 !px-2"
+              title="Export takeoff schedule to Excel (.xlsx) with live formulas"
+            >
+              <FileSpreadsheet size={16} className="text-gray-400" />
+              <span>Excel (.xlsx)</span>
             </button>
 
             <button

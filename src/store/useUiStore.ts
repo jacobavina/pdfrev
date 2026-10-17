@@ -159,7 +159,7 @@ interface UiState {
   propertiesOpenRequest: number;
   measurementsOpenRequest: number;
   /** Petición de exportación de la lista de marcas (la ejecuta la lista, respetando sus filtros y columnas). */
-  exportRequest: { kind: 'csv' | 'report' | 'append-report'; seq: number } | null;
+  exportRequest: { kind: 'csv' | 'report' | 'append-report' | 'xlsx'; seq: number } | null;
   /** Petición de abrir el compositor de respuesta en hilo para una marca en la lista de marcas (ADR-0071). */
   replyRequest: { markupId: string; seq: number } | null;
   shortcutsOpen: boolean;
@@ -190,7 +190,7 @@ interface UiState {
   setMarkupsListOpen: (open: boolean) => void;
   setMarkupsListAtStart: (on: boolean) => void;
   requestMeasurementsPanel: () => void;
-  requestExport: (kind: 'csv' | 'report' | 'append-report') => void;
+  requestExport: (kind: 'csv' | 'report' | 'append-report' | 'xlsx') => void;
   requestReply: (markupId: string) => void;
   setShortcutsOpen: (open: boolean) => void;
   setViewMode: (mode: ViewMode) => void;

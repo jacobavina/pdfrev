@@ -2779,4 +2779,72 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     expect(pdfContent).toContain('/State (Accepted)');
     expect(pdfContent).toContain('/State (Completed)');
   });
+
+  test('Escenario S2 (ADR-0080): calibra, mide área con recorte, cuenta puertas, calcula subtotales y exporta .xlsx', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    const markupsPanel = page.locator('[data-testid="markups-list-panel"]');
+    await expect(markupsPanel).toBeVisible();
+
+    const svgBox = (await overlaySvg.boundingBox())!;
+
+    // 1. Pestaña Measure: seleccionar herramienta Área y dibujar un polígono de 4 vértices
+    await page.locator('[data-testid="ribbon-tab-measure"]').click();
+    await page.locator('[data-testid="tool-measure-area"]').click();
+    await expect(page.locator('[data-testid="tool-measure-area"]')).toHaveAttribute('aria-pressed', 'true');
+
+    await page.mouse.click(svgBox.x + 180, svgBox.y + 120);
+    await page.mouse.click(svgBox.x + 320, svgBox.y + 120);
+    await page.mouse.click(svgBox.x + 320, svgBox.y + 220);
+    await page.mouse.click(svgBox.x + 180, svgBox.y + 220);
+    await page.keyboard.press('Enter');
+
+    // Comprobar que la fila de Área existe en la lista de marcas
+    const areaRow = markupsPanel.locator('tbody tr').filter({ hasText: 'Area' }).first();
+    await expect(areaRow).toBeVisible();
+
+    // 2. Herramienta de Conteo (Count): contar 3 elementos (puertas)
+    await page.locator('[data-testid="tool-measure-count"]').click();
+    await expect(page.locator('[data-testid="tool-measure-count"]')).toHaveAttribute('aria-pressed', 'true');
+    await page.mouse.click(svgBox.x + 100, svgBox.y + 100);
+    await page.mouse.click(svgBox.x + 120, svgBox.y + 130);
+    await page.mouse.click(svgBox.x + 140, svgBox.y + 160);
+    await page.keyboard.press('Enter');
+
+    // Comprobar que la fila de Count existe en la lista de marcas
+    const countRow = markupsPanel.locator('tbody tr').filter({ hasText: 'Count' }).first();
+    await expect(countRow).toBeVisible();
+
+    // 3. Abrir el panel de Mediciones y verificar que se visualizan las secciones y totales
+    await page.locator('[data-testid="expand-measurements-btn"]').click();
+    const measurementsPanel = page.locator('[data-testid="measurements-panel"]');
+    await expect(measurementsPanel).toBeVisible();
+
+    // 4. Exportar el Takeoff a Excel (.xlsx) con fórmulas vivas
+    const downloadPromise = page.waitForEvent('download');
+    await page.locator('[data-testid="export-xlsx-button"]').click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toContain('.xlsx');
+
+    const downloadPath = await download.path();
+    expect(downloadPath).not.toBeNull();
+    const xlsxBytes = fs.readFileSync(downloadPath!);
+    expect(xlsxBytes.length).toBeGreaterThan(1000);
+
+    // 5. Verificar que el archivo generado contiene la hoja de Takeoff con fórmulas vivas SUM y producto
+    const JSZipModule = await import('jszip');
+    const JSZip = JSZipModule.default || JSZipModule;
+    const zip = await JSZip.loadAsync(xlsxBytes);
+    const sheetXml = await zip.file('xl/worksheets/sheet1.xml')!.async('text');
+    const sharedStringsXml = await zip.file('xl/sharedStrings.xml')!.async('text');
+
+    // Fórmulas de producto en costes y de suma en subtotales
+    expect(sheetXml).toMatch(/<f>G\d+\*I\d+<\/f>/);
+    expect(sheetXml).toMatch(/<f>SUM\(J\d+:J\d+\)<\/f>/);
+    expect(sheetXml).toMatch(/<f>SUM\(J\d+(,J\d+)*\)<\/f>/);
+    expect(sharedStringsXml).toContain('TOTAL TAKEOFF');
+  });
 });

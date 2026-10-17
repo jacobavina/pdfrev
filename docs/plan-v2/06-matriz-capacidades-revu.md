@@ -91,7 +91,7 @@
 | Subtotales por Subject/capa/página | ✅ ADR-0015 (c622016) + ADR-0077 · PARITY «Subtotales por Subject, capa y página (suma antes de redondear)…» | B.3 (P4-C.2) | **M** | K |
 | Precios unitarios y costes | ✅ ADR-0077 · PARITY «…y precios unitarios en entero exacto (ADR-0077)» con aritmética entera en céntimos | B.3 (P4-C.3) | S | K |
 | Herramientas de medición en Tool Chest | ✅ ADR-0078 · PARITY «Herramientas de medición en el Tool Chest con Subject, unidad, profundidad y precio unitario» | B.4 (P4-C.4) | M | K |
-| Exportar a Excel (.xlsx) | ⬜ (el único `xlsx` del repo es un MIME en `src/services/linkService.ts:138`; no hay generador; exportService solo hace CSV y PDF) | P4-D.2 | **M** | K |
+| Exportar a Excel (.xlsx) | ✅ ADR-0080 · PARITY «Exportación a Excel (.xlsx) con cantidades numéricas, precios unitarios y fórmulas SUM vivas» | B.7 (P4-D.2) | **M** | K |
 | Exportar a CSV / informe PDF | ✅ P2-C.4 (e6a7b8a) · PARITY «P2-C.4: Exportación estructurada a CSV con BOM y Reporte Resumen PDF (Bloque C)» | — | M | K |
 | Relleno dinámico (Dynamic Fill) | ⬜ | — | C | K |
 
@@ -262,8 +262,8 @@ a ✅ si su fila de PARITY o su test existe y pasa; si la capacidad está en el 
 | Calibración | ✅ | ADR-0015/0025/0031 con guardado en /VP /Measure |
 | Mediciones (longitud, polilínea, perímetro, área, ángulo, radio, diámetro, volumen) | ✅ | ADR-0015/0029/0030/0051, vivas en Revu/Acrobat (/IT, /Measure) |
 | Conteo | ✅ | ADR-0015/0059/0063 con /PolygonCount |
-| Subtotales por Subject/capa/página | 🟡 | hay totales por tipo/página/documento; el desglose por Subject/capa NO existe |
-| Exportar .xlsx | ⬜ | NO existe: el único `xlsx` del repo es un MIME en `linkService.ts:138`; exportService solo CSV/PDF |
+| Subtotales por Subject/capa/página | ✅ | ADR-0077 con cálculo exacto en céntimos y desglose jerárquico |
+| Exportar .xlsx | ✅ | ADR-0080 completo con fórmulas vivas SUM y producto en chunk dinámico |
 
 ### 6.3 Filas verificadas sin cambio (siguen ciertas tal cual)
 

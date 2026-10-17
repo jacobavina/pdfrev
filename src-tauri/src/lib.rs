@@ -92,15 +92,15 @@ fn save_export_file(file_path: String, bytes: Vec<u8>) -> Result<(), String> {
     return Err("La ruta debe ser absoluta".to_string());
   }
 
-  // 2. Validar extensión en lista blanca (.csv o .pdf)
+  // 2. Validar extensión en lista blanca (.csv, .pdf o .xlsx)
   let ext = path
     .extension()
     .and_then(|s| s.to_str())
     .map(|s| s.to_lowercase())
     .unwrap_or_default();
 
-  if ext != "csv" && ext != "pdf" {
-    return Err("La extensión del archivo debe ser .csv o .pdf".to_string());
+  if ext != "csv" && ext != "pdf" && ext != "xlsx" {
+    return Err("La extensión del archivo debe ser .csv, .pdf o .xlsx".to_string());
   }
 
   // 3. Validar que el directorio padre existe y es accesible
@@ -329,7 +329,7 @@ mod tests {
     let abs_path = temp_dir.join("export.exe").to_string_lossy().to_string();
     let res = save_export_file(abs_path, b"test".to_vec());
     assert!(res.is_err());
-    assert!(res.unwrap_err().contains(".csv o .pdf"));
+    assert!(res.unwrap_err().contains(".csv, .pdf o .xlsx"));
   }
 
   #[test]
@@ -359,6 +359,25 @@ mod tests {
     let tmp_path = format!("{}.tmp", file_path_str);
 
     let bytes = b"%PDF-1.4\n%test\n".to_vec();
+    let res = save_export_file(file_path_str.clone(), bytes.clone());
+    assert!(res.is_ok());
+
+    assert!(file_path.exists());
+    let read_back = fs::read(&file_path).unwrap();
+    assert_eq!(read_back, bytes);
+    assert!(!Path::new(&tmp_path).exists());
+
+    let _ = fs::remove_file(&file_path);
+  }
+
+  #[test]
+  fn test_save_export_file_atomic_success_xlsx() {
+    let temp_dir = env::temp_dir();
+    let file_path = temp_dir.join("test_export_atomic.xlsx");
+    let file_path_str = file_path.to_string_lossy().to_string();
+    let tmp_path = format!("{}.tmp", file_path_str);
+
+    let bytes = b"PK\x03\x04test_xlsx_zip_bytes".to_vec();
     let res = save_export_file(file_path_str.clone(), bytes.clone());
     assert!(res.is_ok());
 

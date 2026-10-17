@@ -96,3 +96,29 @@
 - Validadores externos en la puerta de calidad (`qpdf`, etc.).
 - Empaquetado firmado para Windows (MSI y portable).
 
+---
+
+## 4. Plan Maestro de Completitud Funcional frente a Bluebeam Revu — Fases A–F (`docs/plan-v2/09-masterplan-completitud-revu.md`, ADR-0070)
+
+### IN (Alcance Aprobado por Fases y Escenarios S1–S5)
+- **Fase A — Revisión de Ingeniería (cierra con el escenario S1):**
+  - `A.0 (ADR-0070)`: Higiene del bundle principal (`documentSaveService` diferido en `MenuBar` y `QuickAccessToolbar`) y enmienda de alcance.
+  - `A.1 (ADR-0071)`: Respuestas e hilos en marcas (`/IRT`, `/RT /R`) con ida y vuelta en PDF y árbol de respuestas en `MarkupsList`; estados de revisión estándar (`/StateModel Review`) con múltiples transiciones preservadas.
+  - `A.2 (ADR-0072)`: Ondulado de texto (`squiggly`, `/Subtype /Squiggly` con `/QuadPoints`, atajo `Shift+U`).
+  - `A.3 (ADR-0073)`: Alinear (izquierda, centro, derecha, arriba, medio, abajo), distribuir (horizontal/vertical) y voltear (horizontal/vertical) marcas seleccionadas.
+  - `A.4 (ADR-0074)`: Borde, relleno y alineación (`/Q`) del cuadro de texto (`/FreeText`) + cierre E2E del escenario **S1**.
+- **Fase B — Takeoff y Medición Presupuestaria (cierra con el escenario S2):**
+  - Recortes/cutouts en mediciones de área y volumen; escalas múltiples por hoja (viewports `/VP`); subtotales por Subject/capa y costes unitarios; herramientas de medición en Tool Chest; exportación `.xlsx` (previa aprobación de dependencia o CSV con fórmulas); leyendas de marcas en el plano; Espacios (`/Spaces`); Quantity Link; cierre con escenario **S2**.
+- **Fase C — Gestión Documental, Páginas y Lotes (cierra con el escenario S4):**
+  - Reordenar páginas y arrastrar entre documentos; pestañas con varios documentos y asociación de archivos ("Abrir con") + recientes; etiquetas de página (`/PageLabels`), marcadores con edición y zoom a ventana; combinar PDFs, recortar páginas (`/CropBox`), encabezados/pies/numeración Bates y marca de agua (`system: true`); desaplanar marcas propias (Unflatten) y procesos por lotes; cierre con escenario **S4**.
+- **Fase D — Rendimiento en Planos Grandes (cierra con el escenario S3):**
+  - Benchmark reproducible E-size / ~100 MB + 5.000 marcas (medir antes de optimizar) y optimización / tiling condicional según métricas del benchmark; cierre con escenario **S3**.
+- **Fase E — Comparación de Documentos y Sets con Enlaces (cierra con el escenario S5):**
+  - Compare Documents (nubes automáticas de diferencias entre dos revisiones) y Document Sets con detección de enlaces entre hojas; cierre con escenario **S5**.
+- **Fase F — Seguridad (PDF Cifrados), Redacción, OCR y Resto de Brechas:**
+  - Apertura y guardado de PDFs cifrados con contraseña y permisos; redacción real destructiva (incluyendo búsqueda y redacción); OCR local; Caret, borrador de trazo, orden Z, Snapshot (`G`), imagen como marca (`I`), perfiles de interfaz, secuencias numeradas y Dynamic Fill (`J`).
+
+### OUT EXPLÍCITO PERMANENTE
+- Colaboración en la nube (Bluebeam Studio Projects / Sessions).
+- Creación de PDF desde plugins de Microsoft Office o AutoCAD/Revit.
+

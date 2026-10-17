@@ -3,7 +3,6 @@ import { FolderOpen, Save, SaveAll, FileDown, Undo2, Redo2 } from 'lucide-react'
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useMarkupStore } from '../../store/useMarkupStore';
 import { openPdfDialog } from '../../services/fileDialogService';
-import { saveDocumentAs } from '../../services/documentSaveService';
 import { useAutoSave } from '../../hooks/useAutoSave';
 import { exportFlattenedPdf } from './appActions';
 
@@ -64,7 +63,7 @@ export const QuickAccessToolbar: React.FC = () => {
       <QuickButton
         testId="save-as-button"
         title="Save a copy of the document with its markups as a new PDF (Ctrl+Shift+S)"
-        onClick={() => void saveDocumentAs()}
+        onClick={() => void import('../../services/documentSaveService').then((m) => m.saveDocumentAs())}
         disabled={!pdfBytes}
       >
         <SaveAll size={16} />

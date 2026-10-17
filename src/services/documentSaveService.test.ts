@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import fs from 'fs';
+import path from 'path';
 import { saveDocument, saveDocumentAs } from './documentSaveService';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
@@ -72,4 +74,15 @@ describe('Guardar y Guardar como (ADR-0028)', () => {
     expect(await saveDocument()).toBe(false);
     expect(useMarkupStore.getState().isDirty).toBe(true);
   });
+
+  it('MenuBar y QuickAccessToolbar cargan documentSaveService de forma diferida sin import estático en el chunk principal (ADR-0070)', () => {
+    const root = path.resolve(__dirname, '../..');
+    const menuSrc = fs.readFileSync(path.join(root, 'src/components/shell/MenuBar.tsx'), 'utf8');
+    const qatSrc = fs.readFileSync(path.join(root, 'src/components/shell/QuickAccessToolbar.tsx'), 'utf8');
+    expect(menuSrc).not.toMatch(/import\s+\{[^}]*saveDocumentAs[^}]*\}\s+from\s+['"][^'"]*documentSaveService['"]/);
+    expect(qatSrc).not.toMatch(/import\s+\{[^}]*saveDocumentAs[^}]*\}\s+from\s+['"][^'"]*documentSaveService['"]/);
+    expect(menuSrc).toMatch(/import\(['"]\.\.\/\.\.\/services\/documentSaveService['"]\)/);
+    expect(qatSrc).toMatch(/import\(['"]\.\.\/\.\.\/services\/documentSaveService['"]\)/);
+  });
 });
+

@@ -71,7 +71,6 @@ import { openPdfDialog } from '../../services/fileDialogService';
 import { useAutoSave } from '../../hooks/useAutoSave';
 import { TOOL_GROUPS } from './toolDefinitions';
 import { exportFlattenedPdf, goToPage, runPageOperation, selectAllOnCurrentPage } from './appActions';
-import { saveDocumentAs } from '../../services/documentSaveService';
 
 type MenuEntry =
   | {
@@ -192,7 +191,7 @@ export const MenuBar: React.FC = () => {
           icon: <SaveAll size={16} />,
           label: 'Save As…',
           shortcut: 'Ctrl+Shift+S',
-          onSelect: () => void saveDocumentAs(),
+          onSelect: () => void import('../../services/documentSaveService').then((m) => m.saveDocumentAs()),
           disabled: !hasDoc,
           testId: 'menu-save-as',
         },

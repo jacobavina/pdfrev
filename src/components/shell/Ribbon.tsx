@@ -231,7 +231,7 @@ export const Ribbon: React.FC<{ showTabs?: boolean }> = ({ showTabs = true }) =>
                   options={FIELD_TYPES.map((f) => ({ value: f.id, label: f.label }))}
                   renderIcon={(id) => (
                     <span className="flex items-center gap-1 text-2xs">
-                      {fieldTypeIcon(id, 13)}
+                      {fieldTypeIcon(id, 16)}
                       <span className="whitespace-nowrap">{fieldTypeDef(id).label}</span>
                     </span>
                   )}

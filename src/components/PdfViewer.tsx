@@ -1,3 +1,5 @@
+import { tok } from './viewer/paint';
+import { DEFAULT_MARKUP_COLOR, ATTACHMENT_COLOR, FORM_FIELD_COLOR, LINK_COLOR, STAMP_FILL } from '../core/markup/palette';
 import { isAutosizeText } from '../core/markup/autosizeText';
 import { countMeasurement, countSymbolSizePt } from '../core/markup/countSymbols';
 import React, { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react';
@@ -1637,7 +1639,7 @@ export const PdfViewer: React.FC = () => {
         pageIndex: currentPageIndex,
         points: [pt],
         style: {
-          strokeColor: currentStyle.strokeColor || '#e02424',
+          strokeColor: currentStyle.strokeColor || DEFAULT_MARKUP_COLOR,
           fillColor: 'transparent',
           strokeWidth: 1,
           opacity: currentStyle.opacity ?? 1,
@@ -1851,7 +1853,7 @@ export const PdfViewer: React.FC = () => {
           type: 'fileAttachment',
           points: box,
           text: file.name,
-          style: { strokeColor: '#b45309', strokeWidth: 1, opacity: 1 },
+          style: { strokeColor: ATTACHMENT_COLOR, strokeWidth: 1, opacity: 1 },
           customFields: { attachmentKey: key, attachmentName: file.name, attachmentMime: file.mime, attachmentSize: file.bytes.length },
         };
         addMarkup(m);
@@ -1880,7 +1882,7 @@ export const PdfViewer: React.FC = () => {
       type: 'formField',
       points: boxFromDragOrDefault(a, b, def.size),
       text: fieldName,
-      style: { strokeColor: '#64748b', strokeWidth: 1, opacity: 1 },
+      style: { strokeColor: FORM_FIELD_COLOR, strokeWidth: 1, opacity: 1 },
       customFields: { fieldType: type, fieldName, ...extra },
     };
     addMarkup(m);
@@ -2114,7 +2116,7 @@ export const PdfViewer: React.FC = () => {
           pageIndex: currentPageIndex,
           points: box,
           text: texts.title,
-          style: { strokeColor: def.color, fillColor: '#ffffff', strokeWidth: 2, opacity: 1 },
+          style: { strokeColor: def.color, fillColor: STAMP_FILL, strokeWidth: 2, opacity: 1 },
           author: author || 'Reviewer',
           createdAt: now,
           updatedAt: now,
@@ -2566,7 +2568,7 @@ export const PdfViewer: React.FC = () => {
               opacity: HIGHLIGHT_STYLE.opacity,
             }
           : {
-              strokeColor: currentStyle.strokeColor || '#e02424',
+              strokeColor: currentStyle.strokeColor || DEFAULT_MARKUP_COLOR,
               strokeWidth: currentStyle.strokeWidth || 2,
               opacity: currentStyle.opacity ?? 1,
             };
@@ -2974,8 +2976,8 @@ export const PdfViewer: React.FC = () => {
                     y={screenY}
                     width={screenW}
                     height={screenH}
-                    fill={isActive ? 'rgba(249, 115, 22, 0.45)' : 'rgba(250, 204, 21, 0.35)'}
-                    stroke={isActive ? '#ea580c' : '#ca8a04'}
+                    fill={isActive ? tok('ov-find-active', 0.45) : tok('ov-find', 0.35)}
+                    stroke={isActive ? tok('ov-find-active-edge') : tok('ov-find-edge')}
                     strokeWidth={isActive ? 1.5 : 1}
                     className="pointer-events-none"
                   />
@@ -3014,7 +3016,7 @@ export const PdfViewer: React.FC = () => {
                                 width={half * 2}
                                 height={half * 2}
                                 fill="none"
-                                stroke={markup.locked ? '#f59e0b' : '#3b82f6'}
+                                stroke={markup.locked ? tok('ov-warn') : tok('cad-accent')}
                                 strokeWidth={1}
                                 strokeDasharray="3 2"
                               />
@@ -3071,7 +3073,7 @@ export const PdfViewer: React.FC = () => {
                           width={Math.max(8, b.maxX - b.minX + pad * 2)}
                           height={Math.max(8, b.maxY - b.minY + pad * 2)}
                           fill="none"
-                          stroke={markup.locked ? '#f59e0b' : '#3b82f6'}
+                          stroke={markup.locked ? tok('ov-warn') : tok('cad-accent')}
                           strokeWidth={1}
                           strokeDasharray="3 2"
                           className="pointer-events-none"
@@ -3095,8 +3097,8 @@ export const PdfViewer: React.FC = () => {
                             cx={anchorScr.x}
                             cy={anchorScr.y}
                             r={3.5}
-                            fill="#d9b93a"
-                            stroke="#3f3f46"
+                            fill={tok('ov-handle')}
+                            stroke={tok('ov-handle-edge')}
                             strokeWidth={1}
                             className="cursor-move"
                             onMouseDown={(e) => handleAnchorMouseDown(e, markup.id, lIdx)}
@@ -3115,8 +3117,8 @@ export const PdfViewer: React.FC = () => {
                             cx={lg.elbow.x}
                             cy={lg.elbow.y}
                             r={3.5}
-                            fill="#d9b93a"
-                            stroke="#3f3f46"
+                            fill={tok('ov-handle')}
+                            stroke={tok('ov-handle-edge')}
                             strokeWidth={1}
                             className="cursor-ew-resize"
                             onMouseDown={(e) => handleAnchorMouseDown(e, markup.id, lIdx, 1)}
@@ -3139,12 +3141,12 @@ export const PdfViewer: React.FC = () => {
                             className="cursor-pointer"
                             onClick={(e) => handleAddLeader(e, markup.id)}
                           >
-                            <circle cx={addX} cy={addY} r={5.5} fill="#3b82f6" stroke="#ffffff" strokeWidth={1} />
+                            <circle cx={addX} cy={addY} r={5.5} fill={tok('cad-accent')} stroke={tok('ov-halo')} strokeWidth={1} />
                             <text
                               x={addX}
                               y={addY + 3.5}
                               textAnchor="middle"
-                              fill="#ffffff"
+                              fill={tok('ov-halo')}
                               fontSize="10"
                               fontWeight="bold"
                               className="select-none pointer-events-none"
@@ -3181,8 +3183,8 @@ export const PdfViewer: React.FC = () => {
                             y={scr.y - 3}
                             width={6}
                             height={6}
-                            fill="#d9b93a"
-                            stroke="#3f3f46"
+                            fill={tok('ov-handle')}
+                            stroke={tok('ov-handle-edge')}
                             strokeWidth={1}
                             className={idx % 2 === 0 ? 'cursor-ns-resize' : 'cursor-ew-resize'}
                             onMouseDown={(e) => handleControlPointMouseDown(e, markup, idx)}
@@ -3197,8 +3199,8 @@ export const PdfViewer: React.FC = () => {
                           cy={scr.y}
                           r={3.5}
                           // Los del conteo, verdes como en Revu (ADR-0063)
-                          fill={markup.type === 'count' ? '#4c9a3f' : '#d9b93a'}
-                          stroke="#3f3f46"
+                          fill={markup.type === 'count' ? tok('ov-count') : tok('ov-handle')}
+                          stroke={tok('ov-handle-edge')}
                           strokeWidth={1}
                           className="cursor-crosshair"
                           onMouseDown={(e) => handleControlPointMouseDown(e, markup, idx)}
@@ -3234,8 +3236,8 @@ export const PdfViewer: React.FC = () => {
                         y={c.y - 3.5}
                         width={7}
                         height={7}
-                        fill="#3b82f6"
-                        stroke="#1e3a8a"
+                        fill={tok('cad-accent')}
+                        stroke={tok('ov-handle-sel-edge')}
                         strokeWidth={1}
                         className={cursors[i]}
                         onMouseDown={(e) => handleTransformMouseDown(e, markup, 'scale', i)}
@@ -3243,14 +3245,14 @@ export const PdfViewer: React.FC = () => {
                     ))}
                     {canRotate(markup) && (
                       <>
-                        <line x1={cx} y1={box.y0} x2={cx} y2={box.y0 - 18} stroke="#3b82f6" strokeWidth={1} strokeDasharray="2 2" className="pointer-events-none" />
+                        <line x1={cx} y1={box.y0} x2={cx} y2={box.y0 - 18} stroke={tok('cad-accent')} strokeWidth={1} strokeDasharray="2 2" className="pointer-events-none" />
                         <circle
                           data-testid="rotate-handle"
                           cx={cx}
                           cy={box.y0 - 22}
                           r={4}
-                          fill="#3b82f6"
-                          stroke="#1e3a8a"
+                          fill={tok('cad-accent')}
+                          stroke={tok('ov-handle-sel-edge')}
                           strokeWidth={1}
                           className="cursor-grab"
                           onMouseDown={(e) => handleTransformMouseDown(e, markup, 'rotate')}
@@ -3276,10 +3278,10 @@ export const PdfViewer: React.FC = () => {
                   const y = p.y * (scale || 1);
                   return (
                     <g key={k}>
-                      <circle cx={x} cy={y} r={7} fill="none" stroke="#ffffff" strokeWidth={3} />
+                      <circle cx={x} cy={y} r={7} fill="none" stroke={tok('ov-halo')} strokeWidth={3} />
                       <circle cx={x} cy={y} r={7} fill="none" stroke={color} strokeWidth={1.5} />
                       <path d={`M ${x - 11} ${y} H ${x - 4} M ${x + 4} ${y} H ${x + 11} M ${x} ${y - 11} V ${y - 4} M ${x} ${y + 4} V ${y + 11}`} stroke={color} strokeWidth={1.2} />
-                      <text x={x + 9} y={y - 9} fontSize={11} fontWeight="bold" fill={color} stroke="#ffffff" strokeWidth={3} paintOrder="stroke">
+                      <text x={x + 9} y={y - 9} fontSize={11} fontWeight="bold" fill={color} stroke={tok('ov-halo')} strokeWidth={3} paintOrder="stroke">
                         {i + 1}
                       </text>
                     </g>
@@ -3330,9 +3332,9 @@ export const PdfViewer: React.FC = () => {
                   strokeWidth={currentStyle.strokeWidth}
                   fill={
                     activeTool === 'polygon'
-                      ? 'rgba(0, 122, 204, 0.1)'
+                      ? tok('ov-preview', 0.1)
                       : activeTool === 'area'
-                      ? 'rgba(0, 160, 110, 0.18)'
+                      ? tok('ov-preview', 0.18)
                       : 'none'
                   }
                   strokeDasharray="4 2"
@@ -3347,7 +3349,7 @@ export const PdfViewer: React.FC = () => {
                       r={idx === 0 ? 5 : 3}
                       fill={
                         idx === 0 && isClosedMultiPointTool(activeTool)
-                          ? '#10b981'
+                          ? tok('ov-close')
                           : currentStyle.strokeColor
                       }
                     />
@@ -3385,7 +3387,7 @@ export const PdfViewer: React.FC = () => {
                         height={rect.height}
                         stroke={currentStyle.strokeColor}
                         strokeWidth={currentStyle.strokeWidth}
-                        fill="rgba(0, 122, 204, 0.15)"
+                        fill={tok('ov-preview', 0.15)}
                         strokeDasharray="4 2"
                       />
                     );
@@ -3401,7 +3403,7 @@ export const PdfViewer: React.FC = () => {
                         ry={ell.ry}
                         stroke={currentStyle.strokeColor}
                         strokeWidth={currentStyle.strokeWidth}
-                        fill="rgba(0, 122, 204, 0.15)"
+                        fill={tok('ov-preview', 0.15)}
                         strokeDasharray="4 2"
                       />
                     );
@@ -3441,8 +3443,8 @@ export const PdfViewer: React.FC = () => {
                         y={r.y}
                         width={r.width}
                         height={r.height}
-                        fill="rgba(37, 99, 235, 0.08)"
-                        stroke="#2563eb"
+                        fill={tok('ov-preview', 0.08)}
+                        stroke={tok('ov-preview')}
                         strokeWidth={1}
                         strokeDasharray="4 3"
                       />
@@ -3563,7 +3565,7 @@ export const PdfViewer: React.FC = () => {
                           y1={p1.y}
                           x2={p2.x}
                           y2={p2.y}
-                          stroke={activeTool === 'calibrate' ? '#f59e0b' : currentStyle.strokeColor}
+                          stroke={activeTool === 'calibrate' ? tok('ov-warn') : currentStyle.strokeColor}
                           strokeWidth={currentStyle.strokeWidth || 2}
                           strokeDasharray="4 2"
                         />
@@ -3571,13 +3573,13 @@ export const PdfViewer: React.FC = () => {
                           cx={p1.x}
                           cy={p1.y}
                           r={3}
-                          fill={activeTool === 'calibrate' ? '#f59e0b' : currentStyle.strokeColor}
+                          fill={activeTool === 'calibrate' ? tok('ov-warn') : currentStyle.strokeColor}
                         />
                         <circle
                           cx={p2.x}
                           cy={p2.y}
                           r={3}
-                          fill={activeTool === 'calibrate' ? '#f59e0b' : currentStyle.strokeColor}
+                          fill={activeTool === 'calibrate' ? tok('ov-warn') : currentStyle.strokeColor}
                         />
                       </g>
                     );
@@ -3591,7 +3593,7 @@ export const PdfViewer: React.FC = () => {
                         y1={rect.y + rect.height}
                         x2={rect.x + rect.width}
                         y2={rect.y + rect.height}
-                        stroke={currentStyle.strokeColor || '#e02424'}
+                        stroke={currentStyle.strokeColor || DEFAULT_MARKUP_COLOR}
                         strokeWidth={currentStyle.strokeWidth || 2}
                         strokeDasharray="4 2"
                       />
@@ -3606,7 +3608,7 @@ export const PdfViewer: React.FC = () => {
                         y1={rect.y + rect.height / 2}
                         x2={rect.x + rect.width}
                         y2={rect.y + rect.height / 2}
-                        stroke={currentStyle.strokeColor || '#e02424'}
+                        stroke={currentStyle.strokeColor || DEFAULT_MARKUP_COLOR}
                         strokeWidth={currentStyle.strokeWidth || 2}
                         strokeDasharray="4 2"
                       />
@@ -3625,7 +3627,7 @@ export const PdfViewer: React.FC = () => {
                         fill={HIGHLIGHT_STYLE.colorHex}
                         opacity={HIGHLIGHT_STYLE.opacity}
                         style={{ mixBlendMode: HIGHLIGHT_STYLE.mixBlendMode }}
-                        stroke="#ca8a04"
+                        stroke={tok('ov-find-edge')}
                         strokeWidth={1}
                         strokeDasharray="4 2"
                       />
@@ -3643,7 +3645,7 @@ export const PdfViewer: React.FC = () => {
                         )}
                         stroke={currentStyle.strokeColor}
                         strokeWidth={currentStyle.strokeWidth}
-                        fill="rgba(34, 197, 94, 0.15)"
+                        fill={tok('ov-preview', 0.15)}
                       />
                     );
                   }
@@ -3658,7 +3660,7 @@ export const PdfViewer: React.FC = () => {
                         height={Math.max(24, rect.height)}
                         stroke={currentStyle.strokeColor}
                         strokeWidth={1}
-                        fill="#fffbe8"
+                        fill={tok('ov-note')}
                         strokeDasharray="3 3"
                       />
                     );
@@ -3700,7 +3702,7 @@ export const PdfViewer: React.FC = () => {
                           height={s2.y - s1.y}
                           stroke={currentStyle.strokeColor}
                           strokeWidth={1}
-                          fill="rgba(255, 255, 255, 0.35)"
+                          fill={tok('ov-halo', 0.35)}
                           strokeDasharray="3 2"
                         />
                       </g>
@@ -3736,7 +3738,7 @@ export const PdfViewer: React.FC = () => {
             {/* Indicador de snap (ADR-0025): cuadrado = extremo, triángulo = punto medio, aspa = más cercano */}
             {snapIndicator && SNAP_TOOLS.has(activeTool) && (() => {
               const s = normalizedToScreen(snapIndicator.point, viewportTransform);
-              const c = '#a78bfa';
+              const c = tok('ov-snap');
               return (
                 <g data-testid={`snap-indicator-${snapIndicator.kind}`} className="pointer-events-none">
                   {snapIndicator.kind === 'endpoint' && (
@@ -3774,8 +3776,8 @@ export const PdfViewer: React.FC = () => {
                   y={y}
                   width={width}
                   height={height}
-                  fill="rgba(2, 132, 199, 0.12)"
-                  stroke="#0284c7"
+                  fill={tok('cad-accent', 0.12)}
+                  stroke={tok('cad-accent')}
                   strokeWidth={1}
                   strokeDasharray="4 2"
                   className="pointer-events-none"
@@ -3921,7 +3923,7 @@ export const PdfViewer: React.FC = () => {
                 pageIndex: currentPageIndex,
                 points: linkDraft,
                 text: isUri ? target.uri : `Page ${target.page}`,
-                style: { strokeColor: '#2563eb', strokeWidth: 1, opacity: 1 },
+                style: { strokeColor: LINK_COLOR, strokeWidth: 1, opacity: 1 },
                 author: author || 'Reviewer',
                 createdAt: now,
                 updatedAt: now,
@@ -3979,7 +3981,7 @@ const ZoomWidget: React.FC<{
     return () => window.removeEventListener('mousedown', onDown);
   }, [onClose]);
   const btn =
-    'w-6 h-6 rounded-full bg-blue-900 text-white flex items-center justify-center hover:bg-blue-700 shadow';
+    'w-6 h-6 rounded-full bg-blue-900 text-white flex items-center justify-center hover:bg-blue-700 shadow-float';
   return (
     <div
       ref={ref}
@@ -3990,7 +3992,7 @@ const ZoomWidget: React.FC<{
       onDoubleClick={(e) => e.stopPropagation()}
     >
       <button type="button" data-testid="zoom-widget-in" className={btn} title="Zoom in here" onClick={() => onZoom(1.25)}>
-        <Plus size={14} />
+        <Plus size={16} />
       </button>
       <button
         type="button"
@@ -4002,7 +4004,7 @@ const ZoomWidget: React.FC<{
         <Crosshair size={18} />
       </button>
       <button type="button" data-testid="zoom-widget-out" className={btn} title="Zoom out here" onClick={() => onZoom(1 / 1.25)}>
-        <Minus size={14} />
+        <Minus size={16} />
       </button>
     </div>
   );

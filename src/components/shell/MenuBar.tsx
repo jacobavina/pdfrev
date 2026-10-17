@@ -179,9 +179,9 @@ export const MenuBar: React.FC = () => {
       id: 'archivo',
       label: 'File',
       entries: [
-        { icon: <FolderOpen size={15} />, label: 'Open PDF…', shortcut: 'Ctrl+O', onSelect: () => openPdfDialog(), testId: 'menu-open' },
+        { icon: <FolderOpen size={16} />, label: 'Open PDF…', shortcut: 'Ctrl+O', onSelect: () => openPdfDialog(), testId: 'menu-open' },
         {
-          icon: <Save size={15} />,
+          icon: <Save size={16} />,
           label: filePath ? 'Save' : 'Save…',
           shortcut: 'Ctrl+S',
           onSelect: () => saveNow(),
@@ -189,7 +189,7 @@ export const MenuBar: React.FC = () => {
           testId: 'menu-save',
         },
         {
-          icon: <SaveAll size={15} />,
+          icon: <SaveAll size={16} />,
           label: 'Save As…',
           shortcut: 'Ctrl+Shift+S',
           onSelect: () => void saveDocumentAs(),
@@ -198,13 +198,13 @@ export const MenuBar: React.FC = () => {
         },
         'separator',
         {
-          icon: <FileDown size={15} />,
+          icon: <FileDown size={16} />,
           label: 'Export',
           testId: 'menu-export',
           submenu: [
-            { icon: <FileDown size={15} />, label: 'PDF with Flattened Markups…', onSelect: () => exportFlattenedPdf(), disabled: !hasDoc, testId: 'menu-export-flattened' },
-            { icon: <FileSpreadsheet size={15} />, label: 'Markups List (CSV)…', onSelect: () => requestExport('csv'), disabled: !hasDoc, testId: 'menu-export-csv' },
-            { icon: <ClipboardList size={15} />, label: 'Markup Summary Report (PDF)…', onSelect: () => requestExport('report'), disabled: !hasDoc, testId: 'menu-export-report' },
+            { icon: <FileDown size={16} />, label: 'PDF with Flattened Markups…', onSelect: () => exportFlattenedPdf(), disabled: !hasDoc, testId: 'menu-export-flattened' },
+            { icon: <FileSpreadsheet size={16} />, label: 'Markups List (CSV)…', onSelect: () => requestExport('csv'), disabled: !hasDoc, testId: 'menu-export-csv' },
+            { icon: <ClipboardList size={16} />, label: 'Markup Summary Report (PDF)…', onSelect: () => requestExport('report'), disabled: !hasDoc, testId: 'menu-export-report' },
           ],
         },
       ],
@@ -213,46 +213,46 @@ export const MenuBar: React.FC = () => {
       id: 'editar',
       label: 'Edit',
       entries: [
-        { icon: <Undo2 size={15} />, label: 'Undo', shortcut: 'Ctrl+Z', onSelect: undo, disabled: !canUndo },
-        { icon: <Redo2 size={15} />, label: 'Redo', shortcut: 'Ctrl+Y', onSelect: redo, disabled: !canRedo },
+        { icon: <Undo2 size={16} />, label: 'Undo', shortcut: 'Ctrl+Z', onSelect: undo, disabled: !canUndo },
+        { icon: <Redo2 size={16} />, label: 'Redo', shortcut: 'Ctrl+Y', onSelect: redo, disabled: !canRedo },
         'separator',
-        { icon: <Copy size={15} />, label: 'Copy', shortcut: 'Ctrl+C', onSelect: () => useMarkupStore.getState().copySelectedMarkups(), disabled: !hasSelection },
+        { icon: <Copy size={16} />, label: 'Copy', shortcut: 'Ctrl+C', onSelect: () => useMarkupStore.getState().copySelectedMarkups(), disabled: !hasSelection },
         {
-          icon: <ClipboardPaste size={15} />,
+          icon: <ClipboardPaste size={16} />,
           label: 'Paste',
           shortcut: 'Ctrl+V',
           onSelect: () => useMarkupStore.getState().pasteMarkups(currentPageIndex),
           disabled: useMarkupStore.getState().clipboardMarkups.length === 0,
         },
-        { icon: <CopyPlus size={15} />, label: 'Duplicate', shortcut: 'Ctrl+D', onSelect: () => useMarkupStore.getState().duplicateSelectedMarkups(), disabled: !hasSelection },
-        { icon: <Lock size={15} />, label: 'Lock / Unlock', onSelect: () => useMarkupStore.getState().toggleLockSelectedMarkups(), disabled: !hasSelection },
-        { icon: <Trash2 size={15} />, label: 'Delete', shortcut: 'Del', onSelect: () => useMarkupStore.getState().deleteSelectedMarkups(), disabled: !hasSelection },
+        { icon: <CopyPlus size={16} />, label: 'Duplicate', shortcut: 'Ctrl+D', onSelect: () => useMarkupStore.getState().duplicateSelectedMarkups(), disabled: !hasSelection },
+        { icon: <Lock size={16} />, label: 'Lock / Unlock', onSelect: () => useMarkupStore.getState().toggleLockSelectedMarkups(), disabled: !hasSelection },
+        { icon: <Trash2 size={16} />, label: 'Delete', shortcut: 'Del', onSelect: () => useMarkupStore.getState().deleteSelectedMarkups(), disabled: !hasSelection },
         'separator',
-        { icon: <BoxSelect size={15} />, label: 'Select All on Page', shortcut: 'Ctrl+A', onSelect: selectAllOnCurrentPage, disabled: !hasDoc },
+        { icon: <BoxSelect size={16} />, label: 'Select All on Page', shortcut: 'Ctrl+A', onSelect: selectAllOnCurrentPage, disabled: !hasDoc },
       ],
     },
     {
       id: 'ver',
       label: 'View',
       entries: [
-        { icon: <ZoomIn size={15} />, label: 'Zoom In', shortcut: 'Ctrl+wheel', onSelect: zoomIn, disabled: !hasDoc },
-        { icon: <ZoomOut size={15} />, label: 'Zoom Out', shortcut: 'Ctrl+wheel', onSelect: zoomOut, disabled: !hasDoc },
-        { icon: <FitPageIcon size={15} />, label: 'Fit Page', shortcut: 'Ctrl+9', onSelect: () => requestFit('page'), disabled: !hasDoc, testId: 'menu-fit-page' },
-        { icon: <FitWidthIcon size={15} />, label: 'Fit Width', shortcut: 'Ctrl+0', onSelect: () => requestFit('width'), disabled: !hasDoc },
-        { icon: <ActualSizeIcon size={15} />, label: 'Actual Size', shortcut: 'Ctrl+8', onSelect: resetZoom, disabled: !hasDoc },
-        { icon: <RotateCw size={15} />, label: 'Rotate View 90°', onSelect: rotateClockwise, disabled: !hasDoc },
+        { icon: <ZoomIn size={16} />, label: 'Zoom In', shortcut: 'Ctrl+wheel', onSelect: zoomIn, disabled: !hasDoc },
+        { icon: <ZoomOut size={16} />, label: 'Zoom Out', shortcut: 'Ctrl+wheel', onSelect: zoomOut, disabled: !hasDoc },
+        { icon: <FitPageIcon size={16} />, label: 'Fit Page', shortcut: 'Ctrl+9', onSelect: () => requestFit('page'), disabled: !hasDoc, testId: 'menu-fit-page' },
+        { icon: <FitWidthIcon size={16} />, label: 'Fit Width', shortcut: 'Ctrl+0', onSelect: () => requestFit('width'), disabled: !hasDoc },
+        { icon: <ActualSizeIcon size={16} />, label: 'Actual Size', shortcut: 'Ctrl+8', onSelect: resetZoom, disabled: !hasDoc },
+        { icon: <RotateCw size={16} />, label: 'Rotate View 90°', onSelect: rotateClockwise, disabled: !hasDoc },
         'separator',
-        { icon: <SinglePageIcon size={15} />, label: 'Single Page', shortcut: 'Ctrl+4', checked: viewMode === 'single', onSelect: () => setViewMode('single') },
-        { icon: <ContinuousIcon size={15} />, label: 'Continuous Pages', shortcut: 'Ctrl+5', checked: viewMode === 'continuous', onSelect: () => setViewMode('continuous'), testId: 'menu-view-continuous' },
-        { icon: <RulersIcon size={15} />, label: 'Rulers', shortcut: 'Ctrl+R', checked: showRulers, onSelect: () => setShowRulers(!showRulers), testId: 'menu-view-rulers' },
+        { icon: <SinglePageIcon size={16} />, label: 'Single Page', shortcut: 'Ctrl+4', checked: viewMode === 'single', onSelect: () => setViewMode('single') },
+        { icon: <ContinuousIcon size={16} />, label: 'Continuous Pages', shortcut: 'Ctrl+5', checked: viewMode === 'continuous', onSelect: () => setViewMode('continuous'), testId: 'menu-view-continuous' },
+        { icon: <RulersIcon size={16} />, label: 'Rulers', shortcut: 'Ctrl+R', checked: showRulers, onSelect: () => setShowRulers(!showRulers), testId: 'menu-view-rulers' },
         'separator',
-        { icon: <PanelLeft size={15} />, label: 'Thumbnails Panel', onSelect: () => setLeftTab('pages') },
-        { icon: <Bookmark size={15} />, label: 'Bookmarks Panel', onSelect: () => setLeftTab('bookmarks') },
-        { icon: <Layers size={15} />, label: 'Layers Panel', onSelect: () => setLeftTab('layers') },
-        { icon: <SlidersHorizontal size={15} />, label: 'Properties Panel', onSelect: requestPropertiesPanel },
-        { icon: <Ruler size={15} />, label: 'Measurements Panel', onSelect: requestMeasurementsPanel },
+        { icon: <PanelLeft size={16} />, label: 'Thumbnails Panel', onSelect: () => setLeftTab('pages') },
+        { icon: <Bookmark size={16} />, label: 'Bookmarks Panel', onSelect: () => setLeftTab('bookmarks') },
+        { icon: <Layers size={16} />, label: 'Layers Panel', onSelect: () => setLeftTab('layers') },
+        { icon: <SlidersHorizontal size={16} />, label: 'Properties Panel', onSelect: requestPropertiesPanel },
+        { icon: <Ruler size={16} />, label: 'Measurements Panel', onSelect: requestMeasurementsPanel },
         {
-          icon: <SlidersHorizontal size={15} />,
+          icon: <SlidersHorizontal size={16} />,
           label: 'Open Panel on Selection',
           checked: autoOpenPanels,
           onSelect: () => setAutoOpenPanels(!autoOpenPanels),
@@ -260,7 +260,7 @@ export const MenuBar: React.FC = () => {
         },
         // Lista de marcas de Revu (ADR-0060): abre cerrada salvo que se pida abrirla al arrancar
         {
-          icon: <ListIcon size={15} />,
+          icon: <ListIcon size={16} />,
           label: 'Markups List',
           shortcut: 'Alt+L',
           checked: markupsListOpen,
@@ -268,7 +268,7 @@ export const MenuBar: React.FC = () => {
           testId: 'menu-view-markups-list',
         },
         {
-          icon: <ListIcon size={15} />,
+          icon: <ListIcon size={16} />,
           label: 'Open Markups List at Start',
           checked: markupsListAtStart,
           onSelect: () => setMarkupsListAtStart(!markupsListAtStart),
@@ -276,7 +276,7 @@ export const MenuBar: React.FC = () => {
         },
         'separator',
         {
-          icon: <Contrast size={15} />,
+          icon: <Contrast size={16} />,
           label: 'Dark Mode',
           shortcut: 'Ctrl+3',
           checked: theme === 'dark',
@@ -284,7 +284,7 @@ export const MenuBar: React.FC = () => {
           testId: 'menu-toggle-theme',
         },
         {
-          icon: <MonitorCog size={15} />,
+          icon: <MonitorCog size={16} />,
           label: 'Use System Theme',
           checked: themeFollowsSystem,
           onSelect: followSystem,
@@ -296,30 +296,30 @@ export const MenuBar: React.FC = () => {
       id: 'documento',
       label: 'Document',
       entries: [
-        { icon: <ChevronLeft size={15} />, label: 'Previous Page', shortcut: 'PgUp', onSelect: () => goToPage(-1), disabled: currentPageIndex <= 0 },
-        { icon: <ChevronRight size={15} />, label: 'Next Page', shortcut: 'PgDn', onSelect: () => goToPage(1), disabled: currentPageIndex >= numPages - 1 },
+        { icon: <ChevronLeft size={16} />, label: 'Previous Page', shortcut: 'PgUp', onSelect: () => goToPage(-1), disabled: currentPageIndex <= 0 },
+        { icon: <ChevronRight size={16} />, label: 'Next Page', shortcut: 'PgDn', onSelect: () => goToPage(1), disabled: currentPageIndex >= numPages - 1 },
         'separator',
-        { icon: <FilePlus2 size={15} />, label: 'Insert Blank Page After', onSelect: () => runPageOperation('insertBlank'), disabled: !hasDoc },
-        { icon: <RotateCcw size={15} />, label: 'Rotate Page 90°', shortcut: 'Ctrl+Shift+R', onSelect: () => runPageOperation('rotate'), disabled: !hasDoc },
-        { icon: <FileOutput size={15} />, label: 'Extract Page…', shortcut: 'Ctrl+Shift+X', onSelect: () => runPageOperation('extract'), disabled: !hasDoc },
-        { icon: <FileX2 size={15} />, label: 'Delete Page', onSelect: () => runPageOperation('delete'), disabled: !hasDoc || numPages <= 1 },
+        { icon: <FilePlus2 size={16} />, label: 'Insert Blank Page After', onSelect: () => runPageOperation('insertBlank'), disabled: !hasDoc },
+        { icon: <RotateCcw size={16} />, label: 'Rotate Page 90°', shortcut: 'Ctrl+Shift+R', onSelect: () => runPageOperation('rotate'), disabled: !hasDoc },
+        { icon: <FileOutput size={16} />, label: 'Extract Page…', shortcut: 'Ctrl+Shift+X', onSelect: () => runPageOperation('extract'), disabled: !hasDoc },
+        { icon: <FileX2 size={16} />, label: 'Delete Page', onSelect: () => runPageOperation('delete'), disabled: !hasDoc || numPages <= 1 },
         'separator',
-        { icon: <Search size={15} />, label: 'Find Text…', shortcut: 'Ctrl+F', onSelect: () => useSearchStore.getState().setIsOpen(true), disabled: !hasDoc },
+        { icon: <Search size={16} />, label: 'Find Text…', shortcut: 'Ctrl+F', onSelect: () => useSearchStore.getState().setIsOpen(true), disabled: !hasDoc },
         'separator',
         {
-          icon: <Layers2 size={15} />,
+          icon: <Layers2 size={16} />,
           label: 'Overlay Pages',
           testId: 'menu-overlay',
           submenu: [
             {
-              icon: <FileStack size={15} />,
+              icon: <FileStack size={16} />,
               label: 'Overlay with Another PDF…',
               testId: 'menu-overlay-file',
               onSelect: () => void import('../../services/overlayService').then((m) => m.startOverlayFromFile()),
               disabled: !hasDoc,
             },
             {
-              icon: <Copy size={15} />,
+              icon: <Copy size={16} />,
               label: 'Overlay with a Page of This Document',
               testId: 'menu-overlay-self',
               onSelect: () => void import('../../services/overlayService').then((m) => m.startOverlayWithThisDocument()),
@@ -328,19 +328,19 @@ export const MenuBar: React.FC = () => {
           ],
         },
         {
-          icon: <Columns2 size={15} />,
+          icon: <Columns2 size={16} />,
           label: 'Side by Side',
           testId: 'menu-side-by-side',
           disabled: !hasDoc,
           submenu: [
             {
-              icon: <FileText size={15} />,
+              icon: <FileText size={16} />,
               label: 'Compare with Another PDF…',
               testId: 'menu-split-file',
               onSelect: () => void import('../../services/splitService').then((m) => m.startSplitFromFile()),
             },
             {
-              icon: <Columns2 size={15} />,
+              icon: <Columns2 size={16} />,
               label: 'Compare with a Page of This Document',
               testId: 'menu-split-this',
               onSelect: () => void import('../../services/splitService').then((m) => m.startSplitWithThisDocument()),
@@ -354,7 +354,7 @@ export const MenuBar: React.FC = () => {
       label: 'Tools',
       entries: [
         {
-          icon: <PenLine size={15} />,
+          icon: <PenLine size={16} />,
           label: 'Markup',
           testId: 'menu-tools-markup',
           submenu: TOOL_GROUPS.filter((g) => g.id !== 'measure' && g.id !== 'select').flatMap((g, i) => [
@@ -363,7 +363,7 @@ export const MenuBar: React.FC = () => {
           ]),
         },
         {
-          icon: <StampIcon size={15} />,
+          icon: <StampIcon size={16} />,
           label: 'Stamp',
           testId: 'menu-tools-stamp',
           // Por secciones, como el selector de la cinta (ADR-0045)
@@ -383,12 +383,12 @@ export const MenuBar: React.FC = () => {
           ]),
         },
         {
-          icon: <LengthMeasureIcon size={15} />,
+          icon: <LengthMeasureIcon size={16} />,
           label: 'Measure',
           testId: 'menu-tools-measure',
           submenu: [
             {
-              icon: <CalibrateIcon size={15} />,
+              icon: <CalibrateIcon size={16} />,
               label: 'Calibrate Page Scale…',
               testId: 'menu-calibrate',
               // Un solo flujo (ADR-0031): dos clics sobre una distancia conocida y después el diálogo
@@ -405,20 +405,20 @@ export const MenuBar: React.FC = () => {
           ],
         },
         {
-          icon: <FormInput size={15} />,
+          icon: <FormInput size={16} />,
           label: 'Form',
           testId: 'menu-tools-form',
           submenu: FIELD_TYPES.filter((f) => f.id !== 'signature').map((f) => fieldEntry(f.id, f.label)),
         },
         {
-          icon: <Signature size={15} />,
+          icon: <Signature size={16} />,
           label: 'Signature',
           testId: 'menu-tools-signature',
           submenu: [fieldEntry('signature', 'Digital Signature Field')],
         },
         'separator',
         {
-          icon: <Link2 size={15} />,
+          icon: <Link2 size={16} />,
           label: 'Hyperlink',
           testId: 'menu-tools-hyperlink',
           checked: activeTool === 'link',
@@ -426,7 +426,7 @@ export const MenuBar: React.FC = () => {
           disabled: !hasDoc,
         },
         {
-          icon: <Paperclip size={15} />,
+          icon: <Paperclip size={16} />,
           label: 'File Attachment',
           testId: 'menu-tools-attachment',
           checked: activeTool === 'fileAttachment',
@@ -434,13 +434,13 @@ export const MenuBar: React.FC = () => {
           disabled: !hasDoc,
         },
         'separator',
-        { icon: <Ruler size={15} />, label: 'Measurements Panel', onSelect: requestMeasurementsPanel },
+        { icon: <Ruler size={16} />, label: 'Measurements Panel', onSelect: requestMeasurementsPanel },
       ],
     },
     {
       id: 'ayuda',
       label: 'Help',
-      entries: [{ icon: <Keyboard size={15} />, label: 'Keyboard Shortcuts', shortcut: 'F1', onSelect: () => setShortcutsOpen(true) }],
+      entries: [{ icon: <Keyboard size={16} />, label: 'Keyboard Shortcuts', shortcut: 'F1', onSelect: () => setShortcutsOpen(true) }],
     },
   ];
 
@@ -468,7 +468,7 @@ export const MenuBar: React.FC = () => {
               onClick={() => setOpenMenu(openMenu === menu.id ? null : menu.id)}
               onMouseEnter={() => openMenu && setOpenMenu(menu.id)}
               className={`px-2.5 py-1 rounded-md transition-colors ${
-                openMenu === menu.id ? 'bg-cad-hover text-cad-strong' : 'hover:bg-cad-hover text-gray-200'
+                openMenu === menu.id ? 'bg-cad-hover ring-1 ring-gray-500/60 text-cad-strong' : 'hover:bg-cad-hover text-gray-200'
               }`}
             >
               {menu.label}
@@ -477,7 +477,7 @@ export const MenuBar: React.FC = () => {
               <div
                 role="menu"
                 data-testid={`menu-popup-${menu.id}`}
-                className="absolute left-0 top-full mt-0.5 min-w-[260px] bg-cad-panel border border-cad-border rounded-lg shadow-[0_10px_32px_rgba(0,0,0,0.28)] p-1 z-50"
+                className="absolute left-0 top-full mt-0.5 min-w-[260px] bg-cad-panel border border-cad-border rounded-lg shadow-float p-1 z-50"
               >
                 {menu.entries.map((entry, idx) =>
                   entry === 'separator' ? (
@@ -495,8 +495,8 @@ export const MenuBar: React.FC = () => {
                         aria-expanded={openSub === entry.label}
                         data-testid={entry.testId}
                         onClick={() => setOpenSub(openSub === entry.label ? null : entry.label)}
-                        className={`w-full flex items-center justify-between gap-6 px-2 py-1.5 rounded-md text-left text-gray-200 hover:bg-cad-accent-fill hover:text-white ${
-                          openSub === entry.label ? 'bg-cad-accent-fill text-white' : ''
+                        className={`w-full flex items-center justify-between gap-6 px-2 py-1.5 rounded-md text-left text-gray-200 hover:bg-cad-hover hover:text-cad-strong ${
+                          openSub === entry.label ? 'bg-cad-hover ring-1 ring-gray-500/60 text-cad-strong' : ''
                         }`}
                       >
                         <span className="flex items-center gap-2">
@@ -505,13 +505,13 @@ export const MenuBar: React.FC = () => {
                           </span>
                           {entry.label}
                         </span>
-                        <ChevronRight size={13} />
+                        <ChevronRight size={16} />
                       </button>
                       {openSub === entry.label && (
                         <div
                           role="menu"
                           data-testid={`${entry.testId}-popup`}
-                          className="absolute left-full top-0 -mt-1 ml-0.5 min-w-[240px] max-h-[70vh] overflow-y-auto bg-cad-panel border border-cad-border rounded-lg shadow-[0_10px_32px_rgba(0,0,0,0.28)] p-1 z-50"
+                          className="absolute left-full top-0 -mt-1 ml-0.5 min-w-[240px] max-h-[70vh] overflow-y-auto bg-cad-panel border border-cad-border rounded-lg shadow-float p-1 z-50"
                         >
                           {entry.submenu.map((sub, j) =>
                             sub === 'separator' ? (
@@ -528,19 +528,19 @@ export const MenuBar: React.FC = () => {
                                   setOpenSub(null);
                                   sub.onSelect?.();
                                 }}
-                                className="w-full flex items-center justify-between gap-6 px-2 py-1.5 rounded-md text-left text-gray-200 hover:bg-cad-accent-fill hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-200"
+                                className="w-full flex items-center justify-between gap-6 px-2 py-1.5 rounded-md text-left text-gray-200 hover:bg-cad-hover hover:text-cad-strong disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-200"
                               >
                                 <span className="flex items-center gap-2">
                                   <span
                                     className={`w-[22px] h-[22px] shrink-0 rounded-sm flex items-center justify-center [&_svg]:w-[15px] [&_svg]:h-[15px] ${
-                                      sub.checked ? 'bg-cad-accent/25 ring-1 ring-cad-accent text-cad-strong' : ''
+                                      sub.checked ? 'bg-cad-hover ring-1 ring-gray-500/60 text-cad-strong' : ''
                                     }`}
                                   >
                                     {sub.icon}
                                   </span>
                                   {sub.label}
                                 </span>
-                                {sub.shortcut && <span className="text-2xs text-gray-500 font-mono">{sub.shortcut}</span>}
+                                {sub.shortcut && <span className="text-2xs text-gray-500">{sub.shortcut}</span>}
                               </button>
                             )
                           )}
@@ -559,19 +559,19 @@ export const MenuBar: React.FC = () => {
                         setOpenMenu(null);
                         entry.onSelect?.();
                       }}
-                      className="w-full flex items-center justify-between gap-6 px-2 py-1.5 rounded-md text-left text-gray-200 hover:bg-cad-accent-fill hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-200"
+                      className="w-full flex items-center justify-between gap-6 px-2 py-1.5 rounded-md text-left text-gray-200 hover:bg-cad-hover hover:text-cad-strong disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-200"
                     >
                       <span className="flex items-center gap-2">
                         <span
                           className={`w-[22px] h-[22px] shrink-0 rounded-sm flex items-center justify-center [&_svg]:w-[15px] [&_svg]:h-[15px] ${
-                            entry.checked && entry.icon ? 'bg-cad-accent/25 ring-1 ring-cad-accent text-cad-strong' : ''
+                            entry.checked && entry.icon ? 'bg-cad-hover ring-1 ring-gray-500/60 text-cad-strong' : ''
                           }`}
                         >
                           {entry.icon ?? (entry.checked ? <span className="text-cad-accent">✓</span> : null)}
                         </span>
                         {entry.label}
                       </span>
-                      {entry.shortcut && <span className="text-2xs text-gray-500 font-mono">{entry.shortcut}</span>}
+                      {entry.shortcut && <span className="text-2xs text-gray-500">{entry.shortcut}</span>}
                     </button>
                   )
                 )}
@@ -590,7 +590,7 @@ export const MenuBar: React.FC = () => {
       <div className="flex-1 min-w-0 flex items-center justify-center gap-1.5 text-gray-400 text-xs px-3">
         {fileName && (
           <>
-            <FileText size={13} className="shrink-0" />
+            <FileText size={16} className="shrink-0" />
             <span className="truncate" title={filePath ?? fileName}>
               {fileName}
               {!filePath && ' — demo (not saved)'}
@@ -610,7 +610,7 @@ export const MenuBar: React.FC = () => {
         title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
         className="p-1 rounded hover:bg-cad-hover text-gray-400 hover:text-cad-strong shrink-0"
       >
-        {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+        {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
       </button>
     </header>
   );

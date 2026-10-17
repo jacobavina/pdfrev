@@ -85,7 +85,7 @@ const BookmarksPanel: React.FC = () => {
               onClick={() => hasChildren && setCollapsed({ ...collapsed, [key]: !isCollapsed })}
               aria-label={hasChildren ? (isCollapsed ? 'Expand' : 'Collapse') : undefined}
             >
-              {hasChildren ? isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} /> : null}
+              {hasChildren ? isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} /> : null}
             </button>
             <button
               type="button"
@@ -184,7 +184,7 @@ const PdfLayersSection: React.FC = () => {
                       title={row.visible ? 'Hide layer' : 'Show layer'}
                       className="p-0.5 rounded hover:bg-cad-subtle text-gray-400"
                     >
-                      {row.visible ? <Eye size={14} className="text-cad-accent" /> : <EyeOff size={14} />}
+                      {row.visible ? <Eye size={16} className="text-cad-strong" /> : <EyeOff size={16} />}
                     </button>
                   )}
                 </td>
@@ -232,7 +232,7 @@ const LayersPanel: React.FC = () => {
                   aria-pressed={!hidden}
                   className="p-0.5 rounded hover:bg-cad-subtle text-gray-400"
                 >
-                  {hidden ? <EyeOff size={14} /> : <Eye size={14} className="text-cad-accent" />}
+                  {hidden ? <EyeOff size={16} /> : <Eye size={16} className="text-cad-strong" />}
                 </button>
                 <span className={`flex-1 truncate ${hidden ? 'text-gray-500 line-through' : ''}`}>
                   {layer || 'No layer'}

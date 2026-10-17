@@ -2339,7 +2339,9 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
 
     // Estilo en el panel de Propiedades (ADR-0064): con la nube seleccionada, edita la selección
     await page.locator('[data-testid="expand-properties-btn"]').click();
-    await expect(page.locator('[data-testid="ribbon-group-style"]')).toContainText('1 selected');
+    // Edita la selección: lo dice la cabecera del panel (ADR-0065)
+    await expect(page.locator('[data-testid="selection-count-badge"]')).toHaveText(/1 markup/);
+    await expect(page.locator('[data-testid="properties-style"]')).toHaveAttribute('data-target', 'selection');
     await expect(page.locator('[data-testid="ribbon-font-bold"]')).toBeEnabled();
   });
 

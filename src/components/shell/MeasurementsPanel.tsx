@@ -74,7 +74,7 @@ const Section: React.FC<{ title: string; testId?: string; children: React.ReactN
         className="w-full flex items-center justify-between ui-section-title mb-2 hover:text-cad-strong"
       >
         <span>{title}</span>
-        {open ? <ChevronDown size={13} className="text-gray-500" /> : <ChevronRight size={13} className="text-gray-500" />}
+        {open ? <ChevronDown size={16} className="text-gray-500" /> : <ChevronRight size={16} className="text-gray-500" />}
       </button>
       {open && <div className="space-y-2">{children}</div>}
     </section>
@@ -92,10 +92,10 @@ const SNAP_TITLES = {
 const SnapIcon: React.FC<{ kind: 'endpoint' | 'midpoint' | 'nearest' | 'intersection' }> = ({ kind }) => (
   <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden="true">
     {kind === 'intersection' ? <path d="M4 20 20 4M4 4l16 16" /> : <path d="M4 20 20 4" />}
-    {kind === 'intersection' && <circle cx="12" cy="12" r="3.5" stroke="#a78bfa" />}
-    {kind === 'endpoint' && <rect x="16" y="1" width="6" height="6" stroke="#a78bfa" />}
-    {kind === 'midpoint' && <path d="m12 8.5 3.5 6h-7z" stroke="#a78bfa" />}
-    {kind === 'nearest' && <path d="M9.5 9.5h5v5h-5zM12 12l7 7" stroke="#a78bfa" />}
+    {kind === 'intersection' && <circle cx="12" cy="12" r="3.5" />}
+    {kind === 'endpoint' && <rect x="16" y="1" width="6" height="6" />}
+    {kind === 'midpoint' && <path d="m12 8.5 3.5 6h-7z" />}
+    {kind === 'nearest' && <path d="M9.5 9.5h5v5h-5zM12 12l7 7" />}
   </svg>
 );
 
@@ -296,7 +296,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
           title="Collapse measurements"
           data-testid="collapse-measurements-btn"
         >
-          <ChevronRight size={14} />
+          <ChevronRight size={16} />
         </button>
       </div>
 
@@ -306,7 +306,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
             <span className="text-gray-400">Page {currentPageIndex + 1}</span>
             <span
               data-testid="measurements-scale"
-              className={`px-1.5 rounded text-2xs font-mono ${
+              className={`px-1.5 rounded text-2xs ui-data ${
                 isCalibrated
                   ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
                   : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
@@ -601,7 +601,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
                 onClick={() => setSnap({ [k]: !snap[k] })}
                 title={SNAP_TITLES[k]}
                 className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${
-                  snap[k] ? 'bg-cad-accent/15 text-cad-accent ring-1 ring-inset ring-cad-accent/50' : 'bg-cad-field text-gray-400 hover:text-cad-strong'
+                  snap[k] ? 'bg-cad-hover text-cad-strong ring-1 ring-inset ring-gray-500/60' : 'bg-cad-field text-gray-400 hover:text-cad-strong'
                 }`}
               >
                 <SnapIcon kind={k} />
@@ -652,7 +652,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
                   type="button"
                   data-testid={`measurements-scope-${s}`}
                   onClick={() => setScope(s)}
-                  className={`px-2.5 py-0.5 rounded ${scope === s ? 'bg-cad-panel text-cad-strong shadow-sm' : 'text-gray-400 hover:text-cad-strong'}`}
+                  className={`px-2.5 py-0.5 rounded ${scope === s ? 'bg-cad-panel text-cad-strong' : 'text-gray-400 hover:text-cad-strong'}`}
                 >
                   {s === 'page' ? 'Page' : 'Document'}
                 </button>
@@ -678,8 +678,8 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
                   <React.Fragment key={`${t.category}-${t.unit}`}>
                     <tr className="border-t border-cad-border" data-testid={`measurements-total-${t.category}`}>
                       <td className="py-1 text-gray-200">{CATEGORY_LABEL[t.category]}</td>
-                      <td className="py-1 text-right font-mono text-gray-400">{t.items}</td>
-                      <td className="py-1 text-right font-mono text-cad-strong">
+                      <td className="py-1 text-right ui-data text-gray-400">{t.items}</td>
+                      <td className="py-1 text-right ui-data text-cad-strong">
                         {t.category === 'length' && calib.format === 'ftin' && t.unit === 'ft'
                           ? formatWithCalibration(t.total, calib)
                           : formatTotal(t, 2)}
@@ -689,7 +689,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
                       <tr>
                         <td className="pb-1 pl-3 text-gray-500">Perimeter</td>
                         <td />
-                        <td className="pb-1 text-right font-mono text-gray-400">
+                        <td className="pb-1 text-right ui-data text-gray-400">
                           {t.perimeter.toFixed(2)} {t.unit}
                         </td>
                       </tr>
@@ -718,7 +718,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
                       <span className="truncate">
                         {markupTypeLabel(m.type)} · p. {m.pageIndex + 1}
                       </span>
-                      <span className="font-mono">{m.measurement?.formatted}</span>
+                      <span className="ui-data">{m.measurement?.formatted}</span>
                     </button>
                   </li>
                 );
@@ -734,7 +734,7 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
             className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded border border-cad-border hover:bg-cad-hover"
             title="Export the markups list with measurements to CSV (Excel)"
           >
-            <FileSpreadsheet size={13} /> Export to CSV
+            <FileSpreadsheet size={16} /> Export to CSV
           </button>
         </Section>
       </div>

@@ -30,6 +30,7 @@ import {
   VolumeMeasureIcon,
 } from './customIcons';
 import { ToolType } from '../../store/useToolStore';
+import { MARKUP_COLORS } from '../../core/markup/palette';
 
 /**
  * Catálogo único de herramientas (ADR-0017): lo consumen la cinta de herramientas y los menús.
@@ -140,4 +141,5 @@ export const ALL_TOOLS: ToolDefinition[] = TOOL_GROUPS.flatMap((g) => g.tools);
 /** Herramientas que trabajan sobre el texto real de la página (requieren capa de texto). */
 export const TEXT_LAYER_TOOLS: ToolType[] = ['highlightText', 'underline', 'strikeOut'];
 
-export const STROKE_COLORS = ['#e02424', '#0284c7', '#16a34a', '#d97706', '#9333ea', '#111827'];
+/** Paleta de color de línea (ADR-0065: definida en el núcleo, es dato del documento). */
+export const STROKE_COLORS = MARKUP_COLORS;

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useCalibrationStore } from '../../store/useCalibrationStore';
 import { rulerTicks, RulerTick, RULER_SIZE } from '../../core/measurements/rulers';
+import { tok } from './paint';
 
 /**
  * Reglas superior e izquierda (ADR-0029). Siguen a la hoja activa: el cero es su esquina superior izquierda y las
@@ -18,6 +19,9 @@ interface Geometry {
 
 const findViewer = () => document.querySelector<HTMLElement>('[data-testid="pdf-viewer-container"]');
 const findPage = () => document.querySelector<HTMLElement>('[data-testid="pdf-page-container"]');
+
+/** Números de las reglas (ADR-0065): son datos, en Plex Mono con cifras tabulares. */
+const RULER_TEXT: React.CSSProperties = { fontFamily: 'var(--font-data)', fontVariantNumeric: 'tabular-nums' };
 
 export const Rulers: React.FC<{ hostRef: React.RefObject<HTMLDivElement> }> = ({ hostRef }) => {
   const { scale, rotation, currentPageIndex, pdfBytes } = useDocumentStore();
@@ -123,7 +127,7 @@ export const Rulers: React.FC<{ hostRef: React.RefObject<HTMLDivElement> }> = ({
         <g stroke="currentColor" strokeWidth={1} shapeRendering="crispEdges">
           {ticksX.map((t) => tickLine(t, true))}
         </g>
-        <g fill="currentColor" fontSize={11} fontFamily="Helvetica, Arial, sans-serif">
+        <g fill="currentColor" fontSize={11} style={RULER_TEXT}>
           {ticksX
             .filter((t) => t.label !== undefined)
             .map((t) => (
@@ -132,7 +136,7 @@ export const Rulers: React.FC<{ hostRef: React.RefObject<HTMLDivElement> }> = ({
               </text>
             ))}
         </g>
-        {cursor && cursor.x >= 0 && <line data-testid="ruler-top-cursor" x1={cursor.x} x2={cursor.x} y1={0} y2={RULER_SIZE} stroke="#e02424" />}
+        {cursor && cursor.x >= 0 && <line data-testid="ruler-top-cursor" x1={cursor.x} x2={cursor.x} y1={0} y2={RULER_SIZE} stroke={tok('ov-ruler-cursor')} />}
       </svg>
       <svg
         data-testid="ruler-left"
@@ -144,7 +148,7 @@ export const Rulers: React.FC<{ hostRef: React.RefObject<HTMLDivElement> }> = ({
         <g stroke="currentColor" strokeWidth={1} shapeRendering="crispEdges">
           {ticksY.map((t) => tickLine(t, false))}
         </g>
-        <g fill="currentColor" fontSize={11} fontFamily="Helvetica, Arial, sans-serif">
+        <g fill="currentColor" fontSize={11} style={RULER_TEXT}>
           {ticksY
             .filter((t) => t.label !== undefined)
             .map((t) => (
@@ -153,7 +157,7 @@ export const Rulers: React.FC<{ hostRef: React.RefObject<HTMLDivElement> }> = ({
               </text>
             ))}
         </g>
-        {cursor && cursor.y >= 0 && <line data-testid="ruler-left-cursor" y1={cursor.y} y2={cursor.y} x1={0} x2={RULER_SIZE} stroke="#e02424" />}
+        {cursor && cursor.y >= 0 && <line data-testid="ruler-left-cursor" y1={cursor.y} y2={cursor.y} x1={0} x2={RULER_SIZE} stroke={tok('ov-ruler-cursor')} />}
       </svg>
     </>
   );

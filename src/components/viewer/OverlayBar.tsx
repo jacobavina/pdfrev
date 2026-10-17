@@ -39,7 +39,7 @@ export const OverlayBar: React.FC = () => {
   return (
     <div
       data-testid="overlay-bar"
-      className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-2 py-1.5 rounded-xl bg-cad-panel border border-cad-border shadow-[0_10px_32px_rgba(0,0,0,0.28)] text-xs text-gray-200 whitespace-nowrap"
+      className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-2 py-1.5 rounded-xl bg-cad-panel border border-cad-border shadow-float text-xs text-gray-200 whitespace-nowrap"
     >
       <span className="ui-panel-title px-1">Overlay</span>
       <span className="w-px h-4 bg-cad-border" />
@@ -55,11 +55,11 @@ export const OverlayBar: React.FC = () => {
       >
         <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: o.baseColor, opacity: o.showBase ? 1 : 0.3 }} />
         Current · p. {currentPage + 1}
-        {o.showBase ? <Eye size={13} className="text-gray-400" /> : <EyeOff size={13} className="text-gray-400" />}
+        {o.showBase ? <Eye size={16} className="text-gray-400" /> : <EyeOff size={16} className="text-gray-400" />}
       </button>
 
       <button type="button" data-testid="overlay-swap" onClick={o.swapColors} title="Swap colors" className={iconBtn}>
-        <ArrowLeftRight size={14} />
+        <ArrowLeftRight size={16} />
       </button>
 
       {/* Página comparada */}
@@ -74,7 +74,7 @@ export const OverlayBar: React.FC = () => {
         >
           <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: o.otherColor, opacity: o.showOther ? 1 : 0.3 }} />
           <span className="truncate">{o.sourceName}</span>
-          {o.showOther ? <Eye size={13} className="text-gray-400 shrink-0" /> : <EyeOff size={13} className="text-gray-400 shrink-0" />}
+          {o.showOther ? <Eye size={16} className="text-gray-400 shrink-0" /> : <EyeOff size={16} className="text-gray-400 shrink-0" />}
         </button>
         <select
           data-testid="overlay-page-select"
@@ -96,19 +96,19 @@ export const OverlayBar: React.FC = () => {
       {/* Alinear: desplazamiento de la página comparada */}
       <span className="flex items-center" title="Align the compared page: 1 pt per click, 10 pt with Shift">
         <button type="button" data-testid="overlay-nudge-left" onClick={(e) => o.nudge(-step(e), 0)} className={iconBtn}>
-          <ChevronLeft size={14} />
+          <ChevronLeft size={16} />
         </button>
         <button type="button" data-testid="overlay-nudge-up" onClick={(e) => o.nudge(0, -step(e))} className={iconBtn}>
-          <ChevronUp size={14} />
+          <ChevronUp size={16} />
         </button>
         <button type="button" data-testid="overlay-nudge-down" onClick={(e) => o.nudge(0, step(e))} className={iconBtn}>
-          <ChevronDown size={14} />
+          <ChevronDown size={16} />
         </button>
         <button type="button" data-testid="overlay-nudge-right" onClick={(e) => o.nudge(step(e), 0)} className={iconBtn}>
-          <ChevronRight size={14} />
+          <ChevronRight size={16} />
         </button>
       </span>
-      <span data-testid="overlay-offset" className="tabular-nums text-gray-400 min-w-[86px] text-center">
+      <span data-testid="overlay-offset" className="ui-data text-gray-400 min-w-[86px] text-center">
         {o.offset.x}, {o.offset.y} pt
         {aligned && ` · ×${lin.scale.toFixed(3)} · ${lin.rotationDeg.toFixed(2)}°`}
       </span>
@@ -141,17 +141,17 @@ export const OverlayBar: React.FC = () => {
           className="ui-btn !h-7 !px-2"
           title="Align by points: click a point on the current page, then the same point on the compared page (2 or 3 pairs)"
         >
-          <Crosshair size={13} />
+          <Crosshair size={16} />
           Align
         </button>
       )}
       <button type="button" data-testid="overlay-reset-offset" onClick={o.resetOffset} title="Reset alignment" className={iconBtn}>
-        <RotateCcw size={13} />
+        <RotateCcw size={16} />
       </button>
 
       <span className="w-px h-4 bg-cad-border" />
       <button type="button" data-testid="overlay-close" onClick={o.close} title="Close overlay" className={iconBtn}>
-        <X size={14} />
+        <X size={16} />
       </button>
     </div>
   );

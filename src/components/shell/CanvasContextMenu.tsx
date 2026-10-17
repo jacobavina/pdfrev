@@ -75,7 +75,7 @@ export const CanvasContextMenu: React.FC<{ x: number; y: number; onClose: () => 
     >
       <span className="w-4 flex justify-center">{icon}</span>
       <span className="flex-1">{label}</span>
-      {opts.shortcut && <span className="text-2xs font-mono text-gray-500">{opts.shortcut}</span>}
+      {opts.shortcut && <span className="text-2xs text-gray-500">{opts.shortcut}</span>}
     </button>
   );
 
@@ -84,14 +84,14 @@ export const CanvasContextMenu: React.FC<{ x: number; y: number; onClose: () => 
       ref={ref}
       role="menu"
       data-testid="canvas-context-menu"
-      className="fixed z-50 w-56 bg-cad-panel border border-cad-border rounded-lg shadow-[0_10px_32px_rgba(0,0,0,0.28)] p-1 text-xs select-none"
+      className="fixed z-50 w-56 bg-cad-panel border border-cad-border rounded-lg shadow-float p-1 text-xs select-none"
       style={{ left, top }}
       onContextMenu={(e) => e.preventDefault()}
     >
       <div className="px-3 py-1 text-2xs uppercase tracking-wider text-gray-500 truncate">
         {selected.length > 1 ? `${selected.length} markups` : markupTypeLabel(first.type)}
       </div>
-      {item('canvas-menu-properties', <SlidersHorizontal size={13} />, 'Properties', () =>
+      {item('canvas-menu-properties', <SlidersHorizontal size={16} />, 'Properties', () =>
         useUiStore.getState().requestPropertiesPanel()
       )}
       <div className="my-1 border-t border-cad-border" />
@@ -111,30 +111,30 @@ export const CanvasContextMenu: React.FC<{ x: number; y: number; onClose: () => 
             <span className={`w-2 h-2 rounded-full ${STATUS_DOT[status]}`} />
           </span>
           <span className="flex-1">{STATUS_LABELS[status]}</span>
-          {first.status === status && <Check size={12} className="text-cad-accent" />}
+          {first.status === status && <Check size={16} className="text-cad-accent" />}
         </button>
       ))}
       <div className="my-1 border-t border-cad-border" />
-      {item('canvas-menu-copy', <Copy size={13} />, 'Copy', () => useMarkupStore.getState().copySelectedMarkups(), {
+      {item('canvas-menu-copy', <Copy size={16} />, 'Copy', () => useMarkupStore.getState().copySelectedMarkups(), {
         shortcut: 'Ctrl+C',
       })}
       {item(
         'canvas-menu-duplicate',
-        <CopyPlus size={13} />,
+        <CopyPlus size={16} />,
         'Duplicate',
         () => useMarkupStore.getState().duplicateSelectedMarkups(),
         { shortcut: 'Ctrl+D' }
       )}
       {item(
         'canvas-menu-lock',
-        allLocked ? <LockOpen size={13} /> : <Lock size={13} />,
+        allLocked ? <LockOpen size={16} /> : <Lock size={16} />,
         allLocked ? 'Unlock' : 'Lock',
         () => useMarkupStore.getState().toggleLockSelectedMarkups()
       )}
       <div className="my-1 border-t border-cad-border" />
       {item(
         'canvas-menu-delete',
-        <Trash2 size={13} />,
+        <Trash2 size={16} />,
         'Delete',
         () => useMarkupStore.getState().deleteSelectedMarkups(),
         { danger: true, shortcut: 'Del', disabled: allLocked }

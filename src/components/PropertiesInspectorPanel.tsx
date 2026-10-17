@@ -45,14 +45,20 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
         className="w-[268px] bg-cad-panel border-l border-cad-border flex flex-col text-xs select-none min-h-0"
       >
         <div className="panel-header">
-          <span className="ui-panel-title">Properties</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="ui-panel-title">Properties</span>
+            {/* Sin selección el estilo es el de las marcas nuevas (ADR-0065: lo dice la cabecera, no un chip) */}
+            <span data-testid="style-target-badge" className="ui-badge" title="Changes apply to the next markups you draw">
+              New markups
+            </span>
+          </div>
           <button
             onClick={() => setIsCollapsed(true)}
             className="ui-btn !h-7 !w-7 !p-0"
             title="Collapse properties"
             data-testid="collapse-properties-btn"
           >
-            <ChevronRight size={14} />
+            <ChevronRight size={16} />
           </button>
         </div>
         {/* Una sola fuente de verdad visual del estilo (ADR-0064): sin selección, el de las marcas nuevas */}
@@ -130,7 +136,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
             title={isAllLocked ? 'Unlock markup(s)' : 'Lock markup(s)'}
             className={`ui-btn !h-6 !px-1.5 !text-2xs ${isAllLocked ? '!text-amber-500' : ''}`}
           >
-            {isAllLocked ? <Lock size={12} className="text-amber-400" /> : <LockOpen size={12} />}
+            {isAllLocked ? <Lock size={16} className="text-amber-400" /> : <LockOpen size={16} />}
             <span>{isAllLocked ? 'Locked' : 'Lock'}</span>
           </button>
         </div>
@@ -140,7 +146,7 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
           title="Collapse properties"
           data-testid="collapse-properties-btn"
         >
-          <ChevronRight size={14} />
+          <ChevronRight size={16} />
         </button>
       </div>
 

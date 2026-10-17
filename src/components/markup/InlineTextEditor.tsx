@@ -6,6 +6,7 @@ import {
   StickyNoteColorPreset,
 } from '../../types/markup';
 import { normalizedToScreen } from '../../utils/coordinates';
+import { tok } from '../viewer/paint';
 
 export interface InlineTextEditorProps {
   initialText: string;
@@ -72,7 +73,7 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
   return (
     <div
       data-testid={colorPresets ? 'sticky-note-popup' : 'inline-text-editor'}
-      className="absolute z-50 pointer-events-auto shadow-xl rounded border border-blue-500 bg-white p-1"
+      className="absolute z-50 pointer-events-auto shadow-float rounded border border-blue-500 bg-white p-1"
       style={{
         left: `${popupLeft}px`,
         top: `${screenPos.y}px`,
@@ -128,7 +129,7 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
         rows={2}
         className="w-full h-full p-1.5 text-xs text-gray-900 font-sans outline-none resize-none rounded transition-colors"
         style={{
-          backgroundColor: colorPresets ? selectedColor.fillColor : '#fefce8',
+          backgroundColor: colorPresets ? selectedColor.fillColor : tok('ov-note'),
         }}
         placeholder={colorPresets ? 'Type a note...' : 'Type a comment...'}
       />

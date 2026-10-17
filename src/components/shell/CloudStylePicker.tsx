@@ -84,7 +84,7 @@ export const CloudStylePicker: React.FC<CloudStylePickerProps> = ({ size, invert
           />
           <path d="M 2 11.5 h 18 M 2 1 h 18" stroke="currentColor" strokeWidth={0.6} opacity={0.35} />
         </svg>
-        <ChevronDown size={11} className="text-gray-500 shrink-0" />
+        <ChevronDown size={16} className="text-gray-500 shrink-0" />
       </button>
       {open &&
         pos &&
@@ -95,7 +95,7 @@ export const CloudStylePicker: React.FC<CloudStylePickerProps> = ({ size, invert
             aria-label="Cloud style"
             data-testid="ribbon-cloud-style-panel"
             style={{ position: 'fixed', left: pos.left, top: pos.top, zIndex: 1000 }}
-            className="bg-cad-panel border border-cad-border rounded-md shadow-lg p-2.5 flex flex-col gap-2 text-xs text-gray-200 min-w-[150px]"
+            className="bg-cad-panel border border-cad-border rounded-md shadow-float p-2.5 flex flex-col gap-2 text-xs text-gray-200 min-w-[150px]"
           >
             <label className="flex items-center gap-2">
               <span className="w-8 text-gray-400">Size</span>
@@ -108,7 +108,7 @@ export const CloudStylePicker: React.FC<CloudStylePickerProps> = ({ size, invert
                     onClick={() => stepBy(0.25)}
                     className="h-[11px] px-1 grid place-items-center text-gray-400 hover:text-cad-strong"
                   >
-                    <ChevronUp size={10} aria-hidden="true" />
+                    <ChevronUp size={16} aria-hidden="true" />
                   </button>
                   <button
                     type="button"
@@ -117,7 +117,7 @@ export const CloudStylePicker: React.FC<CloudStylePickerProps> = ({ size, invert
                     onClick={() => stepBy(-0.25)}
                     className="h-[11px] px-1 grid place-items-center text-gray-400 hover:text-cad-strong"
                   >
-                    <ChevronDown size={10} aria-hidden="true" />
+                    <ChevronDown size={16} aria-hidden="true" />
                   </button>
                 </span>
                 <input
@@ -130,7 +130,7 @@ export const CloudStylePicker: React.FC<CloudStylePickerProps> = ({ size, invert
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') commit(parseFloat(draft));
                   }}
-                  className="w-14 h-[22px] bg-transparent px-1.5 text-right tabular-nums outline-none"
+                  className="w-14 h-[22px] bg-transparent px-1.5 text-right ui-data outline-none"
                 />
               </span>
             </label>

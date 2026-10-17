@@ -123,7 +123,7 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({ pageIndex, p
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[1px]" data-testid="calibration-modal">
-      <div className="w-[400px] rounded-xl bg-cad-panel border border-cad-border p-5 shadow-[0_24px_64px_rgba(0,0,0,0.38)] text-xs text-gray-200">
+      <div className="w-[400px] rounded-xl bg-cad-panel border border-cad-border p-5 shadow-float text-xs text-gray-200">
         <h3 className="mb-3 text-base font-semibold text-cad-strong">Calibrate Page Scale ({pageIndex + 1})</h3>
 
         {!hasPoints ? (

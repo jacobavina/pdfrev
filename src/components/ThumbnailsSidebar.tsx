@@ -58,12 +58,12 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
         isActive ? 'bg-cad-accent/10 ring-2 ring-cad-accent' : 'hover:bg-cad-hover ring-1 ring-transparent'
       }`}
     >
-      <div className="bg-white rounded-md overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.25)] flex items-center justify-center min-h-[90px] w-full">
+      <div className="bg-white rounded-md overflow-hidden sheet-shadow flex items-center justify-center min-h-[90px] w-full">
         <canvas ref={canvasRef} className="max-w-full h-auto block" />
       </div>
       <div className="flex items-center justify-between w-full mt-1.5 px-1">
         <span
-          className={`text-xs tabular-nums font-medium ${
+          className={`text-xs font-medium ${
             isActive ? 'text-blue-400 font-bold' : 'text-gray-400 group-hover:text-gray-200'
           }`}
         >
@@ -81,7 +81,7 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
             title="Rotate page 90°"
             className="p-0.5 rounded text-gray-400 hover:text-cad-strong hover:bg-cad-subtle"
           >
-            <RotateCw size={12} />
+            <RotateCw size={16} />
           </button>
           <button
             type="button"
@@ -94,7 +94,7 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
             title="Insert blank page after"
             className="p-0.5 rounded text-gray-400 hover:text-cad-strong hover:bg-cad-subtle"
           >
-            <PlusSquare size={12} />
+            <PlusSquare size={16} />
           </button>
           <button
             type="button"
@@ -107,7 +107,7 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
             title="Extract this page"
             className="p-0.5 rounded text-gray-400 hover:text-cad-strong hover:bg-cad-subtle"
           >
-            <Download size={12} />
+            <Download size={16} />
           </button>
           {totalNumPages > 1 && (
             <button
@@ -121,7 +121,7 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
               title="Delete page"
               className="p-0.5 rounded text-gray-400 hover:text-red-400 hover:bg-cad-subtle"
             >
-              <Trash2 size={12} />
+              <Trash2 size={16} />
             </button>
           )}
         </div>
@@ -148,7 +148,7 @@ export const ThumbnailsSidebar: React.FC = () => {
       <div className="panel-header text-xs text-gray-300">
         {!isCollapsed && (
           <div className="flex items-center space-x-1.5">
-            <Layers size={14} className="text-gray-400" />
+            <Layers size={16} className="text-gray-400" />
             <span>Pages ({numPages})</span>
             <div className="flex items-center ml-2 space-x-1">
               <button
@@ -161,7 +161,7 @@ export const ThumbnailsSidebar: React.FC = () => {
                 title="Add blank page at the end"
                 className="p-1 hover:text-cad-strong rounded hover:bg-cad-subtle text-gray-400"
               >
-                <PlusSquare size={13} />
+                <PlusSquare size={16} />
               </button>
               <button
                 type="button"
@@ -173,7 +173,7 @@ export const ThumbnailsSidebar: React.FC = () => {
                 title="Rotate current page 90°"
                 className="p-1 hover:text-cad-strong rounded hover:bg-cad-subtle text-gray-400"
               >
-                <RotateCw size={13} />
+                <RotateCw size={16} />
               </button>
             </div>
           </div>
@@ -183,7 +183,7 @@ export const ThumbnailsSidebar: React.FC = () => {
           className="p-1 hover:text-cad-strong rounded hover:bg-cad-subtle ml-auto"
           title={isCollapsed ? 'Expand thumbnails panel' : 'Collapse panel'}
         >
-          {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
         </button>
       </div>
 

@@ -127,9 +127,9 @@ export const SearchBar: React.FC = () => {
   return (
     <div
       data-testid="search-bar"
-      className="absolute top-14 right-6 z-40 flex items-center space-x-1.5 rounded-xl border border-cad-border bg-cad-panel/95 px-3 py-1.5 text-xs text-gray-200 shadow-[0_10px_32px_rgba(0,0,0,0.28)] backdrop-blur"
+      className="absolute top-14 right-6 z-40 flex items-center space-x-1.5 rounded-xl border border-cad-border bg-cad-panel/95 px-3 py-1.5 text-xs text-gray-200 shadow-float backdrop-blur"
     >
-      <Search size={14} className="text-gray-400" />
+      <Search size={16} className="text-gray-400" />
       <input
         ref={inputRef}
         type="text"
@@ -141,7 +141,7 @@ export const SearchBar: React.FC = () => {
         className="w-48 rounded border border-gray-600 bg-cad-dark px-2 py-1 text-xs text-cad-strong focus:border-blue-500 focus:outline-none"
       />
 
-      <span data-testid="search-count" className="min-w-[65px] font-mono text-2xs text-gray-300">
+      <span data-testid="search-count" className="min-w-[65px] ui-data text-2xs text-gray-300">
         {countText}
       </span>
 
@@ -153,7 +153,7 @@ export const SearchBar: React.FC = () => {
         title="Coincidencia anterior (Shift+Enter)"
         className="rounded p-1 text-gray-300 hover:bg-cad-dark hover:text-cad-strong disabled:opacity-40"
       >
-        <ChevronUp size={14} />
+        <ChevronUp size={16} />
       </button>
 
       <button
@@ -164,7 +164,7 @@ export const SearchBar: React.FC = () => {
         title="Siguiente coincidencia (Enter)"
         className="rounded p-1 text-gray-300 hover:bg-cad-dark hover:text-cad-strong disabled:opacity-40"
       >
-        <ChevronDown size={14} />
+        <ChevronDown size={16} />
       </button>
 
       <button
@@ -176,10 +176,10 @@ export const SearchBar: React.FC = () => {
         }}
         title="Match case"
         className={`rounded p-1 transition-colors ${
-          caseSensitive ? 'bg-cad-accent-fill text-white' : 'text-gray-400 hover:bg-cad-dark hover:text-white'
+          caseSensitive ? 'bg-cad-hover text-cad-strong' : 'text-gray-400 hover:bg-cad-dark hover:text-white'
         }`}
       >
-        <CaseSensitive size={14} />
+        <CaseSensitive size={16} />
       </button>
 
       <button
@@ -191,10 +191,10 @@ export const SearchBar: React.FC = () => {
         }}
         title="Palabras completas"
         className={`rounded p-1 transition-colors ${
-          wholeWord ? 'bg-cad-accent-fill text-white' : 'text-gray-400 hover:bg-cad-dark hover:text-white'
+          wholeWord ? 'bg-cad-hover text-cad-strong' : 'text-gray-400 hover:bg-cad-dark hover:text-white'
         }`}
       >
-        <WholeWord size={14} />
+        <WholeWord size={16} />
       </button>
 
       <div className="h-4 w-px bg-cad-border" />
@@ -206,7 +206,7 @@ export const SearchBar: React.FC = () => {
         title="Close search (Esc)"
         className="rounded p-1 text-gray-400 hover:bg-cad-dark hover:text-cad-strong"
       >
-        <X size={14} />
+        <X size={16} />
       </button>
     </div>
   );

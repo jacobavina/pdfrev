@@ -12,7 +12,7 @@ export const CalibrateHint: React.FC = () => {
     <div
       data-testid="calibrate-hint"
       role="status"
-      className="absolute top-3 left-1/2 -translate-x-1/2 z-20 pointer-events-none px-3 py-1.5 rounded-md bg-cad-accent-fill text-white text-xs shadow-lg whitespace-nowrap"
+      className="absolute top-3 left-1/2 -translate-x-1/2 z-20 pointer-events-none px-3 py-1.5 rounded-md bg-cad-strong text-cad-panel text-xs shadow-float whitespace-nowrap"
     >
       Calibrate: click the start and the end of a known distance (snaps to the drawing) · Esc to cancel
     </div>

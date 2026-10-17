@@ -7,9 +7,9 @@ import { useUiStore, RightPanelId } from '../../store/useUiStore';
  * a las tiras plegadas con texto vertical; abre un panel a la vez y un segundo clic lo pliega.
  */
 const PANELS: { id: RightPanelId; label: string; testId: string; icon: React.ReactNode }[] = [
-  { id: 'properties', label: 'Properties', testId: 'expand-properties-btn', icon: <SlidersHorizontal size={17} /> },
-  { id: 'measure', label: 'Measure', testId: 'expand-measurements-btn', icon: <Ruler size={17} /> },
-  { id: 'toolchest', label: 'Tool Chest', testId: 'expand-tool-chest-btn', icon: <Briefcase size={17} /> },
+  { id: 'properties', label: 'Properties', testId: 'expand-properties-btn', icon: <SlidersHorizontal size={18} /> },
+  { id: 'measure', label: 'Measure', testId: 'expand-measurements-btn', icon: <Ruler size={18} /> },
+  { id: 'toolchest', label: 'Tool Chest', testId: 'expand-tool-chest-btn', icon: <Briefcase size={18} /> },
 ];
 
 export const RightRail: React.FC = () => {

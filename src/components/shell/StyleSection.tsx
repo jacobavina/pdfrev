@@ -6,6 +6,7 @@ import { dashArrayFor, lineStyleOfMarkup, LineStyleId } from '../../core/markup/
 import { isPatternLineStyle } from '../../core/markup/linePatterns';
 import { cloudParams, CLOUD_SIZE_FACTOR, DEFAULT_CLOUD_STEP } from '../../core/markup/revisionCloud';
 import { CloudStylePicker } from './CloudStylePicker';
+import { ColorPicker } from './ColorPicker';
 import { HatchPreview, HATCH_OPTIONS, HatchOption } from './HatchPreview';
 import { CountSymbolPreview, COUNT_SYMBOL_OPTIONS } from './CountPreview';
 import { isAutosizeText } from '../../core/markup/autosizeText';
@@ -26,12 +27,6 @@ import type { MarkupStyle } from '../../types/markup';
 
 const STROKE_WIDTHS = [0.5, 1, 1.5, 2, 3, 5, 8];
 
-/** Color CSS como #rrggbb para el selector de color libre (rgba() pierde su opacidad, que se elige aparte). */
-function colorHex(c: string): string {
-  const m = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i.exec(c);
-  if (!m) return /^#[0-9a-f]{6}$/i.test(c) ? c : '#000000';
-  return '#' + [m[1], m[2], m[3]].map((v) => Number(v).toString(16).padStart(2, '0')).join('');
-}
 
 const OPACITIES = [1, 0.75, 0.5, 0.25];
 
@@ -173,37 +168,17 @@ export const StyleSection: React.FC = () => {
   const changeWidth = (w: number) => applyStyle({ strokeWidth: w, dashArray: dashArrayFor(lineStyle, w) });
 
   return (
-    <div data-testid="properties-style" className="style-stack">
+    <div data-testid="properties-style" data-target={editingSelection ? 'selection' : 'new'} className="style-stack">
         <div data-testid="ribbon-group-style" className="flex flex-col">
-          <div className="prop-section">
-            <span
-              className={`ui-pill whitespace-nowrap ${editingSelection ? '!bg-cad-accent/15 !text-cad-accent' : ''}`}
-              title={editingSelection ? 'Changes apply to the selected markups' : 'Changes apply to the next markups you draw'}
-            >
-              {editingSelection ? `Properties · ${selection.length} selected` : 'Style (new markups)'}
-            </span>
-          </div>
-
           <div className="prop-section" title="Line color">
             <span className="prop-label">Line</span>
-            {STROKE_COLORS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => applyStyle({ strokeColor: c })}
-                style={{ backgroundColor: c }}
-                aria-pressed={style.strokeColor === c}
-                className="prop-swatch"
-                title={`Color: ${c}`}
-              />
-            ))}
-            <input
-              type="color"
-              data-testid="prop-stroke-color"
-              value={colorHex(style.strokeColor || '#000000')}
-              onChange={(e) => applyStyle({ strokeColor: e.target.value })}
-              className="ui-swatch !w-5 !h-5"
-              title="Custom line color"
+            <ColorPicker
+              testId="ribbon-stroke-color"
+              title="Line color"
+              value={style.strokeColor}
+              options={STROKE_COLORS.map((c) => ({ value: c, label: c }))}
+              customTestId="prop-stroke-color"
+              onChange={(c) => applyStyle({ strokeColor: c })}
             />
             <IconPicker
               compact
@@ -254,11 +229,11 @@ export const StyleSection: React.FC = () => {
                   step={10}
                   value={countScaleValue}
                   onChange={(e) => changeCount({ countScale: clampCountScale(Number(e.target.value)) })}
-                  className="ui-input !h-6 !w-14 !px-1 tabular-nums"
+                  className="ui-input !h-6 !w-14 !px-1 ui-data"
                 />
                 %
               </label>
-              <span data-testid="ribbon-count-total" className="ui-pill whitespace-nowrap tabular-nums" title="Totals">
+              <span data-testid="ribbon-count-total" className="ui-pill whitespace-nowrap ui-data" title="Totals">
                 Totals: Count = {countTotal}
               </span>
             </div>
@@ -266,37 +241,14 @@ export const StyleSection: React.FC = () => {
 
           <div className="prop-section" title="Fill for closed shapes">
             <span className="prop-label">Fill</span>
-            <button
-              type="button"
-              data-testid="ribbon-fill-none"
-              onClick={() => applyStyle({ fillColor: 'transparent' })}
-              title="No fill"
-              aria-pressed={!hasFill}
-              className="prop-swatch bg-cad-panel relative overflow-hidden"
-            >
-              <span className="absolute inset-0 m-auto w-[140%] h-px bg-rose-500 rotate-45 -translate-x-[15%]" />
-            </button>
-            {STROKE_COLORS.map((c) => {
-              const fill = translucentFill(c, 0.25);
-              return (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => applyStyle({ fillColor: fill })}
-                  style={{ backgroundColor: fill, borderColor: c }}
-                  aria-pressed={style.fillColor === fill}
-                  className="prop-swatch"
-                  title={`Translucent fill: ${c}`}
-                />
-              );
-            })}
-            <input
-              type="color"
-              data-testid="prop-fill-color"
-              value={hasFill ? colorHex(style.fillColor!) : '#ffffff'}
-              onChange={(e) => applyStyle({ fillColor: e.target.value })}
-              className="ui-swatch !w-5 !h-5"
-              title="Custom fill color"
+            <ColorPicker
+              testId="ribbon-fill-color"
+              title="Fill color"
+              value={hasFill ? style.fillColor : undefined}
+              options={STROKE_COLORS.map((c) => ({ value: translucentFill(c, 0.25), label: `Translucent ${c}`, border: c }))}
+              allowNone
+              customTestId="prop-fill-color"
+              onChange={(c) => applyStyle({ fillColor: c })}
             />
             <IconPicker
               compact
@@ -316,7 +268,7 @@ export const StyleSection: React.FC = () => {
                 onClick={toggleBoxBorder}
                 title={boxBorder ? 'Text box border: on' : 'Text box border: off'}
                 className={`ml-1 h-6 px-1.5 rounded-md flex items-center gap-1 text-2xs ${
-                  boxBorder ? 'bg-cad-accent/15 text-cad-accent' : 'text-gray-400 hover:bg-cad-hover'
+                  boxBorder ? 'bg-cad-hover text-cad-strong' : 'text-gray-400 hover:bg-cad-hover'
                 }`}
               >
                 <span
@@ -407,7 +359,7 @@ export const StyleSection: React.FC = () => {
                 : 'Autosize Text (callouts and text boxes)'
             }
             className={`w-6 h-6 rounded-md grid place-items-center disabled:opacity-35 ${
-              autosizeOn ? 'bg-cad-accent/15 text-cad-accent' : 'text-gray-300 hover:bg-cad-hover'
+              autosizeOn ? 'bg-cad-hover text-cad-strong' : 'text-gray-300 hover:bg-cad-hover'
             }`}
           >
             <AutosizeTextIcon />
@@ -427,7 +379,7 @@ export const StyleSection: React.FC = () => {
               onClick={() => toggleFormat(key)}
               title={editingSelection ? title : `${title} (select a markup first)`}
               className={`w-6 h-6 rounded-md text-sm ${cls} disabled:opacity-35 ${
-                font[key] ? 'bg-cad-accent/15 text-cad-accent' : 'text-gray-300 hover:bg-cad-hover'
+                font[key] ? 'bg-cad-hover text-cad-strong' : 'text-gray-300 hover:bg-cad-hover'
               }`}
             >
               {glyph}

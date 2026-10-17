@@ -225,7 +225,8 @@ describe('Nube de forma libre (ADR-0039)', () => {
     expect(screen.getAllByTestId('selection-bbox')).toHaveLength(3);
     const handles = screen.getByTestId('control-points-layer').querySelectorAll('circle');
     expect(handles).toHaveLength(3);
-    expect(handles[0].getAttribute('fill')).toBe('#4c9a3f');
+    // Verde del conteo como token del tema (ADR-0065)
+    expect(handles[0].getAttribute('fill')).toBe('rgb(var(--ov-count))');
   });
 
   it('Cloud+ como en Revu: la directriz sale de la nube sin flecha (ADR-0057)', async () => {
@@ -309,7 +310,8 @@ describe('Barra de propiedades contextual con fuentes (ADR-0040)', () => {
   it('con selección edita la marca (no el estilo por defecto), incluido el tipo de letra', () => {
     useMarkupStore.setState({ markups: [callout], selectedMarkupIds: ['co'] });
     render(<RibbonWithStyle />);
-    expect(screen.getByTestId('ribbon-group-style')).toHaveTextContent('Properties · 1 selected');
+    // Edita la selección (ADR-0065: sin chip; lo dice la cabecera del panel)
+    expect(screen.getByTestId('properties-style')).toHaveAttribute('data-target', 'selection');
     fireEvent.change(screen.getByTestId('ribbon-font-family'), { target: { value: 'Times' } });
     fireEvent.change(screen.getByTestId('ribbon-font-size'), { target: { value: '14' } });
     fireEvent.click(screen.getByTestId('ribbon-font-bold'));
@@ -323,7 +325,8 @@ describe('Barra de propiedades contextual con fuentes (ADR-0040)', () => {
   it('sin selección define el estilo de las marcas nuevas; negrita y cursiva piden una selección', () => {
     useMarkupStore.setState({ markups: [callout], selectedMarkupIds: [] });
     render(<RibbonWithStyle />);
-    expect(screen.getByTestId('ribbon-group-style')).toHaveTextContent('Style (new markups)');
+    // Define el estilo de las marcas nuevas (ADR-0065: sin chip; lo dice la cabecera del panel)
+    expect(screen.getByTestId('properties-style')).toHaveAttribute('data-target', 'new');
     fireEvent.change(screen.getByTestId('ribbon-font-family'), { target: { value: 'Courier' } });
     expect(useToolStore.getState().currentStyle.fontFamily).toBe('Courier');
     expect(screen.getByTestId('ribbon-font-bold')).toBeDisabled();
@@ -334,7 +337,8 @@ describe('Barra de propiedades contextual con fuentes (ADR-0040)', () => {
     useMarkupStore.setState({ markups: [callout], selectedMarkupIds: ['co'] });
     useToolStore.setState({ activeTool: 'line' });
     render(<RibbonWithStyle />);
-    expect(screen.getByTestId('ribbon-group-style')).toHaveTextContent('Style (new markups)');
+    // Define el estilo de las marcas nuevas (ADR-0065: sin chip; lo dice la cabecera del panel)
+    expect(screen.getByTestId('properties-style')).toHaveAttribute('data-target', 'new');
     fireEvent.change(screen.getByTestId('ribbon-font-family'), { target: { value: 'Times' } });
     expect(useToolStore.getState().currentStyle.fontFamily).toBe('Times');
     expect(useMarkupStore.getState().markups[0].style.fontFamily).toBeUndefined();

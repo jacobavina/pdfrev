@@ -47,7 +47,7 @@ describe('PropertiesInspectorPanel (P2-C.6 / ADR-0012)', () => {
     render(<PropertiesInspectorPanel />);
 
     expect(screen.getByTestId('selection-count-badge')).toHaveTextContent('1 markup');
-    expect(screen.getByTestId('prop-stroke-color')).toHaveValue('#ff0000');
+    expect(screen.getByTestId('ribbon-stroke-color')).toHaveAttribute('data-value', '#ff0000');
     // El estilo lo muestra la sección de estilo del panel (ADR-0064)
     expect(screen.getByTestId('ribbon-stroke-width')).toHaveAttribute('data-value', '3');
     expect(screen.getByTestId('prop-status')).toHaveValue('pending');

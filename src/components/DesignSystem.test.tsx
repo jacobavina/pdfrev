@@ -37,8 +37,9 @@ describe('Sistema visual de herramienta de diseño (ADR-0036)', () => {
     // control quedan para los datos de revisión
     expect(panel).toContainElement(screen.getByTestId('properties-style'));
     expect(panel.querySelectorAll('.ui-row').length).toBeGreaterThanOrEqual(3);
-    expect(screen.getByTestId('prop-stroke-color')).toHaveValue('#0284c7');
-    expect(screen.getByTestId('prop-fill-color')).toHaveValue('#0284c7');
+    // Un swatch por color con su valor en hex (ADR-0065)
+    expect(screen.getByTestId('ribbon-stroke-color')).toHaveAttribute('data-value', '#0284c7');
+    expect(screen.getByTestId('ribbon-fill-color')).toHaveAttribute('data-value', '#0284c7');
     expect(panel).not.toHaveTextContent('rgba(');
     // Campos con el estilo común
     expect(screen.getByTestId('prop-author')).toHaveClass('ui-input');

@@ -85,7 +85,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
       {/* 1. Cabecera del Panel */}
       <div className="panel-header">
         <div className="flex items-center space-x-1.5">
-          <Briefcase size={14} className="text-gray-400" />
+          <Briefcase size={16} className="text-gray-400" />
           <span className="ui-panel-title">Tool Chest</span>
           {/* Indicador de persistencia IndexedDB */}
           <span
@@ -106,7 +106,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
           title="Collapse Tool Chest"
           data-testid="collapse-tool-chest-btn"
         >
-          <ChevronRight size={14} />
+          <ChevronRight size={16} />
         </button>
       </div>
 
@@ -116,7 +116,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
           data-testid="tool-chest-persistence-warning"
           className="px-3 py-1.5 bg-amber-500/10 border-b border-cad-border text-2xs text-amber-600 dark:text-amber-300 flex items-center space-x-1.5"
         >
-          <AlertCircle size={13} className="shrink-0 text-amber-400" />
+          <AlertCircle size={16} className="shrink-0 text-amber-400" />
           <span className="truncate">In-memory (data not saved to disk)</span>
         </div>
       )}
@@ -129,11 +129,11 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
           </label>
           <button
             onClick={() => setIsCreatingPalette(true)}
-            className="p-0.5 text-gray-400 hover:text-cad-accent hover:bg-cad-hover rounded"
+            className="p-0.5 text-gray-400 hover:text-cad-strong hover:bg-cad-hover rounded"
             title="Create new palette"
             data-testid="create-palette-btn"
           >
-            <Plus size={13} />
+            <Plus size={16} />
           </button>
         </div>
 
@@ -154,7 +154,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
               title="Save palette"
               data-testid="save-palette-btn"
             >
-              <Check size={13} />
+              <Check size={16} />
             </button>
             <button
               type="button"
@@ -165,7 +165,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
               className="p-1 text-gray-400 hover:bg-cad-hover rounded"
               title="Cancel"
             >
-              <X size={13} />
+              <X size={16} />
             </button>
           </form>
         ) : (
@@ -190,7 +190,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
                 title="Delete this palette"
                 data-testid="delete-palette-btn"
               >
-                <Trash2 size={13} />
+                <Trash2 size={16} />
               </button>
             )}
           </div>
@@ -221,7 +221,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
                 data-testid={`tool-item-${tool.id}`}
                 data-tool-type={tool.type}
                 data-tool-mode={tool.mode}
-                className="group flex items-center justify-between p-1.5 rounded-md bg-cad-field hover:bg-cad-hover border border-transparent hover:border-cad-accent/40 cursor-pointer transition-all shadow-sm"
+                className="group flex items-center justify-between p-1.5 rounded-md bg-cad-field hover:bg-cad-hover border border-transparent hover:border-cad-accent/40 cursor-pointer transition-all"
                 title={`Haz clic para ${
                   tool.mode === 'properties' ? 'aplicar propiedades' : 'activar modo dibujo'
                 }. Arrastra al lienzo para estampar.`}
@@ -254,7 +254,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
                     className={`px-1.5 py-0.5 text-2xs font-bold rounded transition-colors uppercase ${
                       tool.mode === 'properties'
                         ? 'bg-amber-500 text-gray-950 hover:bg-amber-400'
-                        : 'bg-cad-accent-fill text-white hover:brightness-110'
+                        : 'bg-cad-strong text-cad-panel hover:opacity-90'
                     }`}
                     title={
                       tool.mode === 'properties'
@@ -276,7 +276,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
                     title="Delete tool"
                     data-testid={`tool-delete-${tool.id}`}
                   >
-                    <Trash2 size={12} />
+                    <Trash2 size={16} />
                   </button>
                 </div>
               </div>
@@ -288,7 +288,7 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
         <div data-testid="recent-tools-section" className="mt-5 pt-3 border-t border-cad-border">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center space-x-1.5 ui-section-title">
-              <Clock size={12} className="text-gray-400" />
+              <Clock size={16} className="text-gray-400" />
               <span>Recent ({recentTools.length})</span>
             </div>
 

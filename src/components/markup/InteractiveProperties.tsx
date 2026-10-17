@@ -27,7 +27,7 @@ const CommitInput: React.FC<{
   return multiline ? (
     <textarea
       data-testid={testId}
-      className={`${inputCls} h-20 font-mono`}
+      className={`${inputCls} h-20`}
       value={draft}
       placeholder={placeholder}
       onChange={(e) => setDraft(e.target.value)}
@@ -229,7 +229,7 @@ export const InteractiveProperties: React.FC<{ markup: Markup }> = ({ markup }) 
                   type="button"
                   data-testid="prop-sig-sign-btn"
                   onClick={() => setShowSignModal(true)}
-                  className="self-start px-2.5 py-1 rounded bg-cad-accent-fill text-white font-medium hover:brightness-110"
+                  className="self-start px-2.5 py-1 rounded bg-cad-strong text-cad-panel font-medium hover:opacity-90"
                 >
                   Sign Document…
                 </button>

@@ -102,7 +102,7 @@ export const StampPicker: React.FC<{ value: string; onChange: (id: string) => vo
         <span className="flex items-center justify-center rounded-sm bg-white px-0.5 py-px">
           <StampThumb id={value} height={20} />
         </span>
-        <ChevronDown size={12} className="text-gray-500" />
+        <ChevronDown size={16} className="text-gray-500" />
       </button>
       {open &&
         pos &&
@@ -113,7 +113,7 @@ export const StampPicker: React.FC<{ value: string; onChange: (id: string) => vo
             aria-label="Stamps"
             data-testid={`${testId}-list`}
             style={{ position: 'fixed', left: pos.left, top: pos.top, zIndex: 1000 }}
-            className="w-[650px] max-h-[72vh] overflow-y-auto thin-scroll bg-cad-panel border border-cad-border rounded-lg shadow-[0_12px_36px_rgba(0,0,0,0.3)]"
+            className="w-[650px] max-h-[72vh] overflow-y-auto thin-scroll bg-cad-panel border border-cad-border rounded-lg shadow-float"
           >
             {STAMP_GROUPS.map((group) => (
               <section key={group} data-testid={`${testId}-group-${group.replace(/\s+/g, '-').toLowerCase()}`}>
@@ -133,7 +133,7 @@ export const StampPicker: React.FC<{ value: string; onChange: (id: string) => vo
                         setOpen(false);
                       }}
                       className={`h-[44px] px-2 rounded-md flex items-center justify-center bg-white transition-shadow ${
-                        s.id === value ? 'ring-2 ring-cad-accent' : 'ring-1 ring-black/10 hover:ring-cad-accent/60'
+                        s.id === value ? 'ring-2 ring-cad-accent' : 'ring-1 ring-black/10 hover:ring-gray-500/60'
                       }`}
                     >
                       <StampThumb id={s.id} height={s.kind === 'seal' ? 38 : 30} />

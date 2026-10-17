@@ -52,11 +52,11 @@ export const StatusBar: React.FC = () => {
         onClick={toggleMarkupsList}
         aria-pressed={markupsListOpen}
         className={`h-[22px] w-[26px] mr-1.5 -ml-1 grid place-items-center rounded ${
-          markupsListOpen ? 'bg-cad-accent/20 text-cad-accent' : 'hover:bg-cad-hover hover:text-cad-strong'
+          markupsListOpen ? 'bg-cad-hover text-cad-strong' : 'hover:bg-cad-hover hover:text-cad-strong'
         }`}
         title="Markups List (Alt+L)"
       >
-        <List size={15} />
+        <List size={16} />
       </button>
       {/* Navegación de páginas */}
       <button
@@ -66,9 +66,9 @@ export const StatusBar: React.FC = () => {
         className="p-0.5 rounded hover:bg-cad-hover hover:text-cad-strong disabled:opacity-30"
         title="Previous page"
       >
-        <ChevronLeft size={15} />
+        <ChevronLeft size={16} />
       </button>
-      <span data-testid="page-indicator" className="tabular-nums px-1 whitespace-nowrap">
+      <span data-testid="page-indicator" className="ui-data px-1 whitespace-nowrap">
         {numPages > 0 ? `${currentPageIndex + 1} / ${numPages}` : '— / —'}
       </span>
       <button
@@ -78,28 +78,28 @@ export const StatusBar: React.FC = () => {
         className="p-0.5 rounded hover:bg-cad-hover hover:text-cad-strong disabled:opacity-30"
         title="Next page"
       >
-        <ChevronRight size={15} />
+        <ChevronRight size={16} />
       </button>
 
       <Divider />
 
       {/* Zoom y rotación */}
       <button type="button" onClick={zoomOut} className="p-0.5 rounded hover:bg-cad-hover" title="Zoom out (-)">
-        <ZoomOut size={14} />
+        <ZoomOut size={16} />
       </button>
       <button
         type="button"
         onClick={resetZoom}
-        className="tabular-nums px-1.5 rounded hover:bg-cad-hover min-w-[3.25rem]"
+        className="ui-data px-1.5 rounded hover:bg-cad-hover min-w-[3.25rem]"
         title="Reset zoom to 100%"
       >
         {Math.round(scale * 100)}%
       </button>
       <button type="button" onClick={zoomIn} className="p-0.5 rounded hover:bg-cad-hover" title="Zoom in (+)">
-        <ZoomIn size={14} />
+        <ZoomIn size={16} />
       </button>
       <button type="button" onClick={rotateClockwise} className="p-0.5 rounded hover:bg-cad-hover ml-0.5" title="Rotate 90°">
-        <RotateCw size={13} />
+        <RotateCw size={16} />
       </button>
 
       <Divider />
@@ -159,19 +159,22 @@ export const StatusBar: React.FC = () => {
           title="Open the Measure panel to calibrate or adjust this page's scale"
         >
           <span className={`w-2 h-2 rounded-full ${isCalibrated ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-          <span className="tabular-nums">
-            {isCalibrated
-              ? `Scale: ${describeCalibration(calib)}`
-              : `Scale not set (paper scale, ${calib.unit})`}
-          </span>
+          {/* Solo el valor de la escala es dato (Plex Mono, ADR-0065); el resto es texto */}
+          {isCalibrated ? (
+            <span>
+              Scale: <span className="ui-data">{describeCalibration(calib)}</span>
+            </span>
+          ) : (
+            <span>Scale not set (paper scale, {calib.unit})</span>
+          )}
         </button>
       )}
 
       <Divider />
 
       {/* Coordenadas del cursor en unidades reales */}
-      <span data-testid="cursor-coordinates" className="flex items-center gap-1 tabular-nums whitespace-nowrap min-w-[11rem]">
-        <Crosshair size={12} className="text-gray-500" />
+      <span data-testid="cursor-coordinates" className="flex items-center gap-1 ui-data whitespace-nowrap min-w-[11rem]">
+        <Crosshair size={16} className="text-gray-500" />
         {cursorPt ? `X ${fmt(cursorPt.x)}  Y ${fmt(cursorPt.y)} ${calib.unit}` : '—'}
       </span>
 
@@ -181,7 +184,7 @@ export const StatusBar: React.FC = () => {
         <>
           <span
             data-testid="sheet-size"
-            className="tabular-nums whitespace-nowrap"
+            className="ui-data whitespace-nowrap"
             title={`${(sheetCm.w / 2.54).toFixed(2)} × ${(sheetCm.h / 2.54).toFixed(2)} in`}
           >
             {sheetCm.w.toFixed(2)} × {sheetCm.h.toFixed(2)} cm
@@ -213,7 +216,7 @@ export const StatusBar: React.FC = () => {
         className="p-0.5 rounded hover:bg-cad-hover hover:text-cad-strong"
         title="Find text in drawing (Ctrl+F)"
       >
-        <Search size={13} />
+        <Search size={16} />
       </button>
     </footer>
   );

@@ -90,24 +90,24 @@ const GROUP_STORAGE_KEY = 'rea-markups-group';
 /** Ancho y alineación de cada columna de Revu (ADR-0060). */
 const COLUMN_CLASS: Partial<Record<MarkupColumnId, string>> = {
   subject: 'w-36',
-  pageLabel: 'w-20 text-center tabular-nums',
-  pageIndex: 'w-20 text-center tabular-nums',
+  pageLabel: 'w-20 text-center ui-data',
+  pageIndex: 'w-20 text-center ui-data',
   comments: 'min-w-[160px]',
   lock: 'w-12 text-center',
   author: 'w-32',
   date: 'w-32',
   creationDate: 'w-32',
-  length: 'w-24 text-right tabular-nums',
-  area: 'w-24 text-right tabular-nums',
-  volume: 'w-24 text-right tabular-nums',
-  count: 'w-16 text-right tabular-nums',
-  measurement: 'w-24 text-right tabular-nums',
+  length: 'w-24 text-right ui-data',
+  area: 'w-24 text-right ui-data',
+  volume: 'w-24 text-right ui-data',
+  count: 'w-16 text-right ui-data',
+  measurement: 'w-24 text-right ui-data',
   label: 'w-24',
-  depth: 'w-20 text-right tabular-nums',
+  depth: 'w-20 text-right ui-data',
   status: 'w-28 text-center',
   color: 'w-14 text-center',
   layer: 'w-24',
-  unit: 'w-14 text-center tabular-nums text-2xs',
+  unit: 'w-14 text-center ui-data text-2xs',
 };
 const MIN_LIST_HEIGHT = 120;
 
@@ -153,66 +153,66 @@ function getMarkupIcon(type: MarkupType) {
   const I = (node: React.ReactNode, cls: string) => <span className={`inline-flex ${cls}`}>{node}</span>;
   switch (type) {
     case 'rectangle':
-      return I(<RectangleToolIcon size={14} />, 'text-orange-400');
+      return I(<RectangleToolIcon size={16} />, 'text-gray-400');
     case 'line':
-      return I(<LineToolIcon size={14} />, 'text-blue-400');
+      return I(<LineToolIcon size={16} />, 'text-gray-400');
     case 'polyLine':
-      return I(<PolylineToolIcon size={14} />, 'text-cyan-400');
+      return I(<PolylineToolIcon size={16} />, 'text-gray-400');
     case 'polygon':
-      return I(<PolygonToolIcon size={14} />, 'text-cyan-400');
+      return I(<PolygonToolIcon size={16} />, 'text-gray-400');
     case 'cloud':
-      return I(<CloudIcon size={14} />, 'text-emerald-400');
+      return I(<CloudIcon size={16} />, 'text-gray-400');
     case 'cloudPlus':
-      return I(<CloudPlusIcon size={14} />, 'text-emerald-400');
+      return I(<CloudPlusIcon size={16} />, 'text-gray-400');
     case 'text':
-      return I(<TextBoxIcon size={14} />, 'text-purple-400');
+      return I(<TextBoxIcon size={16} />, 'text-gray-400');
     case 'callout':
-      return I(<CalloutIcon size={14} />, 'text-purple-400');
+      return I(<CalloutIcon size={16} />, 'text-gray-400');
     case 'circle':
-      return I(<EllipseToolIcon size={14} />, 'text-yellow-400');
+      return I(<EllipseToolIcon size={16} />, 'text-gray-400');
     case 'stickyNote':
-      return I(<NoteIcon size={14} />, 'text-amber-400');
+      return I(<NoteIcon size={16} />, 'text-gray-400');
     case 'highlightVector':
     case 'highlight':
-      return I(<HighlighterIcon size={14} />, 'text-yellow-400');
+      return I(<HighlighterIcon size={16} />, 'text-gray-400');
     case 'highlightText':
-      return I(<TextHighlightIcon size={14} />, 'text-yellow-400');
+      return I(<TextHighlightIcon size={16} />, 'text-gray-400');
     case 'underline':
-      return I(<UnderlineIcon size={14} />, 'text-pink-400');
+      return I(<UnderlineIcon size={16} />, 'text-gray-400');
     case 'strikeOut':
-      return I(<StrikeoutIcon size={14} />, 'text-rose-400');
+      return I(<StrikeoutIcon size={16} />, 'text-gray-400');
     case 'freehand':
-      return I(<PenIcon size={14} />, 'text-blue-400');
+      return I(<PenIcon size={16} />, 'text-gray-400');
     case 'stamp':
-      return I(<Stamp size={14} />, 'text-emerald-500');
+      return I(<Stamp size={16} />, 'text-gray-400');
     case 'link':
-      return I(<Link2 size={14} />, 'text-blue-500');
+      return I(<Link2 size={16} />, 'text-gray-400');
     case 'fileAttachment':
-      return I(<Paperclip size={14} />, 'text-amber-600');
+      return I(<Paperclip size={16} />, 'text-gray-400');
     case 'formField':
-      return I(<FormInput size={14} />, 'text-slate-400');
+      return I(<FormInput size={16} />, 'text-gray-400');
     case 'dimension':
-      return I(<DimensionIcon size={14} />, 'text-sky-400');
+      return I(<DimensionIcon size={16} />, 'text-gray-400');
     case 'length':
-      return I(<LengthMeasureIcon size={14} />, 'text-violet-400');
+      return I(<LengthMeasureIcon size={16} />, 'text-gray-400');
     case 'polylineMeasure':
-      return I(<PolylengthIcon size={14} />, 'text-violet-400');
+      return I(<PolylengthIcon size={16} />, 'text-gray-400');
     case 'area':
-      return I(<AreaMeasureIcon size={14} />, 'text-violet-400');
+      return I(<AreaMeasureIcon size={16} />, 'text-gray-400');
     case 'count':
-      return I(<CountMeasureIcon size={14} />, 'text-violet-400');
+      return I(<CountMeasureIcon size={16} />, 'text-gray-400');
     case 'perimeter':
-      return I(<PerimeterMeasureIcon size={14} />, 'text-violet-400');
+      return I(<PerimeterMeasureIcon size={16} />, 'text-gray-400');
     case 'volume':
-      return I(<VolumeMeasureIcon size={14} />, 'text-violet-400');
+      return I(<VolumeMeasureIcon size={16} />, 'text-gray-400');
     case 'angle':
-      return I(<AngleMeasureIcon size={14} />, 'text-violet-400');
+      return I(<AngleMeasureIcon size={16} />, 'text-gray-400');
     case 'radius':
-      return I(<RadiusMeasureIcon size={14} />, 'text-violet-400');
+      return I(<RadiusMeasureIcon size={16} />, 'text-gray-400');
     case 'diameter':
-      return I(<DiameterMeasureIcon size={14} />, 'text-violet-400');
+      return I(<DiameterMeasureIcon size={16} />, 'text-gray-400');
     default:
-      return <HelpCircle size={14} className="text-gray-400" />;
+      return <HelpCircle size={16} className="text-gray-400" />;
   }
 }
 
@@ -639,7 +639,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
             <span>{markupTypeLabel(markup.type)}</span>
             {markup.locked && (
               <span title="Locked markup" data-testid={`markup-locked-badge-${markup.id}`}>
-                <Lock size={12} className="text-amber-400 shrink-0 ml-1" />
+                <Lock size={16} className="text-amber-400 shrink-0 ml-1" />
               </span>
             )}
           </td>
@@ -665,7 +665,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
       case 'date':
       case 'creationDate':
         return (
-          <td key={id} className="py-1.5 px-2 text-gray-400 tabular-nums text-2xs whitespace-nowrap">
+          <td key={id} className="py-1.5 px-2 text-gray-400 ui-data text-2xs whitespace-nowrap">
             {formatDate(id === 'date' ? markup.updatedAt || markup.createdAt : markup.createdAt)}
           </td>
         );
@@ -739,7 +739,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
         >
           <td colSpan={span} className="py-1 px-2 text-xs font-semibold text-gray-200">
             <span className="inline-flex items-center gap-1">
-              {collapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+              {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
               {g.subject} ({g.items.length})
             </span>
           </td>
@@ -763,7 +763,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
           data-testid="markups-list-resizer"
           onMouseDown={startListResize}
           title="Drag to resize the list"
-          className="absolute -top-1 left-0 right-0 h-2 cursor-row-resize z-20 hover:bg-cad-accent/30"
+          className="absolute -top-1 left-0 right-0 h-2 cursor-row-resize z-20 hover:bg-gray-500/30"
         />
       {/* Barra de cabecera del panel de marcas */}
       <div
@@ -786,7 +786,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
               title="Markups List options"
             >
               <span className="ui-panel-title">Markups List ({displayedMarkups.length})</span>
-              <ChevronDown size={13} />
+              <ChevronDown size={16} />
             </button>
             {listMenu &&
               listMenuPos &&
@@ -797,7 +797,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
                 data-testid="markups-list-menu-popup"
                 onClick={(e) => e.stopPropagation()}
                 style={{ position: 'fixed', left: listMenuPos.left, bottom: listMenuPos.bottom, zIndex: 1000 }}
-                className="w-52 py-1 rounded-md border border-cad-border bg-cad-panel shadow-xl text-xs text-gray-200"
+                className="w-52 py-1 rounded-md border border-cad-border bg-cad-panel shadow-float text-xs text-gray-200"
               >
                 <button
                   type="button"
@@ -810,7 +810,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
                   className={`w-full h-7 px-2.5 flex items-center justify-between hover:bg-cad-hover ${listMenu === 'columns' ? 'bg-cad-hover' : ''}`}
                 >
                   <span>Columns</span>
-                  <ChevronRight size={13} />
+                  <ChevronRight size={16} />
                 </button>
                 <button
                   type="button"
@@ -821,7 +821,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
                   onClick={toggleGrouping}
                   className="w-full h-7 px-2.5 flex items-center gap-2 hover:bg-cad-hover"
                 >
-                  <span className="w-3.5">{groupOn && <Check size={13} />}</span>
+                  <span className="w-3.5">{groupOn && <Check size={16} />}</span>
                   <span>Group by Subject</span>
                 </button>
                 <div className="my-1 border-t border-cad-border" />
@@ -843,7 +843,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
                   <div
                     role="menu"
                     data-testid="markups-columns-menu"
-                    className="absolute left-full bottom-0 ml-0.5 w-48 max-h-[50vh] overflow-y-auto thin-scroll py-1 rounded-md border border-cad-border bg-cad-panel shadow-xl"
+                    className="absolute left-full bottom-0 ml-0.5 w-48 max-h-[50vh] overflow-y-auto thin-scroll py-1 rounded-md border border-cad-border bg-cad-panel shadow-float"
                   >
                     {MARKUP_COLUMNS.map((c) => {
                       const on = visibleColumns.includes(c.id);
@@ -857,7 +857,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
                           onClick={() => saveColumns(toggleColumn(visibleColumns, c.id))}
                           className="w-full h-6 px-2.5 flex items-center gap-2 hover:bg-cad-hover"
                         >
-                          <span className="w-3.5">{on && <Check size={13} />}</span>
+                          <span className="w-3.5">{on && <Check size={16} />}</span>
                           <span>{c.label}</span>
                         </button>
                       );
@@ -992,7 +992,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
               className="ui-btn !h-7 !px-2"
               title="Export visible markups to CSV (RFC 4180)"
             >
-              <FileSpreadsheet size={13} className="text-gray-400" />
+              <FileSpreadsheet size={16} className="text-gray-400" />
               <span>CSV</span>
             </button>
 
@@ -1002,7 +1002,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
               className="ui-btn !h-7 !px-2"
               title="Generate PDF summary report"
             >
-              <FileText size={13} className="text-gray-400" />
+              <FileText size={16} className="text-gray-400" />
               <span>PDF Report</span>
             </button>
 
@@ -1018,7 +1018,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
               className="ui-btn !h-7 !px-2"
               title="Add custom column"
             >
-              <Plus size={13} className="text-gray-400" />
+              <Plus size={16} className="text-gray-400" />
               <span>Column</span>
             </button>
 
@@ -1028,7 +1028,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
                 className="ui-btn ui-btn-danger !h-7 !px-2"
                 title="Delete selected markups (Del)"
               >
-                <Trash2 size={12} />
+                <Trash2 size={16} />
                 <span>Delete ({selectedMarkupIds.length})</span>
               </button>
             )}
@@ -1040,7 +1040,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
               className="ui-btn !h-7 !w-7 !p-0"
               title="Hide Markups List (Alt+L)"
             >
-              <ChevronDown size={14} />
+              <ChevronDown size={16} />
             </button>
           </div>
       </div>
@@ -1096,7 +1096,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
                           className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-rose-400 text-gray-500 transition-opacity"
                           title={`Delete column ${col.nombre}`}
                         >
-                          <Trash2 size={11} />
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </th>
@@ -1161,14 +1161,14 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
                             content = <span className="text-gray-500 italic">—</span>;
                           } else if (evalRes.ok) {
                             content = (
-                              <span className="font-mono text-emerald-400 font-medium">
+                              <span className="ui-data text-emerald-400 font-medium">
                                 {evalRes.value}
                               </span>
                             );
                           } else {
                             content = (
                               <span
-                                className="text-rose-400 font-mono text-2xs bg-rose-950/60 px-1 py-0.5 rounded border border-rose-800"
+                                className="text-rose-400 ui-data text-2xs bg-rose-950/60 px-1 py-0.5 rounded border border-rose-800"
                                 title={evalRes.message}
                                 data-testid={`cell-error-${evalRes.error}`}
                               >
@@ -1236,7 +1236,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
                                   updateMarkupCustomField(markup.id, col.id, num);
                                 }}
                                 placeholder="—"
-                                className="w-full bg-transparent hover:bg-cad-dark/50 focus:bg-cad-dark px-1.5 py-0.5 rounded border border-transparent focus:border-cad-border text-xs text-right text-gray-200 outline-none font-mono"
+                                className="w-full bg-transparent hover:bg-cad-dark/50 focus:bg-cad-dark px-1.5 py-0.5 rounded border border-transparent focus:border-cad-border text-xs text-right text-gray-200 outline-none ui-data"
                               />
                             </td>
                           );
@@ -1278,14 +1278,14 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
                           title="Add to Tool Chest"
                           data-testid={`add-to-toolchest-btn-${markup.id}`}
                         >
-                          <Briefcase size={13} />
+                          <Briefcase size={16} />
                         </button>
                         <button
                           onClick={() => deleteMarkup(markup.id)}
                           className="p-1 text-gray-400 hover:text-rose-400 rounded transition-colors"
                           title="Delete markup"
                         >
-                          <Trash2 size={13} />
+                          <Trash2 size={16} />
                         </button>
                       </td>
                     </tr>
@@ -1296,25 +1296,25 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
                 <tfoot className="bg-cad-subtle border-t border-cad-border text-gray-300 font-medium">
                   <tr data-testid="markups-totals-summary">
                     <td colSpan={visibleColumns.length + 1} className="py-1.5 px-3 text-xs">
-                      <span className="font-semibold text-cad-accent mr-2">Measurement totals:</span>
+                      <span className="font-semibold text-gray-400 mr-2">Measurement totals:</span>
                       {measurementTotals.lengthSummary && (
                         <span className="mr-3">
-                          Length: <strong className="text-cad-strong font-mono">{measurementTotals.lengthSummary}</strong>
+                          Length: <strong className="text-cad-strong ui-data">{measurementTotals.lengthSummary}</strong>
                         </span>
                       )}
                       {measurementTotals.areaSummary && (
                         <span className="mr-3">
-                          Area: <strong className="text-cad-strong font-mono">{measurementTotals.areaSummary}</strong>
+                          Area: <strong className="text-cad-strong ui-data">{measurementTotals.areaSummary}</strong>
                         </span>
                       )}
                       {measurementTotals.volumeSummary && (
                         <span className="mr-3">
-                          Volume: <strong className="text-cad-strong font-mono">{measurementTotals.volumeSummary}</strong>
+                          Volume: <strong className="text-cad-strong ui-data">{measurementTotals.volumeSummary}</strong>
                         </span>
                       )}
                       {measurementTotals.totalCount > 0 && (
                         <span>
-                          Count: <strong className="text-cad-strong font-mono">{measurementTotals.totalCount}</strong>
+                          Count: <strong className="text-cad-strong ui-data">{measurementTotals.totalCount}</strong>
                         </span>
                       )}
                     </td>
@@ -1334,7 +1334,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
           onClick={() => setIsAddColumnModalOpen(false)}
         >
           <div
-            className="bg-cad-panel border border-cad-border rounded-xl shadow-[0_24px_64px_rgba(0,0,0,0.38)] w-full max-w-md p-5 text-xs text-gray-200"
+            className="bg-cad-panel border border-cad-border rounded-xl shadow-float w-full max-w-md p-5 text-xs text-gray-200"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-base font-semibold text-cad-strong mb-3">
@@ -1406,14 +1406,14 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
                     value={newColExpr}
                     onChange={(e) => setNewColExpr(e.target.value)}
                     placeholder="ej. strokeWidth * 2.5 + {otra_columna}"
-                    className="w-full ui-input font-mono"
+                    className="w-full ui-input ui-data"
                   />
                   {!formulaValidation.ok && newColExpr.trim().length > 0 && (
                     <p
                       data-testid="formula-syntax-error"
                       className="text-rose-400 text-2xs mt-1 flex items-center space-x-1"
                     >
-                      <AlertTriangle size={12} className="inline mr-1" />
+                      <AlertTriangle size={16} className="inline mr-1" />
                       <span>{formulaValidation.message}</span>
                     </p>
                   )}
@@ -1459,7 +1459,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
           onClick={() => setColumnToDelete(null)}
         >
           <div
-            className="bg-cad-panel border border-cad-border rounded-xl shadow-[0_24px_64px_rgba(0,0,0,0.38)] w-full max-w-sm p-5 text-xs text-gray-200"
+            className="bg-cad-panel border border-cad-border rounded-xl shadow-float w-full max-w-sm p-5 text-xs text-gray-200"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-base font-semibold text-rose-300 mb-2 flex items-center space-x-1.5">
@@ -1498,7 +1498,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
       {contextMenu && (
         <div
           data-testid="markups-list-context-menu"
-          className="fixed z-50 bg-cad-panel border border-cad-border shadow-[0_10px_32px_rgba(0,0,0,0.28)] rounded-lg p-1 text-xs text-gray-200 min-w-[170px]"
+          className="fixed z-50 bg-cad-panel border border-cad-border shadow-float rounded-lg p-1 text-xs text-gray-200 min-w-[170px]"
           style={{ top: contextMenu.y, left: contextMenu.x }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -1514,7 +1514,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
             }}
             className="w-full text-left px-3 py-1.5 hover:bg-cad-hover flex items-center space-x-2 text-gray-200 hover:text-cad-strong transition-colors cursor-pointer"
           >
-            <Briefcase size={13} className="text-blue-400" />
+            <Briefcase size={16} className="text-blue-400" />
             <span>Add to Tool Chest</span>
           </button>
 
@@ -1528,12 +1528,12 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
           >
             {contextMenu.markup.locked ? (
               <>
-                <LockOpen size={13} className="text-amber-400" />
+                <LockOpen size={16} className="text-amber-400" />
                 <span>Unlock markup</span>
               </>
             ) : (
               <>
-                <Lock size={13} className="text-gray-400" />
+                <Lock size={16} className="text-gray-400" />
                 <span>Lock markup</span>
               </>
             )}
@@ -1572,7 +1572,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
                   <span className={`w-2 h-2 rounded-full ${item.color}`} />
                   <span>{item.label}</span>
                 </div>
-                {isCurrent && <Check size={12} className="text-cad-accent" />}
+                {isCurrent && <Check size={16} className="text-cad-accent" />}
               </button>
             );
           })}

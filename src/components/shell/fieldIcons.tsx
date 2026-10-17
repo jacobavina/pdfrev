@@ -11,7 +11,7 @@ import {
 import { FieldType } from '../../core/markup/formFields';
 
 /** Ícono de cada tipo de campo de formulario (ADR-0027), como Tools ▸ Form de Revu. */
-export function fieldTypeIcon(type: FieldType, size = 15): React.ReactNode {
+export function fieldTypeIcon(type: FieldType, size = 16): React.ReactNode {
   switch (type) {
     case 'text':
       return <TextCursorInput size={size} />;

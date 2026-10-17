@@ -78,4 +78,61 @@ describe('Escala tipográfica y contraste de la interfaz (ADR-0062)', () => {
       expect(contrast([255, 255, 255], k['cad-accent-fill']), `${theme} blanco sobre acento sólido`).toBeGreaterThanOrEqual(4.5);
     }
   });
+
+  it('ningún componente lleva colores literales (hex, rgb, hsl): solo tokens de src/index.css y tailwind.config.js (ADR-0065)', () => {
+    const LITERAL = /#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\(\s*\d/;
+    // El detector caza lo que debe cazar y deja pasar las referencias a tokens
+    expect(LITERAL.test("className=\"bg-[#0f172a]\"")).toBe(true);
+    expect(LITERAL.test("stroke=\"rgb(30, 41, 59)\"")).toBe(true);
+    expect(LITERAL.test("fill={tok('ov-handle')} stroke=\"rgb(var(--cad-accent) / 0.5)\"")).toBe(false);
+    const offenders: string[] = [];
+    for (const f of sourceFiles(path.join('src', 'components'))) {
+      read(f)
+        .split('\n')
+        .forEach((line, i) => {
+          if (LITERAL.test(line)) offenders.push(`${f}:${i + 1}: ${line.trim().slice(0, 80)}`);
+        });
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('cabeceras de panel, cinta, secciones de estilo y riel usan la escala de espaciado 4/8/12/16 (ADR-0065)', () => {
+    const css = read('src/index.css');
+    const SCALE = new Set([0, 4, 8, 12, 16]);
+    const selectors = ['.panel-header', '.ribbon-group', '.ribbon-group-label', '.ribbon-tool', '.prop-section', '.style-stack .prop-section', '.rail-btn'];
+    const bad: string[] = [];
+    for (const sel of selectors) {
+      const i = css.indexOf(`  ${sel} {`);
+      expect(i, sel).toBeGreaterThan(-1);
+      const block = css.slice(i, css.indexOf('}', i));
+      for (const m of block.matchAll(/\b(padding|margin|gap|row-gap|column-gap)[\w-]*:\s*([^;]+);/g)) {
+        for (const v of m[2].trim().split(/\s+/)) {
+          const n = v === '0' ? 0 : /^(\d+)px$/.exec(v)?.[1];
+          if (n === undefined || !SCALE.has(Number(n))) bad.push(`${sel} ${m[1]}: ${m[2]}`);
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+    // Cabecera de panel a 32 px fijos
+    expect(css.slice(css.indexOf('  .panel-header {'), css.indexOf('}', css.indexOf('  .panel-header {')))).toMatch(/height: 32px;/);
+  });
+
+  it('iconos en 16, 18 o 20 px y con un único trazo de 1.75 para Lucide y los propios (ADR-0065)', () => {
+    const sizes: string[] = [];
+    for (const f of sourceFiles(path.join('src', 'components'))) {
+      for (const m of read(f).matchAll(/<([A-Z]\w*)\b[^>]*?\bsize=\{(\d+)\}/gs)) {
+        // Las miniaturas de herramientas son dibujos, no iconos
+        if (m[1] === 'ToolVectorThumbnail') continue;
+        if (![16, 18, 20].includes(Number(m[2]))) sizes.push(`${f}: <${m[1]} size={${m[2]}}>`);
+      }
+    }
+    expect(sizes).toEqual([]);
+    const css = read('src/index.css');
+    expect(css).toMatch(/svg\.lucide,\s*svg\.rea-icon \{\s*stroke-width: 1\.75;/);
+    const custom = read(path.join('src', 'components', 'shell', 'customIcons.tsx'));
+    expect(custom).toMatch(/strokeWidth = 1\.75/);
+    expect(custom).toMatch(/className="rea-icon"/);
+    // Ningún trazo propio más grueso o más fino dentro de los iconos
+    expect(custom.match(/strokeWidth=\{[0-9.]+\}/g) ?? []).toEqual([]);
+  });
 });

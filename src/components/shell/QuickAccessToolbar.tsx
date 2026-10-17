@@ -42,7 +42,7 @@ export const QuickAccessToolbar: React.FC = () => {
   return (
     <div data-testid="quick-access-toolbar" className="flex items-center pl-2 ml-1 border-l border-cad-border shrink-0">
       <QuickButton title="Open a PDF file from disk (Ctrl+O)" onClick={openPdfDialog} testId="open-button">
-        <FolderOpen size={15} />
+        <FolderOpen size={16} />
       </QuickButton>
       <QuickButton
         testId="save-button"
@@ -56,7 +56,7 @@ export const QuickAccessToolbar: React.FC = () => {
         onClick={() => saveNow()}
         disabled={!pdfBytes}
       >
-        <Save size={15} />
+        <Save size={16} />
         {isDirty && (
           <span data-testid="save-dirty-dot" className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-400" />
         )}
@@ -67,14 +67,14 @@ export const QuickAccessToolbar: React.FC = () => {
         onClick={() => void saveDocumentAs()}
         disabled={!pdfBytes}
       >
-        <SaveAll size={15} />
+        <SaveAll size={16} />
       </QuickButton>
       <Divider />
       <QuickButton title="Undo (Ctrl+Z)" onClick={undo} disabled={!canUndo} testId="undo-button">
-        <Undo2 size={15} />
+        <Undo2 size={16} />
       </QuickButton>
       <QuickButton title="Redo (Ctrl+Y)" onClick={redo} disabled={!canRedo} testId="redo-button">
-        <Redo2 size={15} />
+        <Redo2 size={16} />
       </QuickButton>
       <Divider />
       <QuickButton
@@ -83,7 +83,7 @@ export const QuickAccessToolbar: React.FC = () => {
         disabled={!pdfBytes}
         testId="export-button"
       >
-        <FileDown size={15} />
+        <FileDown size={16} />
       </QuickButton>
     </div>
   );

@@ -10,6 +10,11 @@ export default {
   darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
     // Escala tipográfica única (11/12/13/14/16 px): ningún texto funcional por debajo de 11 px ni tamaños sueltos
+    // Familias (ADR-0065): Plex Sans para la interfaz, Plex Mono solo para datos
+    fontFamily: {
+      sans: ['var(--font-ui)'],
+      mono: ['var(--font-data)'],
+    },
     fontSize: {
       '2xs': ['var(--fs-2xs)', { lineHeight: '1.35' }],
       xs: ['var(--fs-xs)', { lineHeight: '1.4' }],
@@ -18,6 +23,10 @@ export default {
       lg: ['var(--fs-lg)', { lineHeight: '1.5' }],
     },
     extend: {
+      // Elevación (ADR-0065): solo lo flotante lleva sombra
+      boxShadow: {
+        float: 'var(--shadow-float)',
+      },
       colors: {
         cad: {
           dark: v('cad-dark'),

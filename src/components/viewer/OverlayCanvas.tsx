@@ -3,6 +3,7 @@ import { useOverlayStore } from '../../store/useOverlayStore';
 import { hexToRgb, tintOverlay } from '../../core/compare/overlayTint';
 import { loadPdfDocument } from '../../services/pdfService';
 import { showToast } from '../../services/toastService';
+import { resolvedTok } from './paint';
 
 /**
  * Capa de Overlay Pages (ADR-0038) sobre la página activa: dibuja la página actual y la comparada, teñidas y
@@ -39,7 +40,7 @@ async function renderPagePixels(
   pageCanvas.width = Math.max(1, Math.round(viewport.width));
   pageCanvas.height = Math.max(1, Math.round(viewport.height));
   const pctx = pageCanvas.getContext('2d')!;
-  pctx.fillStyle = '#ffffff';
+  pctx.fillStyle = resolvedTok('ov-halo');
   pctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
   await page.render({ canvasContext: pctx, viewport }).promise;
   // Mismo tamaño que la página activa; la comparada puede ser de otro tamaño o estar desplazada
@@ -47,7 +48,7 @@ async function renderPagePixels(
   out.width = w;
   out.height = h;
   const ctx = out.getContext('2d')!;
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = resolvedTok('ov-halo');
   ctx.fillRect(0, 0, w, h);
   // Alineación por puntos (ADR-0050): parte lineal y desplazamiento en píxeles de la página actual
   ctx.setTransform(matrix[0], matrix[1], matrix[2], matrix[3], dx, dy);

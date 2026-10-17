@@ -47,13 +47,13 @@ export const ShortcutsDialog: React.FC = () => {
         role="dialog"
         aria-label="Keyboard shortcuts"
         data-testid="shortcuts-dialog"
-        className="w-[560px] max-h-[80vh] overflow-y-auto bg-cad-panel border border-cad-border rounded-xl shadow-[0_24px_64px_rgba(0,0,0,0.38)] text-xs text-gray-200"
+        className="w-[560px] max-h-[80vh] overflow-y-auto bg-cad-panel border border-cad-border rounded-xl shadow-float text-xs text-gray-200"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 h-10 border-b border-cad-border">
           <span className="font-semibold text-cad-strong text-base">Keyboard Shortcuts</span>
           <button onClick={() => setShortcutsOpen(false)} title="Close" className="p-1 rounded hover:bg-cad-hover">
-            <X size={15} />
+            <X size={16} />
           </button>
         </div>
         <div className="grid grid-cols-2 gap-6 p-4">
@@ -62,7 +62,7 @@ export const ShortcutsDialog: React.FC = () => {
             {GENERAL.map(([k, d]) => (
               <div key={k} className="flex justify-between gap-3 py-1 border-b border-cad-border/60">
                 <span>{d}</span>
-                <kbd className="font-mono text-gray-400 whitespace-nowrap">{k}</kbd>
+                <kbd className="text-gray-400 whitespace-nowrap">{k}</kbd>
               </div>
             ))}
           </div>
@@ -71,7 +71,7 @@ export const ShortcutsDialog: React.FC = () => {
             {toolShortcuts.map((t) => (
               <div key={t.type} className="flex justify-between gap-3 py-1 border-b border-cad-border/60">
                 <span>{t.short}</span>
-                <kbd className="font-mono text-gray-400">{t.shortcut}</kbd>
+                <kbd className="text-gray-400">{t.shortcut}</kbd>
               </div>
             ))}
           </div>

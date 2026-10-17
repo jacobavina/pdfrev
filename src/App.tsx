@@ -51,12 +51,13 @@ const DocumentTab: React.FC = () => {
   const isDirty = useMarkupStore((s) => s.isDirty);
   if (!fileName) return null;
   return (
-    <div className="h-7 bg-cad-panel border-b border-cad-border flex items-end px-2 shrink-0" data-testid="document-tabs">
+    // Banda de documentos (ADR-0065): tono más oscuro que la cinta para separarlas; la pestaña activa, del tono del panel
+    <div className="h-7 bg-cad-dark border-y border-cad-border flex items-end px-2 shrink-0" data-testid="document-tabs">
       <div
-        className="relative flex items-center gap-2 h-7 px-3 text-xs text-cad-strong max-w-[22rem] shadow-[inset_0_-2px_0_rgb(var(--cad-accent))]"
+        className="relative flex items-center gap-2 h-7 px-3 text-xs text-cad-strong bg-cad-panel border-x border-cad-border max-w-[22rem] shadow-[inset_0_-2px_0_rgb(var(--cad-accent))]"
         title={filePath ?? fileName}
       >
-        <FileText size={13} className="text-gray-400 shrink-0" />
+        <FileText size={16} className="text-gray-400 shrink-0" />
         <span className="truncate">{fileName}</span>
         {isDirty && filePath && <span className="text-amber-600 dark:text-amber-400">●</span>}
       </div>

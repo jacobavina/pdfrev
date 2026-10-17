@@ -135,7 +135,7 @@ export const SplitPane: React.FC = () => {
   return (
     <aside data-testid="split-pane" className="w-1/2 min-w-0 flex flex-col border-l border-cad-border bg-cad-canvas">
       <div className="h-9 shrink-0 flex items-center gap-2 px-2.5 bg-cad-panel border-b border-cad-border text-xs select-none">
-        <Columns2 size={14} className="text-gray-400 shrink-0" />
+        <Columns2 size={16} className="text-gray-400 shrink-0" />
         <span className="font-semibold text-cad-strong truncate" title={sourceName} data-testid="split-source">
           {sourceName}
         </span>
@@ -148,9 +148,9 @@ export const SplitPane: React.FC = () => {
             onClick={() => changeSplitPage(pageIndex - 1)}
             title="Previous page"
           >
-            <ChevronLeft size={14} />
+            <ChevronLeft size={16} />
           </button>
-          <span data-testid="split-page" className="tabular-nums text-gray-300 px-1">
+          <span data-testid="split-page" className="ui-data text-gray-300 px-1">
             {pageIndex + 1} / {pageCount}
           </span>
           <button
@@ -161,7 +161,7 @@ export const SplitPane: React.FC = () => {
             onClick={() => changeSplitPage(pageIndex + 1)}
             title="Next page"
           >
-            <ChevronRight size={14} />
+            <ChevronRight size={16} />
           </button>
         </div>
         <div className="flex-1" />
@@ -171,13 +171,13 @@ export const SplitPane: React.FC = () => {
           aria-pressed={sync}
           onClick={() => setSync(!sync)}
           title={sync ? 'Synchronized with the main view (click to unlink)' : 'Not synchronized (click to follow the main view)'}
-          className={`ui-btn !h-6 !px-2 !text-xs ${sync ? '!bg-cad-accent/15 !text-cad-accent' : ''}`}
+          className={`ui-btn !h-6 !px-2 !text-xs ${sync ? '!bg-cad-hover !text-cad-strong' : ''}`}
         >
-          <Link2 size={13} />
+          <Link2 size={16} />
           Sync
         </button>
         <button type="button" data-testid="split-close" className="ui-btn !h-6 !w-6 !p-0" onClick={close} title="Close side by side">
-          <X size={14} />
+          <X size={16} />
         </button>
       </div>
       <div ref={scrollRef} onScroll={handleSplitScroll} data-testid="split-scroll" className="relative flex-1 min-h-0 overflow-auto flex p-8">

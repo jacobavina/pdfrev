@@ -27,3 +27,6 @@ spikes/motor/fixtures/large-100mb.pdf
 .orquestador/
 plan/
 
+
+# Impeccable design skill (per-developer tooling, installed via npx impeccable)
+.dsh/

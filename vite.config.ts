@@ -18,7 +18,7 @@ export default defineConfig({
     strictPort: true,
     host: 'localhost',
     watch: {
-      ignored: ['**/src-tauri/**'],
+      ignored: ['**/src-tauri/**', '**/.dsh/**'],
     },
   },
   build: {

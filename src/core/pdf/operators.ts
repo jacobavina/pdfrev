@@ -866,6 +866,10 @@ export function emitMarkupOperators(
       const startEnding = markup.style.lineEndingStart ?? 'openArrow';
       for (const leader of geom.leaders) {
         const pts = [visToPdf(leader.arrowHead), visToPdf(leader.elbow), visToPdf(leader.boxAttachment)];
+        // La punta de la directriz anterior dejó el trazo continuo (ADR-0067)
+        if (markup.style.dashArray && markup.style.dashArray.length > 0) {
+          lines.push(`[${markup.style.dashArray.map((d) => d.toFixed(1)).join(' ')}] 0 d`);
+        }
         lines.push('0 j');
         pathPdf(pts, false);
         lines.push('S');

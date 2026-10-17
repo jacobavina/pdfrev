@@ -78,9 +78,12 @@ export function lineStyleOf(dashArray: number[] | undefined): DashStyleId {
   return dashArray[0] <= dashArray[1] ? 'dotted' : 'dashed';
 }
 
-/** Tipo de línea que muestra la interfaz para una marca: la nube propia, el patrón guardado o el discontinuo. */
+/**
+ * Tipo de línea que muestra la interfaz para una marca: la nube propia (o su discontinuo, ADR-0067), el patrón
+ * guardado o el discontinuo.
+ */
 export function lineStyleOfMarkup(m: { type: string; style: { dashArray?: number[]; lineStyle?: string } }): LineStyleId {
-  if (m.type === 'cloud' || m.type === 'cloudPlus') return 'cloud';
+  if (m.type === 'cloud' || m.type === 'cloudPlus') return m.style.dashArray?.length ? lineStyleOf(m.style.dashArray) : 'cloud';
   if (isPatternLineStyle(m.style.lineStyle)) return m.style.lineStyle;
   return lineStyleOf(m.style.dashArray);
 }

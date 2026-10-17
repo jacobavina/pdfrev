@@ -1416,6 +1416,8 @@ export function getMarkupSvgDescriptor(
             strokeWidth: lineW,
             fill: 'none',
             strokeLinejoin: 'miter',
+            // Tipo de línea de la directriz y del borde de la caja (ADR-0067); la punta sigue continua
+            ...(baseAttrs.strokeDasharray ? { strokeDasharray: baseAttrs.strokeDasharray } : {}),
           },
         });
         const angles = endpointAngles([leader.arrowHead, leader.elbow]);
@@ -1445,6 +1447,7 @@ export function getMarkupSvgDescriptor(
           fill: paint.fill ? style.fillColor! : 'transparent',
           stroke: paint.border ? style.strokeColor : 'none',
           strokeWidth: lineW,
+          ...(paint.border && baseAttrs.strokeDasharray ? { strokeDasharray: baseAttrs.strokeDasharray } : {}),
         },
       });
 

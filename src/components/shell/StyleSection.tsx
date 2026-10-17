@@ -202,7 +202,7 @@ export const StyleSection: React.FC = () => {
             <CloudStylePicker
               size={cloudOpts.size}
               invert={cloudOpts.invert}
-              disabled={lineStyle !== 'cloud'}
+              disabled={lineStyle !== 'cloud' && !(editingSelection && (selection[0].type === 'cloud' || selection[0].type === 'cloudPlus'))}
               onChange={changeCloud}
             />
           </div>

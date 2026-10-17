@@ -12,6 +12,7 @@ import { cloudRadius } from '../core/markup/revisionCloud';
 import { SELECTION_GAP_PX } from '../core/markup/transformHandles';
 import { Markup, MarkupType } from '../types/markup';
 import { StyleSection } from './shell/StyleSection';
+import { getMarkupSvgDescriptor } from '../core/markup/render';
 /** La cinta y la sección de estilo, que desde ADR-0064 vive en el panel de Propiedades. */
 const RibbonWithStyle: React.FC = () => (
   <>
@@ -99,6 +100,32 @@ describe('Tipos de línea en la barra de propiedades (ADR-0041)', () => {
     fireEvent.click(screen.getByTestId('ribbon-line-style'));
     fireEvent.click(screen.getByTestId('ribbon-line-style-option-dashed5'));
     expect(useToolStore.getState().currentStyle).toMatchObject({ lineStyle: undefined, dashArray: [8, 3, 3, 3] });
+  });
+
+  it('en una nube, un discontinuo o Solid la dejan como nube y la lista lo muestra; solo un patrón la vuelve rectángulo (ADR-0067)', () => {
+    useMarkupStore.setState({ markups: [mk('cl', 'cloud', rect.points, { customFields: { arcStep: 20 } })], selectedMarkupIds: ['cl'] });
+    render(<RibbonWithStyle />);
+    fireEvent.click(screen.getByTestId('ribbon-line-style'));
+    fireEvent.click(screen.getByTestId('ribbon-line-style-option-dashed'));
+    let m = useMarkupStore.getState().markups[0];
+    expect(m.type).toBe('cloud');
+    expect(m.style.dashArray).toEqual([4, 3]);
+    expect(screen.getByTestId('ribbon-line-style')).toHaveAttribute('data-value', 'dashed');
+    // El tamaño de los lóbulos sigue editable en la nube discontinua
+    expect(screen.getByTestId('ribbon-cloud-style')).not.toBeDisabled();
+    const t = { width: 800, height: 600, scale: 1, offsetX: 0, offsetY: 0, zoom: 1 };
+    expect(JSON.stringify(getMarkupSvgDescriptor(m, t))).toContain('"strokeDasharray":"4 3"');
+    // Solid: nube continua
+    fireEvent.click(screen.getByTestId('ribbon-line-style'));
+    fireEvent.click(screen.getByTestId('ribbon-line-style-option-solid'));
+    m = useMarkupStore.getState().markups[0];
+    expect(m.type).toBe('cloud');
+    expect(m.style.dashArray).toBeUndefined();
+    expect(screen.getByTestId('ribbon-line-style')).toHaveAttribute('data-value', 'cloud');
+    // Un patrón no se combina con los lóbulos
+    fireEvent.click(screen.getByTestId('ribbon-line-style'));
+    fireEvent.click(screen.getByTestId('ribbon-line-style-option-gas'));
+    expect(useMarkupStore.getState().markups[0].type).toBe('rectangle');
   });
 
   it('Size e Invert editan la nube seleccionada', () => {

@@ -197,6 +197,39 @@ describe('Borde de la caja del callout (ADR-0042)', () => {
     expect(useMarkupStore.getState().markups[0].customFields?.calloutBorder).toBeUndefined();
   });
 
+  it('el tipo de línea del callout discontinúa la directriz y el borde de la caja, en pantalla y en el PDF; la punta sigue continua (ADR-0067)', () => {
+    useMarkupStore.setState({ markups: [{ ...callout, customFields: { calloutBorder: 1 } }], selectedMarkupIds: ['co'] });
+    render(<RibbonWithStyle />);
+    fireEvent.click(screen.getByTestId('ribbon-line-style'));
+    fireEvent.click(screen.getByTestId('ribbon-line-style-option-dashed'));
+    const m = useMarkupStore.getState().markups[0];
+    expect(m.style.dashArray).toEqual([4, 3]);
+    const t = { width: 800, height: 600, scale: 1, offsetX: 0, offsetY: 0, zoom: 1 };
+    const kids = getMarkupSvgDescriptor(m, t).children!;
+    const [leader, arrow] = kids.filter((c) => c.tag === 'polyline');
+    expect(leader.attrs.strokeDasharray).toBe('4 3');
+    expect(arrow.attrs.strokeDasharray).toBeUndefined();
+    expect(kids.find((c) => c.tag === 'rect')!.attrs.strokeDasharray).toBe('4 3');
+    // /AP con dos directrices: cada una se traza discontinua aunque la punta anterior volviera a continuo
+    const two = { ...m, leaders: [[{ x: 0.1, y: 0.35 }], [{ x: 0.6, y: 0.4 }]] };
+    const tr: PageTransformInfo = { rotation: 0, widthPt: 800, heightPt: 600, originX: 0, originY: 0 };
+    const ops = emitMarkupOperators(two, tr).operators.split('\n');
+    const dashedAt = (i: number) => {
+      for (let k = i; k >= 0; k--) {
+        if (/^\[.*\] 0 d$/.test(ops[k])) return ops[k] !== '[] 0 d';
+      }
+      return false;
+    };
+    // Directriz: "0 j" y su trazo; punta: "0 J", el color de relleno y su trazo
+    const starts = ops.flatMap((l, i) => (l.endsWith(' m') ? [i] : []));
+    const leaderStarts = starts.filter((i) => ops[i - 1] === '0 j');
+    const arrowStarts = starts.filter((i) => ops[i - 2] === '0 J');
+    expect(leaderStarts).toHaveLength(2);
+    expect(arrowStarts).toHaveLength(2);
+    for (const i of leaderStarts) expect(dashedAt(i)).toBe(true);
+    for (const i of arrowStarts) expect(dashedAt(i)).toBe(false);
+  });
+
   it('con la herramienta Callout, el botón define el borde de los callouts nuevos', () => {
     useToolStore.setState({ activeTool: 'callout' });
     render(<RibbonWithStyle />);
@@ -212,6 +245,36 @@ describe('Callout en el visor (ADR-0042)', () => {
     useCalibrationStore.setState({ calibrations: {}, importedCalibrations: {} });
     useUiStore.setState({ hiddenLayers: [], snap: { endpoint: false, midpoint: false, nearest: false, intersection: false, content: false } });
     useToolStore.setState({ activeTool: 'select', currentStyle: { strokeColor: '#e02424', fillColor: 'transparent', strokeWidth: 1, opacity: 1 } });
+  });
+
+  it('clic en la punta y clic donde va el texto crean el callout sin mantener el botón pulsado (ADR-0067)', async () => {
+    await act(async () => {
+      render(<PdfViewer />);
+    });
+    const svg = screen.getByTestId('markup-overlay-svg');
+    act(() => useToolStore.setState({ activeTool: 'callout' }));
+    const click = (x: number, y: number) => {
+      act(() => {
+        fireEvent.mouseDown(svg, { button: 0, clientX: x, clientY: y });
+      });
+      act(() => {
+        fireEvent.mouseUp(svg, { button: 0, clientX: x, clientY: y });
+      });
+    };
+    click(80, 300);
+    expect(useMarkupStore.getState().markups).toHaveLength(0);
+    // Entre los dos clics la vista previa sigue al cursor
+    act(() => {
+      fireEvent.mouseMove(svg, { clientX: 240, clientY: 180 });
+    });
+    expect(screen.getByTestId('callout-preview')).toBeInTheDocument();
+    click(240, 180);
+    const [m] = useMarkupStore.getState().markups;
+    expect(m.type).toBe('callout');
+    expect(m.leaders![0][0].x).toBeCloseTo(80 / 800, 3);
+    expect(m.leaders![0][0].y).toBeCloseTo(300 / 600, 3);
+    // La caja queda junto al segundo clic, del lado contrario a la punta
+    expect(m.points[0].x).toBeGreaterThan(240 / 800);
   });
 
   it('arrastrar la caja mueve el texto y el codo; la punta sigue señalando el mismo sitio', async () => {

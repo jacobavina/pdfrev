@@ -620,7 +620,9 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
           // La Cloud+ siempre es nube: solo admite el discontinuo
           if (!pattern || id === 'cloud') next = { ...m, style: { ...m.style, dashArray: dashed(m) } };
         } else if (m.type === 'cloud') {
-          if (id === 'cloud') next = { ...m, style: { ...m.style, dashArray: undefined, lineStyle: undefined } };
+          // Continuo o discontinuo la dejan como nube, igual que la Cloud+ (ADR-0067); solo un patrón (Fenceline,
+          // Gas…) la vuelve rectángulo o polígono, porque no se combina con los lóbulos
+          if (!pattern || id === 'cloud') next = { ...m, style: { ...m.style, dashArray: dashed(m), lineStyle: undefined } };
           else {
             next = {
               ...m,

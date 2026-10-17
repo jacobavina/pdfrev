@@ -115,7 +115,8 @@ const OverlayCanvas = lazy(() => import('./viewer/OverlayCanvas'));
  * Herramientas de dos puntos que admiten clic-clic además del arrastre (ADR-0031): clic en el punto 1, el trazo
  * sigue al cursor (con snap) y clic en el punto 2, como en Revu.
  */
-const TWO_CLICK_TOOLS = new Set<string>(['length', 'radius', 'diameter', 'dimension', 'line', 'arrow', 'calibrate']);
+// El callout (ADR-0067) también: clic en la punta de la flecha y clic donde va el texto, o arrastre
+const TWO_CLICK_TOOLS = new Set<string>(['length', 'radius', 'diameter', 'dimension', 'line', 'arrow', 'calibrate', 'callout']);
 
 const SNAP_TOOLS = new Set<string>([
   'line', 'arrow', 'dimension', 'length', 'polylineMeasure', 'area', 'count', 'calibrate',

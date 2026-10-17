@@ -55,9 +55,9 @@ describe('CombinePdfsModal (ADR-0084)', () => {
     doc2.addPage([600, 600]);
     const bytes2 = await doc2.save();
 
-    const fileA = new File([bytes1], 'PlanoA.pdf', { type: 'application/pdf' });
+    const fileA = new File([bytes1 as unknown as BlobPart], 'PlanoA.pdf', { type: 'application/pdf' });
     (fileA as any).arrayBuffer = async () => bytes1.buffer.slice(bytes1.byteOffset, bytes1.byteOffset + bytes1.byteLength);
-    const fileB = new File([bytes2], 'PlanoB.pdf', { type: 'application/pdf' });
+    const fileB = new File([bytes2 as unknown as BlobPart], 'PlanoB.pdf', { type: 'application/pdf' });
     (fileB as any).arrayBuffer = async () => bytes2.buffer.slice(bytes2.byteOffset, bytes2.byteOffset + bytes2.byteLength);
 
     // Espiar document.createElement para simular la selección de archivos

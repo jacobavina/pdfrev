@@ -243,4 +243,50 @@ describe('Herramientas puras de alineación, distribución y volteo de marcas (A
     useMarkupStore.getState().undo();
     expect(useMarkupStore.getState().markups.find((m) => m.id === 'r1')!.points[0].y).toBeCloseTo(0.1, 5);
   });
+
+  it('alinea y voltea marcas de tipo "image" conservando su bounding box (ADR-0085)', () => {
+    const img1: Markup = {
+      id: 'img-1',
+      type: 'image',
+      pageIndex: 0,
+      points: [
+        { x: 0.1, y: 0.1 },
+        { x: 0.3, y: 0.3 },
+      ],
+      style: { strokeColor: 'transparent', strokeWidth: 0, opacity: 1 },
+      customFields: { imageSrc: 'data:image/png;base64,1' },
+      author: 'User',
+      status: 'pending',
+      createdAt: '',
+      updatedAt: '',
+    };
+    const img2: Markup = {
+      id: 'img-2',
+      type: 'image',
+      pageIndex: 0,
+      points: [
+        { x: 0.5, y: 0.2 },
+        { x: 0.7, y: 0.4 },
+      ],
+      style: { strokeColor: 'transparent', strokeWidth: 0, opacity: 1 },
+      customFields: { imageSrc: 'data:image/png;base64,2' },
+      author: 'User',
+      status: 'pending',
+      createdAt: '',
+      updatedAt: '',
+    };
+
+    useMarkupStore.getState().setMarkups([img1, img2]);
+    useMarkupStore.getState().setSelectedMarkupIds(['img-1', 'img-2']);
+
+    // Alinear arriba (top) -> minY es 0.1
+    alignSelectedMarkups('top');
+    const updated = useMarkupStore.getState().markups;
+    expect(updated.find((m) => m.id === 'img-1')!.points[0].y).toBeCloseTo(0.1, 5);
+    expect(updated.find((m) => m.id === 'img-2')!.points[0].y).toBeCloseTo(0.1, 5);
+
+    // Deshacer revierte img-2 a 0.2
+    useMarkupStore.getState().undo();
+    expect(useMarkupStore.getState().markups.find((m) => m.id === 'img-2')!.points[0].y).toBeCloseTo(0.2, 5);
+  });
 });

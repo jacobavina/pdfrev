@@ -10,6 +10,7 @@ const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
 
 const CANONICAL_BOX_TYPES = new Set<Markup['type']>([
   'rectangle',
+  'image',
   'callout',
   'text',
   'highlight',

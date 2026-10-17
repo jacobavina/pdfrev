@@ -1168,6 +1168,15 @@ export function emitMarkupOperators(
       break;
     }
 
+    case 'image': {
+      if (markup.points.length < 2) break;
+      const a = toVis(markup.points[0]);
+      const b = toVis(markup.points[1]);
+      updateBBox(a.x, a.y);
+      updateBBox(b.x, b.y);
+      break;
+    }
+
     // Mediciones adicionales (ADR-0029): misma geometría que en pantalla
     case 'perimeter':
     case 'volume': {

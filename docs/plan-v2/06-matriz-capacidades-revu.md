@@ -30,7 +30,7 @@
 | Búsqueda de texto | ✅ ADR-0016 (d5a0fdf) · `src/core/search/textSearch.test.ts` (8) y `src/components/PdfViewerSearch.test.tsx` (2) | — | M | K I |
 | Planos grandes (E-size, 100 MB) con fluidez | ⬜ sin medir (el spike del motor evaluó un corpus de 1,001 PDFs, ADR-0010; no hay benchmark de E-size/100 MB) | P5-A | M | K I |
 | Vista dividida sincronizada | ✅ ADR-0049 (08c5322) + ADR-0054 (b5d6f79) · PARITY «Vista lado a lado (Split View)…», «Sync de la vista lado a lado…» y «Sincronización en ambos sentidos…» | — | S | I |
-| Instantánea (snapshot) | ⬜ | P5-B.7 | C | I |
+| Instantánea (snapshot) | ✅ ADR-0085 · `src/components/SnapshotFlow.test.tsx` (4) y `src/services/snapshotService.test.ts` (8) · PARITY «Herramienta Instantánea (Snapshot, G)…» | P5-B.7 (C.4) | C | I |
 | Panel de capas (OCG) | ✅ ADR-0024 (444000d) + ADR-0046 (2358596) · PARITY «Capas del PDF (/OCG) leídas al abrir y visibilidad en el panel Layers», «Capas lógicas OCG…», «Capas del plano conservadas…» y «Capa de anotaciones ajenas leída de su /OC» | — | M | K I |
 
 ### 1.2 Herramientas de marcado
@@ -49,7 +49,7 @@
 | Insertar/reemplazar texto (caret) | ⬜ (grep `caret` en src: vacío) | P3-H.3 | C | I |
 | Lápiz (mano alzada) | ✅ (`freehand`) · PARITY «Atajos de teclado de Revu (P, …) (ADR-0052)» y hit-testing por tipo en `src/utils/coordinates.test.ts` | — | S | I |
 | Borrador de trazo | ⬜ | P3-H.2 | C | I |
-| Imagen / foto como marca | ⬜ (los sellos son dibujos vectoriales propios, no imágenes) | P3-H.4 | S | K I |
+| Imagen / foto como marca | ✅ ADR-0085 · `src/components/SnapshotFlow.test.tsx` y `src/services/pdfExportService.test.ts` · PARITY «Herramienta Instantánea (Snapshot, G)…» con marcas de tipo 'image' y /Subtype /Stamp | P3-H.4 (C.4) | S | K I |
 | Sellos (estáticos y dinámicos) | ✅ ADR-0026 (444000d) + ADR-0040 (330d88a) + ADR-0045 (b03a318) · PARITY «Sellos en el PDF (/Stamp con /Name estándar)…», «Sellos de Revu…», «Sellos de Foxit…», «Texto dinámico de los sellos…» y «Selector de sellos por secciones…» | — | M | I |
 | Hipervínculo | ✅ ADR-0027 (46a9c3d) · PARITY «Hyperlink, File Attachment y campos de formulario desde Tools (ADR-0027)» y «Enlaces propios del PDF navegables con un clic» | — | S | I |
 | Copiar/pegar/duplicar (también entre páginas) | ✅ ADR-0014 (bc7ddb6) · `src/store/useMarkupStore.test.ts` (copySelectedMarkups, pasteMarkups con nuevo groupId, duplicateSelectedMarkups) + PARITY «Herramientas Revu y portapapeles…» | — | M | K I |

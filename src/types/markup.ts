@@ -19,6 +19,8 @@ export const VALID_MARKUP_TYPES = [
   'strikeOut',
   'squiggly',
   'stamp',
+  // Imagen / Instantánea Snapshot (ADR-0085)
+  'image',
   // Cota con texto propio (ADR-0020): p1, p2 acotados y p3 sobre la línea de cota
   'dimension',
   // Enlaces, adjuntos y campos de formulario (ADR-0027)

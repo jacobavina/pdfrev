@@ -68,7 +68,9 @@ import {
   RulersIcon,
   PolygonCutoutIcon,
   EllipseCutoutIcon,
+  SnapshotIcon,
 } from './customIcons';
+import { hasSnapshotInCache } from '../../services/snapshotService';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useMarkupStore } from '../../store/useMarkupStore';
 import { useToolStore, ToolType } from '../../store/useToolStore';
@@ -235,7 +237,15 @@ export const MenuBar: React.FC = () => {
           label: 'Paste',
           shortcut: 'Ctrl+V',
           onSelect: () => useMarkupStore.getState().pasteMarkups(currentPageIndex),
-          disabled: useMarkupStore.getState().clipboardMarkups.length === 0,
+          disabled: useMarkupStore.getState().clipboardMarkups.length === 0 && !hasSnapshotInCache(),
+        },
+        {
+          icon: <SnapshotIcon size={16} />,
+          label: 'Snapshot',
+          shortcut: 'G',
+          onSelect: () => useToolStore.getState().setActiveTool('snapshot'),
+          disabled: !hasDoc,
+          testId: 'menu-edit-snapshot',
         },
         { icon: <CopyPlus size={16} />, label: 'Duplicate', shortcut: 'Ctrl+D', onSelect: () => useMarkupStore.getState().duplicateSelectedMarkups(), disabled: !hasSelection },
         { icon: <Lock size={16} />, label: 'Lock / Unlock', onSelect: () => useMarkupStore.getState().toggleLockSelectedMarkups(), disabled: !hasSelection },

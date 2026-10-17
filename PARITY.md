@@ -216,6 +216,7 @@ Este documento registra la paridad funcional real implementada en REA, vinculand
 | **Insertar, eliminar, rotar, extraer y reordenar páginas remapeando marcas, calibraciones y enlaces (ADR-0082)** | `shipped` | `src/core/pages/pageOperations.test.ts` | `mueve una página hacia adelante (de 0 a 2) y preserva el resto de páginas` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Pestañas multi-documento con sesiones independientes de marcas, undo/redo, escalas y vistas (ADR-0083)** | `shipped` | `src/store/useDocumentTabsStore.test.ts` | `switchTab conmuta entre pestañas conservando las modificaciones de cada una sin mezclar` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Combinar múltiples documentos PDF (Merge PDF) con ordenación interactiva y apertura en pestaña (ADR-0084)** | `shipped` | `src/core/pages/pageOperations.test.ts` | `combina 2 documentos PDF de 1 y 2 páginas resultando en un PDF de 3 páginas` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **Herramienta Instantánea (Snapshot, G) con captura de canvas, copia al portapapeles y pegado de imágenes (ADR-0085)** | `shipped` | `src/components/SnapshotFlow.test.tsx` | `atajo G activa la herramienta snapshot y asigna el cursor crosshair` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 
 
 

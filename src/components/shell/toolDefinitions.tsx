@@ -34,6 +34,7 @@ import {
   EllipseCutoutIcon,
   EraserIcon,
   ArcIcon,
+  SnapshotIcon,
 } from './customIcons';
 import { ToolType } from '../../store/useToolStore';
 import { MARKUP_COLORS } from '../../core/markup/palette';
@@ -65,6 +66,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
     tools: [
       { type: 'select', label: 'Select (V)', short: 'Select', icon: <MousePointer size={18} />, shortcut: 'V' },
       { type: 'pan', label: 'Pan (Shift+V, or hold Space)', short: 'Pan', icon: <Hand size={18} />, shortcut: 'Shift+V' },
+      { type: 'snapshot', label: 'Snapshot (G)', short: 'Snapshot', icon: <SnapshotIcon size={18} />, shortcut: 'G', testId: 'tool-snapshot' },
     ],
   },
   {

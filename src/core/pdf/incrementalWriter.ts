@@ -884,9 +884,13 @@ ${markup.layer && layerOcg.has(markup.layer) ? `  /OC ${layerOcg.get(markup.laye
           newFieldRefs.push(`${annotObjNum} 0 R`);
         }
       } else if (annotTypeSubtype === 'Stamp') {
-        // Nombre estándar cuando existe (Approved, Draft…); si no, uno propio: el /AP lleva el dibujo
-        const def = stampById(typeof markup.customFields?.stampId === 'string' ? markup.customFields.stampId : undefined);
-        annotDict += `  /Name /${def.pdfName ?? `REA${def.id.replace(/[^A-Za-z0-9]/g, '')}`}\n`;
+        if (markup.type === 'image') {
+          annotDict += `  /Name /Image\n`;
+        } else {
+          // Nombre estándar cuando existe (Approved, Draft…); si no, uno propio: el /AP lleva el dibujo
+          const def = stampById(typeof markup.customFields?.stampId === 'string' ? markup.customFields.stampId : undefined);
+          annotDict += `  /Name /${def.pdfName ?? `REA${def.id.replace(/[^A-Za-z0-9]/g, '')}`}\n`;
+        }
       } else if (annotTypeSubtype === 'Text') {
         annotDict += `  /Name /Note\n  /Open false\n`;
       } else if (
@@ -1355,6 +1359,7 @@ function getPdfAnnotSubtype(markup: Markup): string {
     case 'stickyNote':
       return 'Text';
     case 'stamp':
+    case 'image':
       return 'Stamp';
     case 'link':
       return 'Link';

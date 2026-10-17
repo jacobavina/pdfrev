@@ -517,7 +517,7 @@ export function generateCloudPath(
 }
 
 export interface SvgRenderDescriptor {
-  tag: 'rect' | 'ellipse' | 'line' | 'polygon' | 'polyline' | 'path' | 'text' | 'g' | 'defs' | 'clipPath';
+  tag: 'rect' | 'ellipse' | 'line' | 'polygon' | 'polyline' | 'path' | 'text' | 'g' | 'defs' | 'clipPath' | 'image';
   attrs: Record<string, string | number>;
   style?: React.CSSProperties;
   children?: SvgRenderDescriptor[];
@@ -1092,6 +1092,29 @@ export function getMarkupSvgDescriptor(
             }
       );
       return { tag: 'g', attrs: { 'data-testid': `markup-stamp-${markup.id}`, opacity: style.opacity ?? 1 }, children };
+    }
+
+    // Imagen / Instantánea Snapshot (ADR-0085): renderiza imagen rasterizada embebida en SVG
+    case 'image': {
+      const r = getRectGeometry(p1Screen, p2Screen);
+      const imageSrc = typeof markup.customFields?.imageSrc === 'string' ? markup.customFields.imageSrc : '';
+      return {
+        tag: 'g',
+        attrs: { 'data-testid': `markup-image-${markup.id}`, opacity: style.opacity ?? 1 },
+        children: [
+          {
+            tag: 'image',
+            attrs: {
+              href: imageSrc,
+              x: r.x,
+              y: r.y,
+              width: Math.max(1, r.width),
+              height: Math.max(1, r.height),
+              preserveAspectRatio: 'none',
+            },
+          },
+        ],
+      };
     }
 
     // Cota con texto propio (ADR-0020): misma geometría que el /AP

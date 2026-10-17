@@ -929,6 +929,41 @@ export async function exportMarkupsToPdf(
           break;
         }
 
+        // 12. Imagen / Instantánea Snapshot (ADR-0085)
+        case 'image': {
+          if (
+            markup.points.length >= 2 &&
+            typeof markup.customFields?.imageSrc === 'string' &&
+            markup.customFields.imageSrc.startsWith('data:image/')
+          ) {
+            try {
+              const src = markup.customFields.imageSrc;
+              const isPng = src.startsWith('data:image/png');
+              const base64Data = src.split(',')[1];
+              if (base64Data) {
+                const bytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+                const embedded = isPng ? await pdfDoc.embedPng(bytes) : await pdfDoc.embedJpg(bytes);
+                const p1 = normalizedToPdfCoordinates(markup.points[0], transform);
+                const p2 = normalizedToPdfCoordinates(markup.points[1], transform);
+                const x = Math.min(p1.x, p2.x);
+                const y = Math.min(p1.y, p2.y);
+                const width = Math.max(1, Math.abs(p2.x - p1.x));
+                const height = Math.max(1, Math.abs(p2.y - p1.y));
+                page.drawImage(embedded, {
+                  x,
+                  y,
+                  width,
+                  height,
+                  opacity: markup.style.opacity ?? 1,
+                });
+              }
+            } catch {
+              // fallback silencioso
+            }
+          }
+          break;
+        }
+
         // Polilínea, subrayado, tachado y mediciones: mismo dibujo que el /AP (antes se omitían)
         case 'polyLine':
         case 'underline':

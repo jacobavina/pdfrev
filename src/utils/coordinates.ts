@@ -583,9 +583,10 @@ export function hitTestMarkup(
     return false;
   }
 
-  // 5. Rectángulo / Highlight / HighlightVector / HighlightText / Underline / StrikeOut / Stamp
+  // 5. Rectángulo / Image / Highlight / HighlightVector / HighlightText / Underline / StrikeOut / Stamp
   if (
     markup.type === 'rectangle' ||
+    markup.type === 'image' ||
     markup.type === 'highlight' ||
     markup.type === 'highlightVector' ||
     markup.type === 'highlightText' ||
@@ -599,6 +600,7 @@ export function hitTestMarkup(
   ) {
     if (
       hasFill ||
+      markup.type === 'image' ||
       markup.type === 'stamp' ||
       markup.type === 'link' ||
       markup.type === 'fileAttachment' ||

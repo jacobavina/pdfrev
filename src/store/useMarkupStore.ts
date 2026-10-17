@@ -102,6 +102,7 @@ interface MarkupState {
    */
   applyLineStyle: (ids: string[], id: LineStyleId) => void;
   copySelectedMarkups: () => void;
+  setClipboardMarkups: (clipboardMarkups: Markup[]) => void;
   pasteMarkups: (targetPageIndex?: number, offset?: { x: number; y: number }) => void;
   duplicateSelectedMarkups: () => void;
   toggleLockSelectedMarkups: () => void;
@@ -139,6 +140,11 @@ interface MarkupState {
   undo: () => void;
   redo: () => void;
   clearHistory: () => void;
+}
+
+let onPasteFallback: ((targetPageIndex?: number) => void) | null = null;
+export function registerPasteFallback(fn: (targetPageIndex?: number) => void) {
+  onPasteFallback = fn;
 }
 
 export const useMarkupStore = create<MarkupState>((set, get) => {
@@ -1139,9 +1145,16 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
       set({ clipboardMarkups: copied });
     },
 
+    setClipboardMarkups: (clipboardMarkups: Markup[]) => {
+      set({ clipboardMarkups });
+    },
+
     pasteMarkups: (targetPageIndex?: number, offset?: { x: number; y: number }) => {
       const { clipboardMarkups, addMarkups } = get();
-      if (clipboardMarkups.length === 0) return;
+      if (clipboardMarkups.length === 0) {
+        onPasteFallback?.(targetPageIndex);
+        return;
+      }
 
       const dx = offset?.x ?? 0.02;
       const dy = offset?.y ?? 0.02;

@@ -742,6 +742,37 @@ describe('Pure Markup Rendering (src/core/markup/render.ts - Criterio 1)', () =>
         // End arrow
         expect(desc.children![2].tag).toBe('polyline');
       });
+
+      it('genera un descriptor SVG con tag "image" y atributos href, x, y, width, height (ADR-0085)', () => {
+        const imgMarkup: Markup = {
+          id: 'img-test',
+          type: 'image',
+          pageIndex: 0,
+          points: [
+            { x: 0.1, y: 0.2 },
+            { x: 0.5, y: 0.6 },
+          ],
+          style: { strokeColor: 'transparent', strokeWidth: 0, opacity: 0.9 },
+          customFields: { imageSrc: 'data:image/png;base64,sample' },
+          author: 'User',
+          status: 'pending',
+          createdAt: '',
+          updatedAt: '',
+        };
+        const desc = getMarkupSvgDescriptor(imgMarkup, transform);
+
+        expect(desc.tag).toBe('g');
+        expect(desc.attrs['data-testid']).toBe('markup-image-img-test');
+        expect(desc.attrs.opacity).toBe(0.9);
+        expect(desc.children).toBeDefined();
+        expect(desc.children![0].tag).toBe('image');
+        expect(desc.children![0].attrs.href).toBe('data:image/png;base64,sample');
+        expect(desc.children![0].attrs.x).toBe(80);
+        expect(desc.children![0].attrs.y).toBe(120);
+        expect(desc.children![0].attrs.width).toBe(320);
+        expect(desc.children![0].attrs.height).toBe(240);
+        expect(desc.children![0].attrs.preserveAspectRatio).toBe('none');
+      });
     });
   });
 });

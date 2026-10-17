@@ -22,7 +22,8 @@ export type ToolType =
   | 'arrow'
   | 'polygonCutout'
   | 'ellipseCutout'
-  | 'eraser';
+  | 'eraser'
+  | 'snapshot';
 
 interface ToolState {
   activeTool: ToolType;

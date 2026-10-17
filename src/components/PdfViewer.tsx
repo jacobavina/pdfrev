@@ -74,6 +74,7 @@ import {
 import type { ContentSnapIndex } from '../core/markup/contentSnap';
 import type { loadContentSnapIndex } from '../services/contentSnapService';
 import { showToast } from '../services/toastService';
+import { executeSnapshot } from '../services/snapshotService';
 import { ORTHO_TOOLS, SQUARE_TOOLS, orthoConstrain, squareConstrain } from '../core/markup/ortho';
 import { stampById } from '../core/markup/stamps';
 import { stampTexts, stampDefaultSize } from '../core/markup/stampArt';
@@ -594,6 +595,7 @@ export const PdfViewer: React.FC = () => {
   const [polygonPoints, setPolygonPoints] = useState<MarkupPoint[]>([]);
   const [freehandPoints, setFreehandPoints] = useState<MarkupPoint[]>([]);
   const [mouseCursorPoint, setMouseCursorPoint] = useState<MarkupPoint | null>(null);
+  const [snapshotFlashRect, setSnapshotFlashRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
 
   // Estado del editor de texto inline (B6 y A.4)
   const [inlineEditing, setInlineEditing] = useState<{
@@ -937,8 +939,8 @@ export const PdfViewer: React.FC = () => {
           setDrawingStart(null);
           setCurrentDrawPoint(null);
           setInlineEditing(null);
-        } else if (activeTool === 'calibrate') {
-          // Sin trazo en curso, Esc abandona la calibración (como en Revu)
+        } else if (activeTool === 'calibrate' || activeTool === 'snapshot') {
+          // Sin trazo en curso, Esc abandona la calibración o instantánea (como en Revu)
           useToolStore.getState().setActiveTool('select');
         }
         return;
@@ -1119,6 +1121,7 @@ export const PdfViewer: React.FC = () => {
           c: 'cloud',
           k: 'cloudPlus',
           s: 'stamp',
+          g: 'snapshot',
         };
         const tool = toolByKey[e.key.toLowerCase()];
         if (tool) {
@@ -2318,6 +2321,24 @@ export const PdfViewer: React.FC = () => {
       return;
     }
 
+    // Instantánea / Snapshot (ADR-0085): arrastre = caja a capturar; al soltar ejecuta recorte y revierte a select
+    if (activeTool === 'snapshot') {
+      if (drawingStart && currentDrawPoint && exceedsScreenThreshold(drawingStart, currentDrawPoint, viewportTransform, 4)) {
+        const x = Math.min(drawingStart.x, currentDrawPoint.x);
+        const y = Math.min(drawingStart.y, currentDrawPoint.y);
+        const width = Math.abs(currentDrawPoint.x - drawingStart.x);
+        const height = Math.abs(currentDrawPoint.y - drawingStart.y);
+        setSnapshotFlashRect({ x, y, width, height });
+        setTimeout(() => setSnapshotFlashRect(null), 300);
+        void executeSnapshot({ x, y, width, height }, currentPageIndex);
+      } else {
+        useToolStore.getState().setActiveTool('select');
+      }
+      setDrawingStart(null);
+      setCurrentDrawPoint(null);
+      return;
+    }
+
     // Enlace, adjunto y campo de formulario (ADR-0027): clic = tamaño por defecto; arrastre = caja
     if (activeTool === 'link' || activeTool === 'fileAttachment' || activeTool === 'formField') {
       if (drawingStart && currentDrawPoint) createInteractiveMarkup(activeTool, drawingStart, currentDrawPoint);
@@ -3095,6 +3116,8 @@ export const PdfViewer: React.FC = () => {
                 ? panning
                   ? 'cursor-grabbing'
                   : 'cursor-grab'
+                : activeTool === 'snapshot'
+                ? 'cursor-crosshair'
                 : 'cursor-rea-draw'
             }`}
             onMouseDown={handleMouseDown}
@@ -3571,6 +3594,23 @@ export const PdfViewer: React.FC = () => {
                   const p1 = normalizedToScreen(drawingStart, viewportTransform);
                   const p2 = normalizedToScreen(currentDrawPoint, viewportTransform);
 
+                  if (activeTool === 'snapshot') {
+                    const rect = getRectGeometry(p1, p2);
+                    return (
+                      <rect
+                        data-testid="snapshot-marquee"
+                        x={rect.x}
+                        y={rect.y}
+                        width={rect.width}
+                        height={rect.height}
+                        stroke={tok('cad-accent')}
+                        strokeWidth={1.5}
+                        fill={tok('cad-accent', 0.15)}
+                        strokeDasharray="4 3"
+                      />
+                    );
+                  }
+
                   if (activeTool === 'rectangle') {
                     const rect = getRectGeometry(p1, p2);
                     return (
@@ -3921,6 +3961,36 @@ export const PdfViewer: React.FC = () => {
                   }
 
                   return null;
+                })()}
+              </g>
+            )}
+
+            {/* Destello visual de confirmación al capturar instantánea (ADR-0085) */}
+            {snapshotFlashRect && (
+              <g className="pointer-events-none">
+                {(() => {
+                  const p1 = normalizedToScreen({ x: snapshotFlashRect.x, y: snapshotFlashRect.y }, viewportTransform);
+                  const p2 = normalizedToScreen(
+                    {
+                      x: snapshotFlashRect.x + snapshotFlashRect.width,
+                      y: snapshotFlashRect.y + snapshotFlashRect.height,
+                    },
+                    viewportTransform
+                  );
+                  const rect = getRectGeometry(p1, p2);
+                  return (
+                    <rect
+                      data-testid="snapshot-flash"
+                      x={rect.x}
+                      y={rect.y}
+                      width={rect.width}
+                      height={rect.height}
+                      fill={tok('cad-accent', 0.35)}
+                      stroke={tok('cad-accent')}
+                      strokeWidth={2}
+                      className="animate-pulse"
+                    />
+                  );
                 })()}
               </g>
             )}

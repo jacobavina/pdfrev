@@ -22,6 +22,7 @@ export const MARKUP_TYPE_LABELS: Record<MarkupType, string> = {
   strikeOut: 'Strikethrough',
   squiggly: 'Squiggly',
   stamp: 'Stamp',
+  image: 'Image',
   dimension: 'Dimension',
   link: 'Hyperlink',
   fileAttachment: 'File Attachment',

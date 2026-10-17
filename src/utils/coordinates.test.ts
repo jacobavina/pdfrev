@@ -838,6 +838,31 @@ describe('Coordinate Conversion and Hit-Testing', () => {
       expect(hitTestMarkup({ x: 0.1, y: 0.35 }, freehand60, 0.015)).toBe(false);
     });
 
+    it('detecta clics interiores para marcas de tipo "image" (ADR-0085)', () => {
+      const imgMarkup: Markup = {
+        id: 'img-1',
+        type: 'image',
+        pageIndex: 0,
+        points: [
+          { x: 0.1, y: 0.1 },
+          { x: 0.5, y: 0.4 },
+        ],
+        style: { strokeColor: 'transparent', fillColor: 'transparent', strokeWidth: 0, opacity: 1 },
+        customFields: { imageSrc: 'data:image/png;base64,mock' },
+        author: 'User',
+        status: 'pending',
+        createdAt: '',
+        updatedAt: '',
+      };
+
+      // Interior
+      expect(hitTestMarkup({ x: 0.3, y: 0.25 }, imgMarkup, 0.015)).toBe(true);
+      // Borde
+      expect(hitTestMarkup({ x: 0.1, y: 0.1 }, imgMarkup, 0.015)).toBe(true);
+      // Exterior
+      expect(hitTestMarkup({ x: 0.6, y: 0.5 }, imgMarkup, 0.015)).toBe(false);
+    });
+
     it('garantiza que NINGÚN tipo cae en un fallback permisivo (CERO return true fallback)', () => {
       for (const type of VALID_MARKUP_TYPES) {
         const markup: Markup = {

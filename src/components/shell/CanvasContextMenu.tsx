@@ -33,6 +33,7 @@ import {
 } from '../../core/markup/transformTools';
 import { PolygonCutoutIcon, EllipseCutoutIcon } from './customIcons';
 import { showToast } from '../../services/toastService';
+import { hasSnapshotInCache } from '../../services/snapshotService';
 
 const STATUS_LABELS: Record<MarkupStatus, string> = {
   pending: 'Pending',
@@ -388,7 +389,7 @@ export const CanvasContextMenu: React.FC<{
       })}
       {item('canvas-menu-paste', <Clipboard size={16} />, 'Paste', () => useMarkupStore.getState().pasteMarkups(), {
         shortcut: 'Ctrl+V',
-        disabled: allLocked || useMarkupStore.getState().clipboardMarkups.length === 0,
+        disabled: allLocked || (useMarkupStore.getState().clipboardMarkups.length === 0 && !hasSnapshotInCache()),
       })}
       {item('canvas-menu-multiply', <CopyPlus size={16} />, 'Multiply…', undefined, {
         shortcut: 'Ctrl+M',

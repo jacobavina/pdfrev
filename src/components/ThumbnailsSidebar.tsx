@@ -51,6 +51,10 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
     };
   }, [pageIndex, pdfDoc]);
 
+  const pageLabels = useDocumentStore((s) => s.pageLabels);
+  const label = pageLabels?.[pageIndex];
+  const pageText = label ? `Page ${pageIndex + 1} (${label})` : `Page ${pageIndex + 1}`;
+
   return (
     <div
       data-testid={`thumbnail-${pageIndex}`}
@@ -86,11 +90,12 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
       </div>
       <div className="flex items-center justify-between w-full mt-1.5 px-1">
         <span
+          data-testid={`page-label-${pageIndex}`}
           className={`text-xs font-medium ${
             isActive ? 'text-cad-accent font-bold' : 'text-gray-400 group-hover:text-gray-200'
           }`}
         >
-          Page {pageIndex + 1}
+          {pageText}
         </span>
         <div className="flex items-center space-x-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           {totalNumPages > 1 && pageIndex > 0 && (

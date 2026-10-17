@@ -50,7 +50,11 @@ interface DocumentState {
   zoomIn: () => void;
   zoomOut: () => void;
   resetZoom: () => void;
+  pageLabels: Record<number, string> | null;
+  setPageLabels: (pageLabels: Record<number, string> | null) => void;
   rotateClockwise: () => void;
+  rotateCounterClockwise: () => void;
+  resetRotation: () => void;
   setPageDimensions: (pageIndex: number, width: number, height: number) => void;
   setPageHasText: (pageIndex: number, hasText: boolean) => void;
   setPdfBytes: (bytes: Uint8Array) => void;
@@ -76,6 +80,7 @@ export const useDocumentStore = create<DocumentState>((set) => ({
   rotation: 0,
   pageDimensions: {},
   pageHasText: {},
+  pageLabels: null,
   customColumns: undefined,
   importedAnnotationIds: [],
   isLoading: false,
@@ -83,6 +88,7 @@ export const useDocumentStore = create<DocumentState>((set) => ({
   ocConfig: null,
   ocVersion: 0,
 
+  setPageLabels: (pageLabels) => set({ pageLabels }),
   setOcConfig: (ocConfig) => set((s) => ({ ocConfig, ocVersion: s.ocVersion + 1 })),
   setPdfLayerVisible: (id, visible) => {
     const cfg = useDocumentStore.getState().ocConfig as { setVisibility?: (id: string, v: boolean) => void } | null;
@@ -112,6 +118,7 @@ export const useDocumentStore = create<DocumentState>((set) => ({
       rotation: 0,
       pageDimensions: {},
       pageHasText: {},
+      pageLabels: null,
       customColumns: undefined,
       importedAnnotationIds: [],
       ocConfig: null,
@@ -186,6 +193,16 @@ export const useDocumentStore = create<DocumentState>((set) => ({
       rotation: (state.rotation + 90) % 360,
     })),
 
+  rotateCounterClockwise: () =>
+    set((state) => ({
+      rotation: (state.rotation + 270) % 360,
+    })),
+
+  resetRotation: () =>
+    set({
+      rotation: 0,
+    }),
+
   setPageDimensions: (pageIndex, width, height) =>
     set((state) => ({
       pageDimensions: {
@@ -219,6 +236,7 @@ export const useDocumentStore = create<DocumentState>((set) => ({
       scale: 1.0,
       rotation: 0,
       pageDimensions: {},
+      pageLabels: null,
       customColumns: undefined,
       error: null,
       isLoading: false,

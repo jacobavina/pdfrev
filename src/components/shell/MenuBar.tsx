@@ -117,7 +117,7 @@ export const MenuBar: React.FC = () => {
   }, [openMenu]);
   const barRef = useRef<HTMLDivElement | null>(null);
 
-  const { fileName, filePath, pdfBytes, numPages, currentPageIndex, zoomIn, zoomOut, resetZoom, rotateClockwise } =
+  const { fileName, filePath, pdfBytes, numPages, currentPageIndex, zoomIn, zoomOut, resetZoom, rotateClockwise, rotateCounterClockwise } =
     useDocumentStore();
   const { canUndo, canRedo, undo, redo, isDirty, selectedMarkupIds } = useMarkupStore();
   const { activeTool, setActiveTool, activeStampId, setActiveStampId, activeFieldType, setActiveFieldType } = useToolStore();
@@ -280,10 +280,34 @@ export const MenuBar: React.FC = () => {
       entries: [
         { icon: <ZoomIn size={16} />, label: 'Zoom In', shortcut: 'Ctrl+wheel', onSelect: zoomIn, disabled: !hasDoc },
         { icon: <ZoomOut size={16} />, label: 'Zoom Out', shortcut: 'Ctrl+wheel', onSelect: zoomOut, disabled: !hasDoc },
+        {
+          icon: <ZoomIn size={16} />,
+          label: 'Zoom Window',
+          shortcut: 'Z',
+          onSelect: () => useToolStore.getState().setActiveTool('zoom'),
+          disabled: !hasDoc,
+          testId: 'menu-zoom-window',
+        },
         { icon: <FitPageIcon size={16} />, label: 'Fit Page', shortcut: 'Ctrl+9', onSelect: () => requestFit('page'), disabled: !hasDoc, testId: 'menu-fit-page' },
         { icon: <FitWidthIcon size={16} />, label: 'Fit Width', shortcut: 'Ctrl+0', onSelect: () => requestFit('width'), disabled: !hasDoc },
         { icon: <ActualSizeIcon size={16} />, label: 'Actual Size', shortcut: 'Ctrl+8', onSelect: resetZoom, disabled: !hasDoc },
-        { icon: <RotateCw size={16} />, label: 'Rotate View 90°', onSelect: rotateClockwise, disabled: !hasDoc },
+        'separator',
+        {
+          icon: <RotateCw size={16} />,
+          label: 'Rotate View Clockwise',
+          shortcut: 'Ctrl+Shift++',
+          onSelect: rotateClockwise,
+          disabled: !hasDoc,
+          testId: 'menu-rotate-clockwise',
+        },
+        {
+          icon: <RotateCcw size={16} />,
+          label: 'Rotate View Counterclockwise',
+          shortcut: 'Ctrl+Shift+-',
+          onSelect: rotateCounterClockwise,
+          disabled: !hasDoc,
+          testId: 'menu-rotate-counterclockwise',
+        },
         'separator',
         { icon: <SinglePageIcon size={16} />, label: 'Single Page', shortcut: 'Ctrl+4', checked: viewMode === 'single', onSelect: () => setViewMode('single') },
         { icon: <ContinuousIcon size={16} />, label: 'Continuous Pages', shortcut: 'Ctrl+5', checked: viewMode === 'continuous', onSelect: () => setViewMode('continuous'), testId: 'menu-view-continuous' },

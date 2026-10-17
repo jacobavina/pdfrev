@@ -939,8 +939,8 @@ export const PdfViewer: React.FC = () => {
           setDrawingStart(null);
           setCurrentDrawPoint(null);
           setInlineEditing(null);
-        } else if (activeTool === 'calibrate' || activeTool === 'snapshot') {
-          // Sin trazo en curso, Esc abandona la calibración o instantánea (como en Revu)
+        } else if (activeTool === 'calibrate' || activeTool === 'snapshot' || activeTool === 'zoom') {
+          // Sin trazo en curso, Esc abandona la calibración, instantánea o zoom (como en Revu)
           useToolStore.getState().setActiveTool('select');
         }
         return;
@@ -982,6 +982,20 @@ export const PdfViewer: React.FC = () => {
         e.preventDefault();
         void runPageOperation(e.code === 'KeyR' ? 'rotate' : 'extract');
         return;
+      }
+
+      // Rotar vista 90° (ADR-0086): Ctrl+Shift++ en sentido horario, Ctrl+Shift+- en sentido antihorario
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey) {
+        if (e.key === '+' || e.key === '=' || e.code === 'Equal' || e.code === 'NumpadAdd') {
+          e.preventDefault();
+          useDocumentStore.getState().rotateClockwise();
+          return;
+        }
+        if (e.key === '-' || e.key === '_' || e.code === 'Minus' || e.code === 'NumpadSubtract') {
+          e.preventDefault();
+          useDocumentStore.getState().rotateCounterClockwise();
+          return;
+        }
       }
 
       // Portapapeles: Copiar (Ctrl+C / Cmd+C)
@@ -1122,6 +1136,7 @@ export const PdfViewer: React.FC = () => {
           k: 'cloudPlus',
           s: 'stamp',
           g: 'snapshot',
+          z: 'zoom',
         };
         const tool = toolByKey[e.key.toLowerCase()];
         if (tool) {
@@ -2339,6 +2354,48 @@ export const PdfViewer: React.FC = () => {
       return;
     }
 
+    // Zoom a Ventana (ADR-0086): arrastre = caja a encuadrar; clic sin arrastre = zoom 1.5x centrado en el punto
+    if (activeTool === 'zoom') {
+      const el = containerRef.current;
+      if (drawingStart && currentDrawPoint && exceedsScreenThreshold(drawingStart, currentDrawPoint, viewportTransform, 5)) {
+        if (el) {
+          const p1 = normalizedToScreen(drawingStart, viewportTransform);
+          const p2 = normalizedToScreen(currentDrawPoint, viewportTransform);
+          const boxW = Math.max(1, Math.abs(p2.x - p1.x));
+          const boxH = Math.max(1, Math.abs(p2.y - p1.y));
+          const clientW = el.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 0) || pageViewport.width || 1200;
+          const clientH = el.clientHeight || (typeof window !== 'undefined' ? window.innerHeight : 0) || pageViewport.height || 800;
+          const availW = Math.max(50, clientW - 32);
+          const availH = Math.max(50, clientH - 32);
+          const factor = Math.min(availW / boxW, availH / boxH);
+          const currentScale = useDocumentStore.getState().scale;
+          const newScale = Math.min(5.0, Math.max(0.1, Math.round(currentScale * factor * 100) / 100));
+
+          const pageEl = pageContainerRef.current;
+          const rect = el.getBoundingClientRect();
+          const pageRect = pageEl?.getBoundingClientRect();
+          const centerXClient = (pageRect ? pageRect.left : rect.left) + (p1.x + p2.x) / 2;
+          const centerYClient = (pageRect ? pageRect.top : rect.top) + (p1.y + p2.y) / 2;
+          const currentPx = centerXClient - rect.left;
+          const currentPy = centerYClient - rect.top;
+
+          zoomAnchorRef.current = {
+            rx: (el.scrollLeft + currentPx) / (el.scrollWidth || 1),
+            ry: (el.scrollTop + currentPy) / (el.scrollHeight || 1),
+            px: el.clientWidth / 2,
+            py: el.clientHeight / 2,
+          };
+          useDocumentStore.getState().setScale(newScale);
+        }
+      } else {
+        zoomAtClientPoint(e.clientX, e.clientY, 1.5);
+      }
+      setDrawingStart(null);
+      setCurrentDrawPoint(null);
+      useToolStore.getState().setActiveTool('select');
+      return;
+    }
+
     // Enlace, adjunto y campo de formulario (ADR-0027): clic = tamaño por defecto; arrastre = caja
     if (activeTool === 'link' || activeTool === 'fileAttachment' || activeTool === 'formField') {
       if (drawingStart && currentDrawPoint) createInteractiveMarkup(activeTool, drawingStart, currentDrawPoint);
@@ -3118,6 +3175,8 @@ export const PdfViewer: React.FC = () => {
                   : 'cursor-grab'
                 : activeTool === 'snapshot'
                 ? 'cursor-crosshair'
+                : activeTool === 'zoom'
+                ? 'cursor-zoom-in'
                 : 'cursor-rea-draw'
             }`}
             onMouseDown={handleMouseDown}
@@ -3606,6 +3665,23 @@ export const PdfViewer: React.FC = () => {
                         stroke={tok('cad-accent')}
                         strokeWidth={1.5}
                         fill={tok('cad-accent', 0.15)}
+                        strokeDasharray="4 3"
+                      />
+                    );
+                  }
+
+                  if (activeTool === 'zoom') {
+                    const rect = getRectGeometry(p1, p2);
+                    return (
+                      <rect
+                        data-testid="zoom-marquee"
+                        x={rect.x}
+                        y={rect.y}
+                        width={rect.width}
+                        height={rect.height}
+                        stroke={tok('cad-accent')}
+                        strokeWidth={1.5}
+                        fill={tok('cad-accent', 0.12)}
                         strokeDasharray="4 3"
                       />
                     );

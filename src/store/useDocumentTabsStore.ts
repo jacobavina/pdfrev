@@ -23,6 +23,7 @@ export interface DocumentTabSession {
   rotation: number;
   pageDimensions: Record<number, PageDimension>;
   pageHasText: Record<number, boolean>;
+  pageLabels?: Record<number, string> | null;
   customColumns?: BbxCustomColumn[];
   importedAnnotationIds: string[];
   markups: Markup[];
@@ -77,6 +78,7 @@ function captureActiveSession(tabId: string): DocumentTabSession | null {
     rotation: docState.rotation,
     pageDimensions: { ...docState.pageDimensions },
     pageHasText: { ...docState.pageHasText },
+    pageLabels: docState.pageLabels ? { ...docState.pageLabels } : null,
     customColumns: docState.customColumns ? [...docState.customColumns] : undefined,
     importedAnnotationIds: [...docState.importedAnnotationIds],
     markups: [...markupState.markups],
@@ -106,6 +108,7 @@ function restoreSession(session: DocumentTabSession): void {
     rotation: session.rotation,
     pageDimensions: { ...session.pageDimensions },
     pageHasText: { ...session.pageHasText },
+    pageLabels: session.pageLabels ? { ...session.pageLabels } : null,
     customColumns: session.customColumns ? [...session.customColumns] : undefined,
     importedAnnotationIds: [...session.importedAnnotationIds],
     isLoading: false,

@@ -122,6 +122,16 @@ export async function loadPdfData(
     const numPages = pdfDoc.numPages;
 
     setDocument(filePath, fileName, bytes, numPages, pdfDoc);
+
+    // Cargar /PageLabels estándar (ADR-0086)
+    try {
+      const { loadPageLabels } = await import('../core/pdf/pageLabels');
+      const labels = await loadPageLabels(pdfDoc, bytes);
+      useDocumentStore.getState().setPageLabels(labels);
+    } catch (labelsErr) {
+      console.warn('[PageLabels] Could not read page labels:', labelsErr);
+      useDocumentStore.getState().setPageLabels(null);
+    }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     setError(`Error processing PDF: ${message}`);
@@ -216,6 +226,7 @@ export async function loadPdfData(
         rotation: docState.rotation,
         pageDimensions: { ...docState.pageDimensions },
         pageHasText: { ...docState.pageHasText },
+        pageLabels: docState.pageLabels ? { ...docState.pageLabels } : null,
         customColumns: docState.customColumns ? [...docState.customColumns] : undefined,
         importedAnnotationIds: [...docState.importedAnnotationIds],
         markups: [...markupState.markups],

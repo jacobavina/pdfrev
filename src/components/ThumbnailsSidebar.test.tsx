@@ -134,4 +134,21 @@ describe('ThumbnailsSidebar - Operaciones de Página (Paquete 5)', () => {
       expect(pageService.executeReorderPage).toHaveBeenCalledWith(0, 1);
     });
   });
+
+  it('muestra etiquetas de página cuando están presentes en el store (ADR-0086)', async () => {
+    useDocumentStore.setState({
+      pageLabels: {
+        0: 'A-101',
+        1: 'A-102',
+      },
+    });
+
+    render(<ThumbnailsSidebar />);
+
+    const label0 = screen.getByTestId('page-label-0');
+    const label1 = screen.getByTestId('page-label-1');
+
+    expect(label0).toHaveTextContent('Page 1 (A-101)');
+    expect(label1).toHaveTextContent('Page 2 (A-102)');
+  });
 });

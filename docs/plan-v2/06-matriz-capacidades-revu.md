@@ -20,13 +20,13 @@
 |---|---|---|---|---|
 | Abrir PDF desde diálogo | ✅ ADR-0017 (5319ddd) · `src/services/fileDialogService.test.ts` (9 tests) y E2E de carga del fixture | — | M | K I |
 | Abrir desde el Explorador ("Abrir con", argumentos), recientes | ⬜ (sin recientes de archivos; solo de herramientas en Tool Chest) | P5-B.6 | M | K I |
-| Zoom, rotación de vista | 🟡 Zoom ✅ ADR-0019/0023 (28f3240/724c53e) · PARITY «Atajos de vista de Revu (Ctrl+9/0/8/4/5/3)» y «Control de zoom con doble clic en el plano»; rotación de vista implementada (View ▸ Rotate View 90°) sin test dedicado | P5-B.5 | M | K I |
-| Mano, ajustar a ancho/página, zoom a ventana | 🟡 Pan ✅ ADR-0052 (4c6f951) · PARITY «Pan: arrastrar, Espacio mantenido y botón central»; ajustar a ancho/página ✅ ADR-0019 (28f3240) · PARITY «Vista continua, ajustar a página/ancho…»; zoom a ventana ⬜ | P5-B.5 | M | K I |
+| Zoom, rotación de vista | ✅ ADR-0019/0023/0086 · PARITY «Zoom a Ventana (tecla Z), Rotación de Vista 90° y Etiquetas de Página (/PageLabels) (ADR-0086)» · `src/components/ZoomWindowAndRotation.test.tsx` (6 tests) | — | M | K I |
+| Mano, ajustar a ancho/página, zoom a ventana | ✅ ADR-0019/0052/0086 · Pan ✅ ADR-0052 (4c6f951) · PARITY «Pan: arrastrar, Espacio mantenido…»; ajustar a ancho/página ✅ ADR-0019 (28f3240); zoom a ventana con atajo Z y encuadre por arrastre ✅ ADR-0086 (`ZoomWindowAndRotation.test.tsx`) | — | M | K I |
 | Vista continua multipágina | ✅ ADR-0019 (28f3240) · PARITY «Vista continua, ajustar a página/ancho, Ctrl+rueda, cota (Shift+L), puntos de control y zoom con doble clic (ADR-0019/0020/0021)» | — | M | K I |
 | Pestañas / varios documentos | ✅ ADR-0083 · `src/store/useDocumentTabsStore.test.ts` (8) y `DocumentBar.test.tsx` (5) · PARITY «Pestañas multi-documento con sesiones independientes…» | — | M | K I |
 | Miniaturas | ✅ ADR-0016/0037 (d5a0fdf/665bdff) · `src/components/ThumbnailsSidebar.test.tsx` (2 tests) | — | M | K I |
 | Marcadores (índice) | 🟡 Panel implementado (ADR-0017, 5319ddd) con el índice del PDF; sin test automatizado ni fila PARITY | P5-B.3 | S | I |
-| Etiquetas de página | ⬜ (grep `PageLabel`: vacío) | P5-B.3 | S | K |
+| Etiquetas de página | ✅ ADR-0086 · Soporte ISO 32000-1 §12.4.2 (/PageLabels, estilos /D, /r, /R, /a, /A, prefijos) · `src/core/pdf/pageLabels.test.ts` (13) y `ThumbnailsSidebar.test.tsx` (5) | — | S | K |
 | Búsqueda de texto | ✅ ADR-0016 (d5a0fdf) · `src/core/search/textSearch.test.ts` (8) y `src/components/PdfViewerSearch.test.tsx` (2) | — | M | K I |
 | Planos grandes (E-size, 100 MB) con fluidez | ⬜ sin medir (el spike del motor evaluó un corpus de 1,001 PDFs, ADR-0010; no hay benchmark de E-size/100 MB) | P5-A | M | K I |
 | Vista dividida sincronizada | ✅ ADR-0049 (08c5322) + ADR-0054 (b5d6f79) · PARITY «Vista lado a lado (Split View)…», «Sync de la vista lado a lado…» y «Sincronización en ambos sentidos…» | — | S | I |
@@ -197,8 +197,8 @@ a ✅ si su fila de PARITY o su test existe y pasa; si la capacidad está en el 
 | Fila (§, capacidad) | Antes | Después | Evidencia |
 |---|---|---|---|
 | 1.1 Abrir PDF desde diálogo | ✅ sin cita | ✅ con cita | `src/services/fileDialogService.ts` (`openPdfDialog` vía plugin-dialog, `loadPdfData`); 9 tests en `fileDialogService.test.ts`; E2E carga el fixture en `Verifica que el PDF renderiza pixels reales…` |
-| 1.1 Zoom, rotación de vista | ✅ | 🟡 | Zoom con tests (PARITY «Atajos de vista de Revu (Ctrl+9/0/8/4/5/3)» y «Control de zoom con doble clic en el plano»); rotación de vista existe en `MenuBar.tsx` («Rotate View 90°», `rotateClockwise`) pero ningún test la cita (grep `Rotate View|rotateClockwise` en tests: vacío) |
-| 1.1 Mano, ajustar, zoom a ventana | 🟡 (zoom/rotación) | 🟡 nota nueva | Pan ✅ PARITY «Pan: arrastrar, Espacio mantenido y botón central» (ADR-0052); ajustar ✅ PARITY «Vista continua, ajustar a página/ancho…» (ADR-0019); zoom a ventana ⬜ (grep `Fit Window`: vacío) |
+| 1.1 Zoom, rotación de vista | 🟡 | ✅ | Zoom y rotación de vista 90° en ambos sentidos (`Ctrl+Shift++`, `Ctrl+Shift+-`, `rotateClockwise`, `rotateCounterClockwise`) verificados en `src/components/ZoomWindowAndRotation.test.tsx` (ADR-0086) |
+| 1.1 Mano, ajustar, zoom a ventana | 🟡 | ✅ | Pan (ADR-0052), ajustar página/ancho (ADR-0019) y zoom a ventana interactivo con tecla Z y encuadre por arrastre (ADR-0086, `ZoomWindowAndRotation.test.tsx`) |
 | 1.1 Vista continua multipágina | ⬜ | ✅ | ADR-0019, commit 28f3240; PARITY «Vista continua, ajustar a página/ancho, Ctrl+rueda, cota (Shift+L), puntos de control y zoom con doble clic (ADR-0019/0020/0021)»; E2E ok 19 en las 3 pasadas |
 | 1.1 Miniaturas | ✅ sin cita | ✅ con cita | `src/components/ThumbnailsSidebar.test.tsx` (2 tests: cabecera y botones contextuales); operaciones de página ADR-0016 (`pageService.test.ts`) |
 | 1.1 Marcadores (índice) | ⬜ | 🟡 | `LeftDock.tsx` → `BookmarksPanel` con `pdfDoc.getOutline()` (ADR-0017, 5319ddd); grep `bookmark` en tests y PARITY: vacío → sin prueba |

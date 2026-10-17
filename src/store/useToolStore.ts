@@ -18,6 +18,7 @@ export type ToolType =
   | MarkupType
   | 'select'
   | 'pan'
+  | 'zoom'
   | 'calibrate'
   | 'arrow'
   | 'polygonCutout'

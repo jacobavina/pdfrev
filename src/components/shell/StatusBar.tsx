@@ -35,6 +35,8 @@ export const StatusBar: React.FC = () => {
   const modeBtn = (active: boolean) =>
     `p-0.5 rounded hover:bg-cad-hover hover:text-cad-strong ${active ? 'bg-cad-hover text-cad-strong' : ''}`;
 
+  const pageLabels = useDocumentStore((s) => s.pageLabels);
+  const currentLabel = pageLabels?.[currentPageIndex];
   const isCalibrated = calibrations[currentPageIndex] !== undefined;
   const calib = getPageCalibration(currentPageIndex);
   const precision = calib.precision ?? 2;
@@ -69,7 +71,11 @@ export const StatusBar: React.FC = () => {
         <ChevronLeft size={16} />
       </button>
       <span data-testid="page-indicator" className="ui-data px-1 whitespace-nowrap">
-        {numPages > 0 ? `${currentPageIndex + 1} / ${numPages}` : '— / —'}
+        {numPages > 0
+          ? currentLabel
+            ? `${currentPageIndex + 1} (${currentLabel}) / ${numPages}`
+            : `${currentPageIndex + 1} / ${numPages}`
+          : '— / —'}
       </span>
       <button
         type="button"

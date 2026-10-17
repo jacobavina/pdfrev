@@ -58,13 +58,13 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
         isActive ? 'bg-cad-accent/10 ring-2 ring-cad-accent' : 'hover:bg-cad-hover ring-1 ring-transparent'
       }`}
     >
-      <div className="bg-white rounded-md overflow-hidden sheet-shadow flex items-center justify-center min-h-[90px] w-full">
+      <div className="bg-white rounded-md overflow-hidden border border-cad-border flex items-center justify-center min-h-[90px] w-full">
         <canvas ref={canvasRef} className="max-w-full h-auto block" />
       </div>
       <div className="flex items-center justify-between w-full mt-1.5 px-1">
         <span
           className={`text-xs font-medium ${
-            isActive ? 'text-blue-400 font-bold' : 'text-gray-400 group-hover:text-gray-200'
+            isActive ? 'text-cad-accent font-bold' : 'text-gray-400 group-hover:text-gray-200'
           }`}
         >
           Page {pageIndex + 1}

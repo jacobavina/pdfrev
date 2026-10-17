@@ -151,4 +151,40 @@ describe('Escala tipográfica y contraste de la interfaz (ADR-0062)', () => {
     expect(t.dark['cad-canvas']).toEqual([13, 15, 19]);
   });
 
+
+  it('las utilidades shadow-* solo viven en superficies flotantes con lista blanca: menús, popovers, avisos y diálogos (ADR-0068)', () => {
+    // Nivel 3 de elevación (docs/DESIGN.md §6): la sombra es exclusiva de lo que flota sobre el contenido.
+    // Las miniaturas, tarjetas, filas y paneles van a nivel 1/2 (sin sombra o con borde de 1 px).
+    const FLOATING: Record<string, string[]> = {
+      [path.join('src', 'components', 'shell', 'MenuBar.tsx')]: ['shadow-float'],
+      [path.join('src', 'components', 'shell', 'CanvasContextMenu.tsx')]: ['shadow-float'],
+      [path.join('src', 'components', 'shell', 'IconPicker.tsx')]: ['shadow-float'],
+      [path.join('src', 'components', 'shell', 'ColorPicker.tsx')]: ['shadow-float'],
+      [path.join('src', 'components', 'shell', 'CloudStylePicker.tsx')]: ['shadow-float'],
+      [path.join('src', 'components', 'shell', 'StampPicker.tsx')]: ['shadow-float'],
+      [path.join('src', 'components', 'shell', 'ToastHost.tsx')]: ['shadow-float'],
+      [path.join('src', 'components', 'shell', 'ShortcutsDialog.tsx')]: ['shadow-float'],
+      [path.join('src', 'components', 'MarkupsList.tsx')]: ['shadow-float', 'shadow-[inset_0_-1px_0_rgb(var(--cad-border))]'],
+      [path.join('src', 'components', 'SearchBar.tsx')]: ['shadow-float'],
+      [path.join('src', 'components', 'CalibrationModal.tsx')]: ['shadow-float'],
+      [path.join('src', 'components', 'modals', 'SignDocumentModal.tsx')]: ['shadow-float'],
+      [path.join('src', 'components', 'markup', 'LinkDialog.tsx')]: ['shadow-float'],
+      [path.join('src', 'components', 'markup', 'InlineTextEditor.tsx')]: ['shadow-float'],
+      [path.join('src', 'components', 'PdfViewer.tsx')]: ['shadow-float'],
+      [path.join('src', 'components', 'viewer', 'OverlayBar.tsx')]: ['shadow-float'],
+      [path.join('src', 'components', 'viewer', 'CalibrateHint.tsx')]: ['shadow-float'],
+    };
+    const floatUtil = () => /(?<![\w-])shadow-[\w\[\]()\/.,:%\-]+/g;
+    // El detector caza una sombra decorativa en una tarjeta y deja pasar la clase propia de la hoja
+    expect('className="shadow-md"'.match(floatUtil())).toEqual(['shadow-md']);
+    expect('sheet-shadow'.match(floatUtil())).toBeNull();
+    const offenders: string[] = [];
+    for (const f of sourceFiles(path.join('src', 'components'))) {
+      for (const m of read(f).matchAll(floatUtil())) {
+        if (!(FLOATING[f] ?? []).includes(m[0])) offenders.push(`${f}: ${m[0]}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
 });

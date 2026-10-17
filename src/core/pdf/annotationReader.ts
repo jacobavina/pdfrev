@@ -519,12 +519,46 @@ export async function importPdfAnnotations(
         }
       } else if (subtype === 'Text') {
         markupType = 'stickyNote';
-      } else if (subtype === 'Highlight') {
-        if (!isRea) markupType = 'highlightVector';
-      } else if (subtype === 'Underline') {
-        if (!isRea) markupType = 'underline';
-      } else if (subtype === 'StrikeOut') {
-        if (!isRea) markupType = 'strikeOut';
+      } else if (
+        subtype === 'Highlight' ||
+        subtype === 'Underline' ||
+        subtype === 'StrikeOut' ||
+        subtype === 'Squiggly'
+      ) {
+        if (!isRea) {
+          markupType =
+            subtype === 'Highlight'
+              ? 'highlightVector'
+              : subtype === 'Underline'
+                ? 'underline'
+                : subtype === 'StrikeOut'
+                  ? 'strikeOut'
+                  : 'squiggly';
+          const qpObj = annotDict.get(PDFName.of('QuadPoints'));
+          if (qpObj instanceof PDFArray && qpObj.size() >= 8) {
+            let qMinX = Infinity;
+            let qMinY = Infinity;
+            let qMaxX = -Infinity;
+            let qMaxY = -Infinity;
+            for (let i = 0; i + 1 < qpObj.size(); i += 2) {
+              const qx = qpObj.get(i);
+              const qy = qpObj.get(i + 1);
+              if (qx instanceof PDFNumber && qy instanceof PDFNumber) {
+                qMinX = Math.min(qMinX, qx.asNumber());
+                qMinY = Math.min(qMinY, qy.asNumber());
+                qMaxX = Math.max(qMaxX, qx.asNumber());
+                qMaxY = Math.max(qMaxY, qy.asNumber());
+              }
+            }
+            if (qMinX < qMaxX && qMinY < qMaxY) {
+              points.length = 0;
+              points.push(
+                pdfToNormalizedCoordinates({ x: qMinX, y: qMaxY }, transform),
+                pdfToNormalizedCoordinates({ x: qMaxX, y: qMinY }, transform)
+              );
+            }
+          }
+        }
       } else if (subtype === 'FreeText') {
         if (!isRea) {
           const hasCl = annotDict.get(PDFName.of('CL')) instanceof PDFArray;
@@ -571,6 +605,7 @@ export async function importPdfAnnotations(
           'Highlight',
           'Underline',
           'StrikeOut',
+          'Squiggly',
           'Stamp',
           'Widget',
         ].includes(subtype)

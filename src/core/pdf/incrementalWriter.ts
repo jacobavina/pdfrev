@@ -827,7 +827,8 @@ ${markup.layer && layerOcg.has(markup.layer) ? `  /OC ${layerOcg.get(markup.laye
       } else if (
         (annotTypeSubtype === 'Highlight' ||
           annotTypeSubtype === 'Underline' ||
-          annotTypeSubtype === 'StrikeOut') &&
+          annotTypeSubtype === 'StrikeOut' ||
+          annotTypeSubtype === 'Squiggly') &&
         markup.points.length >= 2
       ) {
         const p1 = normalizedToPdfCoordinates(markup.points[0], transform);
@@ -1293,6 +1294,8 @@ function getPdfAnnotSubtype(markup: Markup): string {
       return 'Underline';
     case 'strikeOut':
       return 'StrikeOut';
+    case 'squiggly':
+      return 'Squiggly';
     default:
       return 'Square';
   }

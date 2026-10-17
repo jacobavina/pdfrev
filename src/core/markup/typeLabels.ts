@@ -18,6 +18,7 @@ export const MARKUP_TYPE_LABELS: Record<MarkupType, string> = {
   highlightText: 'Text Highlight',
   underline: 'Underline',
   strikeOut: 'Strikethrough',
+  squiggly: 'Squiggly',
   stamp: 'Stamp',
   dimension: 'Dimension',
   link: 'Hyperlink',

@@ -923,6 +923,7 @@ export async function exportMarkupsToPdf(
         case 'polyLine':
         case 'underline':
         case 'strikeOut':
+        case 'squiggly':
         case 'length':
         case 'polylineMeasure':
         case 'area':

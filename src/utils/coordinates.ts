@@ -591,6 +591,7 @@ export function hitTestMarkup(
     markup.type === 'highlightText' ||
     markup.type === 'underline' ||
     markup.type === 'strikeOut' ||
+    markup.type === 'squiggly' ||
     markup.type === 'stamp' ||
     markup.type === 'link' ||
     markup.type === 'fileAttachment' ||
@@ -606,7 +607,8 @@ export function hitTestMarkup(
       markup.type === 'highlightVector' ||
       markup.type === 'highlightText' ||
       markup.type === 'underline' ||
-      markup.type === 'strikeOut'
+      markup.type === 'strikeOut' ||
+      markup.type === 'squiggly'
     ) {
       return (
         point.x >= bounds.x - tolerance &&

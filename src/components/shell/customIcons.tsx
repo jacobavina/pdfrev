@@ -246,6 +246,12 @@ export const StrikeoutIcon: React.FC<{ size?: number }> = ({ size }) => (
   </Icon>
 );
 
+export const SquigglyIcon: React.FC<{ size?: number }> = ({ size }) => (
+  <Icon size={size} strokeWidth={1.6}>
+    <path d="M7 4v6a5 5 0 0 0 10 0V4M4 19.5l2.5-2 2.5 2 2.5-2 2.5 2 2.5-2 3.5 2" />
+  </Icon>
+);
+
 export const PolylineToolIcon: React.FC<{ size?: number }> = ({ size }) => (
   <Icon size={size} strokeWidth={1.6}>
     <path d="m4 18 5-9 4 6 4-10 3 6" />

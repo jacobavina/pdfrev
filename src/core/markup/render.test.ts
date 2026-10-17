@@ -684,6 +684,30 @@ describe('Pure Markup Rendering (src/core/markup/render.ts - Criterio 1)', () =>
         expect(desc.attrs.stroke).toBe('#e02424');
       });
 
+      it('genera descriptor path sinusoidal en la base para squiggly (ADR-0072)', () => {
+        const squigglyMarkup: Markup = {
+          id: 'sqg-1',
+          type: 'squiggly',
+          pageIndex: 0,
+          points: [
+            { x: 0.1, y: 0.1 },
+            { x: 0.3, y: 0.15 },
+          ],
+          style: { strokeColor: '#e02424', strokeWidth: 1.5, opacity: 1 },
+          author: 'Tester',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: 'pending',
+        };
+
+        const desc = getMarkupSvgDescriptor(squigglyMarkup, transform);
+        expect(desc.tag).toBe('path');
+        expect(String(desc.attrs.d)).toContain('M 80.00 90.00');
+        expect(String(desc.attrs.d)).toContain('L 240.00');
+        expect(desc.attrs.fill).toBe('none');
+        expect(desc.attrs.stroke).toBe('#e02424');
+      });
+
       it('genera grupo con extremos de línea (openArrow, closedArrow, circle, square, diamond)', () => {
         const lineWithArrows: Markup = {
           id: 'line-arrows',

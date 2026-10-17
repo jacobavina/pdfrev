@@ -12,6 +12,7 @@ import {
   TextHighlightIcon,
   UnderlineIcon,
   StrikeoutIcon,
+  SquigglyIcon,
   PenIcon,
   HighlighterIcon,
   PolylineToolIcon,
@@ -70,6 +71,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
       { type: 'stickyNote', label: 'Note (N)', short: 'Note', icon: <NoteIcon />, shortcut: 'N' },
       { type: 'highlightText', label: 'Text Highlight (Shift+H)', short: 'Highlight', icon: <TextHighlightIcon />, shortcut: 'Shift+H' },
       { type: 'underline', label: 'Underline (U)', short: 'Underline', icon: <UnderlineIcon />, shortcut: 'U' },
+      { type: 'squiggly', label: 'Squiggly (Shift+U)', short: 'Squiggly', icon: <SquigglyIcon />, shortcut: 'Shift+U' },
       { type: 'strikeOut', label: 'Strikethrough (D)', short: 'Strike', icon: <StrikeoutIcon />, shortcut: 'D' },
     ],
   },
@@ -139,7 +141,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
 export const ALL_TOOLS: ToolDefinition[] = TOOL_GROUPS.flatMap((g) => g.tools);
 
 /** Herramientas que trabajan sobre el texto real de la página (requieren capa de texto). */
-export const TEXT_LAYER_TOOLS: ToolType[] = ['highlightText', 'underline', 'strikeOut'];
+export const TEXT_LAYER_TOOLS: ToolType[] = ['highlightText', 'underline', 'strikeOut', 'squiggly'];
 
 /** Paleta de color de línea (ADR-0065: definida en el núcleo, es dato del documento). */
 export const STROKE_COLORS = MARKUP_COLORS;

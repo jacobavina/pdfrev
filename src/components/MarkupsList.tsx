@@ -46,6 +46,7 @@ import {
   TextHighlightIcon,
   UnderlineIcon,
   StrikeoutIcon,
+  SquigglyIcon,
   PenIcon,
   DimensionIcon,
   LengthMeasureIcon,
@@ -180,6 +181,8 @@ function getMarkupIcon(type: MarkupType) {
       return I(<TextHighlightIcon size={16} />, 'text-yellow-400');
     case 'underline':
       return I(<UnderlineIcon size={16} />, 'text-pink-400');
+    case 'squiggly':
+      return I(<SquigglyIcon size={16} />, 'text-pink-400');
     case 'strikeOut':
       return I(<StrikeoutIcon size={16} />, 'text-rose-400');
     case 'freehand':

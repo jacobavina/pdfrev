@@ -232,6 +232,17 @@ describe('Incremental Writer (P3-B.1 / ISO 32000-1 §7.5.6)', () => {
           updatedAt: '2026-10-11T12:00:00Z',
           status: 'pending',
         },
+        {
+          id: 'mk-squiggly-annot',
+          type: 'squiggly',
+          pageIndex: 0,
+          points: [{ x: 0.1, y: 0.3 }, { x: 0.4, y: 0.35 }],
+          style: { strokeColor: '#e02424', strokeWidth: 1.5, opacity: 1 },
+          author: 'Tester',
+          createdAt: '2026-10-11T12:00:00Z',
+          updatedAt: '2026-10-11T12:00:00Z',
+          status: 'pending',
+        },
       ];
 
       const updatedBytes = await saveIncrementalMarkups(originalBytes, p3Markups, {});
@@ -245,7 +256,8 @@ describe('Incremental Writer (P3-B.1 / ISO 32000-1 §7.5.6)', () => {
       expect(text).toContain('/Subtype /PolyLine');
       expect(text).toContain('/Subtype /Underline');
       expect(text).toContain('/Subtype /StrikeOut');
-      // Verificación de QuadPoints para Underline y StrikeOut
+      expect(text).toContain('/Subtype /Squiggly');
+      // Verificación de QuadPoints para Underline, StrikeOut y Squiggly
       expect(text).toContain('/QuadPoints [');
     });
   });

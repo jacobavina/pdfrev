@@ -1050,14 +1050,22 @@ export const PdfViewer: React.FC = () => {
         }
       }
 
-      if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'h' || e.key === 'H')) {
+      if (
+        e.shiftKey &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        (e.key === 'h' || e.key === 'H' || e.key === 'u' || e.key === 'U')
+      ) {
         e.preventDefault();
         if (pageHasText[currentPageIndex] === false) {
           showToast(
             'This page has no selectable text layer. Use the Highlight tool (H).'
           );
         }
-        useToolStore.getState().setActiveTool('highlightText');
+        useToolStore
+          .getState()
+          .setActiveTool(e.key.toLowerCase() === 'u' ? 'squiggly' : 'highlightText');
         return;
       }
 
@@ -2221,7 +2229,8 @@ export const PdfViewer: React.FC = () => {
         const isBoxTool =
           activeTool === 'highlightVector' ||
           activeTool === 'underline' ||
-          activeTool === 'strikeOut';
+          activeTool === 'strikeOut' ||
+          activeTool === 'squiggly';
         const points = isBoxTool
           ? [
               { x: minX, y: minY },
@@ -2493,7 +2502,8 @@ export const PdfViewer: React.FC = () => {
     if (
       (activeTool === 'highlightText' ||
         activeTool === 'underline' ||
-        activeTool === 'strikeOut') &&
+        activeTool === 'strikeOut' ||
+        activeTool === 'squiggly') &&
       pageHasText[currentPageIndex] === false
     ) {
       showToast(
@@ -2506,7 +2516,8 @@ export const PdfViewer: React.FC = () => {
     if (
       activeTool !== 'highlightText' &&
       activeTool !== 'underline' &&
-      activeTool !== 'strikeOut'
+      activeTool !== 'strikeOut' &&
+      activeTool !== 'squiggly'
     ) {
       return;
     }
@@ -2593,6 +2604,8 @@ export const PdfViewer: React.FC = () => {
     const actionDesc =
       activeTool === 'underline'
         ? `Underline text (${newMarkups.length} lines)`
+        : activeTool === 'squiggly'
+        ? `Squiggly text (${newMarkups.length} lines)`
         : activeTool === 'strikeOut'
         ? `Strike out text (${newMarkups.length} lines)`
         : `Highlight text (${newMarkups.length} lines)`;
@@ -2806,7 +2819,8 @@ export const PdfViewer: React.FC = () => {
               pointerEvents:
                 activeTool === 'highlightText' ||
                 activeTool === 'underline' ||
-                activeTool === 'strikeOut'
+                activeTool === 'strikeOut' ||
+                activeTool === 'squiggly'
                   ? 'auto'
                   : 'none',
             } as React.CSSProperties}
@@ -2938,7 +2952,8 @@ export const PdfViewer: React.FC = () => {
             className={`absolute inset-0 w-full h-full select-none ${
               activeTool === 'highlightText' ||
               activeTool === 'underline' ||
-              activeTool === 'strikeOut'
+              activeTool === 'strikeOut' ||
+              activeTool === 'squiggly'
                 ? 'pointer-events-none'
                 : activeTool === 'select'
                 ? 'cursor-rea-select'
@@ -3586,7 +3601,7 @@ export const PdfViewer: React.FC = () => {
                     );
                   }
 
-                  if (activeTool === 'underline') {
+                  if (activeTool === 'underline' || activeTool === 'squiggly') {
                     const rect = getRectGeometry(p1, p2);
                     return (
                       <line

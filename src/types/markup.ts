@@ -15,6 +15,7 @@ export const VALID_MARKUP_TYPES = [
   'highlightText',
   'underline',
   'strikeOut',
+  'squiggly',
   'stamp',
   // Cota con texto propio (ADR-0020): p1, p2 acotados y p3 sobre la línea de cota
   'dimension',

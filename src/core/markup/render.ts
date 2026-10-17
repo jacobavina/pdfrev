@@ -856,6 +856,33 @@ export function getMarkupSvgDescriptor(
       };
     }
 
+    case 'squiggly': {
+      const rect = getRectGeometry(p1Screen, p2Screen);
+      const baseY = rect.y + rect.height;
+      const step = 4;
+      const amp = 1.6;
+      const parts: string[] = [`M ${rect.x.toFixed(2)} ${baseY.toFixed(2)}`];
+      let x = rect.x;
+      let idx = 0;
+      while (x < rect.x + rect.width - 1e-3) {
+        const nextX = Math.min(rect.x + rect.width, x + step);
+        const y = baseY + (idx % 2 === 0 ? -amp : amp);
+        parts.push(`L ${nextX.toFixed(2)} ${y.toFixed(2)}`);
+        x = nextX;
+        idx++;
+      }
+      return {
+        tag: 'path',
+        attrs: {
+          ...baseAttrs,
+          d: parts.join(' '),
+          fill: 'none',
+          stroke: style.strokeColor || '#e02424',
+          strokeWidth: style.strokeWidth || 1.5,
+        },
+      };
+    }
+
     case 'polygon': {
       return {
         tag: 'polygon',

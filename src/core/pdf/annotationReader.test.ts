@@ -196,13 +196,24 @@ describe('PDF Annotation Reader (P3-B.4 / Interoperabilidad e Importación)', ()
         updatedAt: '2026-10-11T10:00:00Z',
         status: 'pending',
       },
+      {
+        id: 'mk-sqg-roundtrip',
+        type: 'squiggly',
+        pageIndex: 0,
+        points: [{ x: 0.1, y: 0.3 }, { x: 0.35, y: 0.34 }],
+        style: { strokeColor: '#e02424', strokeWidth: 1.5, opacity: 1 },
+        author: 'Revisor P3',
+        createdAt: '2026-10-11T10:00:00Z',
+        updatedAt: '2026-10-11T10:00:00Z',
+        status: 'pending',
+      },
     ];
 
     const pdfUpdated = await saveIncrementalMarkups(originalBytes, p3Markups);
     const result = await importPdfAnnotations(pdfUpdated);
 
     expect(result.foreignUnsupportedCount).toBe(0);
-    expect(result.markups.length).toBe(4);
+    expect(result.markups.length).toBe(5);
 
     const line = result.markups.find((m) => m.id === 'mk-line-arrows')!;
     expect(line).toBeDefined();
@@ -222,5 +233,37 @@ describe('PDF Annotation Reader (P3-B.4 / Interoperabilidad e Importación)', ()
     const strk = result.markups.find((m) => m.id === 'mk-strk-roundtrip')!;
     expect(strk).toBeDefined();
     expect(strk.type).toBe('strikeOut');
+
+    const sqg = result.markups.find((m) => m.id === 'mk-sqg-roundtrip')!;
+    expect(sqg).toBeDefined();
+    expect(sqg.type).toBe('squiggly');
+  });
+
+  it('importa anotación ajena /Subtype /Squiggly con /QuadPoints como marca squiggly (ADR-0072)', async () => {
+    const doc = await PDFDocument.create();
+    const page = doc.addPage([600, 400]);
+
+    const sqgDict = doc.context.obj({
+      Type: 'Annot',
+      Subtype: 'Squiggly',
+      Rect: [120, 280, 300, 300],
+      QuadPoints: [120, 300, 300, 300, 120, 280, 300, 280],
+      C: [0.88, 0.14, 0.14],
+      Contents: PDFString.of('Término dudoso'),
+      T: PDFString.of('Ing. Revisor'),
+      NM: PDFString.of('ext-squiggly-1'),
+    });
+    page.node.set(PDFName.of('Annots'), doc.context.obj([doc.context.register(sqgDict)]));
+
+    const pdfBytes = await doc.save();
+    const result = await importPdfAnnotations(pdfBytes);
+
+    expect(result.foreignUnsupportedCount).toBe(0);
+    expect(result.markups).toHaveLength(1);
+    expect(result.markups[0].type).toBe('squiggly');
+    expect(result.markups[0].id).toBe('ext-squiggly-1');
+    expect(result.markups[0].text).toBe('Término dudoso');
+    expect(result.markups[0].points[0].x).toBeCloseTo(120 / 600, 3);
+    expect(result.markups[0].points[1].x).toBeCloseTo(300 / 600, 3);
   });
 });

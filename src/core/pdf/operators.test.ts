@@ -254,5 +254,26 @@ describe('Pure PDF Operator Emitter (P3-B.1 / ISO 32000-1)', () => {
       expect(resStrk.operators).toContain('l');
       expect(resStrk.operators).toContain('S');
     });
+
+    it('emite camino en zigzag en la base para squiggly (ADR-0072)', () => {
+      const mkSquiggly: Markup = {
+        ...baseMarkup,
+        id: 'mk-sqg',
+        type: 'squiggly',
+        pageIndex: 0,
+        points: [
+          { x: 0.1, y: 0.1 },
+          { x: 0.4, y: 0.2 },
+        ],
+        style: { strokeColor: '#e02424', strokeWidth: 1.5, opacity: 1 },
+      };
+
+      const resSqg = emitMarkupOperators(mkSquiggly, baseTransform);
+      expect(resSqg.operators).toContain('m');
+      expect((resSqg.operators.match(/\sl\n/g) || []).length).toBeGreaterThan(5);
+      expect(resSqg.operators).toContain('S');
+      expect(resSqg.bbox[2]).toBeGreaterThan(resSqg.bbox[0]);
+      expect(resSqg.bbox[3]).toBeGreaterThan(resSqg.bbox[1]);
+    });
   });
 });

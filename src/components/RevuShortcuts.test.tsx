@@ -32,6 +32,7 @@ describe('Atajos de Revu y desplazamiento del plano (ADR-0052)', () => {
       ['p', {}, 'freehand'],
       ['e', {}, 'circle'],
       ['u', {}, 'underline'],
+      ['U', { shiftKey: true }, 'squiggly'],
       ['d', {}, 'strikeOut'],
       ['s', {}, 'stamp'],
       ['P', { shiftKey: true }, 'polygon'],
@@ -51,6 +52,7 @@ describe('Atajos de Revu y desplazamiento del plano (ADR-0052)', () => {
     expect(label('freehand')).toBe('Pen (P)');
     expect(label('polygon')).toBe('Polygon (Shift+P)');
     expect(label('polyLine')).toBe('Polyline (Shift+N)');
+    expect(label('squiggly')).toBe('Squiggly (Shift+U)');
   });
 
   it('Espacio mantenido es Pan temporal y arrastrar con Pan desplaza el plano', () => {

@@ -653,6 +653,32 @@ export function emitMarkupOperators(
       break;
     }
 
+    case 'squiggly': {
+      if (markup.points.length >= 2) {
+        const p1 = normalizedToPdfCoordinates(markup.points[0], transform);
+        const p2 = normalizedToPdfCoordinates(markup.points[1], transform);
+        const minX = Math.min(p1.x, p2.x);
+        const maxX = Math.max(p1.x, p2.x);
+        const minY = Math.min(p1.y, p2.y);
+        const step = 3;
+        const amp = 1.2;
+        updateBBox(minX, minY - amp);
+        updateBBox(maxX, minY + amp);
+        lines.push(`${minX.toFixed(2)} ${minY.toFixed(2)} m`);
+        let x = minX;
+        let idx = 0;
+        while (x < maxX - 1e-3) {
+          const nextX = Math.min(maxX, x + step);
+          const y = minY + (idx % 2 === 0 ? amp : -amp);
+          lines.push(`${nextX.toFixed(2)} ${y.toFixed(2)} l`);
+          x = nextX;
+          idx++;
+        }
+        lines.push('S');
+      }
+      break;
+    }
+
     case 'polygon': {
       if (markup.points.length >= 2) {
         const pdfPts = markup.points.map((p) => normalizedToPdfCoordinates(p, transform));

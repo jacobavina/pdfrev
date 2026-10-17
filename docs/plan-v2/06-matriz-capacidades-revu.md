@@ -102,7 +102,7 @@
 | Insertar/eliminar/reordenar/rotar/extraer páginas | ✅ ADR-0016 (d5a0fdf) + ADR-0082 · PARITY «Insertar, eliminar, rotar, extraer y reordenar páginas…» con drag & drop y remapeo de marcas y calibraciones | P5-C.1 (C.2) | M | K I |
 | Recortar páginas | ⬜ (el CropBox solo se usa para coordenadas, no para recortar) | P5-C.2 | S | K |
 | Encabezados, pies, numeración, marca de agua | ⬜ (grep `watermark`: vacío) | P5-C.2 | S | I |
-| Combinar PDFs | ⬜ (grep `mergePdf`: vacío) | P5-C.3 | M | K I |
+| Combinar PDFs | ✅ ADR-0084 · `src/core/pages/pageOperations.test.ts` (4), `pageService.test.ts` (2) y `CombinePdfsModal.test.tsx` (4) · PARITY «Combinar múltiples documentos PDF (Merge PDF)…» | — | M | K I |
 | Aplanar marcas | ✅ (export aplanado) · PARITY «Exportación vectorial PDF con inspección de content stream» + E2E `Sub-entregable 0.3 / 0.4` | — | M | I |
 | "Desaplanar" marcas propias de REA | ⬜ | P5-C.3 | S | I |
 | Procesos por lotes (enlaces, hojas de reemplazo, firmar, aplanar, resumen) | ⬜ (solo borrado múltiple de marcas) | P5-C.4 / P6-C.1 | S | K I |

@@ -163,6 +163,7 @@ interface UiState {
   /** Petición de abrir el compositor de respuesta en hilo para una marca en la lista de marcas (ADR-0071). */
   replyRequest: { markupId: string; seq: number } | null;
   shortcutsOpen: boolean;
+  combineModalOpen: boolean;
   viewMode: ViewMode;
   /** Petición de ajuste del zoom (la resuelve el visor, que conoce el tamaño del área y de la página). */
   fitRequest: { kind: FitKind; seq: number } | null;
@@ -193,6 +194,7 @@ interface UiState {
   requestExport: (kind: 'csv' | 'report' | 'append-report' | 'xlsx') => void;
   requestReply: (markupId: string) => void;
   setShortcutsOpen: (open: boolean) => void;
+  setCombineModalOpen: (open: boolean) => void;
   setViewMode: (mode: ViewMode) => void;
   requestFit: (kind: FitKind) => void;
   setSnap: (update: Partial<SnapSettings>) => void;
@@ -229,6 +231,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   exportRequest: null,
   replyRequest: null,
   shortcutsOpen: false,
+  combineModalOpen: false,
+  setCombineModalOpen: (combineModalOpen) => set({ combineModalOpen }),
   viewMode: readStoredViewMode(),
   fitRequest: null,
   snap: readStoredSnap(),

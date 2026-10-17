@@ -13,6 +13,8 @@ import {
   remapCalibrationsOnPageInsertion,
   remapCalibrationsOnPageReorder,
   remapViewportsOnPageReorder,
+  mergePdfDocuments,
+  MergeSourceDocument,
 } from './pageOperations';
 import { Markup, PageCalibration, MeasurementViewport } from '../../types/markup';
 
@@ -257,6 +259,73 @@ describe('Page Operations & Markup Remapping (Paquete 5)', () => {
       expect(remapped[0][0].pageIndex).toBe(0);
       expect(remapped[1][0].id).toBe('vp0');
       expect(remapped[1][0].pageIndex).toBe(1);
+    });
+  });
+
+  describe('mergePdfDocuments - Combinar Documentos PDF (ADR-0084)', () => {
+    it('combina 2 documentos PDF de 1 y 2 páginas resultando en un PDF de 3 páginas', async () => {
+      // Doc 1 (1 pág)
+      const doc1 = await PDFDocument.create();
+      doc1.addPage([500, 700]);
+      const bytes1 = await doc1.save();
+
+      // Doc 2 (2 págs)
+      const doc2 = await PDFDocument.create();
+      doc2.addPage([600, 800]);
+      doc2.addPage([600, 800]);
+      const bytes2 = await doc2.save();
+
+      const sources: MergeSourceDocument[] = [
+        { name: 'doc1.pdf', bytes: bytes1 },
+        { name: 'doc2.pdf', bytes: bytes2 },
+      ];
+
+      const mergedBytes = await mergePdfDocuments(sources);
+      const mergedDoc = await PDFDocument.load(mergedBytes);
+
+      expect(mergedDoc.getPageCount()).toBe(3);
+      expect(mergedDoc.getPage(0).getWidth()).toBe(500);
+      expect(mergedDoc.getPage(1).getWidth()).toBe(600);
+      expect(mergedDoc.getPage(2).getWidth()).toBe(600);
+    });
+
+    it('combina páginas seleccionadas específicas de múltiples documentos respetando el orden', async () => {
+      const doc = await PDFDocument.create();
+      doc.addPage([400, 400]); // Pag 0
+      doc.addPage([500, 500]); // Pag 1
+      doc.addPage([600, 600]); // Pag 2
+      const bytes = await doc.save();
+
+      const sources: MergeSourceDocument[] = [
+        { name: 'part.pdf', bytes, pageIndices: [2, 0] },
+      ];
+
+      const mergedBytes = await mergePdfDocuments(sources);
+      const mergedDoc = await PDFDocument.load(mergedBytes);
+
+      expect(mergedDoc.getPageCount()).toBe(2);
+      expect(mergedDoc.getPage(0).getWidth()).toBe(600); // antigua pág 2
+      expect(mergedDoc.getPage(1).getWidth()).toBe(400); // antigua pág 0
+    });
+
+    it('lanza error si la lista de documentos a combinar está vacía', async () => {
+      await expect(mergePdfDocuments([])).rejects.toThrow(
+        'At least one document is required to merge'
+      );
+    });
+
+    it('lanza error si un índice de página solicitado está fuera de rango', async () => {
+      const doc = await PDFDocument.create();
+      doc.addPage([600, 800]);
+      const bytes = await doc.save();
+
+      const sources: MergeSourceDocument[] = [
+        { name: 'doc.pdf', bytes, pageIndices: [5] },
+      ];
+
+      await expect(mergePdfDocuments(sources)).rejects.toThrow(
+        'Page index out of range'
+      );
     });
   });
 });

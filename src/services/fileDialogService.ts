@@ -145,42 +145,41 @@ export async function loadPdfData(
     showToast(`Could not read the page scales of the PDF: ${message}`);
   }
 
-  // Modo demo o archivo sin ruta en disco: no intentar cargar .bbx.json ni importar anotaciones
+  // Modo demo o archivo sin ruta en disco: no intentar cargar .bbx.json
+  let sidecarMarkups: Markup[] | null = null;
   if (!filePath) {
     setCustomColumns(undefined);
-    return;
-  }
-
-  // 1. Sidecar .bbx.json: metadatos del documento (columnas) y marcas de respaldo (D-1)
-  let sidecarMarkups: Markup[] | null = null;
-  try {
-    const bbxResult = await loadBbxForPdf(filePath);
-    if (bbxResult) {
-      const { document: bbxData, warnings } = bbxResult;
-      if (warnings && warnings.length > 0) {
-        for (const warning of warnings) {
-          console.warn(`[BBX] ${warning}`);
+  } else {
+    // 1. Sidecar .bbx.json: metadatos del documento (columnas) y marcas de respaldo (D-1)
+    try {
+      const bbxResult = await loadBbxForPdf(filePath);
+      if (bbxResult) {
+        const { document: bbxData, warnings } = bbxResult;
+        if (warnings && warnings.length > 0) {
+          for (const warning of warnings) {
+            console.warn(`[BBX] ${warning}`);
+          }
+          const summary = summarizeMigrationWarnings(warnings);
+          if (summary) {
+            showToast(summary);
+          }
         }
-        const summary = summarizeMigrationWarnings(warnings);
-        if (summary) {
-          showToast(summary);
+        if (bbxData && Array.isArray(bbxData.customColumns)) {
+          setCustomColumns(bbxData.customColumns);
+        } else {
+          setCustomColumns(undefined);
         }
-      }
-      if (bbxData && Array.isArray(bbxData.customColumns)) {
-        setCustomColumns(bbxData.customColumns);
+        if (bbxData && Array.isArray(bbxData.markups)) {
+          sidecarMarkups = bbxData.markups;
+        }
       } else {
         setCustomColumns(undefined);
       }
-      if (bbxData && Array.isArray(bbxData.markups)) {
-        sidecarMarkups = bbxData.markups;
-      }
-    } else {
+    } catch (bbxErr: unknown) {
+      const bbxMsg = bbxErr instanceof Error ? bbxErr.message : String(bbxErr);
+      console.error(`[BBX] Error al leer archivo de marcas .bbx.json: ${bbxMsg}`);
       setCustomColumns(undefined);
     }
-  } catch (bbxErr: unknown) {
-    const bbxMsg = bbxErr instanceof Error ? bbxErr.message : String(bbxErr);
-    console.error(`[BBX] Error al leer archivo de marcas .bbx.json: ${bbxMsg}`);
-    setCustomColumns(undefined);
   }
 
   // 2. El PDF es la fuente de verdad (D-1): si contiene anotaciones, mandan sobre el sidecar.

@@ -16,6 +16,7 @@ import {
   remapCalibrationsOnPageInsertion,
   remapCalibrationsOnPageReorder,
   remapViewportsOnPageReorder,
+  mergePdfDocuments,
 } from '../core/pages/pageOperations';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
@@ -235,6 +236,32 @@ export async function executeReorderPage(
     console.error('[PageService] Error reordenando página:', msg);
     showToast(`Error reordering page: ${msg}`);
     return false;
+  }
+}
+
+/**
+ * Combina múltiples documentos PDF y abre el resultado en una pestaña nueva (ADR-0084).
+ */
+export async function executeCombineDocuments(
+  sources: { name: string; bytes: Uint8Array; pageIndices?: number[] }[],
+  outputName = 'Combined Document.pdf'
+): Promise<Uint8Array | null> {
+  if (!sources || sources.length === 0) {
+    showToast('Select at least one PDF file to combine.');
+    return null;
+  }
+
+  try {
+    const mergedBytes = await mergePdfDocuments(sources);
+    const { loadPdfData } = await import('./fileDialogService');
+    await loadPdfData(null, outputName, mergedBytes);
+    showToast(`Successfully combined ${sources.length} documents into ${outputName}.`);
+    return mergedBytes;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[PageService] Error combinando documentos:', msg);
+    showToast(`Error combining documents: ${msg}`);
+    return null;
   }
 }
 

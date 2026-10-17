@@ -33,6 +33,9 @@ const ShortcutsDialog = lazy(() =>
 const DocumentBar = lazy(() =>
   import('./components/shell/DocumentBar').then((m) => ({ default: m.DocumentBar }))
 );
+const CombinePdfsModal = lazy(() =>
+  import('./components/modals/CombinePdfsModal').then((m) => ({ default: m.CombinePdfsModal }))
+);
 /** Hueco de la barra lateral plegada mientras carga el panel. */
 const SidePanelFallback: React.FC = () => null;
 // Panel izquierdo (miniaturas, marcadores y capas) en su propio fragmento: presupuesto del bundle (ADR-0045)
@@ -51,6 +54,7 @@ export const App: React.FC = () => {
   const { pdfBytes, setLoading } = useDocumentStore();
   const showRulers = useUiStore((s) => s.showRulers);
   const markupsListOpen = useUiStore((s) => s.markupsListOpen);
+  const combineModalOpen = useUiStore((s) => s.combineModalOpen);
   const markupsListEverOpened = useRef(markupsListOpen);
   if (markupsListOpen) markupsListEverOpened.current = true;
   const markupsListMounted = markupsListEverOpened.current;
@@ -236,6 +240,11 @@ export const App: React.FC = () => {
       <Suspense fallback={null}>
         <ShortcutsDialog />
       </Suspense>
+      {combineModalOpen && (
+        <Suspense fallback={null}>
+          <CombinePdfsModal />
+        </Suspense>
+      )}
     </div>
   );
 };

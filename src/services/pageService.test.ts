@@ -6,10 +6,12 @@ import {
   executeInsertBlankPage,
   executeExtractPage,
   executeReorderPage,
+  executeCombineDocuments,
 } from './pageService';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { useCalibrationStore } from '../store/useCalibrationStore';
+import { useDocumentTabsStore } from '../store/useDocumentTabsStore';
 import { Markup } from '../types/markup';
 
 // Mock de exportService para saveExportFile
@@ -198,6 +200,43 @@ describe('pageService - Integración de Operaciones de Página (Paquete 5)', () 
 
       const success2 = await executeReorderPage(0, 10);
       expect(success2).toBe(false);
+    });
+  });
+
+  describe('executeCombineDocuments (ADR-0084)', () => {
+    it('combina múltiples documentos y abre el resultado como documento activo', async () => {
+      const doc1 = await PDFDocument.create();
+      doc1.addPage([500, 500]);
+      const bytes1 = await doc1.save();
+
+      const doc2 = await PDFDocument.create();
+      doc2.addPage([600, 600]);
+      const bytes2 = await doc2.save();
+
+      const sources = [
+        { name: 'planoA.pdf', bytes: bytes1 },
+        { name: 'planoB.pdf', bytes: bytes2 },
+      ];
+
+      const merged = await executeCombineDocuments(sources, 'JuegoCompleto.pdf');
+      expect(merged).not.toBeNull();
+
+      // Verifica que el documento activo en useDocumentStore se actualizó como documento en memoria sin ruta previa en disco
+      expect(useDocumentStore.getState().fileName).toBe('JuegoCompleto.pdf');
+      expect(useDocumentStore.getState().filePath).toBeNull();
+      expect(useDocumentStore.getState().numPages).toBe(2);
+
+      // Verifica que se registró una pestaña para el nuevo documento combinado
+      const tabs = useDocumentTabsStore.getState().tabs;
+      expect(tabs.length).toBeGreaterThan(0);
+      const activeTab = tabs.find((t) => t.id === useDocumentTabsStore.getState().activeTabId);
+      expect(activeTab?.fileName).toBe('JuegoCompleto.pdf');
+      expect(activeTab?.filePath).toBeNull();
+    });
+
+    it('retorna null y muestra toast si la lista de fuentes está vacía', async () => {
+      const merged = await executeCombineDocuments([]);
+      expect(merged).toBeNull();
     });
   });
 });

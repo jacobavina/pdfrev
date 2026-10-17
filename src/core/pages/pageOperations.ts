@@ -318,3 +318,55 @@ export function remapViewportsOnPageReorder(
   }
   return updated;
 }
+
+/**
+ * Fuente de documento para la operación de combinación (ADR-0084).
+ */
+export interface MergeSourceDocument {
+  name: string;
+  bytes: Uint8Array;
+  /** Índices de página a incluir (0-indexed). Si no se especifica, se incluyen todas las páginas. */
+  pageIndices?: number[];
+}
+
+/**
+ * Combina múltiples documentos PDF en un único archivo respetando dimensiones, orientación y orden (ADR-0084).
+ */
+export async function mergePdfDocuments(
+  sources: MergeSourceDocument[]
+): Promise<Uint8Array> {
+  if (!sources || sources.length === 0) {
+    throw new Error('At least one document is required to merge');
+  }
+
+  const { PDFDocument } = await import('pdf-lib');
+  const mergedDoc = await PDFDocument.create();
+
+  for (const src of sources) {
+    const srcDoc = await PDFDocument.load(src.bytes, { ignoreEncryption: true });
+    const pageCount = srcDoc.getPageCount();
+
+    let indices: number[];
+    if (src.pageIndices && src.pageIndices.length > 0) {
+      for (const idx of src.pageIndices) {
+        if (idx < 0 || idx >= pageCount) {
+          throw new Error(`Page index out of range: ${idx} (document "${src.name}" has ${pageCount} pages)`);
+        }
+      }
+      indices = src.pageIndices;
+    } else {
+      indices = srcDoc.getPageIndices();
+    }
+
+    const copiedPages = await mergedDoc.copyPages(srcDoc, indices);
+    for (const page of copiedPages) {
+      mergedDoc.addPage(page);
+    }
+  }
+
+  if (mergedDoc.getPageCount() === 0) {
+    throw new Error('Merged document has no pages');
+  }
+
+  return mergedDoc.save();
+}

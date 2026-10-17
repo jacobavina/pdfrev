@@ -129,6 +129,7 @@ export const MenuBar: React.FC = () => {
     requestMeasurementsPanel,
     requestExport,
     setShortcutsOpen,
+    setCombineModalOpen,
     viewMode,
     setViewMode,
     requestFit,
@@ -189,6 +190,7 @@ export const MenuBar: React.FC = () => {
       label: 'File',
       entries: [
         { icon: <FolderOpen size={16} />, label: 'Open PDF…', shortcut: 'Ctrl+O', onSelect: () => openPdfDialog(), testId: 'menu-open' },
+        { icon: <Layers size={16} />, label: 'Combine Files…', onSelect: () => setCombineModalOpen(true), testId: 'menu-combine-files' },
         {
           icon: <Save size={16} />,
           label: filePath ? 'Save' : 'Save…',

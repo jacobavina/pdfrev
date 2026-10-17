@@ -500,4 +500,118 @@ describe('ToolChestService (IndexedDB & In-Memory Fallback)', () => {
       expect(pFound2?.name).toBe('Inmutable');
     });
   });
+
+  describe('7. Herramientas de Medición para Takeoff (ADR-0078)', () => {
+    it('guarda y reutiliza herramientas de medición en el Tool Chest conservando su Subject, escala de símbolo y profundidad', async () => {
+      const pal = await createPalette({ name: 'Takeoff MEP y Estructuras' });
+
+      // 1. Herramienta de Volumen con profundidad y precio unitario
+      const volTool = await createTool({
+        paletteId: pal.id,
+        name: 'Hormigón Zapatas',
+        type: 'volume',
+        subject: 'Hormigón HA-30',
+        layer: 'Cimentación',
+        unitPrice: 125.5,
+        customFields: { volumeDepth: 0.8 },
+        measurement: { value: 24.5, unit: 'm', formatted: '24.50 m³' },
+        style: { strokeColor: '#2563eb', fillColor: 'rgba(37,99,235,0.2)', strokeWidth: 2, opacity: 0.9 },
+      });
+
+      // 2. Herramienta de Conteo con símbolo y escala
+      const countTool = await createTool({
+        paletteId: pal.id,
+        name: 'Válvula de Mariposa DN100',
+        type: 'count',
+        subject: 'Fontanería - Válvulas',
+        layer: 'Fontanería',
+        unitPrice: 85.0,
+        customFields: { countSymbol: 'diamond', countScale: 150 },
+        measurement: { value: 1, unit: 'm', formatted: 'Count = 1' },
+        style: { strokeColor: '#dc2626', strokeWidth: 2, opacity: 1 },
+      });
+
+      // 3. Herramienta de Área con precio unitario y unidad m
+      const areaTool = await createTool({
+        paletteId: pal.id,
+        name: 'Pavimento Cerámico',
+        type: 'area',
+        subject: 'Acabados Suelos',
+        layer: 'Acabados',
+        unitPrice: 38.5,
+        measurement: { value: 80.0, unit: 'm', formatted: '80.00 m²', perimeter: 36.0 },
+        style: { strokeColor: '#16a34a', fillColor: 'rgba(22,163,74,0.2)', strokeWidth: 1.5, opacity: 0.8 },
+      });
+
+      // Verificación directa en memoria/servicio
+      const savedVol = await getTool(volTool.id);
+      expect(savedVol).not.toBeNull();
+      expect(savedVol?.subject).toBe('Hormigón HA-30');
+      expect(savedVol?.layer).toBe('Cimentación');
+      expect(savedVol?.unitPrice).toBe(125.5);
+      expect(savedVol?.customFields?.volumeDepth).toBe(0.8);
+      expect(savedVol?.measurement?.unit).toBe('m');
+
+      const savedCount = await getTool(countTool.id);
+      expect(savedCount).not.toBeNull();
+      expect(savedCount?.subject).toBe('Fontanería - Válvulas');
+      expect(savedCount?.layer).toBe('Fontanería');
+      expect(savedCount?.unitPrice).toBe(85.0);
+      expect(savedCount?.customFields?.countSymbol).toBe('diamond');
+      expect(savedCount?.customFields?.countScale).toBe(150);
+
+      const savedArea = await getTool(areaTool.id);
+      expect(savedArea).not.toBeNull();
+      expect(savedArea?.subject).toBe('Acabados Suelos');
+      expect(savedArea?.unitPrice).toBe(38.5);
+      expect(savedArea?.measurement?.unit).toBe('m');
+
+      // 4. Persistencia en base de datos real simulada: resetear memoria y reabrir desde IndexedDB
+      await resetToolChestService();
+      setCustomIDBFactory(fakeFactory);
+
+      const restoredPalettes = await getPalettes();
+      const restoredPal = restoredPalettes.find((p) => p.name === 'Takeoff MEP y Estructuras');
+      expect(restoredPal).toBeDefined();
+
+      const restoredTools = await getTools(restoredPal!.id);
+      expect(restoredTools.length).toBe(3);
+
+      const rVol = restoredTools.find((t) => t.id === volTool.id);
+      expect(rVol?.subject).toBe('Hormigón HA-30');
+      expect(rVol?.unitPrice).toBe(125.5);
+      expect(rVol?.customFields?.volumeDepth).toBe(0.8);
+
+      const rCount = restoredTools.find((t) => t.id === countTool.id);
+      expect(rCount?.subject).toBe('Fontanería - Válvulas');
+      expect(rCount?.customFields?.countSymbol).toBe('diamond');
+      expect(rCount?.customFields?.countScale).toBe(150);
+
+      // 5. Herramientas Recientes preservan campos de medición
+      const mockMarkup: Markup = {
+        id: 'markup-vol-1',
+        type: 'volume',
+        pageIndex: 0,
+        points: [{ x: 0.1, y: 0.1 }, { x: 0.3, y: 0.1 }, { x: 0.3, y: 0.3 }, { x: 0.1, y: 0.3 }],
+        style: { strokeColor: '#2563eb', strokeWidth: 2, opacity: 1 },
+        author: 'Takeoff Eng',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+        subject: 'Cubicación Muros',
+        layer: 'Estructuras',
+        unitPrice: 110.0,
+        customFields: { volumeDepth: 2.5 },
+        measurement: { value: 50.0, unit: 'm', formatted: '50.00 m³' },
+      };
+
+      await recordRecentTool(mockMarkup);
+      const recent = await getRecentTools();
+      const recentVol = recent.find((r) => r.subject === 'Cubicación Muros');
+      expect(recentVol).toBeDefined();
+      expect(recentVol?.customFields?.volumeDepth).toBe(2.5);
+      expect(recentVol?.unitPrice).toBe(110.0);
+      expect(recentVol?.measurement?.unit).toBe('m');
+    });
+  });
 });

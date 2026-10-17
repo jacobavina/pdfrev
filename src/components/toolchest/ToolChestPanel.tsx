@@ -236,10 +236,21 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
                   />
                   <div className="min-w-0">
                     <div className="text-xs text-gray-200 font-medium truncate">
-                      {tool.name || tool.type}
+                      {tool.name || tool.subject || tool.type}
                     </div>
-                    <div className="text-2xs text-gray-500 truncate capitalize">
-                      {tool.type}
+                    <div className="text-2xs text-gray-500 truncate">
+                      {tool.subject && tool.name !== tool.subject ? `${tool.subject} • ` : ''}
+                      <span className="capitalize">{tool.type}</span>
+                      {tool.customFields?.volumeDepth !== undefined
+                        ? ` • d: ${tool.customFields.volumeDepth}`
+                        : ''}
+                      {tool.customFields?.countSymbol
+                        ? ` • ${tool.customFields.countSymbol} (${tool.customFields.countScale ?? 100}%)`
+                        : ''}
+                      {tool.measurement?.unit
+                        ? ` • ${tool.measurement.unit}${tool.type === 'volume' ? '³' : tool.type === 'area' ? '²' : ''}`
+                        : ''}
+                      {tool.unitPrice !== undefined ? ` • $${tool.unitPrice.toFixed(2)}` : ''}
                     </div>
                   </div>
                 </div>

@@ -318,4 +318,38 @@ describe('ToolChestPanel (Panel Lateral de Tool Chest B.4)', () => {
       expect(screen.getByText('No recent tools')).toBeInTheDocument();
     });
   });
+
+  it('renderiza herramientas de medición con Subject, unidad, profundidad y precio unitario', async () => {
+    render(<ToolChestPanel defaultCollapsed={false} />);
+
+    await waitFor(() => {
+      expect(useToolChestStore.getState().isLoading).toBe(false);
+      expect(useToolChestStore.getState().activePaletteId).not.toBeNull();
+    });
+    const palId = useToolChestStore.getState().activePaletteId!;
+
+    let tool: any;
+    await act(async () => {
+      tool = await useToolChestStore.getState().createTool({
+        paletteId: palId,
+        name: 'Hormigón Zapatas HA-30',
+        type: 'volume',
+        subject: 'Hormigón HA-30',
+        layer: 'Cimentación',
+        unitPrice: 125.5,
+        customFields: { volumeDepth: 0.8 },
+        measurement: { value: 24.5, unit: 'm', formatted: '24.50 m³' },
+        style: { strokeColor: '#2563eb', strokeWidth: 2, opacity: 0.9 },
+        mode: 'drawing',
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId(`tool-item-${tool.id}`)).toBeInTheDocument();
+      expect(screen.getByText('Hormigón Zapatas HA-30')).toBeInTheDocument();
+      expect(screen.getByText(/d: 0.8/)).toBeInTheDocument();
+      expect(screen.getByText(/ • m/)).toBeInTheDocument();
+      expect(screen.getByText(/\$125.50/)).toBeInTheDocument();
+    });
+  });
 });

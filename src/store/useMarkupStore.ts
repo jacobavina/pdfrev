@@ -41,7 +41,7 @@ export interface MoveMarkupItem {
   newText?: string;
 }
 
-export type ReshapePatch = Pick<Markup, 'points'> & Partial<Pick<Markup, 'measurement' | 'text' | 'leaders'>>;
+export type ReshapePatch = Pick<Markup, 'points'> & Partial<Pick<Markup, 'measurement' | 'text' | 'leaders' | 'cost'>>;
 
 interface MarkupState {
   markups: Markup[];
@@ -64,6 +64,9 @@ interface MarkupState {
       layer?: string;
       status?: MarkupStatus;
       author?: string;
+      subject?: string;
+      unitPrice?: number;
+      cost?: number;
       customFields?: Record<string, string | number | undefined>;
     },
     description?: string
@@ -231,6 +234,9 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
         layer?: string;
         status?: MarkupStatus;
         author?: string;
+        subject?: string;
+        unitPrice?: number;
+        cost?: number;
         customFields?: Record<string, string | number | undefined>;
       },
       description?: string
@@ -255,6 +261,9 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
         if (updates.layer !== undefined && m.layer !== updates.layer) hasAnyChange = true;
         if (updates.status !== undefined && m.status !== updates.status) hasAnyChange = true;
         if (updates.author !== undefined && m.author !== updates.author) hasAnyChange = true;
+        if (updates.subject !== undefined && m.subject !== updates.subject) hasAnyChange = true;
+        if (updates.unitPrice !== undefined && m.unitPrice !== updates.unitPrice) hasAnyChange = true;
+        if (updates.cost !== undefined && m.cost !== updates.cost) hasAnyChange = true;
         if (updates.customFields) {
           for (const [k, v] of Object.entries(updates.customFields)) {
             if (m.customFields?.[k] !== v) hasAnyChange = true;
@@ -277,6 +286,7 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
           ...m,
           style: { ...m.style },
           textFormat: m.textFormat ? { ...m.textFormat } : undefined,
+          customFields: m.customFields ? { ...m.customFields } : undefined,
         });
       }
 
@@ -303,6 +313,21 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
                 }
                 customFields = Object.keys(merged).length > 0 ? merged : undefined;
               }
+
+              const nextUnitPrice =
+                updates.unitPrice !== undefined ? updates.unitPrice : m.unitPrice;
+              let nextCost = m.cost;
+              if (updates.cost !== undefined) {
+                nextCost = updates.cost;
+              } else if (nextUnitPrice !== undefined) {
+                const qty =
+                  m.type === 'count'
+                    ? (customFields?.countSymbol ? (m.points?.length || 1) : 1)
+                    : (m.measurement?.value ?? 1);
+                const cents = Math.round(qty * Math.round(nextUnitPrice * 100));
+                nextCost = cents / 100;
+              }
+
               return {
                 ...m,
                 ...(updates.customFields ? { customFields } : {}),
@@ -310,6 +335,9 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
                 ...(updates.text !== undefined ? { text: updates.text } : {}),
                 ...(updates.status !== undefined ? { status: updates.status } : {}),
                 ...(updates.author !== undefined ? { author: updates.author } : {}),
+                ...(updates.subject !== undefined ? { subject: updates.subject } : {}),
+                ...(nextUnitPrice !== undefined ? { unitPrice: nextUnitPrice } : {}),
+                ...(nextCost !== undefined ? { cost: nextCost } : {}),
                 ...(updates.textFormat !== undefined
                   ? { textFormat: updates.textFormat ? { ...updates.textFormat } : undefined }
                   : {}),

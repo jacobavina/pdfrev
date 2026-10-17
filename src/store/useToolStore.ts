@@ -61,6 +61,11 @@ interface ToolState {
   setCalloutBorder: (on: boolean) => void;
 }
 
+let onSetActiveToolHook: (() => void) | null = null;
+export function registerOnSetActiveTool(fn: () => void) {
+  onSetActiveToolHook = fn;
+}
+
 export const useToolStore = create<ToolState>((set) => ({
   activeTool: 'select',
   currentStyle: {
@@ -86,7 +91,10 @@ export const useToolStore = create<ToolState>((set) => ({
   // Flujo de Acrobat por defecto (ADR-0035): clic, clic y un tercer clic para desplazar la línea
   measureLeaders: readStoredLeaders(),
 
-  setActiveTool: (activeTool) => set({ activeTool }),
+  setActiveTool: (activeTool) => {
+    onSetActiveToolHook?.();
+    set({ activeTool });
+  },
   setCurrentStyle: (styleUpdate) =>
     set((state) => ({
       currentStyle: { ...state.currentStyle, ...styleUpdate },

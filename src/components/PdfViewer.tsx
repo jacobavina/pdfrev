@@ -18,10 +18,8 @@ import {
   selectMarkupsInRect,
   getMarkupBounds,
   exceedsScreenThreshold,
-  getStickyNoteNormalizedSize,
 } from '../utils/coordinates';
 import { useToolChestStore } from '../store/useToolChestStore';
-import { ToolChestTool, RecentTool } from '../types/toolChest';
 import {
   handleSelectMouseDown,
   handleSelectMouseMove,
@@ -45,9 +43,10 @@ import {
   STICKY_NOTE_COLORS,
   HIGHLIGHT_STYLE,
 } from '../types/markup';
-import { InlineTextEditor } from './markup/InlineTextEditor';
-import { extractTextForLineRect, mergeLineRects } from '../utils/textLayerUtils';
 import { useCalibrationStore } from '../store/useCalibrationStore';
+// Editor inline de texto bajo demanda (bundle principal ≤ 800 kB)
+const InlineTextEditor = lazy(() => import('./markup/InlineTextEditor').then((m) => ({ default: m.InlineTextEditor })));
+import { extractTextForLineRect, mergeLineRects } from '../utils/textLayerUtils';
 import { useSearchStore } from '../store/useSearchStore';
 import { useUiStore, NO_LAYER } from '../store/useUiStore';
 // Menú contextual del plano: se carga al primer clic derecho (presupuesto del bundle, ADR-0045)
@@ -156,6 +155,24 @@ const isCloudTool = (tool: string) => tool === 'cloud' || tool === 'cloudPlus';
 const isClosedMultiPointTool = (tool: string) =>
   isCloudTool(tool) ||
   tool === 'polygon' || tool === 'area' || tool === 'perimeter' || tool === 'volume';
+
+/** Recupera metadatos de Tool Chest activos (subject, unitPrice, layer, cost) si la herramienta coincide (ADR-0078). */
+function getActiveToolChestMetadata(activeTool: string, quantity: number, defaultLayer: string) {
+  const activeToolId = useToolChestStore.getState().activeToolId;
+  const activeTcTool = activeToolId
+    ? useToolChestStore.getState().tools.find((t) => t.id === activeToolId) ||
+      useToolChestStore.getState().recentTools.find((t) => t.id === activeToolId)
+    : null;
+  const isMatching = activeTcTool?.type === activeTool;
+  const subject = isMatching ? activeTcTool.subject : undefined;
+  const unitPrice = isMatching ? activeTcTool.unitPrice : undefined;
+  const layer = isMatching && activeTcTool.layer ? activeTcTool.layer : defaultLayer;
+  let cost: number | undefined;
+  if (unitPrice !== undefined) {
+    cost = Math.round(quantity * Math.round(unitPrice * 100)) / 100;
+  }
+  return { subject, unitPrice, layer, cost };
+}
 
 /** Quita vértices consecutivos prácticamente iguales (los dos mousedown que preceden a un doble clic). */
 export function dedupeConsecutivePoints(points: MarkupPoint[], epsilon = 1e-4): MarkupPoint[] {
@@ -1526,6 +1543,9 @@ export const PdfViewer: React.FC = () => {
       style.fillColor = translucentFill(style.strokeColor);
     }
 
+    const { subject: toolSubject, unitPrice: toolUnitPrice, layer: toolLayer, cost } =
+      getActiveToolChestMetadata(activeTool, measurement?.value ?? 1, activeLayer);
+
     const now = new Date().toISOString();
     const newMarkup: Markup = {
       id: uuidv4(),
@@ -1538,7 +1558,10 @@ export const PdfViewer: React.FC = () => {
       createdAt: now,
       updatedAt: now,
       status: 'pending',
-      layer: activeLayer,
+      layer: toolLayer,
+      subject: toolSubject,
+      unitPrice: toolUnitPrice,
+      cost,
       measurement,
       ...(measurement && (useToolStore.getState().measureLabel.trim() || Object.keys(extraFields).length)
         ? {
@@ -1682,16 +1705,24 @@ export const PdfViewer: React.FC = () => {
       const active = activeCountId ? useMarkupStore.getState().markups.find((m) => m.id === activeCountId) : undefined;
       if (active && active.type === 'count' && active.pageIndex === currentPageIndex) {
         const points = [...active.points, pt];
+        const newCost =
+          active.unitPrice !== undefined
+            ? Math.round(points.length * Math.round(active.unitPrice * 100)) / 100
+            : undefined;
         useMarkupStore
           .getState()
           .reshapeMarkup(
             active.id,
-            { points: active.points, measurement: active.measurement },
-            { points, measurement: countMeasurement(points.length) },
+            { points: active.points, measurement: active.measurement, cost: active.cost },
+            { points, measurement: countMeasurement(points.length), cost: newCost },
             'Add to count'
           );
         return;
       }
+
+      const { subject: toolSubject, unitPrice: toolUnitPrice, layer: toolLayer, cost } =
+        getActiveToolChestMetadata('count', 1, activeLayer);
+
       const now = new Date().toISOString();
       const newMarkup: Markup = {
         id: uuidv4(),
@@ -1708,12 +1739,16 @@ export const PdfViewer: React.FC = () => {
         createdAt: now,
         updatedAt: now,
         status: 'pending',
-        layer: activeLayer,
+        layer: toolLayer,
+        subject: toolSubject,
+        unitPrice: toolUnitPrice,
+        cost,
         measurement: countMeasurement(1),
         customFields: { countSymbol, countScale },
       };
       addMarkup(newMarkup);
       useToolStore.setState({ activeCountId: newMarkup.id });
+      useToolChestStore.getState().recordRecent(newMarkup);
       return;
     }
 
@@ -2378,6 +2413,9 @@ export const PdfViewer: React.FC = () => {
           markupPoints = [drawingStart, currentDrawPoint, { x: c.x / unscaledW, y: c.y / unscaledH }];
         }
 
+        const { subject: toolSubject, unitPrice: toolUnitPrice, layer: toolLayer, cost } =
+          getActiveToolChestMetadata(activeTool, measurement?.value ?? 1, activeLayer);
+
         const newMarkup: Markup = {
           id: newId,
           type: (activeTool === 'arrow' ? 'line' : activeTool) as MarkupType,
@@ -2389,7 +2427,10 @@ export const PdfViewer: React.FC = () => {
           createdAt: now,
           updatedAt: now,
           status: 'pending',
-          layer: activeLayer,
+          layer: toolLayer,
+          subject: toolSubject,
+          unitPrice: toolUnitPrice,
+          cost,
           customFields: {
             ...((activeTool === 'length' || activeTool === 'radius' || activeTool === 'diameter') &&
             useToolStore.getState().measureLabel.trim()
@@ -2720,170 +2761,28 @@ export const PdfViewer: React.FC = () => {
     e.preventDefault();
     e.stopPropagation();
 
-    try {
-      const tool = JSON.parse(rawData) as ToolChestTool | RecentTool;
-      if (!tool || !tool.type) return;
+    const pageEl = pageContainerRef.current;
+    if (!pageEl) return;
+    const rect = pageEl.getBoundingClientRect();
 
-      const pageEl = pageContainerRef.current;
-      if (!pageEl) return;
-      const rect = pageEl.getBoundingClientRect();
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
 
-      const screenX = e.clientX - rect.left;
-      const screenY = e.clientY - rect.top;
-
-      // Convertir punto de caída a coordenadas normalizadas [0..1]
-      const normCenter = screenToNormalized(screenX, screenY, viewportTransform);
-
-      const unscaledW = pageViewport.width / (scale || 1.0);
-      const unscaledH = pageViewport.height / (scale || 1.0);
-
-      // Dimensiones estándar en pantalla (120x60 px) proyectadas a espacio normalizado
-      const widthNorm = 120 / (viewportTransform.width * (viewportTransform.scale || 1.0));
-      const heightNorm = 60 / (viewportTransform.height * (viewportTransform.scale || 1.0));
-
-      let points: MarkupPoint[] = [];
-      let leaders: MarkupPoint[][] | undefined = undefined;
-
-      switch (tool.type) {
-        case 'rectangle':
-        case 'circle':
-        case 'highlight':
-        case 'highlightVector':
-        case 'highlightText':
-        case 'stamp': {
-          const halfW = widthNorm / 2;
-          const halfH = heightNorm / 2;
-          points = [
-            { x: Math.max(0, normCenter.x - halfW), y: Math.max(0, normCenter.y - halfH) },
-            { x: Math.min(1, normCenter.x + halfW), y: Math.min(1, normCenter.y + halfH) },
-          ];
-          break;
-        }
-
-        case 'line': {
-          const halfW = widthNorm / 2;
-          const halfH = heightNorm / 2;
-          points = [
-            { x: Math.max(0, normCenter.x - halfW), y: Math.max(0, normCenter.y + halfH) },
-            { x: Math.min(1, normCenter.x + halfW), y: Math.max(0, normCenter.y - halfH) },
-          ];
-          break;
-        }
-
-        case 'cloud':
-        case 'cloudPlus': {
-          const halfW = widthNorm / 2;
-          const halfH = heightNorm / 2;
-          points = [
-            { x: Math.max(0, normCenter.x - halfW), y: Math.max(0, normCenter.y - halfH) },
-            { x: Math.min(1, normCenter.x + halfW), y: Math.min(1, normCenter.y + halfH) },
-          ];
-          break;
-        }
-
-        case 'stickyNote': {
-          const normSize = getStickyNoteNormalizedSize({ width: unscaledW, height: unscaledH });
-          points = [
-            {
-              x: Math.max(0, normCenter.x - normSize.width / 2),
-              y: Math.max(0, normCenter.y - normSize.height / 2),
-            },
-          ];
-          break;
-        }
-
-        case 'callout': {
-          const boxW = Math.max(0.12, widthNorm);
-          const boxH = Math.max(0.04, heightNorm);
-          const boxP1 = {
-            x: Math.min(1 - boxW, normCenter.x + 0.04),
-            y: Math.max(0, normCenter.y - boxH - 0.02),
-          };
-          const boxP2 = { x: boxP1.x + boxW, y: boxP1.y + boxH };
-          points = [boxP1, boxP2];
-          leaders = [[{ x: normCenter.x, y: normCenter.y }]];
-          break;
-        }
-
-        case 'text': {
-          const halfW = widthNorm / 2;
-          const textHeightNorm = 30 / (viewportTransform.height * (viewportTransform.scale || 1.0));
-          const halfH = textHeightNorm / 2;
-          points = [
-            { x: Math.max(0, normCenter.x - halfW), y: Math.max(0, normCenter.y - halfH) },
-            { x: Math.min(1, normCenter.x + halfW), y: Math.min(1, normCenter.y + halfH) },
-          ];
-          break;
-        }
-
-        case 'polygon': {
-          const rW = widthNorm / 2;
-          const rH = heightNorm / 2;
-          points = [
-            { x: normCenter.x, y: normCenter.y - rH },
-            { x: normCenter.x + rW, y: normCenter.y },
-            { x: normCenter.x, y: normCenter.y + rH },
-            { x: normCenter.x - rW, y: normCenter.y },
-          ];
-          break;
-        }
-
-        case 'freehand': {
-          const rW = widthNorm / 2;
-          const strokeCurveNorm = 10 / (viewportTransform.height * (viewportTransform.scale || 1.0));
-          points = [
-            { x: normCenter.x - rW, y: normCenter.y },
-            { x: normCenter.x - rW / 2, y: normCenter.y - strokeCurveNorm },
-            { x: normCenter.x + rW / 2, y: normCenter.y + strokeCurveNorm },
-            { x: normCenter.x + rW, y: normCenter.y },
-          ];
-          break;
-        }
-
-        default: {
-          const halfW = widthNorm / 2;
-          const halfH = heightNorm / 2;
-          points = [
-            { x: Math.max(0, normCenter.x - halfW), y: Math.max(0, normCenter.y - halfH) },
-            { x: Math.min(1, normCenter.x + halfW), y: Math.min(1, normCenter.y + halfH) },
-          ];
-          break;
-        }
-      }
-
-      const now = new Date().toISOString();
-      const newId = uuidv4();
-      const newMarkup: Markup = {
-        id: newId,
-        type: tool.type,
-        pageIndex: currentPageIndex,
-        points,
-        leaders,
-        text:
-          tool.text ||
-          (tool.type === 'callout'
-            ? 'Note'
-            : tool.type === 'text'
-            ? 'Text'
-            : undefined),
-        textFormat: tool.textFormat ? { ...tool.textFormat } : undefined,
-        style: { ...tool.style },
-        author: author || 'Reviewer',
-        createdAt: now,
-        updatedAt: now,
-        status: 'pending',
-        layer: activeLayer,
-      };
-
-      // Invocación única de addMarkup (genera un único comando de historial reversible con Ctrl+Z)
-      addMarkup(newMarkup);
-      setSelectedMarkupIds([newId]);
-
-      // Registro asíncrono no bloqueante en Herramientas Recientes
-      useToolChestStore.getState().recordRecent(newMarkup);
-    } catch (err) {
-      console.error('Error al soltar herramienta en el lienzo:', err);
-    }
+    void import('./viewer/toolDropPlacement').then(({ placeDroppedTool }) => {
+      placeDroppedTool({
+        rawData,
+        screenX,
+        screenY,
+        viewportTransform,
+        pageViewport,
+        scale,
+        currentPageIndex,
+        activeLayer,
+        author,
+        addMarkup,
+        setSelectedMarkupIds,
+      });
+    });
   };
 
   // Capas interactivas de la página activa: texto seleccionable, editor inline y overlay SVG de marcas
@@ -2912,7 +2811,8 @@ export const PdfViewer: React.FC = () => {
 
           {/* Editor inline genérico para texto y notas (B6 y A.4) */}
           {inlineEditing && (
-            <InlineTextEditor
+            <Suspense fallback={null}>
+              <InlineTextEditor
               initialText={inlineEditing.initialText}
               position={inlineEditing.position}
               transform={viewportTransform}
@@ -3020,7 +2920,8 @@ export const PdfViewer: React.FC = () => {
               }}
               onCancel={() => setInlineEditing(null)}
             />
-          )}
+          </Suspense>
+        )}
 
           {/* Overlay interactivo SVG para anotaciones */}
           <svg

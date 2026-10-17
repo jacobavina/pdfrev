@@ -514,6 +514,12 @@ export async function createTool(
     style: { ...data.style },
     text: data.text,
     textFormat: data.textFormat ? { ...data.textFormat } : undefined,
+    subject: data.subject,
+    layer: data.layer,
+    unitPrice: data.unitPrice,
+    customFields: data.customFields ? { ...data.customFields } : undefined,
+    points: data.points ? data.points.map((p) => ({ ...p })) : undefined,
+    measurement: data.measurement ? { ...data.measurement } : undefined,
     order: nextOrder,
     mode: data.mode || 'drawing',
     createdAt: data.createdAt || new Date().toISOString(),
@@ -568,6 +574,30 @@ export async function updateTool(
     textFormat: updates.textFormat
       ? { ...updates.textFormat }
       : current.textFormat,
+    customFields:
+      updates.customFields !== undefined
+        ? updates.customFields
+          ? { ...updates.customFields }
+          : undefined
+        : current.customFields
+        ? { ...current.customFields }
+        : undefined,
+    points:
+      updates.points !== undefined
+        ? updates.points
+          ? updates.points.map((p) => ({ ...p }))
+          : undefined
+        : current.points
+        ? current.points.map((p) => ({ ...p }))
+        : undefined,
+    measurement:
+      updates.measurement !== undefined
+        ? updates.measurement
+          ? { ...updates.measurement }
+          : undefined
+        : current.measurement
+        ? { ...current.measurement }
+        : undefined,
   };
   inMemoryTools.set(id, updated);
 
@@ -702,6 +732,21 @@ export async function recordRecentTool(
   try {
     const mode: ToolChestMode =
       'mode' in source && source.mode ? source.mode : 'drawing';
+    const subject = 'subject' in source ? source.subject : undefined;
+    const layer = 'layer' in source ? source.layer : undefined;
+    const unitPrice = 'unitPrice' in source ? source.unitPrice : undefined;
+    const customFields =
+      'customFields' in source && source.customFields
+        ? { ...source.customFields }
+        : undefined;
+    const points =
+      'points' in source && source.points
+        ? source.points.map((p) => ({ ...p }))
+        : undefined;
+    const measurement =
+      'measurement' in source && source.measurement
+        ? { ...source.measurement }
+        : undefined;
 
     const recentItem: RecentTool = {
       id: uuidv4(),
@@ -709,11 +754,17 @@ export async function recordRecentTool(
       style: { ...source.style },
       text: source.text,
       textFormat: source.textFormat ? { ...source.textFormat } : undefined,
+      subject,
+      layer,
+      unitPrice,
+      customFields,
+      points,
+      measurement,
       mode,
       timestamp: getNextTimestamp(),
     };
 
-    // Deduplicación en memoria: si ya existe una idéntica en tipo y estilo, se reemplaza para actualizar timestamp
+    // Deduplicación en memoria: si ya existe una idéntica en tipo, estilo y subject, se reemplaza para actualizar timestamp
     const filtered = inMemoryRecentTools.filter(
       (item) =>
         !(
@@ -723,7 +774,8 @@ export async function recordRecentTool(
           item.style.strokeWidth === recentItem.style.strokeWidth &&
           item.style.opacity === recentItem.style.opacity &&
           item.text === recentItem.text &&
-          item.mode === recentItem.mode
+          item.mode === recentItem.mode &&
+          item.subject === recentItem.subject
         )
     );
 
@@ -767,7 +819,8 @@ export async function recordRecentTool(
                 item.style.strokeWidth === recentItem.style.strokeWidth &&
                 item.style.opacity === recentItem.style.opacity &&
                 item.text === recentItem.text &&
-                item.mode === recentItem.mode
+                item.mode === recentItem.mode &&
+                item.subject === recentItem.subject
               ) {
                 store.delete(item.id);
               }

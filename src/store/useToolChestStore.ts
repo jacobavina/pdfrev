@@ -12,7 +12,7 @@ import {
   ToolChestTool,
 } from '../types/toolChest';
 import { useMarkupStore } from './useMarkupStore';
-import { useToolStore } from './useToolStore';
+import { useToolStore, registerOnSetActiveTool } from './useToolStore';
 
 interface ToolChestState {
   palettes: ToolChestPalette[];
@@ -196,11 +196,17 @@ export const useToolChestStore = create<ToolChestState>((set, get) => {
       // Condición 3: Conservar exactamente el MISMO objeto style de la marca sin campos omitidos
       const input: CreateToolInput = {
         paletteId,
-        name: name || `Tool ${markup.type}`,
+        name: name || markup.subject || `Tool ${markup.type}`,
         type: markup.type,
         style: { ...markup.style },
         text: markup.text,
         textFormat: markup.textFormat ? { ...markup.textFormat } : undefined,
+        subject: markup.subject,
+        layer: markup.layer,
+        unitPrice: markup.unitPrice,
+        customFields: markup.customFields ? { ...markup.customFields } : undefined,
+        points: markup.points ? markup.points.map((p) => ({ ...p })) : undefined,
+        measurement: markup.measurement ? { ...markup.measurement } : undefined,
         mode,
       };
 
@@ -281,7 +287,7 @@ export const useToolChestStore = create<ToolChestState>((set, get) => {
       targetMarkupIds?: string[]
     ) => {
       if (tool.mode === 'properties') {
-        // MODO PROPIEDAD: Aplica el estilo sobre K marcas seleccionadas en un ÚNICO comando
+        // MODO PROPIEDAD: Aplica el estilo y metadatos sobre K marcas seleccionadas en un ÚNICO comando
         const markupStore = useMarkupStore.getState();
         const targetIds =
           targetMarkupIds || markupStore.selectedMarkupIds;
@@ -293,6 +299,10 @@ export const useToolChestStore = create<ToolChestState>((set, get) => {
               style: { ...tool.style },
               text: tool.text,
               textFormat: tool.textFormat ? { ...tool.textFormat } : undefined,
+              subject: tool.subject,
+              layer: tool.layer,
+              unitPrice: tool.unitPrice,
+              customFields: tool.customFields ? { ...tool.customFields } : undefined,
             },
             `Aplicar estilo ${tool.type} desde Tool Chest`
           );
@@ -300,10 +310,29 @@ export const useToolChestStore = create<ToolChestState>((set, get) => {
       } else {
         // MODO DIBUJO: Activa la herramienta en useToolStore para dibujar sobre el lienzo
         const toolStore = useToolStore.getState();
-        toolStore.setActiveTool(tool.type);
+        toolStore.setActiveTool(tool.type as any);
         toolStore.setCurrentStyle({ ...tool.style });
+        if (tool.layer) {
+          toolStore.setActiveLayer(tool.layer);
+        }
+        if (tool.customFields?.volumeDepth !== undefined) {
+          toolStore.setVolumeDepth(Number(tool.customFields.volumeDepth));
+        }
+        if (tool.customFields?.countSymbol) {
+          useToolStore.setState({ countSymbol: tool.customFields.countSymbol as any });
+        }
+        if (tool.customFields?.countScale !== undefined) {
+          useToolStore.setState({ countScale: Number(tool.customFields.countScale) });
+        }
         set({ activeToolId: tool.id });
       }
     },
   };
+});
+
+// Limpia activeToolId cuando el usuario activa una herramienta estándar desde la UI externa (ADR-0078)
+registerOnSetActiveTool(() => {
+  if (useToolChestStore.getState().activeToolId) {
+    useToolChestStore.setState({ activeToolId: null });
+  }
 });

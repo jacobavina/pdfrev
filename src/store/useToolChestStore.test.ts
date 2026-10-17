@@ -164,6 +164,33 @@ describe('useToolChestStore (Zustand Store & Modos Propiedad/Dibujo B.2 / B.3)',
       const tools = useToolChestStore.getState().tools;
       expect(tools.some((t) => t.id === tool.id)).toBe(true);
     });
+
+    it('createToolFromMarkup preserva subject, layer, unitPrice, customFields y measurement', async () => {
+      await useToolChestStore.getState().init();
+      const paletteId = useToolChestStore.getState().palettes[0].id;
+
+      const measurementMarkup: Markup = {
+        ...createMockMarkup('m-measure', { strokeColor: '#2563eb' }),
+        type: 'volume',
+        subject: 'Cimentaciones Hormigón',
+        layer: 'Estructuras',
+        unitPrice: 125.0,
+        customFields: { volumeDepth: 1.2 },
+        measurement: { value: 36.0, unit: 'm', formatted: '36.00 m³' },
+      };
+
+      const tool = await useToolChestStore.getState().createToolFromMarkup(
+        paletteId,
+        measurementMarkup
+      );
+
+      expect(tool.subject).toBe('Cimentaciones Hormigón');
+      expect(tool.layer).toBe('Estructuras');
+      expect(tool.unitPrice).toBe(125.0);
+      expect(tool.customFields?.volumeDepth).toBe(1.2);
+      expect(tool.measurement?.unit).toBe('m');
+      expect(tool.measurement?.value).toBe(36.0);
+    });
   });
 
   describe('3. Modos Propiedad y Dibujo (Condición 2)', () => {
@@ -266,6 +293,95 @@ describe('useToolChestStore (Zustand Store & Modos Propiedad/Dibujo B.2 / B.3)',
       expect(revertedMarkups[0].style.strokeColor).toBe('#111');
       expect(revertedMarkups[1].style.strokeColor).toBe('#222');
       expect(revertedMarkups[2].style.strokeColor).toBe('#333');
+    });
+
+    it('applyTool en modo drawing restaura volumeDepth, countSymbol, countScale y layer en useToolStore', async () => {
+      await useToolChestStore.getState().init();
+      const palId = useToolChestStore.getState().palettes[0].id;
+
+      const tool = await useToolChestStore.getState().createTool({
+        paletteId: palId,
+        name: 'Conteo Válvulas Especiales',
+        type: 'count',
+        layer: 'Instalaciones',
+        subject: 'Válvula Reguladora',
+        unitPrice: 150.0,
+        customFields: { countSymbol: 'diamond', countScale: 200 },
+        style: { strokeColor: '#e11d48', strokeWidth: 2, opacity: 1 },
+        mode: 'drawing',
+      });
+
+      useToolChestStore.getState().applyTool(tool);
+
+      expect(useToolStore.getState().activeTool).toBe('count');
+      expect(useToolStore.getState().countSymbol).toBe('diamond');
+      expect(useToolStore.getState().countScale).toBe(200);
+      expect(useToolStore.getState().activeLayer).toBe('Instalaciones');
+    });
+
+    it('applyTool en modo properties aplica subject, layer, unitPrice y customFields sobre marcas seleccionadas', async () => {
+      await useToolChestStore.getState().init();
+      const palId = useToolChestStore.getState().palettes[0].id;
+
+      useMarkupStore.setState({ markups: [] });
+      const m1 = {
+        ...createMockMarkup('m-target-1', { strokeColor: '#000' }),
+        type: 'volume' as const,
+        measurement: { value: 20, unit: 'm' as const, formatted: '20 m³' },
+      };
+      useMarkupStore.getState().addMarkup(m1);
+      useMarkupStore.getState().setSelectedMarkupIds(['m-target-1']);
+
+      const tool = await useToolChestStore.getState().createTool({
+        paletteId: palId,
+        name: 'Propiedad Hormigón',
+        type: 'volume',
+        subject: 'Hormigón Limpieza',
+        layer: 'Cimentaciones',
+        unitPrice: 90.0,
+        customFields: { volumeDepth: 0.15 },
+        style: { strokeColor: '#059669', strokeWidth: 3, opacity: 0.8 },
+        mode: 'properties',
+      });
+
+      useToolChestStore.getState().applyTool(tool);
+
+      const target = useMarkupStore.getState().markups[0];
+      expect(target.subject).toBe('Hormigón Limpieza');
+      expect(target.layer).toBe('Cimentaciones');
+      expect(target.unitPrice).toBe(90.0);
+      expect(target.customFields?.volumeDepth).toBe(0.15);
+      expect(target.cost).toBe(1800.0); // 20 m³ * 90.00 = 1800.00
+      expect(target.style.strokeColor).toBe('#059669');
+
+      // Undo restaura todo
+      useMarkupStore.getState().undo();
+      const reverted = useMarkupStore.getState().markups[0];
+      expect(reverted.subject).toBeUndefined();
+      expect(reverted.unitPrice).toBeUndefined();
+      expect(reverted.style.strokeColor).toBe('#000');
+    });
+
+    it('limpia activeToolId al cambiar a una herramienta estándar desde useToolStore.setActiveTool', async () => {
+      await useToolChestStore.getState().init();
+      const palId = useToolChestStore.getState().palettes[0].id;
+
+      const tool = await useToolChestStore.getState().createTool({
+        paletteId: palId,
+        name: 'Pavimento Cerámico',
+        type: 'area',
+        subject: 'Acabados Suelos',
+        unitPrice: 38.5,
+        style: { strokeColor: '#16a34a', strokeWidth: 1.5, opacity: 0.8 },
+        mode: 'drawing',
+      });
+
+      useToolChestStore.getState().applyTool(tool);
+      expect(useToolChestStore.getState().activeToolId).toBe(tool.id);
+
+      // El usuario activa una herramienta estándar desde fuera del Tool Chest (Ribbon/MenuBar/Hotkeys)
+      useToolStore.getState().setActiveTool('area');
+      expect(useToolChestStore.getState().activeToolId).toBeNull();
     });
   });
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronRight, ChevronDown, FileSpreadsheet } from 'lucide-react';
+import { ChevronRight, ChevronDown, FileSpreadsheet, Plus, Trash2 } from 'lucide-react';
 import { useMarkupStore } from '../../store/useMarkupStore';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useCalibrationStore } from '../../store/useCalibrationStore';
@@ -109,7 +109,8 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
   const [scope, setScope] = useState<'page' | 'document'>('page');
   const { markups, selectedMarkupIds, setSelectedMarkupIds } = useMarkupStore();
   const { currentPageIndex, setCurrentPage, pdfBytes, numPages } = useDocumentStore();
-  const { calibrations, getPageCalibration, setPageCalibration, applyCalibrationToPages } = useCalibrationStore();
+  const { calibrations, getPageCalibration, setPageCalibration, applyCalibrationToPages, addViewport, updateViewport, removeViewport } = useCalibrationStore();
+  const pageViewports = useCalibrationStore((s) => s.viewports[currentPageIndex] ?? []);
   const {
     setActiveTool,
     measureLabel,
@@ -506,6 +507,77 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
           >
             Apply scale to all pages
           </button>
+        </Section>
+
+        <Section title="Viewports" testId="measure-viewports-section">
+          <div className="space-y-2">
+            {pageViewports.length === 0 ? (
+              <p className="text-xs text-gray-500 italic">No regional viewports on this page.</p>
+            ) : (
+              pageViewports.map((vp) => (
+                <div
+                  key={vp.id}
+                  data-testid={`viewport-item-${vp.id}`}
+                  className="p-2 rounded border border-cad-border bg-cad-hover/40 space-y-1 text-xs"
+                >
+                  <div className="flex items-center justify-between">
+                    <input
+                      data-testid={`viewport-name-${vp.id}`}
+                      value={vp.name}
+                      onChange={(e) => updateViewport(currentPageIndex, vp.id, { name: e.target.value })}
+                      className="font-medium bg-transparent border-b border-transparent focus:border-cad-accent outline-none w-32"
+                    />
+                    <button
+                      type="button"
+                      data-testid={`viewport-delete-${vp.id}`}
+                      onClick={() => removeViewport(currentPageIndex, vp.id)}
+                      className="p-1 text-gray-400 hover:text-red-500 rounded"
+                      title="Delete viewport"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-500">
+                    <span>Scale:</span>
+                    <span className="font-mono text-cad-strong">
+                      {describeCalibration(vp.calibration)}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+
+            <button
+              type="button"
+              data-testid="add-viewport-btn"
+              onClick={() => {
+                const currentCalib = useCalibrationStore.getState().getPageCalibration(currentPageIndex);
+                const nextId = `vp-${currentPageIndex}-${Date.now()}`;
+                addViewport({
+                  id: nextId,
+                  name: `Detail ${pageViewports.length + 1}`,
+                  pageIndex: currentPageIndex,
+                  bounds: { x: 0.1, y: 0.1, width: 0.5, height: 0.5 },
+                  calibration: {
+                    ...currentCalib,
+                    scale: currentCalib.scale * 2,
+                    ...(currentCalib.ratio
+                      ? {
+                          ratio: {
+                            ...currentCalib.ratio,
+                            realValue: currentCalib.ratio.realValue * 2,
+                          },
+                        }
+                      : {}),
+                  },
+                });
+              }}
+              className="w-full flex items-center justify-center gap-1.5 py-1 text-xs rounded border border-dashed border-cad-border hover:bg-cad-hover"
+            >
+              <Plus size={16} />
+              <span>Add Viewport</span>
+            </button>
+          </div>
         </Section>
 
         <Section title="Distance Properties">

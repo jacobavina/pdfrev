@@ -211,6 +211,7 @@ export const PdfViewer: React.FC = () => {
 
   const { activeTool, currentStyle, author, activeLayer, cloudSize, cloudInvert } = useToolStore();
   const { setCalibrationModalOpen, setPendingCalibrationPoints, isCalibrationModalOpen } = useCalibrationStore();
+  const currentPageViewports = useCalibrationStore((s) => s.viewports[currentPageIndex] ?? []);
   const { matches: searchMatches, activeMatchIndex } = useSearchStore();
 
   // Capas ocultas (panel Capas): sus marcas no se dibujan ni se pueden seleccionar en el plano (ADR-0017)
@@ -804,7 +805,7 @@ export const PdfViewer: React.FC = () => {
   /** Recalcula la medida (y el texto de una cota no personalizada) para la nueva forma. */
   const reshapedMarkup = (original: Markup, points: MarkupPoint[]): Markup => {
     const dims = { width: pageViewport.width / (scale || 1.0), height: pageViewport.height / (scale || 1.0) };
-    const calib = useCalibrationStore.getState().getPageCalibration(original.pageIndex);
+    const calib = useCalibrationStore.getState().getEffectiveCalibration(original.pageIndex, points);
     // Al deformar, el texto de una medición pasa a ser su valor nuevo (como antes de ADR-0031)
     const next = remeasureMarkup(original, points, dims, calib);
     if (next.measurement && next.type !== 'dimension') next.text = next.measurement.formatted;
@@ -1182,7 +1183,27 @@ export const PdfViewer: React.FC = () => {
         });
         dragStateRef.current = null;
         if (result.moves && result.moves.length > 0) {
-          commitMoveMarkups(result.moves);
+          const { markups: allMarkups } = useMarkupStore.getState();
+          const dims = { width: unscaledW, height: unscaledH };
+          const calStore = useCalibrationStore.getState();
+          const enrichedMoves = result.moves.map((move) => {
+            const m = allMarkups.find((it) => it.id === move.id);
+            if (!m || !SCALED_MEASURE_TYPES.has(m.type)) return move;
+            const prevCal = calStore.getEffectiveCalibration(m.pageIndex, move.originalPoints);
+            const nextCal = calStore.getEffectiveCalibration(m.pageIndex, move.newPoints);
+            if (JSON.stringify(prevCal) !== JSON.stringify(nextCal)) {
+              const remeasured = remeasureMarkup(m, move.newPoints, dims, nextCal, prevCal);
+              return {
+                ...move,
+                originalMeasurement: m.measurement,
+                newMeasurement: remeasured.measurement,
+                originalText: m.text,
+                newText: remeasured.text,
+              };
+            }
+            return move;
+          });
+          commitMoveMarkups(enrichedMoves);
         } else if (result.restoredMarkups) {
           setMarkupsTransient(result.restoredMarkups);
         }
@@ -1212,17 +1233,28 @@ export const PdfViewer: React.FC = () => {
     return () => window.removeEventListener('mouseup', handleWindowMouseUp);
   }, [viewportTransform, commitMoveMarkups, setMarkupsTransient]);
 
-  // Cambiar la escala de una página recalcula sus mediciones (ADR-0031), como Revu: si no, una longitud medida antes
+  // Cambiar la escala de una página o un viewport recalcula sus mediciones (ADR-0031, ADR-0076), como Revu: si no, una longitud medida antes
   // de calibrar seguiría en mm de papel
   useEffect(() => {
     return useCalibrationStore.subscribe((state, prevState) => {
-      const before = prevState.calibrations;
-      const after = state.calibrations;
-      // Abrir un documento sustituye las escalas por las suyas (y las importadas): sus medidas ya vienen del PDF
-      if (before === after || state.importedCalibrations !== prevState.importedCalibrations) return;
+      const beforeCal = prevState.calibrations;
+      const afterCal = state.calibrations;
+      const beforeVp = prevState.viewports;
+      const afterVp = state.viewports;
+      // Abrir un documento sustituye las escalas/viewports por las suyas (y las importadas): sus medidas ya vienen del PDF
+      if (
+        (beforeCal === afterCal && beforeVp === afterVp) ||
+        state.importedCalibrations !== prevState.importedCalibrations ||
+        state.importedViewports !== prevState.importedViewports
+      ) {
+        return;
+      }
       const changedPages = new Set<number>();
-      for (const k of new Set([...Object.keys(before), ...Object.keys(after)])) {
-        if (JSON.stringify(before[Number(k)]) !== JSON.stringify(after[Number(k)])) changedPages.add(Number(k));
+      for (const k of new Set([...Object.keys(beforeCal), ...Object.keys(afterCal)])) {
+        if (JSON.stringify(beforeCal[Number(k)]) !== JSON.stringify(afterCal[Number(k)])) changedPages.add(Number(k));
+      }
+      for (const k of new Set([...Object.keys(beforeVp), ...Object.keys(afterVp)])) {
+        if (JSON.stringify(beforeVp[Number(k)]) !== JSON.stringify(afterVp[Number(k)])) changedPages.add(Number(k));
       }
       if (changedPages.size === 0) return;
       const { markups: all } = useMarkupStore.getState();
@@ -1233,8 +1265,9 @@ export const PdfViewer: React.FC = () => {
         const dims = size
           ? { width: size.w, height: size.h }
           : { width: pageViewportRef.current.width / (scaleRef.current || 1), height: pageViewportRef.current.height / (scaleRef.current || 1) };
-        const prev = before[m.pageIndex] ?? state.getPageCalibration(-1);
-        updated.push(remeasureMarkup(m, m.points, dims, state.getPageCalibration(m.pageIndex), prev));
+        const prev = prevState.getEffectiveCalibration(m.pageIndex, m.points);
+        const curr = state.getEffectiveCalibration(m.pageIndex, m.points);
+        updated.push(remeasureMarkup(m, m.points, dims, curr, prev));
       }
       if (updated.length > 0) useMarkupStore.getState().remeasureMarkups(updated);
     });
@@ -1457,7 +1490,7 @@ export const PdfViewer: React.FC = () => {
         width: pageViewport.width / (scale || 1.0),
         height: pageViewport.height / (scale || 1.0),
       };
-      const calib = useCalibrationStore.getState().getPageCalibration(currentPageIndex);
+      const calib = useCalibrationStore.getState().getEffectiveCalibration(currentPageIndex, points);
       useMarkupStore.getState().addCutout(activeCutoutTargetId, points, pageDimsPt, calib);
       useUiStore.setState({ activeCutoutTargetId: null });
       useToolStore.setState({ activeTool: 'select' });
@@ -1470,7 +1503,7 @@ export const PdfViewer: React.FC = () => {
       width: pageViewport.width / (scale || 1.0),
       height: pageViewport.height / (scale || 1.0),
     };
-    const calib = useCalibrationStore.getState().getPageCalibration(currentPageIndex);
+    const calib = useCalibrationStore.getState().getEffectiveCalibration(currentPageIndex, points);
     let measurement: Markup['measurement'];
     const extraFields: Record<string, string | number> = {};
     if (activeTool === 'polylineMeasure') {
@@ -1959,7 +1992,7 @@ export const PdfViewer: React.FC = () => {
   /** Distancia de Acrobat con líneas de referencia (ADR-0033): la medida es a→b; `c` fija el desplazamiento. */
   const createLengthMarkup = (a: MarkupPoint, b: MarkupPoint, c: MarkupPoint) => {
     const dims = { width: pageViewport.width / (scale || 1), height: pageViewport.height / (scale || 1) };
-    const measurement = calculateLength([a, b], dims, useCalibrationStore.getState().getPageCalibration(currentPageIndex));
+    const measurement = calculateLength([a, b], dims, useCalibrationStore.getState().getEffectiveCalibration(currentPageIndex, [a, b]));
     const { measureLabel, measureCaption } = useToolStore.getState();
     const now = new Date().toISOString();
     const m: Markup = {
@@ -2065,7 +2098,27 @@ export const PdfViewer: React.FC = () => {
         });
         dragStateRef.current = null;
         if (result.moves && result.moves.length > 0) {
-          commitMoveMarkups(result.moves);
+          const { markups: allMarkups } = useMarkupStore.getState();
+          const dims = { width: unscaledW, height: unscaledH };
+          const calStore = useCalibrationStore.getState();
+          const enrichedMoves = result.moves.map((move) => {
+            const m = allMarkups.find((it) => it.id === move.id);
+            if (!m || !SCALED_MEASURE_TYPES.has(m.type)) return move;
+            const prevCal = calStore.getEffectiveCalibration(m.pageIndex, move.originalPoints);
+            const nextCal = calStore.getEffectiveCalibration(m.pageIndex, move.newPoints);
+            if (JSON.stringify(prevCal) !== JSON.stringify(nextCal)) {
+              const remeasured = remeasureMarkup(m, move.newPoints, dims, nextCal, prevCal);
+              return {
+                ...move,
+                originalMeasurement: m.measurement,
+                newMeasurement: remeasured.measurement,
+                originalText: m.text,
+                newText: remeasured.text,
+              };
+            }
+            return move;
+          });
+          commitMoveMarkups(enrichedMoves);
         } else if (result.restoredMarkups) {
           setMarkupsTransient(result.restoredMarkups);
         }
@@ -2295,7 +2348,7 @@ export const PdfViewer: React.FC = () => {
         const unscaledW = pageViewport.width / (scale || 1.0);
         const unscaledH = pageViewport.height / (scale || 1.0);
         const pageDimsPt = { width: unscaledW, height: unscaledH };
-        const calib = useCalibrationStore.getState().getPageCalibration(currentPageIndex);
+        const calib = useCalibrationStore.getState().getEffectiveCalibration(currentPageIndex, [drawingStart, currentDrawPoint]);
 
         const activeCutoutTargetId = useUiStore.getState().activeCutoutTargetId;
         if (activeCutoutTargetId) {
@@ -3004,6 +3057,50 @@ export const PdfViewer: React.FC = () => {
             onDragOver={handleDragOver}
             onDrop={handleDrop}
           >
+            {/* Viewports regionales de la página (ADR-0076) */}
+            {currentPageViewports.map((vp) => {
+              const vx = vp.bounds.x * viewportTransform.width;
+              const vy = vp.bounds.y * viewportTransform.height;
+              const vw = vp.bounds.width * viewportTransform.width;
+              const vh = vp.bounds.height * viewportTransform.height;
+              const r = vp.calibration.ratio;
+              const calLabel = r
+                ? `${r.paperValue} ${r.paperUnit} = ${r.realValue} ${r.realUnit}`
+                : `${vp.calibration.scale.toFixed(2)} ${vp.calibration.unit}`;
+              return (
+                <g key={vp.id} data-testid={`viewport-overlay-${vp.id}`} pointerEvents="none">
+                  <rect
+                    x={vx}
+                    y={vy}
+                    width={vw}
+                    height={vh}
+                    fill={tok('cad-accent', 0.08)}
+                    stroke={tok('cad-accent')}
+                    strokeWidth={1.5}
+                    strokeDasharray="4 3"
+                  />
+                  <rect
+                    x={vx}
+                    y={vy}
+                    width={Math.min(vw, Math.max(70, (vp.name.length + calLabel.length + 4) * 6.5))}
+                    height={18}
+                    fill={tok('cad-accent')}
+                    fillOpacity={0.85}
+                  />
+                  <text
+                    x={vx + 4}
+                    y={vy + 13}
+                    fill={tok('ov-handle')}
+                    fontSize={11}
+                    fontWeight="500"
+                    fontFamily="sans-serif"
+                  >
+                    {vp.name} ({calLabel})
+                  </text>
+                </g>
+              );
+            })}
+
             {/* Capa de resaltado de búsqueda (Paquete 5) */}
             {searchMatches.map((match) => {
               if (match.pageIndex !== currentPageIndex) return null;
@@ -3525,7 +3622,7 @@ export const PdfViewer: React.FC = () => {
                     const a = { x: drawingStart.x * pw, y: drawingStart.y * ph };
                     const b = { x: currentDrawPoint.x * pw, y: currentDrawPoint.y * ph };
                     const c = defaultDimensionLinePoint(a, b, DIMENSION_DEFAULT_OFFSET_PT);
-                    const calib = useCalibrationStore.getState().getPageCalibration(currentPageIndex);
+                    const calib = useCalibrationStore.getState().getEffectiveCalibration(currentPageIndex, [drawingStart, currentDrawPoint]);
                     const previewMarkup: Markup = {
                       id: 'preview-dimension',
                       type: 'dimension',
@@ -3575,10 +3672,11 @@ export const PdfViewer: React.FC = () => {
                   if (activeTool === 'length') {
                     // Vista previa idéntica al resultado (ADR-0032): flechas abiertas y el valor en vivo
                     const dimsPt = { width: pageViewport.width / (scale || 1), height: pageViewport.height / (scale || 1) };
+                    const lengthPts = leaderStageRef.current ? [leaderStageRef.current.a, leaderStageRef.current.b] : [drawingStart, currentDrawPoint];
                     const live = calculateLength(
-                      leaderStageRef.current ? [leaderStageRef.current.a, leaderStageRef.current.b] : [drawingStart, currentDrawPoint],
+                      lengthPts,
                       dimsPt,
-                      useCalibrationStore.getState().getPageCalibration(currentPageIndex)
+                      useCalibrationStore.getState().getEffectiveCalibration(currentPageIndex, lengthPts)
                     );
                     const stage = leaderStageRef.current;
                     const previewMarkup: Markup = {

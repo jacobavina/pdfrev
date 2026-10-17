@@ -73,6 +73,24 @@ export interface MarkupMeasurement {
   countIndex?: number;
 }
 
+/**
+ * Viewport de medición (ADR-0076, ISO 32000-1 §14.4): región rectangular de una página con su propia escala.
+ * Cada medición dentro de la región utiliza automáticamente la calibración de ese viewport.
+ */
+export interface MeasurementViewport {
+  id: string;
+  name: string;
+  pageIndex: number;
+  /** Rectángulo en coordenadas normalizadas [0, 1] respecto a la página: x, y, width, height */
+  bounds: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  calibration: PageCalibration;
+}
+
 export const VALID_MARKUP_STATUSES = [
   'pending',
   'accepted',

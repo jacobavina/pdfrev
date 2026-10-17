@@ -74,10 +74,12 @@ export async function savePdfIncremental(
   try {
     const importedIds = useDocumentStore.getState().importedAnnotationIds ?? [];
     const calibrations = useCalibrationStore.getState().changedCalibrations();
+    const viewports = useCalibrationStore.getState().changedViewports();
     const attachments = useAttachmentStore.getState().files;
     const updatedBytes = await saveIncrementalMarkups(originalBytes, markups, {}, {
       importedIds,
       calibrations,
+      viewports,
       attachments,
       hiddenLayers: useUiStore.getState().hiddenLayers,
     });
@@ -98,8 +100,11 @@ export async function savePdfIncremental(
     if (setPdfBytes) {
       setPdfBytes(updatedBytes);
     }
-    // Las escalas guardadas ya forman parte del PDF: el próximo guardado solo reescribe las que cambien
-    useCalibrationStore.setState((st) => ({ importedCalibrations: { ...st.calibrations } }));
+    // Las escalas y viewports guardados ya forman parte del PDF: el próximo guardado solo reescribe los que cambien
+    useCalibrationStore.setState((st) => ({
+      importedCalibrations: { ...st.calibrations },
+      importedViewports: { ...st.viewports },
+    }));
 
     return {
       success: true,

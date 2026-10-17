@@ -35,6 +35,10 @@ export interface MoveMarkupItem {
   newLeaders?: MarkupPoint[][];
   originalCutouts?: MarkupPoint[][];
   newCutouts?: MarkupPoint[][];
+  originalMeasurement?: Markup['measurement'];
+  newMeasurement?: Markup['measurement'];
+  originalText?: string;
+  newText?: string;
 }
 
 export type ReshapePatch = Pick<Markup, 'points'> & Partial<Pick<Markup, 'measurement' | 'text' | 'leaders'>>;
@@ -754,6 +758,8 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
                   points: move.newPoints,
                   leaders: move.newLeaders,
                   ...(move.newCutouts !== undefined ? { cutouts: move.newCutouts } : {}),
+                  ...(move.newMeasurement !== undefined ? { measurement: move.newMeasurement } : {}),
+                  ...(move.newText !== undefined ? { text: move.newText } : {}),
                   updatedAt: now,
                 };
               }
@@ -772,6 +778,8 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
                   points: move.originalPoints,
                   leaders: move.originalLeaders,
                   ...(move.originalCutouts !== undefined ? { cutouts: move.originalCutouts } : {}),
+                  ...(move.originalMeasurement !== undefined ? { measurement: move.originalMeasurement } : {}),
+                  ...(move.originalText !== undefined ? { text: move.originalText } : {}),
                   updatedAt: now,
                 };
               }

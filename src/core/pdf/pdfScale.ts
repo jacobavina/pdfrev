@@ -1,6 +1,7 @@
 import { PDFArray, PDFDict, PDFName, PDFNumber, PDFString, PDFHexString } from 'pdf-lib';
-import { MeasurementUnit, PageCalibration, VALID_MEASUREMENT_UNITS } from '../../types/markup';
+import { MeasurementUnit, PageCalibration, MeasurementViewport, VALID_MEASUREMENT_UNITS } from '../../types/markup';
 import { describeCalibration } from '../measurements/scale';
+import { normalizedToPdfCoordinates, pdfToNormalizedCoordinates, PageTransformInfo } from './operators';
 
 /**
  * Escala de página en el PDF (ADR-0025, ISO 32000-1 §12.9): diccionario /VP (viewport) con /Measure /RL, el mismo
@@ -43,17 +44,104 @@ export function measureDictFor(calibration: PageCalibration, rotation: 0 | 90 | 
   )}] /A [${numberFormat(areaUnit, 1, den)}] >>`;
 }
 
-/** Diccionario /VP (array con un viewport de página completa) para la calibración dada. */
+/**
+ * Convierte un rectángulo normalizado [x, y, w, h] al BBox nativo de PDF [minX, minY, maxX, maxY].
+ */
+export function normalizedBoundsToPdfBBox(
+  bounds: { x: number; y: number; width: number; height: number },
+  pageBox: [number, number, number, number],
+  rotation: 0 | 90 | 180 | 270
+): [number, number, number, number] {
+  const [origX, origY, maxX, maxY] = pageBox;
+  const pageW = maxX - origX;
+  const pageH = maxY - origY;
+
+  const transform: PageTransformInfo = {
+    rotation,
+    widthPt: pageW,
+    heightPt: pageH,
+    originX: origX,
+    originY: origY,
+  };
+
+  const p1 = normalizedToPdfCoordinates({ x: bounds.x, y: bounds.y }, transform);
+  const p2 = normalizedToPdfCoordinates({ x: bounds.x + bounds.width, y: bounds.y + bounds.height }, transform);
+
+  return [
+    Math.min(p1.x, p2.x),
+    Math.min(p1.y, p2.y),
+    Math.max(p1.x, p2.x),
+    Math.max(p1.y, p2.y),
+  ];
+}
+
+/**
+ * Convierte un BBox nativo de PDF [minX, minY, maxX, maxY] a coordenadas normalizadas [x, y, width, height].
+ */
+export function pdfBBoxToNormalizedBounds(
+  bbox: [number, number, number, number],
+  pageBox: [number, number, number, number],
+  rotation: 0 | 90 | 180 | 270
+): { x: number; y: number; width: number; height: number } {
+  const [origX, origY, maxX, maxY] = pageBox;
+  const pageW = maxX - origX;
+  const pageH = maxY - origY;
+
+  const transform: PageTransformInfo = {
+    rotation,
+    widthPt: pageW,
+    heightPt: pageH,
+    originX: origX,
+    originY: origY,
+  };
+
+  const [minX, minY, pMaxX, pMaxY] = bbox;
+  const c1 = pdfToNormalizedCoordinates({ x: minX, y: minY }, transform);
+  const c2 = pdfToNormalizedCoordinates({ x: pMaxX, y: pMaxY }, transform);
+
+  const uMin = Math.max(0, Math.min(c1.x, c2.x));
+  const vMin = Math.max(0, Math.min(c1.y, c2.y));
+  const uMax = Math.min(1, Math.max(c1.x, c2.x));
+  const vMax = Math.min(1, Math.max(c1.y, c2.y));
+
+  return {
+    x: uMin,
+    y: vMin,
+    width: Math.max(0.001, uMax - uMin),
+    height: Math.max(0.001, vMax - vMin),
+  };
+}
+
+/** Diccionario /VP (array con un viewport de página completa y viewports regionales opcionales) para la calibración dada. */
 export function viewportArrayFor(
   calibration: PageCalibration,
   pageBox: [number, number, number, number],
-  rotation: 0 | 90 | 180 | 270
+  rotation: 0 | 90 | 180 | 270,
+  regionalViewports?: MeasurementViewport[]
 ): string {
   const reaJson = JSON.stringify(calibration);
-  return `[<< /Type /Viewport /Name ${escapeLiteral(REA_VP_NAME)} /BBox [${pageBox.map((n) => n.toFixed(2)).join(' ')}] /Measure ${measureDictFor(
-    calibration,
-    rotation
-  )} /REACal ${escapeLiteral(reaJson)} >>]`;
+  const mainVp = `<< /Type /Viewport /Name ${escapeLiteral(REA_VP_NAME)} /BBox [${pageBox
+    .map((n) => n.toFixed(2))
+    .join(' ')}] /Measure ${measureDictFor(calibration, rotation)} /REACal ${escapeLiteral(reaJson)} >>`;
+
+  if (!regionalViewports || regionalViewports.length === 0) {
+    return `[${mainVp}]`;
+  }
+
+  const extraVps = regionalViewports.map((vp) => {
+    const bbox = normalizedBoundsToPdfBBox(vp.bounds, pageBox, rotation);
+    const vpCalJson = JSON.stringify(vp.calibration);
+    return `<< /Type /Viewport /Name ${escapeLiteral(vp.name || 'Viewport')} /BBox [${bbox
+      .map((n) => n.toFixed(2))
+      .join(' ')}] /Measure ${measureDictFor(
+      vp.calibration,
+      rotation
+    )} /REACal ${escapeLiteral(vpCalJson)} /REAId ${escapeLiteral(vp.id)} /REABounds [${vp.bounds.x.toFixed(
+      4
+    )} ${vp.bounds.y.toFixed(4)} ${vp.bounds.width.toFixed(4)} ${vp.bounds.height.toFixed(4)}] >>`;
+  });
+
+  return `[${[mainVp, ...extraVps].join(' ')}]`;
 }
 
 function text(obj: unknown): string | undefined {
@@ -167,3 +255,102 @@ export async function importPdfCalibrations(bytes: Uint8Array): Promise<Record<n
   });
   return out;
 }
+
+/**
+ * Lee los viewports de una página a partir de su /VP.
+ * Devuelve la lista de viewports regionales (con exclusión del viewport global de página completa si no tiene id/nombre regional).
+ */
+export function readPageViewports(
+  pageNode: PDFDict,
+  rotation: 0 | 90 | 180 | 270,
+  pageBox: [number, number, number, number],
+  pageIndex = 0
+): MeasurementViewport[] {
+  const vp = pageNode.lookup(PDFName.of('VP'));
+  if (!(vp instanceof PDFArray)) return [];
+  const [origX, origY, maxX, maxY] = pageBox;
+  const pageArea = Math.abs((maxX - origX) * (maxY - origY));
+
+  const list: MeasurementViewport[] = [];
+  for (let i = 0; i < vp.size(); i++) {
+    const v = vp.lookup(i);
+    if (!(v instanceof PDFDict)) continue;
+
+    const vpName = text(v.lookup(PDFName.of('Name'))) ?? `Viewport ${i + 1}`;
+    const bboxNode = v.lookup(PDFName.of('BBox'));
+    let bboxPt: [number, number, number, number] | null = null;
+    let areaPt = 0;
+    if (bboxNode instanceof PDFArray && bboxNode.size() === 4) {
+      const n = [0, 1, 2, 3].map((k) =>
+        bboxNode.lookup(k) instanceof PDFNumber ? (bboxNode.lookup(k) as PDFNumber).asNumber() : 0
+      );
+      bboxPt = [n[0], n[1], n[2], n[3]];
+      areaPt = Math.abs((n[2] - n[0]) * (n[3] - n[1]));
+    }
+
+    const reaId = text(v.lookup(PDFName.of('REAId')));
+    const isFullPageRea = (vpName === REA_VP_NAME || !reaId) && areaPt >= pageArea * 0.95;
+    if (isFullPageRea && i === 0 && vp.size() > 1) {
+      continue;
+    }
+
+    let cal: PageCalibration | null = null;
+    const rea = text(v.lookup(PDFName.of('REACal')));
+    if (rea) {
+      try {
+        const parsed = JSON.parse(rea);
+        if (validCalibration(parsed)) cal = parsed;
+      } catch {
+        cal = null;
+      }
+    }
+    if (!cal) {
+      const measure = v.lookup(PDFName.of('Measure'));
+      if (measure instanceof PDFDict) {
+        cal = calibrationFromMeasure(measure, rotation);
+      }
+    }
+    if (!cal) continue;
+
+    const id = reaId ?? `vp-${pageIndex}-${i}-${Date.now()}`;
+    let bounds: { x: number; y: number; width: number; height: number };
+
+    const reaBounds = v.lookup(PDFName.of('REABounds'));
+    if (reaBounds instanceof PDFArray && reaBounds.size() === 4) {
+      const bVals = [0, 1, 2, 3].map((k) =>
+        reaBounds.lookup(k) instanceof PDFNumber ? (reaBounds.lookup(k) as PDFNumber).asNumber() : 0
+      );
+      bounds = { x: bVals[0], y: bVals[1], width: bVals[2], height: bVals[3] };
+    } else if (bboxPt) {
+      bounds = pdfBBoxToNormalizedBounds(bboxPt, pageBox, rotation);
+    } else {
+      bounds = { x: 0, y: 0, width: 1, height: 1 };
+    }
+
+    if (!isFullPageRea || reaId) {
+      list.push({
+        id,
+        name: vpName,
+        pageIndex,
+        bounds,
+        calibration: cal,
+      });
+    }
+  }
+  return list;
+}
+
+/** Lee todos los viewports regionales de todas las páginas del PDF. */
+export async function importPdfViewports(bytes: Uint8Array): Promise<Record<number, MeasurementViewport[]>> {
+  const { PDFDocument } = await import('pdf-lib');
+  const doc = await PDFDocument.load(bytes, { ignoreEncryption: true });
+  const out: Record<number, MeasurementViewport[]> = {};
+  doc.getPages().forEach((page, i) => {
+    const rot = (((page.getRotation().angle % 360) + 360) % 360) as 0 | 90 | 180 | 270;
+    const mb = page.getMediaBox();
+    const vps = readPageViewports(page.node, rot, [mb.x, mb.y, mb.x + mb.width, mb.y + mb.height], i);
+    if (vps.length > 0) out[i] = vps;
+  });
+  return out;
+}
+

@@ -10,7 +10,7 @@ import {
   PDFHexString,
   PDFObject,
 } from 'pdf-lib';
-import { LineEndingStyle, Markup, MarkupStatus, PageCalibration } from '../../types/markup';
+import { LineEndingStyle, Markup, MarkupStatus, PageCalibration, MeasurementViewport } from '../../types/markup';
 import { DIMENSION_EXTENSION_GAP, DIMENSION_EXTENSION_OVERSHOOT } from '../markup/dimension';
 import { viewportArrayFor, measureDictFor, readPageCalibration } from './pdfScale';
 import { DEFAULT_PAGE_CALIBRATION } from '../measurements/calculate';
@@ -50,6 +50,10 @@ export interface IncrementalSaveOptions {
    * Las páginas sin entrada conservan su /VP original (p. ej. calibrado en Revu).
    */
   calibrations?: Record<number, PageCalibration>;
+  /**
+   * Viewports de medición por página (ADR-0076): se escriben en el array /VP de la página.
+   */
+  viewports?: Record<number, MeasurementViewport[]>;
   /** Capas de marcas ocultas en REA: su /OCG se escribe apagado (ADR-0046). */
   hiddenLayers?: string[];
   /** Bytes de los adjuntos por clave (`customFields.attachmentKey`), para embeberlos (ADR-0027). */
@@ -963,12 +967,22 @@ ${markup.layer && layerOcg.has(markup.layer) ? `  /OC ${layerOcg.get(markup.laye
       }
     }
 
-    // Escala de la página (/VP /Measure) si el usuario la definió en REA
+    // Escala de la página y viewports regionales (/VP /Measure, ADR-0025, ADR-0076)
     const pageCalibration = options.calibrations?.[pIdx];
+    const pageViewports = options.viewports?.[pIdx];
     let vpChanged = false;
-    if (pageCalibration) {
+    if (pageCalibration || (pageViewports && pageViewports.length > 0)) {
       const mb = page.getMediaBox();
-      const vpString = viewportArrayFor(pageCalibration, [mb.x, mb.y, mb.x + mb.width, mb.y + mb.height], transform.rotation);
+      const calToUse =
+        pageCalibration ??
+        readPageCalibration(page.node, transform.rotation) ??
+        DEFAULT_PAGE_CALIBRATION;
+      const vpString = viewportArrayFor(
+        calToUse,
+        [mb.x, mb.y, mb.x + mb.width, mb.y + mb.height],
+        transform.rotation,
+        pageViewports
+      );
       const vpObjNum = writer.allocateObjectNumber();
       writer.addObject(vpObjNum, vpString);
       page.node.set(PDFName.of('VP'), PDFRef.of(vpObjNum, 0));

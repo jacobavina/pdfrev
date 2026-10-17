@@ -113,13 +113,15 @@ export async function loadPdfData(
   useAttachmentStore.getState().resetAttachments();
   useUiStore.setState({ hiddenLayers: [] });
 
-  // Escalas de página del PDF (/VP /Measure, ADR-0025): las de REA, Revu o Acrobat. Nunca se arrastran
+  // Escalas y viewports de página del PDF (/VP /Measure, ADR-0025, ADR-0076): las de REA, Revu o Acrobat. Nunca se arrastran
   // las del documento anterior.
   try {
-    const { importPdfCalibrations } = await import('../core/pdf/pdfScale');
+    const { importPdfCalibrations, importPdfViewports } = await import('../core/pdf/pdfScale');
     useCalibrationStore.getState().loadDocumentCalibrations(await importPdfCalibrations(bytes));
+    useCalibrationStore.getState().loadDocumentViewports(await importPdfViewports(bytes));
   } catch (calErr) {
     useCalibrationStore.getState().loadDocumentCalibrations({});
+    useCalibrationStore.getState().loadDocumentViewports({});
     const message = calErr instanceof Error ? calErr.message : String(calErr);
     showToast(`Could not read the page scales of the PDF: ${message}`);
   }

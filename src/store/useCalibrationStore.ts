@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { PageCalibration, MarkupPoint, MeasurementUnit } from '../types/markup';
+import { PageCalibration, MarkupPoint, MeasurementUnit, MeasurementViewport } from '../types/markup';
 import { DEFAULT_PAGE_CALIBRATION } from '../core/measurements/calculate';
+import { getEffectiveCalibrationForPoints } from '../core/measurements/viewports';
 
 interface CalibrationState {
   calibrations: Record<number, PageCalibration>;
@@ -10,6 +11,18 @@ interface CalibrationState {
   loadDocumentCalibrations: (calibrations: Record<number, PageCalibration>) => void;
   /** Escalas definidas o cambiadas por el usuario desde que se abrió el PDF. */
   changedCalibrations: () => Record<number, PageCalibration>;
+
+  /** Viewports de medición por página (ADR-0076): cada viewport tiene su propia escala. */
+  viewports: Record<number, MeasurementViewport[]>;
+  importedViewports: Record<number, MeasurementViewport[]>;
+  loadDocumentViewports: (viewports: Record<number, MeasurementViewport[]>) => void;
+  changedViewports: () => Record<number, MeasurementViewport[]>;
+  getViewports: (pageIndex: number) => MeasurementViewport[];
+  addViewport: (viewport: MeasurementViewport) => void;
+  updateViewport: (pageIndex: number, vpId: string, patch: Partial<MeasurementViewport>) => void;
+  removeViewport: (pageIndex: number, vpId: string) => void;
+  getEffectiveCalibration: (pageIndex: number, points?: MarkupPoint[]) => PageCalibration;
+
   pendingCalibrationPoints: MarkupPoint[];
   isCalibrationModalOpen: boolean;
 
@@ -44,6 +57,64 @@ export const useCalibrationStore = create<CalibrationState>((set, get) => ({
       if (!before || JSON.stringify(before) !== JSON.stringify(cal)) out[Number(k)] = cal;
     }
     return out;
+  },
+
+  viewports: {},
+  importedViewports: {},
+
+  loadDocumentViewports: (viewports) =>
+    set({ viewports: { ...viewports }, importedViewports: { ...viewports } }),
+
+  changedViewports: () => {
+    const { viewports, importedViewports } = get();
+    const out: Record<number, MeasurementViewport[]> = {};
+    for (const [k, vps] of Object.entries(viewports)) {
+      const before = importedViewports[Number(k)];
+      if (!before || JSON.stringify(before) !== JSON.stringify(vps)) out[Number(k)] = vps;
+    }
+    return out;
+  },
+
+  getViewports: (pageIndex) => get().viewports[pageIndex] ?? [],
+
+  addViewport: (vp) => {
+    set((state) => {
+      const p = vp.pageIndex;
+      const list = state.viewports[p] ? [...state.viewports[p], vp] : [vp];
+      return {
+        viewports: { ...state.viewports, [p]: list },
+      };
+    });
+  },
+
+  updateViewport: (pageIndex, vpId, patch) => {
+    set((state) => {
+      const list = state.viewports[pageIndex] ?? [];
+      const next = list.map((v) => (v.id === vpId ? { ...v, ...patch } : v));
+      return {
+        viewports: { ...state.viewports, [pageIndex]: next },
+      };
+    });
+  },
+
+  removeViewport: (pageIndex, vpId) => {
+    set((state) => {
+      const list = state.viewports[pageIndex] ?? [];
+      const next = list.filter((v) => v.id !== vpId);
+      const updated = { ...state.viewports };
+      if (next.length === 0) {
+        delete updated[pageIndex];
+      } else {
+        updated[pageIndex] = next;
+      }
+      return { viewports: updated };
+    });
+  },
+
+  getEffectiveCalibration: (pageIndex, points) => {
+    const pageCalib = get().getPageCalibration(pageIndex);
+    const vps = get().viewports[pageIndex];
+    return getEffectiveCalibrationForPoints(pageCalib, points, vps);
   },
   pendingCalibrationPoints: [],
   isCalibrationModalOpen: false,

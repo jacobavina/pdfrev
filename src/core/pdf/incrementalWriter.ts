@@ -506,7 +506,7 @@ export async function saveIncrementalMarkups(
       const apStreamBytes = new TextEncoder().encode(emitted.operators);
 
       let resourcesDict = '<<\n';
-      if (emitted.extGState?.bm || emitted.extGState?.ca || emitted.extGState?.CA) {
+      if (emitted.extGState?.bm || emitted.extGState?.ca !== undefined || emitted.extGState?.CA !== undefined) {
         resourcesDict += `    /ExtGState << /GS_HL << /Type /ExtGState /BM ${emitted.extGState.bm || '/Normal'} /ca ${emitted.extGState.ca ?? 1} /CA ${emitted.extGState.CA ?? 1} >> >>\n`;
       }
       // Texto del /AP (cotas, cuadros de texto, llamadas): Helvetica estándar, sin incrustar
@@ -604,6 +604,8 @@ endstream`;
       }
       if (markup.style.fillColor === 'transparent' || markup.style.fillColor === 'none') {
         reaDict += ` /noFill 1`;
+      } else if (markup.style.fillColor) {
+        reaDict += ` /fillColor ${escapePdfString(markup.style.fillColor)}`;
       }
       if (markup.textFormat?.align) {
         reaDict += ` /textAlign ${escapePdfString(markup.textFormat.align)}`;
@@ -703,8 +705,13 @@ ${markup.layer && layerOcg.has(markup.layer) ? `  /OC ${layerOcg.get(markup.laye
         annotDict += `  /Locked true\n`;
       }
       const markupOpacity = markup.style.opacity ?? 1;
-      if (markupOpacity < 1 && annotTypeSubtype !== 'Highlight') {
-        annotDict += `  /CA ${markupOpacity.toFixed(3)}\n`;
+      const strokeAlpha = (strokeParsed?.a ?? 1) * markupOpacity;
+      if (strokeAlpha < 1 && annotTypeSubtype !== 'Highlight') {
+        annotDict += `  /CA ${strokeAlpha.toFixed(3)}\n`;
+      }
+      const fillAlpha = (fillParsed?.a ?? 1) * markupOpacity;
+      if (fillAlpha < 1 && fillParsed && annotTypeSubtype !== 'Highlight') {
+        annotDict += `  /ca ${fillAlpha.toFixed(3)}\n`;
       }
       if (colorEntry) annotDict += `  ${colorEntry}\n`;
       if (fillEntry) annotDict += `  ${fillEntry}\n`;
@@ -823,6 +830,8 @@ ${markup.layer && layerOcg.has(markup.layer) ? `  /OC ${layerOcg.get(markup.laye
           const rd = [co.box[0] - x0, co.box[1] - y0, x1 - co.box[2], y1 - co.box[3]].map((v) => Math.max(0, v).toFixed(2));
           annotDict += `  /IT /FreeTextCallout\n  /CL [${co.line.map((p) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')}]\n`;
           annotDict += `  /LE ${toPdfLineEnding(markup.style.lineEndingStart ?? 'openArrow')}\n  /RD [${rd.join(' ')}]\n`;
+        } else if (markup.type === 'typewriter') {
+          annotDict += `  /IT /FreeTextTypeWriter\n`;
         }
       } else if (annotTypeSubtype === 'Link') {
         annotDict += `  /Border [0 0 0]\n  /H /I\n`;
@@ -1339,7 +1348,10 @@ function getPdfAnnotSubtype(markup: Markup): string {
       return 'Polygon';
     case 'callout':
     case 'text':
+    case 'typewriter':
       return 'FreeText';
+    case 'arc':
+      return 'PolyLine';
     case 'stickyNote':
       return 'Text';
     case 'stamp':

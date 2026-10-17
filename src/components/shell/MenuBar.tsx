@@ -57,7 +57,17 @@ import {
   ContinuousIcon,
   CalibrateIcon,
   LengthMeasureIcon,
+  PolylengthIcon,
+  AreaMeasureIcon,
+  PerimeterMeasureIcon,
+  DiameterMeasureIcon,
+  RadiusMeasureIcon,
+  AngleMeasureIcon,
+  VolumeMeasureIcon,
+  CountMeasureIcon,
   RulersIcon,
+  PolygonCutoutIcon,
+  EllipseCutoutIcon,
 } from './customIcons';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useMarkupStore } from '../../store/useMarkupStore';
@@ -410,7 +420,7 @@ export const MenuBar: React.FC = () => {
           submenu: [
             {
               icon: <CalibrateIcon size={16} />,
-              label: 'Calibrate Page Scale…',
+              label: 'Set Scale…',
               testId: 'menu-calibrate',
               // Un solo flujo (ADR-0031): dos clics sobre una distancia conocida y después el diálogo
               onSelect: () => {
@@ -420,9 +430,19 @@ export const MenuBar: React.FC = () => {
               disabled: !hasDoc,
             },
             'separator',
-            ...(TOOL_GROUPS.find((g) => g.id === 'measure')?.tools ?? [])
-              .filter((t) => t.type !== 'calibrate')
-              .map((t) => toolEntry(t.type, t.short, t.shortcut, t.icon)),
+            toolEntry('length', 'Length', 'Shift+Alt+L', <LengthMeasureIcon size={16} />),
+            toolEntry('polylineMeasure', 'Polylength', 'Shift+Alt+Q', <PolylengthIcon size={16} />),
+            toolEntry('area', 'Area', 'Shift+Alt+A', <AreaMeasureIcon size={16} />),
+            toolEntry('perimeter', 'Perimeter', 'Shift+Alt+P', <PerimeterMeasureIcon size={16} />),
+            toolEntry('diameter', 'Diameter', 'Shift+Alt+D', <DiameterMeasureIcon size={16} />),
+            toolEntry('radius', 'Center Radius', 'Shift+Alt+U', <RadiusMeasureIcon size={16} />),
+            toolEntry('angle', 'Angle', 'Shift+Alt+G', <AngleMeasureIcon size={16} />),
+            toolEntry('volume', 'Volume', 'Shift+Alt+V', <VolumeMeasureIcon size={16} />),
+            'separator',
+            toolEntry('polygonCutout', 'Polygon Cutout', 'Shift+Alt+K', <PolygonCutoutIcon size={16} />),
+            toolEntry('ellipseCutout', 'Ellipse Cutout', undefined, <EllipseCutoutIcon size={16} />),
+            'separator',
+            toolEntry('count', 'Count', 'Shift+Alt+C', <CountMeasureIcon size={16} />),
           ],
         },
         {

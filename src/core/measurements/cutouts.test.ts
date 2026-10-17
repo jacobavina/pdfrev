@@ -181,5 +181,19 @@ describe('Recortes (Cutouts) en Mediciones de Área y Volumen (ADR-0075 / Hito B
     // Deshacer limpieza de huecos
     useMarkupStore.getState().undo();
     expect(useMarkupStore.getState().markups[0].cutouts?.length).toBe(3);
+
+    // 8. deleteCutout: eliminar un hueco específico manteniendo los otros (Paridad Revu)
+    // Inicialmente con 3 huecos, eliminamos el hueco en el índice 1
+    useMarkupStore.getState().deleteCutout('area-cutout-1', 1, pageSize, calibration);
+    expect(useMarkupStore.getState().markups[0].cutouts?.length).toBe(2);
+
+    // Deshacer eliminación individual
+    useMarkupStore.getState().undo();
+    expect(useMarkupStore.getState().markups[0].cutouts?.length).toBe(3);
+
+    // Rehacer eliminación individual
+    useMarkupStore.getState().redo();
+    expect(useMarkupStore.getState().markups[0].cutouts?.length).toBe(2);
   });
 });
+

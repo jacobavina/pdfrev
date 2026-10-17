@@ -40,9 +40,9 @@
 | Rectángulo, elipse, línea, polígono | ✅ · PARITY «Herramientas geométricas base (círculo, polígono, escape)» + E2E `Sub-entregable 0.2` | — | M | K I |
 | Polilínea abierta | ✅ ADR-0014 (bc7ddb6) · PARITY «Herramientas Revu y portapapeles (polyLine, underline, strikeOut, /LE, bloqueo, portapapeles)» | — | M | K I |
 | Flecha / línea con extremos | ✅ ADR-0014 (bc7ddb6) + ADR-0018 (f0abc85) · PARITY «Flechas y tipos de línea…(ADR-0018)» y «Extremos y patrón de línea en el PDF (/AP, /LE, /BS) con ida y vuelta» | — | M | I |
-| Nube de revisión (+ Cloud+) | ✅ ADR-0021/0039/0041/0069 · PARITY «Nubes de revisión con arcStep persistido…», «Cloud+ como grupo indivisible…», «Nube y Cloud+ de forma libre…», «Nube como la de Revu…», «Cloud+ con directriz sin flecha…» y «Tiradores de Cloud+…» | — | M | I |
+| Nube de revisión (+ Cloud+) | ✅ ADR-0021/0039/0041/0069/0081 · PARITY «Nubes de revisión con arcStep persistido…», «Cloud+ como grupo indivisible…», «Nube y Cloud+ de forma libre…», «Nube como la de Revu…», «Cloud+ con directriz sin flecha…», «Tiradores de Cloud+…» y «Cloud+ con distancia de llamada adaptativa al zoom… (ADR-0081)» | — | M | I |
 | Callout | ✅ ADR-0042/0067 · PARITY «Callout / Nota técnica con directriz conectada», «Callout de Revu/Foxit…», «Callout con directriz horizontal…», «Callout con dos clics…» | — | M | I |
-| Cuadro de texto con borde/relleno | ✅ ADR-0061 (314e56f) + ADR-0074 · PARITY «Autosize Text de Revu…» y «Cuadro de texto (/FreeText) con borde, relleno y alineación (/Q) en pantalla, /AP e ida y vuelta (ADR-0074)» | — | M | I |
+| Cuadro de texto con borde/relleno | ✅ ADR-0061 (314e56f) + ADR-0074 + ADR-0081 · PARITY «Autosize Text de Revu…», «Cuadro de texto (/FreeText) con borde, relleno y alineación (/Q) en pantalla, /AP e ida y vuelta (ADR-0074)» y «Máquina de escribir (Typewriter, W)… (ADR-0081)» | — | M | I |
 | Nota adhesiva | ✅ · PARITY «Nota adhesiva técnica (`stickyNote`)» | — | S | I |
 | Resaltador vectorial / de texto | ✅ · PARITY «Resaltador vectorial (`highlightVector`)» y «Resaltado de texto (`highlightText` con TextLayer)» | — | M | I |
 | Subrayado, tachado, ondulado de texto | ✅ ADR-0014 (bc7ddb6) + ADR-0072 (71a71c3) · PARITY «Herramientas Revu y portapapeles…», «Ondulado de texto (`squiggly`): renderizado SVG en la base del renglón (ADR-0072)», «Ondulado de texto (`squiggly`): emisión de operadores PDF `/AP /N` (ADR-0072)» y «Ondulado de texto (`squiggly`): importación de `/Subtype /Squiggly` ajeno con `/QuadPoints` (ADR-0072)» | — | M | I |
@@ -55,7 +55,7 @@
 | Copiar/pegar/duplicar (también entre páginas) | ✅ ADR-0014 (bc7ddb6) · `src/store/useMarkupStore.test.ts` (copySelectedMarkups, pasteMarkups con nuevo groupId, duplicateSelectedMarkups) + PARITY «Herramientas Revu y portapapeles…» | — | M | K I |
 | Alinear/distribuir, voltear/rotar marca | ✅ ADR-0039 (330d88a) + ADR-0073 (dc52e2b) · PARITY «Tiradores de Revu: vértices pequeños, escalar por las esquinas y rotar» y «Alinear, distribuir y voltear marcas seleccionadas en un comando atómico deshacible (ADR-0073)» | — | S | I |
 | Bloquear marca | ✅ ADR-0014 (bc7ddb6) · PARITY «Herramientas Revu y portapapeles…» (test `marcas bloqueadas quedan protegidas contra borrado, movimiento y actualización de propiedades`) | — | S | I |
-| Orden Z (traer/enviar al fondo) | ⬜ | P3-H.5 | C | I |
+| Orden Z (traer/enviar al fondo) | ✅ ADR-0081 · PARITY «Reordenar marcas seleccionadas en el orden Z (traer al frente, enviar al fondo, avanzar, retroceder) (ADR-0081)» | — | C | I |
 | Mover / transformar / multiselección (marquee) | ✅ · PARITY «Move y Transform con umbral 4px…» y «Multiselección con Marquee…» | — | M | K I |
 | Edición por vértices | ✅ ADR-0021 (28f3240) + ADR-0069 (f1d1d07) · PARITY «Puntos de control: cambiar la forma de la nube y demás marcas (deshacible)», «Tiradores de Cloud+…» y su E2E | — | S | K |
 | Inspector de propiedades | ✅ P2-C.6 (e6a7b8a) · PARITY «P2-C.6: Inspector de propiedades de marca (Bloque C, D-3)» | — | M | K I |
@@ -86,7 +86,7 @@
 | Conteo por símbolo/Subject | ✅ ADR-0015 (c622016) + ADR-0059 (72aae8c) + ADR-0063 (84d9381) · PARITY «Count de Revu: símbolos…», «Count guardado como /Polygon /PolygonCount…» y «Count: cada símbolo con su tirador…» | — | **M** | K |
 | Ángulo, radio, diámetro | ✅ ADR-0029 (eec83fa) + ADR-0051 (784e12f) · PARITY «Angle (Shift+Alt+G)…», «Radius (Shift+Alt+R) y Diameter (Shift+Alt+D)» y «Volumen, ángulo, conteo, radio y diámetro con las claves de Revu (ADR-0051)» | — | S | K |
 | Volumen / profundidad | ✅ ADR-0029 (eec83fa) · PARITY «Volume (Shift+Alt+V)…» | — | S | K |
-| Acotación con flechas | ✅ ADR-0020 (28f3240) + ADR-0032/0033 (76347a7/7cc2c09) · PARITY «Cota en el PDF (/Line con /LL, /IT /LineDimension, texto en /AP)…», «Flechas al estilo de Acrobat…» y «Distance como en Acrobat…» | — | S | K I |
+| Acotación con flechas | ✅ ADR-0020 (28f3240) + ADR-0032/0033 (76347a7/7cc2c09) + ADR-0081 · PARITY «Cota en el PDF (/Line con /LL, /IT /LineDimension, texto en /AP)…», «Flechas al estilo de Acrobat…», «Distance como en Acrobat…» y «Flechas por fuera en cotas cortas (Dimension)… (ADR-0081)» | — | S | K I |
 | Snap (extremos, ortogonal) | ✅ ADR-0025 (444000d) + ADR-0031 (4b57d21) + ADR-0047/0048 (7004807/cec5d64) · PARITY «Snap to drawing…», «Trazo recto con Shift…» y «Shift a 45°…» | — | S | K |
 | Subtotales por Subject/capa/página | ✅ ADR-0015 (c622016) + ADR-0077 · PARITY «Subtotales por Subject, capa y página (suma antes de redondear)…» | B.3 (P4-C.2) | **M** | K |
 | Precios unitarios y costes | ✅ ADR-0077 · PARITY «…y precios unitarios en entero exacto (ADR-0077)» con aritmética entera en céntimos | B.3 (P4-C.3) | S | K |

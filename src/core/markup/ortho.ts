@@ -25,6 +25,7 @@ export const ORTHO_TOOLS = new Set<string>([
   'radius',
   'diameter',
   'calibrate',
+  'polygonCutout',
 ]);
 
 /** Herramientas de caja que con Shift dibujan un cuadrado (o un círculo). */

@@ -615,6 +615,40 @@ export function emitMarkupOperators(
       break;
     }
 
+    case 'arc': {
+      if (markup.points.length >= 3) {
+        const pdfPts = markup.points.map((p) => normalizedToPdfCoordinates(p, transform));
+        const p0 = pdfPts[0];
+        const p1 = pdfPts[1];
+        const p2 = pdfPts[2];
+        const cx = 2 * p1.x - 0.5 * (p0.x + p2.x);
+        const cy = 2 * p1.y - 0.5 * (p0.y + p2.y);
+        const cp1x = p0.x + (2 / 3) * (cx - p0.x);
+        const cp1y = p0.y + (2 / 3) * (cy - p0.y);
+        const cp2x = p2.x + (2 / 3) * (cx - p2.x);
+        const cp2y = p2.y + (2 / 3) * (cy - p2.y);
+
+        updateBBox(p0.x, p0.y);
+        updateBBox(p1.x, p1.y);
+        updateBBox(p2.x, p2.y);
+        updateBBox(cx, cy);
+
+        lines.push(`${p0.x.toFixed(2)} ${p0.y.toFixed(2)} m`);
+        lines.push(
+          `${cp1x.toFixed(2)} ${cp1y.toFixed(2)} ${cp2x.toFixed(2)} ${cp2y.toFixed(2)} ${p2.x.toFixed(2)} ${p2.y.toFixed(2)} c`
+        );
+        lines.push('S');
+      } else if (markup.points.length === 2) {
+        const pdfPts = markup.points.map((p) => normalizedToPdfCoordinates(p, transform));
+        updateBBox(pdfPts[0].x, pdfPts[0].y);
+        updateBBox(pdfPts[1].x, pdfPts[1].y);
+        lines.push(`${pdfPts[0].x.toFixed(2)} ${pdfPts[0].y.toFixed(2)} m`);
+        lines.push(`${pdfPts[1].x.toFixed(2)} ${pdfPts[1].y.toFixed(2)} l`);
+        lines.push('S');
+      }
+      break;
+    }
+
     case 'polyLine':
     case 'polylineMeasure': {
       if (markup.points.length >= 2) {
@@ -901,7 +935,8 @@ export function emitMarkupOperators(
       break;
     }
 
-    case 'text': {
+    case 'text':
+    case 'typewriter': {
       if (markup.points.length === 0) break;
       const a = toVis(markup.points[0]);
       const b = toVis(markup.points[1] ?? markup.points[0]);
@@ -909,9 +944,12 @@ export function emitMarkupOperators(
       const y = Math.min(a.y, b.y);
       const w = Math.max(80, Math.abs(b.x - a.x));
       const h = Math.max(26, Math.abs(b.y - a.y));
-      const strokeW = markup.style.strokeWidth ?? 1;
+      const strokeW = markup.style.strokeWidth ?? (markup.type === 'typewriter' ? 0 : 1);
       const hasBorder = strokeParsed !== null && strokeW > 0;
-      const noFill = markup.style.fillColor === 'transparent' || markup.style.fillColor === 'none';
+      const noFill =
+        markup.type === 'typewriter' && !markup.style.fillColor
+          ? true
+          : markup.style.fillColor === 'transparent' || markup.style.fillColor === 'none';
       const boxFill = noFill ? null : (fillParsed ?? { r: 1, g: 0.984, b: 0.91 });
       if (hasBorder) lines.push(`${strokeW.toFixed(2)} w`);
       if (boxFill) lines.push(rgbOp(boxFill, 'rg'));
@@ -1244,7 +1282,16 @@ export function emitMarkupOperators(
       }
       pathPdf([geom.dimStart, geom.dimEnd], false);
       lines.push('S');
-      emitLineEndings([geom.dimStart, geom.dimEnd]);
+      const ends = measureLineEndings(markup.style);
+      // Distancia corta de cota (como en Revu y CAD, ADR-0063): puntas por fuera, apuntando hacia dentro
+      const outside = outsideArrowLayout(geom.dimStart, geom.dimEnd, lineEndingSize(strokeWidth), ends);
+      if (outside) {
+        for (const [u, w] of outside.stubs) {
+          pathPdf([u, w], false);
+          lines.push('S');
+        }
+      }
+      emitLineEndings([geom.dimStart, geom.dimEnd], ends, undefined, outside ?? undefined);
       const fontSize = markup.style.fontSize ?? 10;
       if (markup.text) {
         textPdf(

@@ -246,4 +246,20 @@ describe('Cota, puntos de control y zoom con doble clic (ADR-0020/0021)', () => 
     expect(screen.getByTestId(`markup-stamp-${m.id}`)).toHaveTextContent('FOR CONSTRUCTION');
     act(() => useToolStore.setState({ author: 'Reviewer' }));
   });
+
+  it('al trazar una cota corta, las flechas van por fuera apuntando hacia dentro con tramos exteriores (data-arrows=outside)', async () => {
+    await renderViewer();
+    act(() => {
+      fireEvent.keyDown(window, { key: 'L', shiftKey: true });
+    });
+    expect(useToolStore.getState().activeTool).toBe('dimension');
+    const svg = screen.getByTestId('markup-overlay-svg');
+    // Distancia corta: 16 px (100 a 116 px en una hoja de 800x600 px)
+    drag(svg, 100, 300, 116, 300);
+
+    const m = useMarkupStore.getState().markups.find((x) => x.type === 'dimension')!;
+    expect(m).toBeDefined();
+    const elem = screen.getByTestId(`markup-dimension-${m.id}`);
+    expect(elem.querySelector('[data-arrows="outside"]')).not.toBeNull();
+  });
 });

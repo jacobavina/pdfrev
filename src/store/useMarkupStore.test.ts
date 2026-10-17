@@ -904,5 +904,46 @@ describe('useMarkupStore Integration & History', () => {
       const afterProp = useMarkupStore.getState().markups.find((m) => m.id === 'm-lock')!;
       expect(afterProp.style.strokeColor).toBe('#ff0000');
     });
+
+    it('reordena marcas seleccionadas en el orden Z (front, back, forward, backward) con undo atómico y protege bloqueadas', () => {
+      const m1 = createMockMarkup('m1', 'Uno');
+      const m2 = createMockMarkup('m2', 'Dos');
+      const m3 = createMockMarkup('m3', 'Tres');
+      useMarkupStore.setState({
+        markups: [m1, m2, m3],
+        selectedMarkupIds: ['m1'],
+      });
+
+      // 1. Traer al frente (front): m1 pasa al final [m2, m3, m1]
+      useMarkupStore.getState().reorderSelectedMarkups('front');
+      expect(useMarkupStore.getState().markups.map((m) => m.id)).toEqual(['m2', 'm3', 'm1']);
+
+      // 2. Deshacer
+      useMarkupStore.getState().undo();
+      expect(useMarkupStore.getState().markups.map((m) => m.id)).toEqual(['m1', 'm2', 'm3']);
+
+      // 3. Avanzar un paso (forward): m1 avanza una posición con m2 -> [m2, m1, m3]
+      useMarkupStore.getState().reorderSelectedMarkups('forward');
+      expect(useMarkupStore.getState().markups.map((m) => m.id)).toEqual(['m2', 'm1', 'm3']);
+
+      // 4. Retroceder un paso (backward): m1 vuelve a la primera posición -> [m1, m2, m3]
+      useMarkupStore.getState().reorderSelectedMarkups('backward');
+      expect(useMarkupStore.getState().markups.map((m) => m.id)).toEqual(['m1', 'm2', 'm3']);
+
+      // 5. Enviar al fondo (back): seleccionamos m3 y lo enviamos al fondo -> [m3, m1, m2]
+      useMarkupStore.setState({ selectedMarkupIds: ['m3'] });
+      useMarkupStore.getState().reorderSelectedMarkups('back');
+      expect(useMarkupStore.getState().markups.map((m) => m.id)).toEqual(['m3', 'm1', 'm2']);
+
+      // 6. Proteger marcas bloqueadas: si m3 está bloqueada, no se reordena
+      const m3Locked: Markup = { ...m3, locked: true };
+      useMarkupStore.setState({
+        markups: [m3Locked, m1, m2],
+        selectedMarkupIds: ['m3'],
+      });
+      useMarkupStore.getState().reorderSelectedMarkups('front');
+      expect(useMarkupStore.getState().markups.map((m) => m.id)).toEqual(['m3', 'm1', 'm2']);
+    });
   });
 });
+

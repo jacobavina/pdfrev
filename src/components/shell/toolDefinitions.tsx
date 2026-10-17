@@ -29,6 +29,11 @@ import {
   RadiusMeasureIcon,
   DiameterMeasureIcon,
   VolumeMeasureIcon,
+  TypewriterIcon,
+  PolygonCutoutIcon,
+  EllipseCutoutIcon,
+  EraserIcon,
+  ArcIcon,
 } from './customIcons';
 import { ToolType } from '../../store/useToolStore';
 import { MARKUP_COLORS } from '../../core/markup/palette';
@@ -67,6 +72,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
     label: 'Text & Review',
     tools: [
       { type: 'text', label: 'Text Box (T)', short: 'Text', icon: <TextBoxIcon />, shortcut: 'T' },
+      { type: 'typewriter', label: 'Typewriter (W)', short: 'Typewriter', icon: <TypewriterIcon />, shortcut: 'W' },
       { type: 'callout', label: 'Callout (Q)', short: 'Callout', icon: <CalloutIcon />, shortcut: 'Q' },
       { type: 'stickyNote', label: 'Note (N)', short: 'Note', icon: <NoteIcon />, shortcut: 'N' },
       { type: 'highlightText', label: 'Text Highlight (Shift+H)', short: 'Highlight', icon: <TextHighlightIcon />, shortcut: 'Shift+H' },
@@ -81,8 +87,10 @@ export const TOOL_GROUPS: ToolGroup[] = [
     tools: [
       { type: 'freehand', label: 'Pen (P)', short: 'Pen', icon: <PenIcon />, shortcut: 'P' },
       { type: 'highlightVector', label: 'Highlight (H)', short: 'Highlighter', icon: <HighlighterIcon />, shortcut: 'H' },
+      { type: 'eraser', label: 'Eraser (Shift+E)', short: 'Eraser', icon: <EraserIcon />, shortcut: 'Shift+E' },
       { type: 'line', label: 'Line (L)', short: 'Line', icon: <LineToolIcon />, shortcut: 'L' },
       { type: 'arrow', label: 'Arrow (A)', short: 'Arrow', icon: <ArrowToolIcon />, shortcut: 'A' },
+      { type: 'arc', label: 'Arc (Shift+C)', short: 'Arc', icon: <ArcIcon />, shortcut: 'Shift+C' },
       { type: 'dimension', label: 'Dimension (Shift+L)', short: 'Dimension', icon: <DimensionIcon />, shortcut: 'Shift+L' },
       { type: 'polyLine', label: 'Polyline (Shift+N)', short: 'Polyline', icon: <PolylineToolIcon />, shortcut: 'Shift+N' },
       { type: 'rectangle', label: 'Rectangle (R)', short: 'Rectangle', icon: <RectangleToolIcon />, shortcut: 'R' },
@@ -134,6 +142,21 @@ export const TOOL_GROUPS: ToolGroup[] = [
       { type: 'radius', label: 'Radius (Shift+Alt+U): center, then edge', short: 'Radius', icon: <RadiusMeasureIcon />, testId: 'tool-measure-radius', shortcut: 'Shift+Alt+U' },
       { type: 'diameter', label: 'Diameter (Shift+Alt+D): edge to edge', short: 'Diameter', icon: <DiameterMeasureIcon />, testId: 'tool-measure-diameter', shortcut: 'Shift+Alt+D' },
       { type: 'count', label: 'Count (Shift+Alt+C)', short: 'Count', icon: <CountMeasureIcon />, testId: 'tool-measure-count', shortcut: 'Shift+Alt+C' },
+      {
+        type: 'polygonCutout',
+        label: 'Polygon Cutout (Shift+Alt+K)',
+        short: 'PolyCutout',
+        icon: <PolygonCutoutIcon />,
+        testId: 'tool-measure-polygon-cutout',
+        shortcut: 'Shift+Alt+K',
+      },
+      {
+        type: 'ellipseCutout',
+        label: 'Ellipse Cutout',
+        short: 'EllipseCutout',
+        icon: <EllipseCutoutIcon />,
+        testId: 'tool-measure-ellipse-cutout',
+      },
     ],
   },
 ];

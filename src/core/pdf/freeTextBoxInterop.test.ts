@@ -147,4 +147,65 @@ describe('Cuadro de texto (/FreeText) — borde, relleno y alineación (ADR-0074
     const afterCenter = afterExternal.find((m) => m.id === 'ft-center');
     expect(afterCenter?.textFormat?.align).toBe('right');
   });
+
+  it('typewriter emite /IT /FreeTextTypeWriter en el PDF y se reimporta como typewriter sin borde ni relleno', async () => {
+    const twMarkup: Markup = {
+      id: 'tw-test-1',
+      type: 'typewriter',
+      pageIndex: 0,
+      points: [
+        { x: 0.2, y: 0.4 },
+        { x: 0.35, y: 0.44 },
+      ],
+      text: 'Nota de máquina de escribir',
+      author: 'Revu User',
+      createdAt: '2026-10-17T00:00:00Z',
+      updatedAt: '2026-10-17T00:00:00Z',
+      status: 'pending',
+      style: {
+        strokeWidth: 0,
+        strokeColor: 'transparent',
+        fillColor: 'transparent',
+        fontSize: 12,
+        textColor: '#000000',
+        opacity: 1,
+      },
+    };
+
+    // 1. Render descriptor en pantalla
+    const svgDesc = getMarkupSvgDescriptor(twMarkup, viewport);
+    expect(svgDesc.tag).toBe('g');
+    const rect = svgDesc.children?.find((c) => c.tag === 'rect');
+    expect(rect).toBeDefined();
+    expect(rect?.attrs?.stroke).toBe('none');
+    expect(rect?.attrs?.fill).toBe('transparent');
+
+    // 2. Guardar incrementalmente y comprobar /IT /FreeTextTypeWriter en el PDF
+    const savedBytes = await saveIncrementalMarkups(originalBytes, [twMarkup], {});
+    const pdfText = new TextDecoder('latin1').decode(savedBytes);
+    expect(pdfText).toContain('/Subtype /FreeText');
+    expect(pdfText).toContain('/IT /FreeTextTypeWriter');
+
+    // 3. Reimportar desde PDF nativo
+    const { markups: reimported } = await importPdfAnnotations(savedBytes);
+    const found = reimported.find((m) => m.id === 'tw-test-1');
+    expect(found).toBeDefined();
+    expect(found?.type).toBe('typewriter');
+    expect(found?.text).toBe('Nota de máquina de escribir');
+
+    // 4. Simular un PDF creado en Revu o Acrobat externo (sin diccionario /REA)
+    const doc = await PDFDocument.load(savedBytes);
+    const annots = doc.getPages()[0].node.Annots();
+    for (let i = 0; i < annots!.size(); i++) {
+      const dict = doc.context.lookup(annots!.get(i));
+      if (dict instanceof PDFDict && dict.get(PDFName.of('NM'))?.toString() === '(tw-test-1)') {
+        dict.delete(PDFName.of('REA')); // Simular anotación ajena
+      }
+    }
+    const foreignBytes = await doc.save();
+    const { markups: foreignReimported } = await importPdfAnnotations(foreignBytes);
+    const foreignFound = foreignReimported.find((m) => m.id === 'tw-test-1');
+    expect(foreignFound).toBeDefined();
+    expect(foreignFound?.type).toBe('typewriter');
+  });
 });

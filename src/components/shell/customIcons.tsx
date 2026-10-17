@@ -100,10 +100,11 @@ const MEASURE_ACCENT = tok('icon-measure');
 const HIGHLIGHT_ACCENT = tok('icon-highlight');
 const PEN_ACCENT = tok('icon-pen');
 
-/** Marco de regla punteado (arriba e izquierda) que identifica a las herramientas de medición. */
+/** Marco de regla de precisión que identifica a las herramientas de medición (ADR-0023, ADR-0066). */
 const MeasureFrame: React.FC<{ size?: number; children: React.ReactNode }> = ({ size, children }) => (
-  <Icon size={size} strokeWidth={1.6}>
-    <path d="M2.5 2.5H21.5M2.5 2.5V21.5" stroke={MEASURE_ACCENT} strokeWidth={1.6} strokeDasharray="0.1 2.4" />
+  <Icon size={size} strokeWidth={1.75}>
+    <path d="M2.5 2.5h19M2.5 2.5v19" stroke={MEASURE_ACCENT} strokeWidth={1.2} />
+    <path d="M6 2.5v2.5M10 2.5v3M14 2.5v2.5M18 2.5v3M2.5 6h2.5M2.5 10h3M2.5 14h2.5M2.5 18h3" stroke={MEASURE_ACCENT} strokeWidth={1} />
     {children}
   </Icon>
 );
@@ -127,13 +128,13 @@ export const PolylengthIcon: React.FC<{ size?: number }> = ({ size }) => (
 
 export const AreaMeasureIcon: React.FC<{ size?: number }> = ({ size }) => (
   <MeasureFrame size={size}>
-    <path d="M7 20V8h7l6 6v6z" />
+    <path d="M7 20V8h7l6 6v6z" fill={MEASURE_ACCENT} fillOpacity={0.15} />
   </MeasureFrame>
 );
 
 export const CountMeasureIcon: React.FC<{ size?: number }> = ({ size }) => (
   <MeasureFrame size={size}>
-    <path d="M8 8v12M11 8v12M14 8v12M17 8v12M6 18 19 10" />
+    <path d="M7.5 8v12M10.5 8v12M13.5 8v12M16.5 8v12M6 18l13-8" />
   </MeasureFrame>
 );
 
@@ -156,20 +157,21 @@ export const RadiusMeasureIcon: React.FC<{ size?: number }> = ({ size }) => (
   <MeasureFrame size={size}>
     <circle cx="13.5" cy="14" r="6.5" />
     <path d="M13.5 14 18.1 9.4" />
-    <circle cx="13.5" cy="14" r="1" fill="currentColor" stroke="none" />
+    <circle cx="13.5" cy="14" r="1.2" fill="currentColor" stroke="none" />
   </MeasureFrame>
 );
 
 export const DiameterMeasureIcon: React.FC<{ size?: number }> = ({ size }) => (
   <MeasureFrame size={size}>
     <circle cx="13.5" cy="14" r="6.5" />
-    <path d="M8.9 18.6 18.1 9.4" />
+    <path d="M7 14h13" />
+    <path d="M9 12l-2 2 2 2M18 12l2 2-2 2" strokeWidth={1.4} />
   </MeasureFrame>
 );
 
 export const VolumeMeasureIcon: React.FC<{ size?: number }> = ({ size }) => (
   <MeasureFrame size={size}>
-    <path d="M7 11.5 11 8h9v8l-4 3.5H7z" />
+    <path d="M7 11.5 11 8h9v8l-4 3.5H7z" fill={MEASURE_ACCENT} fillOpacity={0.12} />
     <path d="M7 11.5h9V19.5M16 11.5 20 8" />
   </MeasureFrame>
 );
@@ -290,3 +292,47 @@ export const ActualSizeIcon: React.FC<{ size?: number }> = ({ size = 15 }) => (
     <path d="M9.5 10.5 11 9.5v6M13.5 10.5 15 9.5v6" strokeWidth={1.4} />
   </Icon>
 );
+
+/** Typewriter: texto sobre línea base sin recuadro (click-to-type, ADR-0081). */
+export const TypewriterIcon: React.FC<{ size?: number }> = ({ size }) => (
+  <Icon size={size} strokeWidth={1.75}>
+    <path d="M5 6h14M12 6v12M8.5 18h7" />
+    <path d="M4 21h16" strokeDasharray="1.5 2" />
+  </Icon>
+);
+
+/** Recorte poligonal (Polygon Cutout) en Measure: polígono de área con recorte interior en línea discontinua. */
+export const PolygonCutoutIcon: React.FC<{ size?: number }> = ({ size }) => (
+  <MeasureFrame size={size}>
+    <path d="M7 20V8h7l6 6v6z" fill={MEASURE_ACCENT} fillOpacity={0.12} />
+    <path d="M10 16l2-3 4 1-1 3z" strokeDasharray="1.5 1.5" strokeWidth={1.5} />
+  </MeasureFrame>
+);
+
+/** Recorte elíptico (Ellipse Cutout) en Measure: área con recorte circular/elíptico interior en línea discontinua. */
+export const EllipseCutoutIcon: React.FC<{ size?: number }> = ({ size }) => (
+  <MeasureFrame size={size}>
+    <path d="M7 20V8h7l6 6v6z" fill={MEASURE_ACCENT} fillOpacity={0.12} />
+    <ellipse cx="14" cy="15" rx="3.5" ry="2.5" strokeDasharray="1.5 1.5" strokeWidth={1.5} />
+  </MeasureFrame>
+);
+
+/** Borrador (Eraser) de marcas y trazos. */
+export const EraserIcon: React.FC<{ size?: number }> = ({ size }) => (
+  <Icon size={size} strokeWidth={1.75}>
+    <path d="m19 11-8-8-8.5 8.5a2.12 2.12 0 0 0 0 3l5 5a2.12 2.12 0 0 0 3 0L19 11Z" />
+    <path d="m5 14 7-7" />
+    <path d="M18 21h4" />
+  </Icon>
+);
+
+/** Arco por tres puntos (Arc). */
+export const ArcIcon: React.FC<{ size?: number }> = ({ size }) => (
+  <Icon size={size} strokeWidth={1.75}>
+    <path d="M4 19A15 15 0 0 1 19 4" />
+    <circle cx="4" cy="19" r="1.5" fill="currentColor" stroke="none" />
+    <circle cx="11.5" cy="8.5" r="1.5" fill="currentColor" stroke="none" />
+    <circle cx="19" cy="4" r="1.5" fill="currentColor" stroke="none" />
+  </Icon>
+);
+

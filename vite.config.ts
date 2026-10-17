@@ -29,6 +29,15 @@ export default defineConfig({
     // App de escritorio Tauri que carga directamente desde disco local; el chunk inicial
     // incluye React + núcleo del visor pdfjs-dist (~572 kB), mientras que pdf-lib se carga dinámicamente (~439 kB).
     chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/lucide-react')) {
+            return 'lucide-vendor';
+          }
+        },
+      },
+    },
   },
   worker: {
     format: 'es',

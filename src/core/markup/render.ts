@@ -33,7 +33,13 @@ import {
   MEASURE_END_TICK_PT,
 } from './measureCaption';
 export { measureLabelText, measureLineEndings } from './measureCaption';
-import { dimensionGeometry, dimensionTextBaseline, defaultDimensionLinePoint } from './dimension';
+import {
+  dimensionGeometry,
+  dimensionTextBaseline,
+  defaultDimensionLinePoint,
+  DIMENSION_EXTENSION_GAP,
+  DIMENSION_EXTENSION_OVERSHOOT,
+} from './dimension';
 import { revisionCloudPathNormalized, cloudParams } from './revisionCloud';
 import { calloutLeaderLayout, calloutBoxPaint, CALLOUT_LANDING_PT } from './calloutLayout';
 import { linePatternPrimitives, markupLinePattern, patternOutlineOf, PatternLineStyleId } from './linePatterns';
@@ -824,6 +830,28 @@ export function getMarkupSvgDescriptor(
       return withLineEndings(polyline, screenPts, style, transform, baseAttrs.opacity ?? 1);
     }
 
+    case 'arc': {
+      const s = markup.points.map((p) => normalizedToScreen(p, transform));
+      let d = '';
+      if (s.length >= 3) {
+        // Arco que pasa exactamente por P0, P1, P2 (ADR-0081)
+        // Para que B(0.5) pase por P1, el punto de control cuadrático es C = 2*P1 - 0.5*(P0 + P2)
+        const cx = 2 * s[1].x - 0.5 * (s[0].x + s[2].x);
+        const cy = 2 * s[1].y - 0.5 * (s[0].y + s[2].y);
+        d = `M ${s[0].x.toFixed(2)} ${s[0].y.toFixed(2)} Q ${cx.toFixed(2)} ${cy.toFixed(2)} ${s[2].x.toFixed(2)} ${s[2].y.toFixed(2)}`;
+      } else if (s.length === 2) {
+        d = `M ${s[0].x.toFixed(2)} ${s[0].y.toFixed(2)} L ${s[1].x.toFixed(2)} ${s[1].y.toFixed(2)}`;
+      }
+      return {
+        tag: 'path',
+        attrs: {
+          ...baseAttrs,
+          fill: style.fillColor || 'none',
+          d,
+        },
+      };
+    }
+
     case 'underline': {
       const rect = getRectGeometry(p1Screen, p2Screen);
       return {
@@ -1071,7 +1099,12 @@ export function getMarkupSvgDescriptor(
       const s3 = markup.points[2]
         ? normalizedToScreen(markup.points[2], transform)
         : defaultDimensionLinePoint(p1Screen, p2Screen, 15 * (transform.scale || 1));
-      const geom = dimensionGeometry(p1Screen, p2Screen, s3);
+      const pxPerPt = transform.zoom ?? transform.scale ?? 1;
+      const geom = dimensionGeometry(p1Screen, p2Screen, s3, {
+        gap: DIMENSION_EXTENSION_GAP * pxPerPt,
+        overshoot: DIMENSION_EXTENSION_OVERSHOOT * pxPerPt,
+        textGap: 3 * pxPerPt,
+      });
       const opacity = baseAttrs.opacity ?? 1;
       if (!geom) {
         return { tag: 'line', attrs: { ...baseAttrs, x1: p1Screen.x, y1: p1Screen.y, x2: p2Screen.x, y2: p2Screen.y } };
@@ -1091,7 +1124,39 @@ export function getMarkupSvgDescriptor(
           y2: geom.dimEnd.y,
         },
       };
-      children.push(withLineEndings(dimLine, [geom.dimStart, geom.dimEnd], style, transform, opacity));
+
+      const ends = measureLineEndings(style);
+      const inset = lineEndingSize(style.strokeWidth || 1) * pxPerPt;
+      // Cota corta (como en Revu y CAD, ADR-0063): si las flechas no caben dentro, van por fuera apuntando hacia dentro
+      const outside = outsideArrowLayout(geom.dimStart, geom.dimEnd, inset, ends);
+      let withEnds: SvgRenderDescriptor;
+      if (outside) {
+        const widthScreen = (style.strokeWidth || 1) * (transform.scale || 1);
+        const tips = [
+          [geom.dimStart, outside.start, ends.lineEndingStart],
+          [geom.dimEnd, outside.end, ends.lineEndingEnd],
+        ] as const;
+        const arrows = tips
+          .map(([pt, ang, ending]) =>
+            ending && ending !== 'none'
+              ? createLineEndingDescriptor(pt, ang, ending, style.strokeColor, widthScreen, inset)
+              : null
+          )
+          .filter((d): d is SvgRenderDescriptor => d !== null);
+        const stubs: SvgRenderDescriptor[] = outside.stubs.map(([u, w]) => ({
+          tag: 'line' as const,
+          attrs: { ...baseAttrs, fill: 'none', x1: u.x, y1: u.y, x2: w.x, y2: w.y },
+        }));
+        withEnds = {
+          tag: 'g',
+          attrs: { opacity, 'data-arrows': 'outside' },
+          children: [dimLine, ...stubs, ...arrows],
+        };
+      } else {
+        withEnds = withLineEndings(dimLine, [geom.dimStart, geom.dimEnd], ends, transform, opacity);
+      }
+      children.push(withEnds);
+
       if (markup.text) {
         const fontSize = (style.fontSize ?? 10) * (transform.scale || 1);
         const base = dimensionTextBaseline(geom, fontSize, false);
@@ -1573,7 +1638,8 @@ export function getMarkupSvgDescriptor(
     }
 
     // C1: Rama text devuelve tag 'text' válido con borde, relleno y alineación (ADR-0074)
-    case 'text': {
+    case 'text':
+    case 'typewriter': {
       const rect = getRectGeometry(p1Screen, p2Screen);
       const width = Math.max(80, rect.width);
       const height = Math.max(26, rect.height);
@@ -1582,7 +1648,7 @@ export function getMarkupSvgDescriptor(
       const textPxPerPt = transform.zoom ?? transform.scale ?? 1;
       const boxFont = markupFontOf(markup, 12, BOX_TEXT_COLOR);
       const textSize = effectiveTextSize(markup, boxFont.size, width / textPxPerPt, height / textPxPerPt, 'text');
-      const textLines = wrapCalloutText(markup.text || 'Note', width / textPxPerPt - 12, textSize);
+      const textLines = wrapCalloutText(markup.text || (markup.type === 'typewriter' ? '' : 'Note'), width / textPxPerPt - 12, textSize);
       const align = markup.textFormat?.align ?? 'left';
       const textX =
         align === 'center'
@@ -1590,8 +1656,10 @@ export function getMarkupSvgDescriptor(
           : align === 'right'
             ? rect.x + width - 6 * textPxPerPt
             : rect.x + 6 * textPxPerPt;
-      const strokeW = style.strokeWidth ?? 1;
+      const strokeW = style.strokeWidth ?? (markup.type === 'typewriter' ? 0 : 1);
       const hasBorder = strokeW > 0 && style.strokeColor !== 'transparent' && style.strokeColor !== 'none';
+      const defaultFill = markup.type === 'typewriter' ? 'transparent' : '#fffbe8';
+      const fill = style.fillColor || defaultFill;
       return {
         tag: 'g',
         attrs: { className: 'cursor-text', opacity: baseAttrs.opacity ?? 1 },
@@ -1603,7 +1671,7 @@ export function getMarkupSvgDescriptor(
               y: rect.y,
               width,
               height,
-              fill: style.fillColor || '#fffbe8',
+              fill,
               stroke: hasBorder ? style.strokeColor : 'none',
               strokeWidth: hasBorder ? strokeW : 0,
               ...(hasBorder && baseAttrs.strokeDasharray ? { strokeDasharray: baseAttrs.strokeDasharray } : {}),

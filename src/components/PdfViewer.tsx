@@ -18,6 +18,7 @@ import {
   selectMarkupsInRect,
   getMarkupBounds,
   exceedsScreenThreshold,
+  isPointInPolygon,
 } from '../utils/coordinates';
 import { useToolChestStore } from '../store/useToolChestStore';
 import {
@@ -121,6 +122,7 @@ const SNAP_TOOLS = new Set<string>([
   'line', 'arrow', 'dimension', 'length', 'polylineMeasure', 'area', 'count', 'calibrate',
   'perimeter', 'volume', 'angle', 'radius', 'diameter',
   'polygon', 'polyLine', 'rectangle', 'circle', 'cloud', 'cloudPlus', 'callout',
+  'polygonCutout', 'ellipseCutout',
 ]);
 
 /** Desfase inicial de la línea de cota respecto a los puntos acotados (pt de página). */
@@ -140,7 +142,9 @@ export function isMultiPointTool(tool: string): boolean {
     tool === 'area' ||
     tool === 'perimeter' ||
     tool === 'volume' ||
-    tool === 'angle'
+    tool === 'angle' ||
+    tool === 'polygonCutout' ||
+    tool === 'arc'
   );
 }
 
@@ -154,7 +158,7 @@ const isCloudTool = (tool: string) => tool === 'cloud' || tool === 'cloudPlus';
 
 const isClosedMultiPointTool = (tool: string) =>
   isCloudTool(tool) ||
-  tool === 'polygon' || tool === 'area' || tool === 'perimeter' || tool === 'volume';
+  tool === 'polygon' || tool === 'area' || tool === 'perimeter' || tool === 'volume' || tool === 'polygonCutout';
 
 /** Recupera metadatos de Tool Chest activos (subject, unitPrice, layer, cost) si la herramienta coincide (ADR-0078). */
 function getActiveToolChestMetadata(activeTool: string, quantity: number, defaultLayer: string) {
@@ -238,7 +242,7 @@ export const PdfViewer: React.FC = () => {
     (m: Markup) => !hiddenLayers.includes(m.layer ?? NO_LAYER),
     [hiddenLayers]
   );
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; hitCutoutIndex?: number | null } | null>(null);
 
   // Zoom alrededor del centro de la vista (ADR-0017): se recuerda qué punto relativo del contenido está en el
   // centro y, cuando la hoja cambia de tamaño (zoom/rotación), se restaura el scroll para mantenerlo centrado.
@@ -1039,7 +1043,7 @@ export const PdfViewer: React.FC = () => {
         return;
       }
 
-      // Mediciones con Shift+Alt (como en Revu): L longitud, Q polilongitud, A área, C conteo
+      // Mediciones con Shift+Alt (como en Revu): L longitud, Q polilongitud, A área, C conteo, K recorte
       if (e.shiftKey && e.altKey && !e.ctrlKey && !e.metaKey) {
         const measureByCode: Record<string, ToolType> = {
           KeyL: 'length',
@@ -1052,6 +1056,7 @@ export const PdfViewer: React.FC = () => {
           KeyU: 'radius',
           KeyR: 'radius', // atajo anterior de REA
           KeyD: 'diameter',
+          KeyK: 'polygonCutout',
         };
         const tool = measureByCode[e.code];
         if (tool) {
@@ -1061,9 +1066,16 @@ export const PdfViewer: React.FC = () => {
         }
       }
 
-      // Cota (Shift+L), polígono (Shift+P), polilínea (Shift+N) y Pan (Shift+V), como en Revu (ADR-0052)
+      // Cota (Shift+L), polígono (Shift+P), polilínea (Shift+N), borrador (Shift+E), arco (Shift+C) y Pan (Shift+V), como en Revu (ADR-0052)
       if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        const shiftTool: Record<string, ToolType> = { l: 'dimension', p: 'polygon', n: 'polyLine', v: 'pan' };
+        const shiftTool: Record<string, ToolType> = {
+          l: 'dimension',
+          p: 'polygon',
+          n: 'polyLine',
+          v: 'pan',
+          e: 'eraser',
+          c: 'arc',
+        };
         const tool = shiftTool[e.key.toLowerCase()];
         if (tool) {
           e.preventDefault();
@@ -1096,6 +1108,7 @@ export const PdfViewer: React.FC = () => {
         const toolByKey: Record<string, ToolType> = {
           v: 'select',
           t: 'text',
+          w: 'typewriter',
           r: 'rectangle',
           e: 'circle',
           o: 'circle',
@@ -1367,7 +1380,7 @@ export const PdfViewer: React.FC = () => {
       const tool = useToolStore.getState().activeTool;
       if (!e.shiftKey || !anchor || leaderStageRef.current) return pt;
       const dims = { width: viewportTransform.width, height: viewportTransform.height };
-      if (box && SQUARE_TOOLS.has(tool)) return squareConstrain(anchor, pt, dims);
+      if (box && (SQUARE_TOOLS.has(tool) || tool === 'ellipseCutout')) return squareConstrain(anchor, pt, dims);
       if (!ORTHO_TOOLS.has(tool)) return pt;
       if (first && Math.hypot((pt.x - first.x) * dims.width, (pt.y - first.y) * dims.height) < 8) return pt;
       return orthoConstrain(anchor, pt, dims);
@@ -1381,6 +1394,7 @@ export const PdfViewer: React.FC = () => {
    * esquina superior derecha del contorno.
    */
   const createCloudPlus = (cloudPoints: MarkupPoint[]) => {
+    if (!cloudPoints || cloudPoints.length < 2) return;
     const now = new Date().toISOString();
     const groupId = uuidv4();
     const cloudId = uuidv4();
@@ -1392,29 +1406,55 @@ export const PdfViewer: React.FC = () => {
     const minY = Math.min(...ys);
     const maxY = Math.max(...ys);
 
-    const calloutWidth = 0.12;
-    const calloutHeight = 0.04;
+    // Dimensiones de página en puntos (unscaled) y en pantalla con zoom
+    const unscaledWidth = Math.max(1, pageViewport.width / (scale || 1.0));
+    const unscaledHeight = Math.max(1, pageViewport.height / (scale || 1.0));
+    const currentScale = scale || 1.0;
+
+    // Tamaño de la caja de llamada calculado a partir del texto y fuente, no como porcentaje fijo de la lámina (ADR-0042)
+    const normSize = estimateCalloutBoxNormalizedSize(
+      'Cloud+ note',
+      currentStyle.fontSize || 10,
+      unscaledWidth,
+      unscaledHeight
+    );
+    const calloutWidth = normSize.width;
+    const calloutHeight = normSize.height;
+
+    // Separación visual entre la nube y la caja adaptada al zoom (en Revu ~24-30 pt, en pantalla ~20-36 px según nivel de zoom)
+    const gapPx = Math.max(20, Math.min(36, 24 * currentScale));
+    const gapX = gapPx / Math.max(1, pageViewport.width);
+    const gapY = gapPx / Math.max(1, pageViewport.height);
+
     // Como en Revu, la nota queda arriba a la derecha, separada de la nube por una directriz en diagonal (ADR-0057)
-    let boxX = maxX + 0.07;
+    let boxX = maxX + gapX;
     if (boxX + calloutWidth > 0.99) {
-      boxX = Math.max(0.01, minX - calloutWidth - 0.07);
+      boxX = Math.max(0.01, minX - calloutWidth - gapX);
     }
-    let boxY = minY - 0.1;
+    let boxY = minY - calloutHeight - gapY;
     if (boxY < 0.01) {
-      boxY = Math.min(0.95, maxY + 0.03);
+      boxY = Math.min(0.99 - calloutHeight, maxY + gapY);
     }
     const boxP1 = {
-      x: Math.max(0, Math.min(0.99 - calloutWidth, boxX)),
-      y: Math.max(0, Math.min(0.99 - calloutHeight, boxY)),
+      x: Math.max(0.005, Math.min(0.995 - calloutWidth, boxX)),
+      y: Math.max(0.005, Math.min(0.995 - calloutHeight, boxY)),
     };
     const boxP2 = { x: boxP1.x + calloutWidth, y: boxP1.y + calloutHeight };
-    const corner = { x: maxX, y: minY };
-    const arrowTarget =
-      cloudPoints.length > 2
-        ? cloudPoints.reduce((best, p) =>
-            Math.hypot(p.x - corner.x, p.y - corner.y) < Math.hypot(best.x - corner.x, best.y - corner.y) ? p : best
-          )
-        : corner;
+
+    // Vértice de la nube donde se ancla la directriz: el más próximo a la caja de llamada en espacio físico de página (pt)
+    const boxCenter = { x: boxP1.x + calloutWidth / 2, y: boxP1.y + calloutHeight / 2 };
+    const rectCorners: MarkupPoint[] = [
+      { x: maxX, y: minY },
+      { x: minX, y: minY },
+      { x: maxX, y: maxY },
+      { x: minX, y: maxY },
+    ];
+    const candidatePoints = cloudPoints.length > 2 ? cloudPoints : rectCorners;
+    const arrowTarget = candidatePoints.reduce((best, p) => {
+      const dBest = Math.hypot((best.x - boxCenter.x) * unscaledWidth, (best.y - boxCenter.y) * unscaledHeight);
+      const dP = Math.hypot((p.x - boxCenter.x) * unscaledWidth, (p.y - boxCenter.y) * unscaledHeight);
+      return dP < dBest ? p : best;
+    });
 
     const cloudMarkup: Markup = {
       id: cloudId,
@@ -1592,7 +1632,28 @@ export const PdfViewer: React.FC = () => {
     if (!selectedMarkupIds.includes(hit.id)) {
       setSelectedMarkupIds([hit.id]);
     }
-    setContextMenu({ x: e.clientX, y: e.clientY });
+    let hitCutoutIndex: number | null = null;
+    if (hit.cutouts && hit.cutouts.length > 0) {
+      for (let i = 0; i < hit.cutouts.length; i++) {
+        const c = hit.cutouts[i];
+        if (c.length === 2) {
+          const minX = Math.min(c[0].x, c[1].x);
+          const maxX = Math.max(c[0].x, c[1].x);
+          const minY = Math.min(c[0].y, c[1].y);
+          const maxY = Math.max(c[0].y, c[1].y);
+          if (pt.x >= minX && pt.x <= maxX && pt.y >= minY && pt.y <= maxY) {
+            hitCutoutIndex = i;
+            break;
+          }
+        } else if (c.length >= 3) {
+          if (isPointInPolygon(pt, c)) {
+            hitCutoutIndex = i;
+            break;
+          }
+        }
+      }
+    }
+    setContextMenu({ x: e.clientX, y: e.clientY, hitCutoutIndex });
   };
 
   // Inicio de interacción con el ratón
@@ -1604,6 +1665,35 @@ export const PdfViewer: React.FC = () => {
     }
     if (e.button !== 0) return;
     const pt = getEventPoint(e);
+
+    // Borrador (Eraser, Shift+E): eliminar la marca sobre la que se hace clic
+    if (activeTool === 'eraser') {
+      const pageDims = { width: pageViewport.width / (scale || 1.0), height: pageViewport.height / (scale || 1.0) };
+      const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex && isMarkupVisible(m));
+      const hit = [...pageMarkups].reverse().find((m) => hitTestMarkup(pt, m, 0.02, pageDims));
+      if (hit && !hit.locked) {
+        useMarkupStore.getState().deleteMarkup(hit.id);
+      }
+      return;
+    }
+
+    // Herramientas de recorte (Polygon Cutout / Ellipse Cutout): activar la marca objetivo si no lo está
+    if (activeTool === 'polygonCutout' || activeTool === 'ellipseCutout') {
+      if (!useUiStore.getState().activeCutoutTargetId) {
+        const pageDims = { width: pageViewport.width / (scale || 1.0), height: pageViewport.height / (scale || 1.0) };
+        const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex && isMarkupVisible(m));
+        const hit = [...pageMarkups].reverse().find(
+          (m) => (m.type === 'area' || m.type === 'volume') && hitTestMarkup(pt, m, 0.015, pageDims)
+        );
+        if (hit) {
+          useUiStore.getState().startCutout(hit.id);
+          setSelectedMarkupIds([hit.id]);
+        } else {
+          showToast('Select an Area or Volume measurement first to add a cutout.');
+          return;
+        }
+      }
+    }
 
     // Alineación por puntos de Overlay Pages (ADR-0050): el clic marca un punto, no dibuja ni selecciona
     if (overlayAlign.picking) {
@@ -1672,8 +1762,8 @@ export const PdfViewer: React.FC = () => {
       if (polygonPoints.length === 0) {
         setPolygonPoints([pt]);
       } else {
-        // Ángulo (ADR-0029): el tercer clic lo completa
-        if (activeTool === 'angle' && polygonPoints.length === 2) {
+        // Ángulo (ADR-0029) o Arco (ADR-0081): el tercer clic lo completa
+        if ((activeTool === 'angle' || activeTool === 'arc') && polygonPoints.length === 2) {
           finalizeMultiPoint([...polygonPoints, pt]);
           return;
         }
@@ -2004,6 +2094,22 @@ export const PdfViewer: React.FC = () => {
     setCurrentDrawPoint(null);
   }, [activeTool]);
 
+  // Si se activa un recorte y ya hay un Área o Volumen seleccionada, fijarla como objetivo automáticamente
+  useEffect(() => {
+    if (activeTool === 'polygonCutout' || activeTool === 'ellipseCutout') {
+      const currentTargetId = useUiStore.getState().activeCutoutTargetId;
+      if (!currentTargetId) {
+        const selected = markups.filter((m) => selectedMarkupIds.includes(m.id));
+        const target = selected.find(
+          (m) => (m.type === 'area' || m.type === 'volume') && m.pageIndex === currentPageIndex
+        );
+        if (target) {
+          useUiStore.getState().startCutout(target.id);
+        }
+      }
+    }
+  }, [activeTool, markups, selectedMarkupIds, currentPageIndex]);
+
   /** Caja normalizada del sello: la del arrastre o, con un clic, el tamaño por defecto centrado en el punto. */
   const stampBoxFor = (a: MarkupPoint, b: MarkupPoint): MarkupPoint[] => {
     if (exceedsScreenThreshold(a, b, viewportTransform, 4)) {
@@ -2275,7 +2381,7 @@ export const PdfViewer: React.FC = () => {
     );
 
     if (
-      hasExceededThreshold &&
+      (hasExceededThreshold || activeTool === 'typewriter') &&
       activeTool !== 'select' &&
       activeTool !== 'pan' &&
       activeTool !== 'polygon'
@@ -2381,6 +2487,14 @@ export const PdfViewer: React.FC = () => {
                     ? currentStyle.lineEndingEnd
                     : ('openArrow' as const),
               }
+            : activeTool === 'typewriter'
+            ? {
+                ...currentStyle,
+                strokeWidth: 0,
+                strokeColor: 'transparent',
+                fillColor: 'transparent',
+                fontSize: 12,
+              }
             : { ...currentStyle };
 
         const unscaledW = pageViewport.width / (scale || 1.0);
@@ -2390,7 +2504,19 @@ export const PdfViewer: React.FC = () => {
 
         const activeCutoutTargetId = useUiStore.getState().activeCutoutTargetId;
         if (activeCutoutTargetId) {
-          useMarkupStore.getState().addCutout(activeCutoutTargetId, [drawingStart, currentDrawPoint], pageDimsPt, calib);
+          let cutoutPts: MarkupPoint[] = [drawingStart, currentDrawPoint];
+          if (activeTool === 'ellipseCutout') {
+            const cx = (drawingStart.x + currentDrawPoint.x) / 2;
+            const cy = (drawingStart.y + currentDrawPoint.y) / 2;
+            const rx = Math.abs(currentDrawPoint.x - drawingStart.x) / 2;
+            const ry = Math.abs(currentDrawPoint.y - drawingStart.y) / 2;
+            cutoutPts = [];
+            for (let i = 0; i < 48; i++) {
+              const th = (2 * Math.PI * i) / 48;
+              cutoutPts.push({ x: cx + rx * Math.cos(th), y: cy + ry * Math.sin(th) });
+            }
+          }
+          useMarkupStore.getState().addCutout(activeCutoutTargetId, cutoutPts, pageDimsPt, calib);
           useUiStore.setState({ activeCutoutTargetId: null });
           useToolStore.setState({ activeTool: 'select' });
           setDrawingStart(null);
@@ -2399,7 +2525,7 @@ export const PdfViewer: React.FC = () => {
         }
 
         let measurement: Markup['measurement'];
-        let markupText: string | undefined = activeTool === 'text' ? 'Note' : undefined;
+        let markupText: string | undefined = activeTool === 'text' ? 'Note' : activeTool === 'typewriter' ? '' : undefined;
 
         if (activeTool === 'length' || activeTool === 'radius' || activeTool === 'diameter') {
           measurement = calculateLength([drawingStart, currentDrawPoint], pageDimsPt, calib);
@@ -2414,6 +2540,15 @@ export const PdfViewer: React.FC = () => {
           const b = { x: currentDrawPoint.x * unscaledW, y: currentDrawPoint.y * unscaledH };
           const c = defaultDimensionLinePoint(a, b, DIMENSION_DEFAULT_OFFSET_PT);
           markupPoints = [drawingStart, currentDrawPoint, { x: c.x / unscaledW, y: c.y / unscaledH }];
+        } else if (activeTool === 'typewriter') {
+          const wPt = Math.abs(currentDrawPoint.x - drawingStart.x) * unscaledW;
+          const hPt = Math.abs(currentDrawPoint.y - drawingStart.y) * unscaledH;
+          if (wPt < 8 && hPt < 8) {
+            markupPoints = [
+              drawingStart,
+              { x: drawingStart.x + 120 / unscaledW, y: drawingStart.y + 24 / unscaledH },
+            ];
+          }
         }
 
         const { subject: toolSubject, unitPrice: toolUnitPrice, layer: toolLayer, cost } =
@@ -2461,12 +2596,12 @@ export const PdfViewer: React.FC = () => {
           });
         }
 
-        // Si es una marca de texto, seleccionarla y abrir inmediatamente el editor inline
-        if (activeTool === 'text') {
+        // Si es una marca de texto o máquina de escribir, seleccionarla y abrir inmediatamente el editor inline
+        if (activeTool === 'text' || activeTool === 'typewriter') {
           setSelectedMarkupIds([newId]);
           setInlineEditing({
             markupId: newId,
-            initialText: 'Note',
+            initialText: activeTool === 'typewriter' ? '' : 'Note',
             position: drawingStart,
           });
         }
@@ -2547,7 +2682,7 @@ export const PdfViewer: React.FC = () => {
       .reverse()
       .find(
         (m) =>
-          (m.type === 'text' || m.type === 'callout' || m.type === 'stickyNote') &&
+          (m.type === 'text' || m.type === 'typewriter' || m.type === 'callout' || m.type === 'stickyNote') &&
           hitTestMarkup(pt, m, 0.015, { width: unscaledW, height: unscaledH })
       );
 
@@ -2912,6 +3047,11 @@ export const PdfViewer: React.FC = () => {
                     };
                     updateMarkup(targetMarkup.id, { text: newText, points: [p1, p2] });
                   } else {
+                    if (targetMarkup.type === 'typewriter' && !newText.trim()) {
+                      useMarkupStore.getState().deleteMarkup(targetMarkup.id);
+                      setInlineEditing(null);
+                      return;
+                    }
                     if (targetMarkup.text === newText) {
                       setInlineEditing(null);
                       return;
@@ -2921,7 +3061,15 @@ export const PdfViewer: React.FC = () => {
                 }
                 setInlineEditing(null);
               }}
-              onCancel={() => setInlineEditing(null)}
+              onCancel={() => {
+                if (inlineEditing) {
+                  const tm = markups.find((m) => m.id === inlineEditing.markupId);
+                  if (tm?.type === 'typewriter' && !tm.text?.trim()) {
+                    useMarkupStore.getState().deleteMarkup(tm.id);
+                  }
+                }
+                setInlineEditing(null);
+              }}
             />
           </Suspense>
         )}
@@ -3697,7 +3845,7 @@ export const PdfViewer: React.FC = () => {
                     );
                   }
 
-                  if (activeTool === 'text') {
+                  if (activeTool === 'text' || activeTool === 'typewriter') {
                     const rect = getRectGeometry(p1, p2);
                     return (
                       <rect
@@ -3705,9 +3853,25 @@ export const PdfViewer: React.FC = () => {
                         y={rect.y}
                         width={Math.max(60, rect.width)}
                         height={Math.max(24, rect.height)}
-                        stroke={currentStyle.strokeColor}
+                        stroke={activeTool === 'typewriter' ? tok('cad-accent') : currentStyle.strokeColor}
                         strokeWidth={1}
-                        fill={tok('ov-note')}
+                        fill={activeTool === 'typewriter' ? 'transparent' : tok('ov-note')}
+                        strokeDasharray="3 3"
+                      />
+                    );
+                  }
+
+                  if (activeTool === 'ellipseCutout') {
+                    const ell = getEllipseGeometry(p1, p2);
+                    return (
+                      <ellipse
+                        cx={ell.cx}
+                        cy={ell.cy}
+                        rx={ell.rx}
+                        ry={ell.ry}
+                        stroke={tok('ov-warn')}
+                        strokeWidth={1.5}
+                        fill={tok('ov-warn', 0.15)}
                         strokeDasharray="3 3"
                       />
                     );
@@ -4001,7 +4165,12 @@ export const PdfViewer: React.FC = () => {
 
       {contextMenu && (
         <React.Suspense fallback={null}>
-          <CanvasContextMenu x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} />
+          <CanvasContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            hitCutoutIndex={contextMenu.hitCutoutIndex}
+            onClose={() => setContextMenu(null)}
+          />
         </React.Suspense>
       )}
     </div>

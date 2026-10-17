@@ -47,6 +47,37 @@ describe('Distancia corta y conteo de Revu (ADR-0063)', () => {
     expect(ap.bbox[2]).toBeGreaterThan(416 + size);
   });
 
+  it('en una cota corta las puntas van por fuera apuntando hacia dentro tanto en pantalla como en el /AP de PDF', () => {
+    const size = lineEndingSize(1);
+    const shortDim: Markup = {
+      id: 'dim-short',
+      type: 'dimension',
+      pageIndex: 0,
+      points: [{ x: 0.5, y: 0.5 }, { x: 0.52, y: 0.5 }, { x: 0.51, y: 0.475 }],
+      style: { strokeColor: '#e02424', strokeWidth: 1, opacity: 1 },
+      author: 'Ana',
+      createdAt: '',
+      updatedAt: '',
+      status: 'pending',
+      text: '16.42 ft',
+    };
+    const screen = getMarkupSvgDescriptor(shortDim, { width: 800, height: 600, scale: 1, offsetX: 0, offsetY: 0, zoom: 1 });
+    expect(find(screen, (d) => d.attrs['data-arrows'] === 'outside')).toHaveLength(1);
+
+    const longDim: Markup = {
+      ...shortDim,
+      id: 'dim-long',
+      points: [{ x: 0.5, y: 0.5 }, { x: 0.7, y: 0.5 }, { x: 0.6, y: 0.475 }],
+    };
+    const longScreen = getMarkupSvgDescriptor(longDim, { width: 800, height: 600, scale: 1, offsetX: 0, offsetY: 0, zoom: 1 });
+    expect(find(longScreen, (d) => d.attrs['data-arrows'] === 'outside')).toHaveLength(0);
+
+    const ap = emitMarkupOperators(shortDim, { rotation: 0, widthPt: 800, heightPt: 600, originX: 0, originY: 0 });
+    // Los tramos exteriores y flechas amplían la caja envolvente más allá de los extremos acotados (400 y 416 pt)
+    expect(ap.bbox[0]).toBeLessThan(400 - size);
+    expect(ap.bbox[2]).toBeGreaterThan(416 + size);
+  });
+
   it('cada símbolo del conteo tiene su tirador y se mueve solo, y el conteo sigue siendo uno', () => {
     const cnt: Markup = {
       ...length(0.6),

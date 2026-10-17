@@ -33,6 +33,7 @@ import {
   calculateVolume,
 } from '../measurements/calculate';
 import { STAMPS, stampSubtitle } from '../markup/stamps';
+import { translucentFill } from '../markup/typeLabels';
 
 /** Mediciones cuyo valor se recalcula de la geometría del PDF si esta cambió fuera de REA (ADR-0030/0053). */
 const RECOMPUTED_MEASURES = new Set<MarkupType>([
@@ -581,7 +582,12 @@ export async function importPdfAnnotations(
       } else if (subtype === 'FreeText') {
         if (!isRea) {
           const hasCl = annotDict.get(PDFName.of('CL')) instanceof PDFArray;
-          markupType = intent === 'FreeTextCallout' || hasCl ? 'callout' : 'text';
+          markupType =
+            intent === 'FreeTextCallout' || hasCl
+              ? 'callout'
+              : intent === 'FreeTextTypeWriter'
+              ? 'typewriter'
+              : 'text';
         }
       } else if (subtype === 'Stamp') {
         if (!isRea) {
@@ -648,6 +654,7 @@ export async function importPdfAnnotations(
       let reaBold = false;
       let reaItalic = false;
       let exactGeometry = false;
+      let hasReaFill = false;
       if (isRea && reaObj instanceof PDFDict) {
         const readPts = (arr: unknown): MarkupPoint[] | null => {
           if (!(arr instanceof PDFArray) || arr.size() < 2 || arr.size() % 2 !== 0) return null;
@@ -715,6 +722,13 @@ export async function importPdfAnnotations(
         textColor = extractPdfStringValue(reaObj.get(PDFName.of('textColor'))) || undefined;
         if (reaObj.get(PDFName.of('noFill')) instanceof PDFNumber && !fillColor) {
           fillColor = 'transparent';
+          hasReaFill = true;
+        } else {
+          const reaFill = extractPdfStringValue(reaObj.get(PDFName.of('fillColor')));
+          if (reaFill) {
+            fillColor = reaFill;
+            hasReaFill = true;
+          }
         }
         const rawAlign = extractPdfStringValue(reaObj.get(PDFName.of('textAlign')));
         if (rawAlign === 'left' || rawAlign === 'center' || rawAlign === 'right') {
@@ -848,11 +862,16 @@ export async function importPdfAnnotations(
         }
       }
 
-      // Opacidad (/CA) y tamaño de fuente (/DA)
+      // Opacidad (/CA trazo/global, /ca relleno interior) y tamaño de fuente (/DA)
       let opacity = 1;
       const caObj = annotDict.get(PDFName.of('CA'));
       if (caObj instanceof PDFNumber && caObj.asNumber() > 0 && caObj.asNumber() <= 1 && subtype !== 'Highlight') {
         opacity = caObj.asNumber();
+      }
+      let fillOpacity: number | undefined;
+      const caFillObj = annotDict.get(PDFName.of('ca'));
+      if (caFillObj instanceof PDFNumber && caFillObj.asNumber() >= 0 && caFillObj.asNumber() <= 1 && subtype !== 'Highlight') {
+        fillOpacity = caFillObj.asNumber();
       }
       let fontSize: number | undefined;
       const daMatch = /([\d.]+)\s+Tf/.exec(extractPdfStringValue(annotDict.get(PDFName.of('DA'))));
@@ -912,6 +931,18 @@ export async function importPdfAnnotations(
       } else if (leObj instanceof PDFName) {
         const s = parseEnding(leObj);
         if (s && s !== 'none') lineEndingStart = s;
+      }
+
+      if (fillColor && fillColor !== 'transparent' && fillColor !== 'none') {
+        if (!hasReaFill && fillOpacity !== undefined && fillOpacity < 1) {
+          fillColor = translucentFill(fillColor, fillOpacity);
+        } else if (!hasReaFill && fillOpacity === undefined && (markupType === 'area' || markupType === 'volume')) {
+          // Auto-sanar marcas de área/volumen guardadas sin /ca explícito o con hex sólido,
+          // evitando que tapen el plano arquitectónico con un bloque de color opaco.
+          if (!fillColor.startsWith('rgba')) {
+            fillColor = translucentFill(fillColor, 0.25);
+          }
+        }
       }
 
       const markup: Markup = {

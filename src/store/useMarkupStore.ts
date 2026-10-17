@@ -105,6 +105,7 @@ interface MarkupState {
   pasteMarkups: (targetPageIndex?: number, offset?: { x: number; y: number }) => void;
   duplicateSelectedMarkups: () => void;
   toggleLockSelectedMarkups: () => void;
+  reorderSelectedMarkups: (direction: 'front' | 'back' | 'forward' | 'backward') => void;
   updateMarkupCustomField: (
     markupId: string,
     columnId: string,
@@ -121,6 +122,13 @@ interface MarkupState {
   /** Elimina todos los recortes de una marca restaurando su área bruta con comando deshacible (ADR-0075). */
   clearCutouts: (
     markupId: string,
+    dims?: PageDimensionsPt,
+    calib?: PageCalibration
+  ) => void;
+  /** Elimina un recorte individual de una marca con comando deshacible (paridad Revu, ADR-0081). */
+  deleteCutout: (
+    markupId: string,
+    cutoutIndex: number,
     dims?: PageDimensionsPt,
     calib?: PageCalibration
   ) => void;
@@ -951,6 +959,72 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
       syncHistoryFlags();
     },
 
+    deleteCutout: (markupId: string, cutoutIndex: number, dims?: PageDimensionsPt, calib?: PageCalibration) => {
+      const target = get().markups.find((m) => m.id === markupId);
+      if (!target || target.locked || !target.cutouts || cutoutIndex < 0 || cutoutIndex >= target.cutouts.length) return;
+
+      const prevCutouts = target.cutouts.map((c) => c.map((p) => ({ ...p })));
+      const prevMeasurement = target.measurement ? { ...target.measurement } : undefined;
+      const prevText = target.text;
+
+      const nextCutouts = prevCutouts.filter((_, idx) => idx !== cutoutIndex);
+      const activeCutouts = nextCutouts.length > 0 ? nextCutouts : undefined;
+
+      const pageDims = dims ?? { width: 612, height: 792 };
+      const pageCalib = calib ?? DEFAULT_PAGE_CALIBRATION;
+
+      let nextMeasurement: MarkupMeasurement | undefined;
+      if (target.type === 'area') {
+        nextMeasurement = calculateArea(target.points, pageDims, pageCalib, target.points.length === 2, activeCutouts);
+      } else if (target.type === 'volume') {
+        nextMeasurement = calculateVolume(target.points, pageDims, pageCalib, Number(target.customFields?.volumeDepth ?? 1), activeCutouts);
+      }
+
+      const keepsValueText = !target.text || target.text === prevMeasurement?.formatted;
+      const nextText = nextMeasurement && keepsValueText ? nextMeasurement.formatted : target.text;
+
+      const command: Command = {
+        description: `Delete cutout from ${target.type}`,
+        execute: () => {
+          set((state) => ({
+            markups: state.markups.map((m) =>
+              m.id === markupId
+                ? {
+                    ...m,
+                    cutouts: activeCutouts,
+                    measurement: nextMeasurement ?? m.measurement,
+                    text: nextText,
+                    updatedAt: new Date().toISOString(),
+                  }
+                : m
+            ),
+            isDirty: true,
+          }));
+          syncHistoryFlags();
+        },
+        undo: () => {
+          set((state) => ({
+            markups: state.markups.map((m) =>
+              m.id === markupId
+                ? {
+                    ...m,
+                    cutouts: prevCutouts,
+                    measurement: prevMeasurement,
+                    text: prevText,
+                    updatedAt: new Date().toISOString(),
+                  }
+                : m
+            ),
+            isDirty: true,
+          }));
+          syncHistoryFlags();
+        },
+      };
+
+      markupHistory.execute(command);
+      syncHistoryFlags();
+    },
+
     reshapeMarkup: (id, before, after, description = 'Edit control points') => {
       const target = get().markups.find((m) => m.id === id);
       if (!target || target.locked) return;
@@ -1219,6 +1293,72 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
 
       markupHistory.execute(command);
       syncHistoryFlags();
+    },
+
+    reorderSelectedMarkups: (direction: 'front' | 'back' | 'forward' | 'backward') => {
+      const { markups, selectedMarkupIds } = get();
+      if (selectedMarkupIds.length === 0) return;
+      const selectedSet = new Set(selectedMarkupIds);
+      const selectedUnlockedSet = new Set(
+        markups.filter((m) => selectedSet.has(m.id) && !m.locked).map((m) => m.id)
+      );
+      if (selectedUnlockedSet.size === 0) return;
+
+      const oldMarkups = [...markups];
+      const pageIndices = Array.from(new Set(markups.map((m) => m.pageIndex)));
+      const reordered: Markup[] = [];
+
+      for (const pIdx of pageIndices) {
+        const pageMarkups = markups.filter((m) => m.pageIndex === pIdx);
+        const nonSelected = pageMarkups.filter((m) => !selectedUnlockedSet.has(m.id));
+        const selected = pageMarkups.filter((m) => selectedUnlockedSet.has(m.id));
+
+        if (selected.length === 0) {
+          reordered.push(...pageMarkups);
+          continue;
+        }
+
+        let newPageMarkups: Markup[];
+        if (direction === 'front') {
+          newPageMarkups = [...nonSelected, ...selected];
+        } else if (direction === 'back') {
+          newPageMarkups = [...selected, ...nonSelected];
+        } else if (direction === 'forward') {
+          newPageMarkups = [...pageMarkups];
+          for (let i = newPageMarkups.length - 2; i >= 0; i--) {
+            if (selectedUnlockedSet.has(newPageMarkups[i].id) && !selectedUnlockedSet.has(newPageMarkups[i + 1].id)) {
+              const temp = newPageMarkups[i];
+              newPageMarkups[i] = newPageMarkups[i + 1];
+              newPageMarkups[i + 1] = temp;
+            }
+          }
+        } else {
+          newPageMarkups = [...pageMarkups];
+          for (let i = 1; i < newPageMarkups.length; i++) {
+            if (selectedUnlockedSet.has(newPageMarkups[i].id) && !selectedUnlockedSet.has(newPageMarkups[i - 1].id)) {
+              const temp = newPageMarkups[i];
+              newPageMarkups[i] = newPageMarkups[i - 1];
+              newPageMarkups[i - 1] = temp;
+            }
+          }
+        }
+        reordered.push(...newPageMarkups);
+      }
+
+      const wasDirty = get().isDirty;
+      const command: Command = {
+        description: `Reorder markups ${direction}`,
+        execute: () => {
+          set({ markups: reordered, isDirty: true });
+          syncHistoryFlags();
+        },
+        undo: () => {
+          set({ markups: oldMarkups, isDirty: wasDirty });
+          syncHistoryFlags();
+        },
+      };
+
+      markupHistory.execute(command);
     },
 
     markDirty: () => {

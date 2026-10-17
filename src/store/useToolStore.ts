@@ -14,7 +14,15 @@ function readStoredLeaders(): boolean {
 }
 
 // 'arrow' crea una marca de tipo 'line' con extremo final de flecha (ADR-0018)
-export type ToolType = MarkupType | 'select' | 'pan' | 'calibrate' | 'arrow';
+export type ToolType =
+  | MarkupType
+  | 'select'
+  | 'pan'
+  | 'calibrate'
+  | 'arrow'
+  | 'polygonCutout'
+  | 'ellipseCutout'
+  | 'eraser';
 
 interface ToolState {
   activeTool: ToolType;

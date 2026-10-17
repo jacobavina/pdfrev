@@ -266,4 +266,139 @@ describe('PDF Annotation Reader (P3-B.4 / Interoperabilidad e Importación)', ()
     expect(result.markups[0].points[0].x).toBeCloseTo(120 / 600, 3);
     expect(result.markups[0].points[1].x).toBeCloseTo(300 / 600, 3);
   });
+
+  it('preserva la opacidad translúcida del relleno (/ca y /fillColor) en marcas de área en round-trip', async () => {
+    const areaMarkup: Markup = {
+      id: 'mk-area-opacity',
+      type: 'area',
+      pageIndex: 0,
+      points: [
+        { x: 0.2, y: 0.2 },
+        { x: 0.6, y: 0.2 },
+        { x: 0.6, y: 0.6 },
+        { x: 0.2, y: 0.6 },
+      ],
+      style: {
+        strokeColor: '#dc2626',
+        fillColor: 'rgba(220, 38, 38, 0.2)',
+        strokeWidth: 2,
+        opacity: 1,
+      },
+      author: 'Revisor Medición',
+      createdAt: '2026-10-17T12:00:00Z',
+      updatedAt: '2026-10-17T12:00:00Z',
+      status: 'pending',
+      measurement: {
+        value: 12.5,
+        unit: 'm',
+        formatted: '12.50 m²',
+      },
+    };
+
+    const pdfUpdated = await saveIncrementalMarkups(originalBytes, [areaMarkup]);
+    const pdfText = new TextDecoder('latin1').decode(pdfUpdated);
+    expect(pdfText).toContain('/ca 0.200');
+
+    const result = await importPdfAnnotations(pdfUpdated);
+    expect(result.markups).toHaveLength(1);
+    const importedArea = result.markups[0];
+    expect(importedArea.type).toBe('area');
+    expect(importedArea.style.fillColor).toBe('rgba(220, 38, 38, 0.2)');
+  });
+
+  it('importa medición de área de Revu con /ca 0.3 reconstruyendo relleno translúcido', async () => {
+    const doc = await PDFDocument.create();
+    const page = doc.addPage([600, 400]);
+
+    const annotDict = doc.context.obj({
+      Type: 'Annot',
+      Subtype: 'Polygon',
+      IT: 'PolygonDimension',
+      Rect: [100, 100, 300, 300],
+      Vertices: [100, 100, 300, 100, 300, 300, 100, 300],
+      C: [1, 0, 0],
+      IC: [1, 0, 0],
+      CA: 1,
+      ca: 0.3,
+      Contents: PDFString.of('15.00 m²'),
+      T: PDFString.of('Bluebeam Revu User'),
+      NM: PDFString.of('revu-area-1'),
+    });
+    page.node.set(PDFName.of('Annots'), doc.context.obj([doc.context.register(annotDict)]));
+
+    const pdfBytes = await doc.save();
+    const result = await importPdfAnnotations(pdfBytes);
+
+    expect(result.markups).toHaveLength(1);
+    expect(result.markups[0].type).toBe('area');
+    expect(result.markups[0].style.fillColor).toBe('rgba(255, 0, 0, 0.3)');
+  });
+
+  it('auto-sana áreas antiguas guardadas sin /ca explícito para no tapar el plano con rojo sólido', async () => {
+    const doc = await PDFDocument.create();
+    const page = doc.addPage([600, 400]);
+
+    const annotDict = doc.context.obj({
+      Type: 'Annot',
+      Subtype: 'Polygon',
+      IT: 'PolygonDimension',
+      Rect: [100, 100, 300, 300],
+      Vertices: [100, 100, 300, 100, 300, 300, 100, 300],
+      C: [0.86, 0.15, 0.15],
+      IC: [0.86, 0.15, 0.15],
+      Contents: PDFString.of('12.50 m²'),
+      T: PDFString.of('Old Version'),
+      NM: PDFString.of('legacy-area-1'),
+    });
+    page.node.set(PDFName.of('Annots'), doc.context.obj([doc.context.register(annotDict)]));
+
+    const pdfBytes = await doc.save();
+    const result = await importPdfAnnotations(pdfBytes);
+
+    expect(result.markups).toHaveLength(1);
+    expect(result.markups[0].type).toBe('area');
+    expect(result.markups[0].style.fillColor).toMatch(/^rgba\(\d+,\s*\d+,\s*\d+,\s*0\.25\)$/);
+  });
+
+  it('no degrada ni multiplica el alpha de relleno cuando la marca tiene opacidad global < 1', async () => {
+    const areaMarkup: Markup = {
+      id: 'mk-area-half-opacity',
+      type: 'area',
+      pageIndex: 0,
+      points: [
+        { x: 0.1, y: 0.1 },
+        { x: 0.5, y: 0.1 },
+        { x: 0.5, y: 0.5 },
+        { x: 0.1, y: 0.5 },
+      ],
+      style: {
+        strokeColor: '#dc2626',
+        fillColor: 'rgba(220, 38, 38, 0.2)',
+        strokeWidth: 2,
+        opacity: 0.5,
+      },
+      author: 'Revisor Medición',
+      createdAt: '2026-10-17T12:00:00Z',
+      updatedAt: '2026-10-17T12:00:00Z',
+      status: 'pending',
+      measurement: {
+        value: 16.0,
+        unit: 'm',
+        formatted: '16.00 m²',
+      },
+    };
+
+    const pdfUpdated = await saveIncrementalMarkups(originalBytes, [areaMarkup]);
+    const pdfText = new TextDecoder('latin1').decode(pdfUpdated);
+    // En PDF se escribe strokeAlpha (0.500) y fillAlpha (0.2 * 0.5 = 0.100) para visores ajenos
+    expect(pdfText).toContain('/CA 0.500');
+    expect(pdfText).toContain('/ca 0.100');
+
+    const result = await importPdfAnnotations(pdfUpdated);
+    expect(result.markups).toHaveLength(1);
+    const importedArea = result.markups[0];
+    // En REA, fillColor conserva su valor exacto y la opacidad global se aplica por separado en el <g> SVG
+    expect(importedArea.style.fillColor).toBe('rgba(220, 38, 38, 0.2)');
+    expect(importedArea.style.opacity).toBe(0.5);
+  });
 });

@@ -275,5 +275,27 @@ describe('Pure PDF Operator Emitter (P3-B.1 / ISO 32000-1)', () => {
       expect(resSqg.bbox[2]).toBeGreaterThan(resSqg.bbox[0]);
       expect(resSqg.bbox[3]).toBeGreaterThan(resSqg.bbox[1]);
     });
+
+    it('emite curva Bézier cúbica y calcula bbox real para arc (ADR-0081)', () => {
+      const mkArc: Markup = {
+        ...baseMarkup,
+        id: 'mk-arc',
+        type: 'arc',
+        pageIndex: 0,
+        points: [
+          { x: 0.1, y: 0.1 },
+          { x: 0.25, y: 0.35 },
+          { x: 0.5, y: 0.1 },
+        ],
+        style: { strokeColor: '#0284c7', strokeWidth: 2, opacity: 1 },
+      };
+
+      const resArc = emitMarkupOperators(mkArc, baseTransform);
+      expect(resArc.operators).toContain('m');
+      expect(resArc.operators).toContain('c');
+      expect(resArc.operators).toContain('S');
+      expect(resArc.bbox[2]).toBeGreaterThan(resArc.bbox[0]);
+      expect(resArc.bbox[3]).toBeGreaterThan(resArc.bbox[1]);
+    });
   });
 });

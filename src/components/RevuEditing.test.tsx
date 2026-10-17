@@ -245,6 +245,49 @@ describe('Nube de forma libre (ADR-0039)', () => {
     // El callout suelto conserva su flecha abierta
     expect(useToolStore.getState().currentStyle.lineEndingStart).toBeUndefined();
   });
+
+  it('Cloud+ rectangular: la caja de texto se adapta al zoom y permanece inmediatamente adyacente a la nube', async () => {
+    const svg = await renderViewer();
+    act(() => useToolStore.setState({ activeTool: 'cloudPlus' }));
+    // Arrastre para dibujar una nube rectangular
+    act(() => {
+      fireEvent.mouseDown(svg, { button: 0, clientX: 200, clientY: 200 });
+    });
+    act(() => {
+      fireEvent.mouseMove(svg, { clientX: 350, clientY: 300 });
+    });
+    act(() => {
+      fireEvent.mouseUp(svg, { button: 0, clientX: 350, clientY: 300 });
+    });
+
+    const markups = useMarkupStore.getState().markups;
+    expect(markups).toHaveLength(2);
+    const [cloud, callout] = markups;
+    expect(cloud.type).toBe('cloudPlus');
+    expect(callout.type).toBe('callout');
+    expect(cloud.groupId).toBe(callout.groupId);
+
+    // Bounding box de la nube en coordenadas normalizadas
+    const cloudMaxX = Math.max(cloud.points[0].x, cloud.points[1].x);
+    const cloudMinY = Math.min(cloud.points[0].y, cloud.points[1].y);
+
+    // Caja de texto del callout
+    const boxX1 = callout.points[0].x;
+    const boxY2 = callout.points[1].y;
+
+    // Con el mock de visor (800x600 px), la separación visual debe estar entre 20 px y 36 px
+    const gapXScreenPx = (boxX1 - cloudMaxX) * 800;
+    const gapYScreenPx = (cloudMinY - boxY2) * 600;
+
+    expect(gapXScreenPx).toBeGreaterThanOrEqual(20);
+    expect(gapXScreenPx).toBeLessThanOrEqual(36);
+    expect(gapYScreenPx).toBeGreaterThanOrEqual(20);
+    expect(gapYScreenPx).toBeLessThanOrEqual(36);
+
+    // La directriz apunta a la esquina más cercana (superior derecha)
+    expect(callout.leaders).toBeDefined();
+    expect(callout.leaders![0][0]).toEqual({ x: cloudMaxX, y: cloudMinY });
+  });
 });
 
 describe('Barra de propiedades contextual con fuentes (ADR-0040)', () => {

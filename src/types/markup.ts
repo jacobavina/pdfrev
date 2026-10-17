@@ -4,10 +4,12 @@ export const VALID_MARKUP_TYPES = [
   'circle',
   'polygon',
   'polyLine',
+  'arc',
   'cloud',
   'cloudPlus',
   'callout',
   'text',
+  'typewriter',
   'stickyNote',
   'freehand',
   'highlight', // Legacy de Fase 1

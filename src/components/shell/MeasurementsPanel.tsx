@@ -6,6 +6,7 @@ import { useCalibrationStore } from '../../store/useCalibrationStore';
 import { useToolStore } from '../../store/useToolStore';
 import { useUiStore, useRightPanel } from '../../store/useUiStore';
 import { computeMeasureTotals, measureCategoryOf, MeasureTotal } from '../../core/measurements/totals';
+import { computeTakeoffSubtotals } from '../../core/measurements/takeoffCosts';
 import { markupTypeLabel } from '../../core/markup/typeLabels';
 import { PageCalibration } from '../../types/markup';
 import {
@@ -107,6 +108,7 @@ const SnapIcon: React.FC<{ kind: 'endpoint' | 'midpoint' | 'nearest' | 'intersec
 export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ defaultCollapsed = true }) => {
   const [isCollapsed, setIsCollapsed] = useRightPanel('measure', defaultCollapsed);
   const [scope, setScope] = useState<'page' | 'document'>('page');
+  const [groupBy, setGroupBy] = useState<'category' | 'subject' | 'layer'>('category');
   const { markups, selectedMarkupIds, setSelectedMarkupIds } = useMarkupStore();
   const { currentPageIndex, setCurrentPage, pdfBytes, numPages } = useDocumentStore();
   const { calibrations, getPageCalibration, setPageCalibration, applyCalibrationToPages, addViewport, updateViewport, removeViewport } = useCalibrationStore();
@@ -272,6 +274,11 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
 
   const pageFilter = scope === 'page' ? currentPageIndex : undefined;
   const totals = useMemo(() => computeMeasureTotals(markups, pageFilter), [markups, pageFilter]);
+  const takeoffSubtotals = useMemo(() => {
+    if (groupBy === 'category') return [];
+    return computeTakeoffSubtotals(markups, { groupBy, pageIndex: pageFilter });
+  }, [markups, groupBy, pageFilter]);
+  const hasAnyCost = useMemo(() => takeoffSubtotals.some((s) => Boolean(s.formattedCost)), [takeoffSubtotals]);
   const measureMarkups = useMemo(
     () => markups.filter((m) => measureCategoryOf(m) && (pageFilter === undefined || m.pageIndex === pageFilter)),
     [markups, pageFilter]
@@ -717,7 +724,22 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
         </Section>
 
         <Section title="Totals">
-          <div className="flex items-center justify-end">
+          <div className="flex items-center justify-between gap-1 mb-2">
+            <div className="flex p-0.5 rounded-md bg-cad-field text-2xs">
+              {(['category', 'subject', 'layer'] as const).map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  data-testid={`measurements-group-${g}`}
+                  onClick={() => setGroupBy(g)}
+                  className={`px-2 py-0.5 rounded capitalize ${
+                    groupBy === g ? 'bg-cad-panel text-cad-strong' : 'text-gray-400 hover:text-cad-strong'
+                  }`}
+                >
+                  {g}
+                </button>
+              ))}
+            </div>
             <div className="flex p-0.5 rounded-md bg-cad-field text-2xs">
               {(['page', 'document'] as const).map((s) => (
                 <button
@@ -725,19 +747,21 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
                   type="button"
                   data-testid={`measurements-scope-${s}`}
                   onClick={() => setScope(s)}
-                  className={`px-2.5 py-0.5 rounded ${scope === s ? 'bg-cad-panel text-cad-strong' : 'text-gray-400 hover:text-cad-strong'}`}
+                  className={`px-2.5 py-0.5 rounded ${
+                    scope === s ? 'bg-cad-panel text-cad-strong' : 'text-gray-400 hover:text-cad-strong'
+                  }`}
                 >
                   {s === 'page' ? 'Page' : 'Document'}
                 </button>
               ))}
             </div>
           </div>
-          {totals.length === 0 ? (
+          {(groupBy === 'category' ? totals.length === 0 : takeoffSubtotals.length === 0) ? (
             <p data-testid="measurements-empty" className="text-gray-500 leading-relaxed">
               No measurements {scope === 'page' ? 'on this page' : 'in the document'}. Use Length, Area or Count
               on the ribbon (Measure group).
             </p>
-          ) : (
+          ) : groupBy === 'category' ? (
             <table data-testid="measurements-totals" className="w-full border-collapse">
               <thead>
                 <tr className="text-gray-500 text-2xs uppercase">
@@ -765,6 +789,45 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
                         <td className="pb-1 text-right ui-data text-gray-400">
                           {t.perimeter.toFixed(2)} {t.unit}
                         </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <table data-testid="measurements-takeoff-totals" className="w-full border-collapse">
+              <thead>
+                <tr className="text-gray-500 text-2xs uppercase">
+                  <th className="text-left font-medium pb-1">{groupBy === 'subject' ? 'Subject' : 'Layer'}</th>
+                  <th className="text-right font-medium pb-1">Qty</th>
+                  <th className="text-right font-medium pb-1">Total</th>
+                  {hasAnyCost && <th className="text-right font-medium pb-1">Cost</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {takeoffSubtotals.map((sub) => (
+                  <React.Fragment key={`${sub.groupKey}-${sub.category}-${sub.unit}`}>
+                    <tr className="border-t border-cad-border" data-testid={`takeoff-subtotal-${sub.groupKey}`}>
+                      <td className="py-1 text-gray-200 truncate max-w-[90px]" title={sub.groupKey}>
+                        {sub.groupKey}
+                      </td>
+                      <td className="py-1 text-right ui-data text-gray-400">{sub.itemCount}</td>
+                      <td className="py-1 text-right ui-data text-cad-strong">{sub.formattedQuantity}</td>
+                      {hasAnyCost && (
+                        <td className="py-1 text-right ui-data text-emerald-400">
+                          {sub.formattedCost || '—'}
+                        </td>
+                      )}
+                    </tr>
+                    {sub.perimeter !== undefined && (
+                      <tr>
+                        <td className="pb-1 pl-3 text-gray-500">Perimeter</td>
+                        <td />
+                        <td className="pb-1 text-right ui-data text-gray-400">
+                          {sub.perimeter.toFixed(2)} {sub.unit}
+                        </td>
+                        {hasAnyCost && <td />}
                       </tr>
                     )}
                   </React.Fragment>

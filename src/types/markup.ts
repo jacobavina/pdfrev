@@ -227,6 +227,9 @@ export interface Markup {
   replies?: MarkupReply[]; // A.1 (ADR-0071): Respuestas en hilo (/IRT, /RT /R)
   statusHistory?: MarkupStatusTransition[]; // A.1 (ADR-0071): Transiciones de estado (/StateModel Review)
   cutouts?: MarkupPoint[][]; // B.1 (ADR-0075): Recortes (cutouts/huecos) en mediciones de área y volumen
+  subject?: string; // B.3 (ADR-0077): Asunto de la marca para takeoff y agrupación (/Subj en PDF)
+  unitPrice?: number; // B.3 (ADR-0077): Precio unitario en unidades monetarias
+  cost?: number; // B.3 (ADR-0077): Coste total en unidades monetarias (aritmética en céntimos)
 }
 
 export interface BoundingBox {

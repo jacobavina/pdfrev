@@ -14,6 +14,7 @@ import { LineEndingStyle, Markup, MarkupStatus, PageCalibration, MeasurementView
 import { DIMENSION_EXTENSION_GAP, DIMENSION_EXTENSION_OVERSHOOT } from '../markup/dimension';
 import { viewportArrayFor, measureDictFor, readPageCalibration } from './pdfScale';
 import { DEFAULT_PAGE_CALIBRATION } from '../measurements/calculate';
+import { markupTypeLabel } from '../markup/typeLabels';
 import { stampById } from '../markup/stamps';
 import { measureLineEndings, MEASURE_LEADER_EXTENSION_PT } from '../markup/measureCaption';
 import {
@@ -636,6 +637,15 @@ endstream`;
         }
         reaDict += ` >>`;
       }
+      if (markup.subject) {
+        reaDict += ` /subject ${escapePdfString(markup.subject)}`;
+      }
+      if (typeof markup.unitPrice === 'number' && Number.isFinite(markup.unitPrice)) {
+        reaDict += ` /unitPrice ${markup.unitPrice}`;
+      }
+      if (typeof markup.cost === 'number' && Number.isFinite(markup.cost)) {
+        reaDict += ` /cost ${markup.cost}`;
+      }
       reaDict += ' >>';
 
       // Widgets: /T es el nombre del campo (los botones de opción o hijos de un /Parent lo heredan de su padre);
@@ -671,6 +681,9 @@ endstream`;
         apLine = `  /AP << /N << ${refs.join(' ')} >> >>\n  /AS /${isFieldChecked(markup) ? onName : 'Off'}\n`;
       }
 
+      const subj = markup.subject?.trim() || (markup.measurement ? markupTypeLabel(markup.type) : undefined);
+      const subjLine = subj ? `  /Subj ${escapePdfString(subj)}\n` : '';
+
       // Construcción del diccionario de anotación
       let annotDict = `<<
   /Type /Annot
@@ -678,7 +691,7 @@ endstream`;
   /Rect ${rectStr}
   /P ${pageObjNum} 0 R
   /NM ${escapePdfString(markup.id)}
-${titleLine}  /Contents ${escapePdfString(markup.text || '')}
+${titleLine}${subjLine}  /Contents ${escapePdfString(markup.text || '')}
   /M ${formatPdfDate(markup.updatedAt || markup.createdAt)}
   /CreationDate ${formatPdfDate(markup.createdAt)}
   /F ${markup.locked ? 132 : 4}

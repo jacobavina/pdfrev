@@ -304,6 +304,12 @@ export async function importPdfAnnotations(
       const authorObj = annotDict.get(PDFName.of('T'));
       const author = extractPdfStringValue(authorObj) || 'External author';
 
+      // Asunto (/Subj) y costes (B.3, ADR-0077)
+      const subjObj = annotDict.get(PDFName.of('Subj'));
+      let subject = extractPdfStringValue(subjObj);
+      let unitPrice: number | undefined;
+      let cost: number | undefined;
+
       // Colores y grosor
       let strokeColor = pdfColorArrayToHex(annotDict.get(PDFName.of('C'))) || '#000000';
       let fillColor = pdfColorArrayToHex(annotDict.get(PDFName.of('IC')));
@@ -378,6 +384,19 @@ export async function importPdfAnnotations(
               ...(cntObj instanceof PDFNumber ? { countIndex: cntObj.asNumber() } : {}),
             };
           }
+        }
+        const reaSubj = reaObj.get(PDFName.of('subject'));
+        if (reaSubj) {
+          const s = extractPdfStringValue(reaSubj);
+          if (s) subject = s;
+        }
+        const pObj = reaObj.get(PDFName.of('unitPrice'));
+        if (pObj instanceof PDFNumber && Number.isFinite(pObj.asNumber())) {
+          unitPrice = pObj.asNumber();
+        }
+        const cObj = reaObj.get(PDFName.of('cost'));
+        if (cObj instanceof PDFNumber && Number.isFinite(cObj.asNumber())) {
+          cost = cObj.asNumber();
         }
       }
 
@@ -927,6 +946,9 @@ export async function importPdfAnnotations(
         ...(cutouts ? { cutouts } : {}),
         ...(groupId ? { groupId } : {}),
         ...(layer ? { layer } : {}),
+        ...(subject ? { subject } : {}),
+        ...(unitPrice !== undefined ? { unitPrice } : {}),
+        ...(cost !== undefined ? { cost } : {}),
       };
 
       // Enlaces, adjuntos y campos de REA (ADR-0027): lo editado en Revu/Acrobat manda (destino, valor rellenado)

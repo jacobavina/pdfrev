@@ -88,8 +88,8 @@
 | Volumen / profundidad | ✅ ADR-0029 (eec83fa) · PARITY «Volume (Shift+Alt+V)…» | — | S | K |
 | Acotación con flechas | ✅ ADR-0020 (28f3240) + ADR-0032/0033 (76347a7/7cc2c09) · PARITY «Cota en el PDF (/Line con /LL, /IT /LineDimension, texto en /AP)…», «Flechas al estilo de Acrobat…» y «Distance como en Acrobat…» | — | S | K I |
 | Snap (extremos, ortogonal) | ✅ ADR-0025 (444000d) + ADR-0031 (4b57d21) + ADR-0047/0048 (7004807/cec5d64) · PARITY «Snap to drawing…», «Trazo recto con Shift…» y «Shift a 45°…» | — | S | K |
-| Subtotales por Subject/capa/página | 🟡 Totales por tipo, página y documento ✅ ADR-0015 (c622016) · PARITY «Panel de mediciones: totales por tipo y unidad, perímetro, página/documento»; desglose por Subject/capa ⬜ | P4-C.2 | **M** | K |
-| Precios unitarios y costes | ⬜ | P4-C.3 | S | K |
+| Subtotales por Subject/capa/página | ✅ ADR-0015 (c622016) + ADR-0077 · PARITY «Subtotales por Subject, capa y página (suma antes de redondear)…» | B.3 (P4-C.2) | **M** | K |
+| Precios unitarios y costes | ✅ ADR-0077 · PARITY «…y precios unitarios en entero exacto (ADR-0077)» con aritmética entera en céntimos | B.3 (P4-C.3) | S | K |
 | Herramientas de medición en Tool Chest | ⬜ (el Tool Chest guarda paletas y recientes de marcas, no de mediciones) | P4-C.4 | M | K |
 | Exportar a Excel (.xlsx) | ⬜ (el único `xlsx` del repo es un MIME en `src/services/linkService.ts:138`; no hay generador; exportService solo hace CSV y PDF) | P4-D.2 | **M** | K |
 | Exportar a CSV / informe PDF | ✅ P2-C.4 (e6a7b8a) · PARITY «P2-C.4: Exportación estructurada a CSV con BOM y Reporte Resumen PDF (Bloque C)» | — | M | K |

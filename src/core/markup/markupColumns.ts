@@ -30,6 +30,8 @@ export const MARKUP_COLUMNS = [
   { id: 'color', label: 'Color', defaultVisible: true, sort: 'color' },
   { id: 'layer', label: 'Layer', defaultVisible: true },
   { id: 'unit', label: 'Unit', defaultVisible: true },
+  { id: 'unitPrice', label: 'Unit Price', defaultVisible: false },
+  { id: 'cost', label: 'Cost', defaultVisible: false },
 ] as const satisfies readonly { id: string; label: string; defaultVisible: boolean; sort?: MarkupSortField }[];
 
 export type MarkupColumnId = (typeof MARKUP_COLUMNS)[number]['id'];
@@ -81,7 +83,7 @@ export function columnText(id: MarkupColumnId, m: Markup): string {
   const formatted = m.measurement?.formatted ?? (m.measurement?.value !== undefined ? String(m.measurement.value) : '');
   switch (id) {
     case 'subject':
-      return markupTypeLabel(m.type);
+      return m.subject?.trim() || markupTypeLabel(m.type);
     case 'pageLabel':
     case 'pageIndex':
       return String(m.pageIndex + 1);
@@ -107,6 +109,10 @@ export function columnText(id: MarkupColumnId, m: Markup): string {
       return m.layer ?? '';
     case 'unit':
       return unitSuffix(m) || '—';
+    case 'unitPrice':
+      return typeof m.unitPrice === 'number' && Number.isFinite(m.unitPrice) ? `$${m.unitPrice.toFixed(2)}` : '';
+    case 'cost':
+      return typeof m.cost === 'number' && Number.isFinite(m.cost) ? `$${m.cost.toFixed(2)}` : '';
     default:
       return '';
   }
@@ -121,7 +127,7 @@ export interface SubjectGroup {
 export function groupBySubject(markups: readonly Markup[], descending = false): SubjectGroup[] {
   const map = new Map<string, Markup[]>();
   for (const m of markups) {
-    const key = markupTypeLabel(m.type);
+    const key = m.subject?.trim() || markupTypeLabel(m.type);
     const list = map.get(key);
     if (list) list.push(m);
     else map.set(key, [m]);

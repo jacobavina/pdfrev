@@ -229,5 +229,39 @@ describe('Espacio de trabajo (ADR-0017)', () => {
       act(() => useUiStore.getState().requestMeasurementsPanel());
       expect(screen.getByTestId('measurements-panel')).toHaveAttribute('data-collapsed', 'false');
     });
+
+    it('permite alternar agrupación por Category, Subject y Layer mostrando subtotales de takeoff (ADR-0077)', () => {
+      useMarkupStore.setState({
+        markups: [
+          {
+            ...mk('m1', 'area', 'Acabados', 15),
+            subject: 'Solado Granito',
+            unitPrice: 50,
+            cost: 750,
+          },
+          {
+            ...mk('m2', 'length', 'Instalaciones', 20),
+            subject: 'Tubería PVC',
+            unitPrice: 10,
+            cost: 200,
+          },
+        ],
+      });
+      render(<MeasurementsPanel defaultCollapsed={false} />);
+      // Por defecto categoría
+      expect(screen.getByTestId('measurements-totals')).toBeInTheDocument();
+
+      // Cambiar a Subject
+      fireEvent.click(screen.getByTestId('measurements-group-subject'));
+      expect(screen.getByTestId('measurements-takeoff-totals')).toBeInTheDocument();
+      expect(screen.getByTestId('takeoff-subtotal-Solado Granito')).toBeInTheDocument();
+      expect(screen.getByTestId('takeoff-subtotal-Tubería PVC')).toBeInTheDocument();
+      expect(screen.getByTestId('measurements-takeoff-totals')).toHaveTextContent('$750.00');
+
+      // Cambiar a Layer
+      fireEvent.click(screen.getByTestId('measurements-group-layer'));
+      expect(screen.getByTestId('takeoff-subtotal-Acabados')).toBeInTheDocument();
+      expect(screen.getByTestId('takeoff-subtotal-Instalaciones')).toBeInTheDocument();
+    });
   });
 });

@@ -616,6 +616,9 @@ endstream`;
       if (markup.leaders && markup.leaders.length > 0) {
         reaDict += ` /leaders [${markup.leaders.map((l) => `[${numList(l)}]`).join(' ')}]`;
       }
+      if (markup.cutouts && markup.cutouts.length > 0) {
+        reaDict += ` /cutouts [${markup.cutouts.map((c) => `[${numList(c)}]`).join(' ')}]`;
+      }
       if (reaCustomFields.length > 0) {
         reaDict += ` /fields << ${reaCustomFields.join(' ')} >>`;
       }
@@ -746,6 +749,20 @@ ${markup.layer && layerOcg.has(markup.layer) ? `  /OC ${layerOcg.get(markup.laye
         if (markup.type === 'cloud' || markup.type === 'cloudPlus') {
           annotDict += `  /BE << /S /C /I 1 >>\n`;
         }
+      }
+      if (markup.cutouts && markup.cutouts.length > 0) {
+        const cList = markup.cutouts
+          .map((c) => {
+            const cPts = c
+              .map((pt) => {
+                const pdfPt = normalizedToPdfCoordinates(pt, transform);
+                return `${pdfPt.x.toFixed(2)} ${pdfPt.y.toFixed(2)}`;
+              })
+              .join(' ');
+            return `[${cPts}]`;
+          })
+          .join(' ');
+        annotDict += `  /Cutouts [${cList}]\n`;
       }
       const intent = measurementIntentOf(markup);
       if (intent) {

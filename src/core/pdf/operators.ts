@@ -717,7 +717,34 @@ export function emitMarkupOperators(
         updateBBox(x + w, y + h);
 
         lines.push(`${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re`);
-        lines.push(opPaint);
+
+        if (markup.cutouts && markup.cutouts.length > 0) {
+          for (const c of markup.cutouts) {
+            if (!c || c.length < 2) continue;
+            if (c.length === 2) {
+              const cp1 = normalizedToPdfCoordinates(c[0], transform);
+              const cp2 = normalizedToPdfCoordinates(c[1], transform);
+              const cx = Math.min(cp1.x, cp2.x);
+              const cy = Math.min(cp1.y, cp2.y);
+              const cw = Math.abs(cp2.x - cp1.x);
+              const ch = Math.abs(cp2.y - cp1.y);
+              updateBBox(cx, cy);
+              updateBBox(cx + cw, cy + ch);
+              lines.push(`${cx.toFixed(2)} ${cy.toFixed(2)} ${cw.toFixed(2)} ${ch.toFixed(2)} re`);
+            } else {
+              const cPdf = c.map((p) => normalizedToPdfCoordinates(p, transform));
+              for (const pt of cPdf) updateBBox(pt.x, pt.y);
+              lines.push(`${cPdf[0].x.toFixed(2)} ${cPdf[0].y.toFixed(2)} m`);
+              for (let i = 1; i < cPdf.length; i++) {
+                lines.push(`${cPdf[i].x.toFixed(2)} ${cPdf[i].y.toFixed(2)} l`);
+              }
+              lines.push('h');
+            }
+          }
+          lines.push(hasFill ? (strokeParsed ? 'B*' : 'f*') : 'S');
+        } else {
+          lines.push(opPaint);
+        }
       } else if (markup.points.length > 2) {
         const pdfPts = markup.points.map((p) => normalizedToPdfCoordinates(p, transform));
         for (const pt of pdfPts) updateBBox(pt.x, pt.y);
@@ -727,7 +754,34 @@ export function emitMarkupOperators(
           lines.push(`${pdfPts[i].x.toFixed(2)} ${pdfPts[i].y.toFixed(2)} l`);
         }
         lines.push('h');
-        lines.push(opPaint);
+
+        if (markup.cutouts && markup.cutouts.length > 0) {
+          for (const c of markup.cutouts) {
+            if (!c || c.length < 2) continue;
+            if (c.length === 2) {
+              const cp1 = normalizedToPdfCoordinates(c[0], transform);
+              const cp2 = normalizedToPdfCoordinates(c[1], transform);
+              const cx = Math.min(cp1.x, cp2.x);
+              const cy = Math.min(cp1.y, cp2.y);
+              const cw = Math.abs(cp2.x - cp1.x);
+              const ch = Math.abs(cp2.y - cp1.y);
+              updateBBox(cx, cy);
+              updateBBox(cx + cw, cy + ch);
+              lines.push(`${cx.toFixed(2)} ${cy.toFixed(2)} ${cw.toFixed(2)} ${ch.toFixed(2)} re`);
+            } else {
+              const cPdf = c.map((p) => normalizedToPdfCoordinates(p, transform));
+              for (const pt of cPdf) updateBBox(pt.x, pt.y);
+              lines.push(`${cPdf[0].x.toFixed(2)} ${cPdf[0].y.toFixed(2)} m`);
+              for (let i = 1; i < cPdf.length; i++) {
+                lines.push(`${cPdf[i].x.toFixed(2)} ${cPdf[i].y.toFixed(2)} l`);
+              }
+              lines.push('h');
+            }
+          }
+          lines.push(hasFill ? (strokeParsed ? 'B*' : 'f*') : 'S');
+        } else {
+          lines.push(opPaint);
+        }
       }
       break;
     }
@@ -1089,10 +1143,30 @@ export function emitMarkupOperators(
         }
         lines.push('0.486 0.227 0.929 rg');
         pathPdf(pdfPts, true);
-        lines.push('B');
+        if (markup.cutouts && markup.cutouts.length > 0) {
+          for (const c of markup.cutouts) {
+            if (!c || c.length < 2) continue;
+            const cPdf = c.map((p) => normalizedToPdfCoordinates(p, transform));
+            for (const pt of cPdf) updateBBox(pt.x, pt.y);
+            pathPdf(cPdf, true);
+          }
+          lines.push('B*');
+        } else {
+          lines.push('B');
+        }
       } else {
         pathPdf(pdfPts, true);
-        lines.push(markup.type === 'volume' ? opPaint : 'S');
+        if (markup.type === 'volume' && markup.cutouts && markup.cutouts.length > 0) {
+          for (const c of markup.cutouts) {
+            if (!c || c.length < 2) continue;
+            const cPdf = c.map((p) => normalizedToPdfCoordinates(p, transform));
+            for (const pt of cPdf) updateBBox(pt.x, pt.y);
+            pathPdf(cPdf, true);
+          }
+          lines.push(hasFill ? (strokeParsed ? 'B*' : 'f*') : 'S');
+        } else {
+          lines.push(markup.type === 'volume' ? opPaint : 'S');
+        }
       }
       break;
     }

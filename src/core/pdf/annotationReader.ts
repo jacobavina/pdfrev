@@ -618,6 +618,7 @@ export async function importPdfAnnotations(
 
       // Geometría exacta de REA, si la anotación no se movió fuera de REA (su /Rect sigue siendo el escrito)
       let leaders: MarkupPoint[][] | undefined;
+      let cutouts: MarkupPoint[][] | undefined;
       let groupId: string | undefined;
       let layer: string | undefined;
       let lineStyle: string | undefined;
@@ -671,6 +672,15 @@ export async function importPdfAnnotations(
               if (l) parsed.push(l);
             }
             if (parsed.length > 0) leaders = parsed;
+          }
+          const cutoutsObj = reaObj.get(PDFName.of('cutouts'));
+          if (cutoutsObj instanceof PDFArray) {
+            const parsedCutouts: MarkupPoint[][] = [];
+            for (let i = 0; i < cutoutsObj.size(); i++) {
+              const c = readPts(cutoutsObj.get(i));
+              if (c && c.length >= 2) parsedCutouts.push(c);
+            }
+            if (parsedCutouts.length > 0) cutouts = parsedCutouts;
           }
         } else if (markupType === 'count' && points.length === 2) {
           // Conteo sin geometría exacta: su centro es el centro de la caja
@@ -777,6 +787,28 @@ export async function importPdfAnnotations(
         if (depthObj instanceof PDFNumber && depthObj.asNumber() > 0) customFields.volumeDepth = depthObj.asNumber();
       }
 
+      if (!cutouts) {
+        const cutoutsObj = annotDict.get(PDFName.of('Cutouts'));
+        if (cutoutsObj instanceof PDFArray) {
+          const parsedCutouts: MarkupPoint[][] = [];
+          for (let i = 0; i < cutoutsObj.size(); i++) {
+            const item = cutoutsObj.get(i);
+            if (item instanceof PDFArray && item.size() >= 4 && item.size() % 2 === 0) {
+              const ring: MarkupPoint[] = [];
+              for (let j = 0; j < item.size(); j += 2) {
+                const rx = item.get(j);
+                const ry = item.get(j + 1);
+                if (rx instanceof PDFNumber && ry instanceof PDFNumber) {
+                  ring.push(pdfToNormalizedCoordinates({ x: rx.asNumber(), y: ry.asNumber() }, transform));
+                }
+              }
+              if (ring.length >= 2) parsedCutouts.push(ring);
+            }
+          }
+          if (parsedCutouts.length > 0) cutouts = parsedCutouts;
+        }
+      }
+
       // Medición ajena, o de REA movida en otra aplicación: el valor sale de su geometría y de su /Measure (o de la
       // escala de la página), como lo calcularía Revu/Acrobat (ADR-0030)
       if (RECOMPUTED_MEASURES.has(markupType) && !exactGeometry && points.length >= 2) {
@@ -791,8 +823,10 @@ export async function importPdfAnnotations(
         else if (markupType === 'angle') {
           if (points.length >= 3) measurement = calculateAngle(points.slice(0, 3), visualDims, cal);
         } else if (markupType === 'volume') {
-          if (points.length >= 3) measurement = calculateVolume(points, visualDims, cal, Number(customFields.volumeDepth ?? 1));
-        } else if (points.length >= 3) measurement = calculateArea(points, visualDims, cal, false);
+          if (points.length >= 2) measurement = calculateVolume(points, visualDims, cal, Number(customFields.volumeDepth ?? 1), cutouts);
+        } else if (markupType === 'area') {
+          if (points.length >= 2) measurement = calculateArea(points, visualDims, cal, points.length === 2, cutouts);
+        }
       }
 
       // Opacidad (/CA) y tamaño de fuente (/DA)
@@ -890,6 +924,7 @@ export async function importPdfAnnotations(
         locked: locked || undefined,
         measurement,
         ...(leaders ? { leaders } : {}),
+        ...(cutouts ? { cutouts } : {}),
         ...(groupId ? { groupId } : {}),
         ...(layer ? { layer } : {}),
       };

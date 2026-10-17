@@ -840,9 +840,20 @@ export function translateMarkup(
     );
   }
 
+  let newCutouts = markup.cutouts;
+  if (markup.cutouts && Array.isArray(markup.cutouts)) {
+    newCutouts = markup.cutouts.map((ring) =>
+      ring.map((cp) => ({
+        x: Math.max(0, Math.min(1, cp.x + delta.x)),
+        y: Math.max(0, Math.min(1, cp.y + delta.y)),
+      }))
+    );
+  }
+
   return {
     ...markup,
     points: newPoints,
     leaders: newLeaders,
+    cutouts: newCutouts,
   };
 }

@@ -208,6 +208,7 @@ export interface Markup {
   measurement?: MarkupMeasurement; // Paquete 4: Datos de medición para takeoff
   replies?: MarkupReply[]; // A.1 (ADR-0071): Respuestas en hilo (/IRT, /RT /R)
   statusHistory?: MarkupStatusTransition[]; // A.1 (ADR-0071): Transiciones de estado (/StateModel Review)
+  cutouts?: MarkupPoint[][]; // B.1 (ADR-0075): Recortes (cutouts/huecos) en mediciones de área y volumen
 }
 
 export interface BoundingBox {

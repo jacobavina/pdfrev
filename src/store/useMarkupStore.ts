@@ -2,12 +2,14 @@ import { v4 as uuidv4 } from 'uuid';
 import { create } from 'zustand';
 import {
   Markup,
+  MarkupMeasurement,
   MarkupPoint,
   MarkupReply,
   MarkupStatus,
   MarkupStatusTransition,
   MarkupStyle,
   MarkupTextFormat,
+  PageCalibration,
 } from '../types/markup';
 import { Command, HistoryManager } from './history/command';
 import { DEFAULT_CLOUD_STEP } from '../core/markup/revisionCloud';
@@ -15,6 +17,12 @@ import { dashArrayFor, LineStyleId } from '../core/markup/lineStyles';
 import { isPatternLineStyle, PATTERN_MARKUP_TYPES } from '../core/markup/linePatterns';
 import { UpdateMarkupStatusCommand, MarkupStatusTarget } from './history/UpdateMarkupStatusCommand';
 import { UpdateMarkupCustomFieldCommand } from './history/UpdateMarkupCustomFieldCommand';
+import {
+  calculateArea,
+  calculateVolume,
+  DEFAULT_PAGE_CALIBRATION,
+  PageDimensionsPt,
+} from '../core/measurements/calculate';
 
 // Instancia compartida del gestor de historial con 50 pasos mínimo
 export const markupHistory = new HistoryManager(50);
@@ -25,6 +33,8 @@ export interface MoveMarkupItem {
   newPoints: MarkupPoint[];
   originalLeaders?: MarkupPoint[][];
   newLeaders?: MarkupPoint[][];
+  originalCutouts?: MarkupPoint[][];
+  newCutouts?: MarkupPoint[][];
 }
 
 export type ReshapePatch = Pick<Markup, 'points'> & Partial<Pick<Markup, 'measurement' | 'text' | 'leaders'>>;
@@ -94,6 +104,19 @@ interface MarkupState {
     value: string | number | undefined
   ) => void;
   removeCustomColumnValues: (columnId: string) => void;
+  /** Añade un recorte (cutout/hueco) a una medición de área o volumen con comando deshacible (ADR-0075). */
+  addCutout: (
+    markupId: string,
+    cutoutPoints: MarkupPoint[],
+    dims?: PageDimensionsPt,
+    calib?: PageCalibration
+  ) => void;
+  /** Elimina todos los recortes de una marca restaurando su área bruta con comando deshacible (ADR-0075). */
+  clearCutouts: (
+    markupId: string,
+    dims?: PageDimensionsPt,
+    calib?: PageCalibration
+  ) => void;
   markDirty: () => void;
   markAsClean: () => void;
 
@@ -730,6 +753,7 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
                   ...m,
                   points: move.newPoints,
                   leaders: move.newLeaders,
+                  ...(move.newCutouts !== undefined ? { cutouts: move.newCutouts } : {}),
                   updatedAt: now,
                 };
               }
@@ -747,6 +771,7 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
                   ...m,
                   points: move.originalPoints,
                   leaders: move.originalLeaders,
+                  ...(move.originalCutouts !== undefined ? { cutouts: move.originalCutouts } : {}),
                   updatedAt: now,
                 };
               }
@@ -754,6 +779,135 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
             }),
             isDirty: true,
           }));
+        },
+      };
+
+      markupHistory.execute(command);
+      syncHistoryFlags();
+    },
+
+    addCutout: (markupId: string, cutoutPoints: MarkupPoint[], dims?: PageDimensionsPt, calib?: PageCalibration) => {
+      if (!cutoutPoints || cutoutPoints.length < 2) return;
+      const target = get().markups.find((m) => m.id === markupId);
+      if (!target || target.locked) return;
+      if (target.type !== 'area' && target.type !== 'volume') return;
+
+      const prevCutouts = target.cutouts ? target.cutouts.map((c) => c.map((p) => ({ ...p }))) : undefined;
+      const prevMeasurement = target.measurement ? { ...target.measurement } : undefined;
+      const prevText = target.text;
+
+      const nextCutouts = [...(prevCutouts ?? []), cutoutPoints.map((p) => ({ ...p }))];
+      const pageDims = dims ?? { width: 612, height: 792 };
+      const pageCalib = calib ?? DEFAULT_PAGE_CALIBRATION;
+
+      let nextMeasurement: MarkupMeasurement | undefined;
+      if (target.type === 'area') {
+        nextMeasurement = calculateArea(target.points, pageDims, pageCalib, target.points.length === 2, nextCutouts);
+      } else if (target.type === 'volume') {
+        nextMeasurement = calculateVolume(target.points, pageDims, pageCalib, Number(target.customFields?.volumeDepth ?? 1), nextCutouts);
+      }
+
+      const keepsValueText = !target.text || target.text === prevMeasurement?.formatted;
+      const nextText = nextMeasurement && keepsValueText ? nextMeasurement.formatted : target.text;
+
+      const command: Command = {
+        description: `Add cutout to ${target.type}`,
+        execute: () => {
+          set((state) => ({
+            markups: state.markups.map((m) =>
+              m.id === markupId
+                ? {
+                    ...m,
+                    cutouts: nextCutouts,
+                    measurement: nextMeasurement ?? m.measurement,
+                    text: nextText,
+                    updatedAt: new Date().toISOString(),
+                  }
+                : m
+            ),
+            isDirty: true,
+          }));
+          syncHistoryFlags();
+        },
+        undo: () => {
+          set((state) => ({
+            markups: state.markups.map((m) =>
+              m.id === markupId
+                ? {
+                    ...m,
+                    cutouts: prevCutouts,
+                    measurement: prevMeasurement,
+                    text: prevText,
+                    updatedAt: new Date().toISOString(),
+                  }
+                : m
+            ),
+            isDirty: true,
+          }));
+          syncHistoryFlags();
+        },
+      };
+
+      markupHistory.execute(command);
+      syncHistoryFlags();
+    },
+
+    clearCutouts: (markupId: string, dims?: PageDimensionsPt, calib?: PageCalibration) => {
+      const target = get().markups.find((m) => m.id === markupId);
+      if (!target || target.locked || !target.cutouts || target.cutouts.length === 0) return;
+
+      const prevCutouts = target.cutouts.map((c) => c.map((p) => ({ ...p })));
+      const prevMeasurement = target.measurement ? { ...target.measurement } : undefined;
+      const prevText = target.text;
+
+      const pageDims = dims ?? { width: 612, height: 792 };
+      const pageCalib = calib ?? DEFAULT_PAGE_CALIBRATION;
+
+      let nextMeasurement: MarkupMeasurement | undefined;
+      if (target.type === 'area') {
+        nextMeasurement = calculateArea(target.points, pageDims, pageCalib, target.points.length === 2, undefined);
+      } else if (target.type === 'volume') {
+        nextMeasurement = calculateVolume(target.points, pageDims, pageCalib, Number(target.customFields?.volumeDepth ?? 1), undefined);
+      }
+
+      const keepsValueText = !target.text || target.text === prevMeasurement?.formatted;
+      const nextText = nextMeasurement && keepsValueText ? nextMeasurement.formatted : target.text;
+
+      const command: Command = {
+        description: `Clear cutouts from ${target.type}`,
+        execute: () => {
+          set((state) => ({
+            markups: state.markups.map((m) =>
+              m.id === markupId
+                ? {
+                    ...m,
+                    cutouts: undefined,
+                    measurement: nextMeasurement ?? m.measurement,
+                    text: nextText,
+                    updatedAt: new Date().toISOString(),
+                  }
+                : m
+            ),
+            isDirty: true,
+          }));
+          syncHistoryFlags();
+        },
+        undo: () => {
+          set((state) => ({
+            markups: state.markups.map((m) =>
+              m.id === markupId
+                ? {
+                    ...m,
+                    cutouts: prevCutouts,
+                    measurement: prevMeasurement,
+                    text: prevText,
+                    updatedAt: new Date().toISOString(),
+                  }
+                : m
+            ),
+            isDirty: true,
+          }));
+          syncHistoryFlags();
         },
       };
 

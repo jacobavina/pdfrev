@@ -199,9 +199,20 @@ interface UiState {
   setShowMeasureLabels: (show: boolean) => void;
   setShowRulers: (show: boolean) => void;
   setAutoOpenPanels: (on: boolean) => void;
+  /** Marca sobre la que se está dibujando un recorte / cutout (ADR-0075). */
+  activeCutoutTargetId: string | null;
+  pageDimensionsPt: { width: number; height: number } | null;
+  setPageDimensionsPt: (dims: { width: number; height: number } | null) => void;
+  startCutout: (markupId: string) => void;
+  cancelCutout: () => void;
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
+  activeCutoutTargetId: null,
+  pageDimensionsPt: null,
+  setPageDimensionsPt: (pageDimensionsPt) => set({ pageDimensionsPt }),
+  startCutout: (activeCutoutTargetId) => set({ activeCutoutTargetId }),
+  cancelCutout: () => set({ activeCutoutTargetId: null }),
   theme: readStoredTheme(),
   themeFollowsSystem: readStoredThemePreference() === null,
   leftTab: 'pages',

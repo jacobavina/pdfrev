@@ -510,6 +510,7 @@ export const PdfViewer: React.FC = () => {
     if (!sz) return;
     const width = sz.w * scale;
     const height = sz.h * scale;
+    useUiStore.getState().setPageDimensionsPt({ width: sz.w, height: sz.h });
     setPageViewport((prev) =>
       Math.abs(prev.width - width) < 0.01 && Math.abs(prev.height - height) < 0.01 ? prev : { width, height }
     );
@@ -901,6 +902,9 @@ export const PdfViewer: React.FC = () => {
             setMarkupsTransient([{ ...target, leaders: initialLeaders }]);
           }
           return;
+        }
+        if (useUiStore.getState().activeCutoutTargetId) {
+          useUiStore.getState().cancelCutout();
         }
         if (polygonPoints.length > 0 || freehandPoints.length > 0 || drawingStart) {
           e.preventDefault();
@@ -1446,6 +1450,20 @@ export const PdfViewer: React.FC = () => {
       if (points.length >= 3) createCloudFromPolygon(points);
       return;
     }
+
+    const activeCutoutTargetId = useUiStore.getState().activeCutoutTargetId;
+    if (activeCutoutTargetId && points.length >= 2) {
+      const pageDimsPt = {
+        width: pageViewport.width / (scale || 1.0),
+        height: pageViewport.height / (scale || 1.0),
+      };
+      const calib = useCalibrationStore.getState().getPageCalibration(currentPageIndex);
+      useMarkupStore.getState().addCutout(activeCutoutTargetId, points, pageDimsPt, calib);
+      useUiStore.setState({ activeCutoutTargetId: null });
+      useToolStore.setState({ activeTool: 'select' });
+      return;
+    }
+
     if (!isMultiPointTool(activeTool) || points.length < minPointsFor(activeTool)) return;
 
     const pageDimsPt = {
@@ -2278,6 +2296,16 @@ export const PdfViewer: React.FC = () => {
         const unscaledH = pageViewport.height / (scale || 1.0);
         const pageDimsPt = { width: unscaledW, height: unscaledH };
         const calib = useCalibrationStore.getState().getPageCalibration(currentPageIndex);
+
+        const activeCutoutTargetId = useUiStore.getState().activeCutoutTargetId;
+        if (activeCutoutTargetId) {
+          useMarkupStore.getState().addCutout(activeCutoutTargetId, [drawingStart, currentDrawPoint], pageDimsPt, calib);
+          useUiStore.setState({ activeCutoutTargetId: null });
+          useToolStore.setState({ activeTool: 'select' });
+          setDrawingStart(null);
+          setCurrentDrawPoint(null);
+          return;
+        }
 
         let measurement: Markup['measurement'];
         let markupText: string | undefined = activeTool === 'text' ? 'Note' : undefined;

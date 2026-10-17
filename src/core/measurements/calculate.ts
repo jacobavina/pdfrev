@@ -111,7 +111,8 @@ export function calculateArea(
   points: MarkupPoint[],
   pageDimsPt: PageDimensionsPt,
   calibration: PageCalibration = DEFAULT_PAGE_CALIBRATION,
-  isRectangle = false
+  isRectangle = false,
+  cutouts?: MarkupPoint[][]
 ): MarkupMeasurement {
   if (!points || points.length < 2) {
     return {
@@ -152,6 +153,38 @@ export function calculateArea(
       perimeterPt += Math.hypot(xB - xA, yB - yA);
     }
     areaPt = Math.abs(sum) / 2;
+  }
+
+  // Si hay recortes (cutouts/huecos), restar su superficie y sumar su perímetro interior (ADR-0075)
+  if (cutouts && cutouts.length > 0) {
+    for (const c of cutouts) {
+      if (!c || c.length < 2) continue;
+      if (c.length === 2) {
+        const wPt = Math.abs(c[1].x - c[0].x) * W;
+        const hPt = Math.abs(c[1].y - c[0].y) * H;
+        const cArea = wPt * hPt;
+        const cPerim = 2 * (wPt + hPt);
+        areaPt = Math.max(0, areaPt - cArea);
+        perimeterPt += cPerim;
+      } else {
+        const cn = c.length;
+        let cSum = 0;
+        let cPerim = 0;
+        for (let i = 0; i < cn; i++) {
+          const pA = c[i];
+          const pB = c[(i + 1) % cn];
+          const xA = pA.x * W;
+          const yA = pA.y * H;
+          const xB = pB.x * W;
+          const yB = pB.y * H;
+          cSum += xA * yB - xB * yA;
+          cPerim += Math.hypot(xB - xA, yB - yA);
+        }
+        const cArea = Math.abs(cSum) / 2;
+        areaPt = Math.max(0, areaPt - cArea);
+        perimeterPt += cPerim;
+      }
+    }
   }
 
   const areaValue = areaPt;
@@ -204,15 +237,16 @@ export function calculatePerimeter(
 }
 
 /**
- * Volumen (ADR-0029, herramienta Volume): área del contorno × profundidad, en unidades cúbicas de la escala.
+ * Volumen (ADR-0029, herramienta Volume): área neta del contorno con recortes × profundidad, en unidades cúbicas de la escala.
  */
 export function calculateVolume(
   points: MarkupPoint[],
   pageDimsPt: PageDimensionsPt,
   calibration: PageCalibration = DEFAULT_PAGE_CALIBRATION,
-  depth = 1
+  depth = 1,
+  cutouts?: MarkupPoint[][]
 ): MarkupMeasurement {
-  const area = calculateArea(points, pageDimsPt, calibration, false);
+  const area = calculateArea(points, pageDimsPt, calibration, false, cutouts);
   const d = Number.isFinite(depth) && depth > 0 ? depth : 0;
   const value = area.value * d;
   const precision = calibration.precision ?? 2;

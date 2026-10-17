@@ -1118,20 +1118,45 @@ export function getMarkupSvgDescriptor(
     case 'perimeter':
     case 'volume': {
       const pts = markup.points.map((p) => normalizedToScreen(p, transform));
-      const shape: SvgRenderDescriptor = {
-        tag: 'polygon',
-        attrs: {
-          ...baseAttrs,
-          fill:
-            markup.type === 'volume'
-              ? style.fillColor && style.fillColor !== 'transparent' && style.fillColor !== 'none'
-                ? style.fillColor
-                : 'rgba(124, 58, 237, 0.15)'
-              : 'none',
-          points: pointsToSvgPointsString(markup.points, transform),
-          strokeLinejoin: 'round',
-        },
-      };
+      const volFill =
+        style.fillColor && style.fillColor !== 'transparent' && style.fillColor !== 'none'
+          ? style.fillColor
+          : 'rgba(124, 58, 237, 0.15)';
+      let shape: SvgRenderDescriptor;
+
+      if (markup.cutouts && markup.cutouts.length > 0) {
+        const outerD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ') + ' Z';
+        const cutoutsD = markup.cutouts.map((c) => {
+          if (c.length === 2) {
+            const cp1 = normalizedToScreen(c[0], transform);
+            const cp2 = normalizedToScreen(c[1], transform);
+            const cr = getRectGeometry(cp1, cp2);
+            return `M ${cr.x.toFixed(2)} ${cr.y.toFixed(2)} L ${(cr.x + cr.width).toFixed(2)} ${cr.y.toFixed(2)} L ${(cr.x + cr.width).toFixed(2)} ${(cr.y + cr.height).toFixed(2)} L ${cr.x.toFixed(2)} ${(cr.y + cr.height).toFixed(2)} Z`;
+          }
+          const cPts = c.map((p) => normalizedToScreen(p, transform));
+          return cPts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ') + ' Z';
+        }).join(' ');
+        shape = {
+          tag: 'path',
+          attrs: {
+            ...baseAttrs,
+            d: `${outerD} ${cutoutsD}`,
+            fillRule: 'evenodd',
+            fill: volFill,
+            strokeLinejoin: 'round',
+          },
+        };
+      } else {
+        shape = {
+          tag: 'polygon',
+          attrs: {
+            ...baseAttrs,
+            fill: volFill,
+            points: pointsToSvgPointsString(markup.points, transform),
+            strokeLinejoin: 'round',
+          },
+        };
+      }
       const label = measureLabelText(markup, markup.measurement?.formatted || markup.text || '');
       const showLabel = !transform.hideMeasureLabels && Boolean(label);
       return {
@@ -1285,8 +1310,41 @@ export function getMarkupSvgDescriptor(
     case 'area': {
       let shapeDesc: SvgRenderDescriptor;
       let centerPt: { x: number; y: number };
+      const areaFill = style.fillColor || 'rgba(59, 130, 246, 0.25)';
 
-      if (markup.points.length <= 2) {
+      if (markup.cutouts && markup.cutouts.length > 0) {
+        let outerD = '';
+        if (markup.points.length <= 2) {
+          const rect = getRectGeometry(p1Screen, p2Screen);
+          outerD = `M ${rect.x.toFixed(2)} ${rect.y.toFixed(2)} L ${(rect.x + rect.width).toFixed(2)} ${rect.y.toFixed(2)} L ${(rect.x + rect.width).toFixed(2)} ${(rect.y + rect.height).toFixed(2)} L ${rect.x.toFixed(2)} ${(rect.y + rect.height).toFixed(2)} Z`;
+          centerPt = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+        } else {
+          const screenPts = markup.points.map((p) => normalizedToScreen(p, transform));
+          outerD = screenPts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ') + ' Z';
+          centerPt = verticesCenter(screenPts);
+        }
+
+        const cutoutsD = markup.cutouts.map((c) => {
+          if (c.length === 2) {
+            const cp1 = normalizedToScreen(c[0], transform);
+            const cp2 = normalizedToScreen(c[1], transform);
+            const cr = getRectGeometry(cp1, cp2);
+            return `M ${cr.x.toFixed(2)} ${cr.y.toFixed(2)} L ${(cr.x + cr.width).toFixed(2)} ${cr.y.toFixed(2)} L ${(cr.x + cr.width).toFixed(2)} ${(cr.y + cr.height).toFixed(2)} L ${cr.x.toFixed(2)} ${(cr.y + cr.height).toFixed(2)} Z`;
+          }
+          const cPts = c.map((p) => normalizedToScreen(p, transform));
+          return cPts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ') + ' Z';
+        }).join(' ');
+
+        shapeDesc = {
+          tag: 'path',
+          attrs: {
+            ...baseAttrs,
+            d: `${outerD} ${cutoutsD}`,
+            fillRule: 'evenodd',
+            fill: areaFill,
+          },
+        };
+      } else if (markup.points.length <= 2) {
         const rect = getRectGeometry(p1Screen, p2Screen);
         shapeDesc = {
           tag: 'rect',
@@ -1296,7 +1354,7 @@ export function getMarkupSvgDescriptor(
             y: rect.y,
             width: rect.width,
             height: rect.height,
-            fill: style.fillColor || 'rgba(59, 130, 246, 0.25)',
+            fill: areaFill,
           },
         };
         centerPt = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
@@ -1306,7 +1364,7 @@ export function getMarkupSvgDescriptor(
           attrs: {
             ...baseAttrs,
             points: pointsToSvgPointsString(markup.points, transform),
-            fill: style.fillColor || 'rgba(59, 130, 246, 0.25)',
+            fill: areaFill,
           },
         };
         centerPt = verticesCenter(markup.points.map((p) => normalizedToScreen(p, transform)));

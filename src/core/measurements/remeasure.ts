@@ -47,13 +47,13 @@ export function remeasureMarkup(
       measurement = calculatePolylineLength(points, dims, calib);
       break;
     case 'area':
-      if (points.length >= 3) measurement = calculateArea(points, dims, calib, false);
+      if (points.length >= 2) measurement = calculateArea(points, dims, calib, points.length === 2, original.cutouts);
       break;
     case 'perimeter':
       measurement = calculatePerimeter(points, dims, calib);
       break;
     case 'volume':
-      measurement = calculateVolume(points, dims, calib, Number(original.customFields?.volumeDepth ?? 1));
+      measurement = calculateVolume(points, dims, calib, Number(original.customFields?.volumeDepth ?? 1), original.cutouts);
       break;
     case 'angle':
       measurement = calculateAngle(points, dims, calib);

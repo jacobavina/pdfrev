@@ -82,7 +82,7 @@
 | Calibración de escala | ✅ ADR-0015 (c622016) + ADR-0025 (444000d) + ADR-0031 (4b57d21) · PARITY «Escala de página guardada en el PDF (/VP /Measure)…», «Escalas de Revu/Acrobat leídas al abrir», «Calibrate por dos puntos…» y «Calibrar recalcula las mediciones existentes…» | — | **M** | K |
 | Escalas múltiples por hoja (viewports) | 🟡 Calibración por página ✅ (ADR-0015); varias escalas por hoja (viewports) ⬜ | P4-A.3 | M | K |
 | Longitud / polilínea | ✅ ADR-0015 (c622016) · PARITY «Medición de área por polígono con perímetro…», «Perimeter (Shift+Alt+P)…», «Distancia en tres pasos como Acrobat…» y «Medir con clic-clic…» | — | **M** | K |
-| Perímetro y área (con recortes) | 🟡 Perímetro y área ✅ ADR-0015/0029 (c622016/eec83fa) · PARITY «Medición de área por polígono con perímetro…» y «Perimeter (Shift+Alt+P)…»; recortes (cutouts) ⬜ | P4-B.2 | **M** | K |
+| Perímetro y área (con recortes) | ✅ ADR-0015/0029/0075 · PARITY «Medición de área por polígono con perímetro…», «Perimeter (Shift+Alt+P)…» y «Medición de área y volumen con recortes (cutouts)» | — | **M** | K |
 | Conteo por símbolo/Subject | ✅ ADR-0015 (c622016) + ADR-0059 (72aae8c) + ADR-0063 (84d9381) · PARITY «Count de Revu: símbolos…», «Count guardado como /Polygon /PolygonCount…» y «Count: cada símbolo con su tirador…» | — | **M** | K |
 | Ángulo, radio, diámetro | ✅ ADR-0029 (eec83fa) + ADR-0051 (784e12f) · PARITY «Angle (Shift+Alt+G)…», «Radius (Shift+Alt+R) y Diameter (Shift+Alt+D)» y «Volumen, ángulo, conteo, radio y diámetro con las claves de Revu (ADR-0051)» | — | S | K |
 | Volumen / profundidad | ✅ ADR-0029 (eec83fa) · PARITY «Volume (Shift+Alt+V)…» | — | S | K |
@@ -236,7 +236,7 @@ a ✅ si su fila de PARITY o su test existe y pasa; si la capacidad está en el 
 | 1.4 Calibración | ⬜ | ✅ | ADR-0015 (c622016), ADR-0025 (444000d) y ADR-0031 (4b57d21); PARITY «Escala de página guardada en el PDF (/VP /Measure)…», «Escalas de Revu/Acrobat leídas al abrir», «Calibrate por dos puntos…», «Calibrar recalcula las mediciones existentes…»; E2E ok 23 |
 | 1.4 Escalas múltiples por hoja | ⬜ | 🟡 | Calibración por página ✅ (ADR-0015); viewports por hoja sin código |
 | 1.4 Longitud / polilínea | ⬜ | ✅ | ADR-0015 (c622016); PARITY «Medición de área por polígono con perímetro…», «Perimeter (Shift+Alt+P)…», «Distancia en tres pasos como Acrobat…», «Medir con clic-clic…» |
-| 1.4 Perímetro y área (con recortes) | ⬜ | 🟡 | Perímetro/área ✅ (ADR-0015/0029, PARITY «Medición de área por polígono…» y «Perimeter (Shift+Alt+P)…»); recortes sin código |
+| 1.4 Perímetro y área (con recortes) | ⬜ | ✅ | Perímetro/área ✅ (ADR-0015/0029, PARITY «Medición de área por polígono…» y «Perimeter (Shift+Alt+P)…»); recortes (cutouts) ✅ (ADR-0075, Hito B.1) |
 | 1.4 Conteo por símbolo/Subject | ⬜ | ✅ | ADR-0015 (c622016), ADR-0059 (72aae8c) y ADR-0063 (84d9381); PARITY «Count de Revu: símbolos…», «Count guardado como /Polygon /PolygonCount…», «Count: cada símbolo con su tirador…» |
 | 1.4 Ángulo, radio, diámetro | ⬜ | ✅ | ADR-0029 (eec83fa) y ADR-0051 (784e12f); PARITY «Angle (Shift+Alt+G)…», «Radius (Shift+Alt+R) y Diameter (Shift+Alt+D)», «Volumen, ángulo, conteo, radio y diámetro con las claves de Revu (ADR-0051)» |
 | 1.4 Volumen / profundidad | ⬜ | ✅ | ADR-0029 (eec83fa); PARITY «Volume (Shift+Alt+V)…» |

@@ -13,6 +13,9 @@ import {
 } from 'lucide-react';
 import { useMarkupStore } from '../../store/useMarkupStore';
 import { useUiStore } from '../../store/useUiStore';
+import { useToolStore } from '../../store/useToolStore';
+import { useCalibrationStore } from '../../store/useCalibrationStore';
+import { DEFAULT_PAGE_CALIBRATION } from '../../core/measurements/calculate';
 import { MarkupStatus, VALID_MARKUP_STATUSES } from '../../types/markup';
 import { markupTypeLabel } from '../../core/markup/typeLabels';
 import {
@@ -129,6 +132,34 @@ export const CanvasContextMenu: React.FC<{ x: number; y: number; onClose: () => 
         'Reply…',
         () => useUiStore.getState().requestReply(first.id),
         { disabled: Boolean(first.locked) }
+      )}
+      {selected.length === 1 && (first.type === 'area' || first.type === 'volume') && (
+        <>
+          <div className="my-1 border-t border-cad-border" />
+          <div className="px-3 py-0.5 text-2xs uppercase tracking-wider text-gray-500">Cutout</div>
+          {item(
+            'canvas-menu-add-cutout',
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>,
+            'Add Cutout',
+            () => {
+              useUiStore.getState().startCutout(first.id);
+              useToolStore.getState().setActiveTool('area');
+            },
+            { disabled: Boolean(first.locked) }
+          )}
+          {first.cutouts && first.cutouts.length > 0 &&
+            item(
+              'canvas-menu-clear-cutouts',
+              <Trash2 size={16} />,
+              `Clear Cutouts (${first.cutouts.length})`,
+              () => {
+                const dims = useUiStore.getState().pageDimensionsPt ?? { width: 612, height: 792 };
+                const cal = useCalibrationStore.getState().calibrations[first.pageIndex] ?? DEFAULT_PAGE_CALIBRATION;
+                useMarkupStore.getState().clearCutouts(first.id, dims, cal);
+              },
+              { danger: true, disabled: Boolean(first.locked) }
+            )}
+        </>
       )}
       <div className="my-1 border-t border-cad-border" />
       <div className="px-3 py-0.5 text-2xs uppercase tracking-wider text-gray-500">Status</div>

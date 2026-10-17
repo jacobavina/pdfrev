@@ -102,6 +102,7 @@ export function handleSelectMouseDown({
       ...m,
       points: m.points.map((p) => ({ ...p })),
       leaders: m.leaders ? m.leaders.map((lead) => lead.map((p) => ({ ...p }))) : undefined,
+      cutouts: m.cutouts ? m.cutouts.map((ring) => ring.map((p) => ({ ...p }))) : undefined,
     })),
     hasMovedPastThreshold: false,
   };
@@ -260,6 +261,10 @@ export function handleSelectMouseUp({
           ? m.leaders.map((lead) => lead.map((p) => ({ ...p })))
           : undefined,
         newLeaders: moved.leaders,
+        originalCutouts: m.cutouts
+          ? m.cutouts.map((ring) => ring.map((p) => ({ ...p })))
+          : undefined,
+        newCutouts: moved.cutouts,
       };
     });
     return { moves };

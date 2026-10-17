@@ -87,6 +87,12 @@ function translateMarkup(markup: Markup, dx: number, dy: number): MoveMarkupItem
           newLeaders: markup.leaders.map((l) => l.map(shiftPt)),
         }
       : {}),
+    ...(markup.cutouts
+      ? {
+          originalCutouts: markup.cutouts.map((c) => c.map((p) => ({ ...p }))),
+          newCutouts: markup.cutouts.map((c) => c.map(shiftPt)),
+        }
+      : {}),
   };
 }
 
@@ -225,6 +231,7 @@ export function flipMarkups(markups: Markup[], axis: FlipAxis): MoveMarkupItem[]
       ];
     }
     const newLeaders = m.leaders ? m.leaders.map((l) => l.map(reflectPt)) : undefined;
+    const newCutouts = m.cutouts ? m.cutouts.map((c) => c.map(reflectPt)) : undefined;
 
     const changed =
       newPoints.some((p, i) => Math.abs(p.x - m.points[i].x) > 1e-9 || Math.abs(p.y - m.points[i].y) > 1e-9) ||
@@ -232,6 +239,11 @@ export function flipMarkups(markups: Markup[], axis: FlipAxis): MoveMarkupItem[]
         m.leaders &&
         newLeaders.some((l, li) =>
           l.some((p, pi) => Math.abs(p.x - m.leaders![li][pi].x) > 1e-9 || Math.abs(p.y - m.leaders![li][pi].y) > 1e-9)
+        )) ||
+      (newCutouts &&
+        m.cutouts &&
+        newCutouts.some((c, ci) =>
+          c.some((p, pi) => Math.abs(p.x - m.cutouts![ci][pi].x) > 1e-9 || Math.abs(p.y - m.cutouts![ci][pi].y) > 1e-9)
         ));
 
     if (changed) {
@@ -243,6 +255,12 @@ export function flipMarkups(markups: Markup[], axis: FlipAxis): MoveMarkupItem[]
           ? {
               originalLeaders: m.leaders.map((l) => l.map((p) => ({ ...p }))),
               newLeaders,
+            }
+          : {}),
+        ...(m.cutouts
+          ? {
+              originalCutouts: m.cutouts.map((c) => c.map((p) => ({ ...p }))),
+              newCutouts,
             }
           : {}),
       });

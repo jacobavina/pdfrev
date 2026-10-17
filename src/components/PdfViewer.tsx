@@ -110,6 +110,8 @@ interface PdfLinkArea {
 const CalibrationModal = lazy(() => import('./CalibrationModal').then((m) => ({ default: m.CalibrationModal })));
 // Overlay Pages (ADR-0038): solo se descarga al comparar
 const OverlayCanvas = lazy(() => import('./viewer/OverlayCanvas'));
+// Pantalla de bienvenida con zona de drop y recientes (ADR-0087)
+const WelcomeCanvas = lazy(() => import('./viewer/WelcomeCanvas').then((m) => ({ default: m.WelcomeCanvas })));
 
 /** Herramientas que usan snap al dibujar o medir (ADR-0025). */
 /**
@@ -4193,10 +4195,9 @@ export const PdfViewer: React.FC = () => {
       )}
 
       {!pdfBytes && !isLoading && !error && (
-        <div className="m-auto text-center text-white/90">
-          <p className="text-lg font-semibold mb-1">No document open</p>
-          <p className="text-xs">Use File → Open PDF (Ctrl+O) or the Open button on the ribbon</p>
-        </div>
+        <Suspense fallback={null}>
+          <WelcomeCanvas />
+        </Suspense>
       )}
 
       {pdfBytes && (

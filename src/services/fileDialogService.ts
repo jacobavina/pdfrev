@@ -117,9 +117,10 @@ export async function loadPdfData(
   const { setDocument, setError, setCustomColumns } = useDocumentStore.getState();
   const { setMarkups } = useMarkupStore.getState();
 
+  let numPages = 1;
   try {
     const pdfDoc = await loadPdfDocument(bytes);
-    const numPages = pdfDoc.numPages;
+    numPages = pdfDoc.numPages;
 
     setDocument(filePath, fileName, bytes, numPages, pdfDoc);
 
@@ -240,6 +241,50 @@ export async function loadPdfData(
     }
   } catch (tabsErr) {
     console.warn('[Tabs] No se pudo registrar la pestaña:', tabsErr);
+  }
+
+  // Registrar en historial de archivos recientes (ADR-0087)
+  if (filePath) {
+    try {
+      const { addRecentFile } = await import('./recentFilesService');
+      addRecentFile({ path: filePath, name: fileName, pageCount: numPages });
+    } catch (recentErr) {
+      console.warn('[RecentFiles] No se pudo registrar archivo reciente:', recentErr);
+    }
+  }
+}
+
+/**
+ * Abre un archivo PDF directamente desde una ruta de archivo conocida (recientes, CLI, etc.)
+ */
+export async function openPdfFromPath(filePath: string): Promise<void> {
+  const { setLoading, setError } = useDocumentStore.getState();
+  const normalizedPath = filePath.replace(/\\/g, '/');
+  const fileName = normalizedPath.split('/').pop() || 'document.pdf';
+  setLoading(true);
+
+  try {
+    let bytes: Uint8Array;
+    if (isTauriEnvironment()) {
+      const { readFile } = await import('@tauri-apps/plugin-fs');
+      bytes = await readFile(filePath);
+    } else {
+      const response = await fetch(filePath);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      const buffer = await response.arrayBuffer();
+      bytes = new Uint8Array(buffer);
+    }
+
+    await loadPdfData(filePath, fileName, bytes);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[FileDialog] No se pudo abrir el archivo desde la ruta ${filePath}:`, err);
+    setError(`Could not open file: ${message}`);
+    showToast(`Could not open file "${fileName}": ${message}`);
+  } finally {
+    setLoading(false);
   }
 }
 

@@ -17,6 +17,7 @@ import {
   Lock,
   Trash2,
   BoxSelect,
+  Clock,
   ZoomIn,
   ZoomOut,
   RotateCw,
@@ -79,7 +80,8 @@ import { useUiStore } from '../../store/useUiStore';
 import { QuickAccessToolbar } from './QuickAccessToolbar';
 import { RibbonTabs } from './Ribbon';
 import { useCalibrationStore } from '../../store/useCalibrationStore';
-import { openPdfDialog } from '../../services/fileDialogService';
+import { openPdfDialog, openPdfFromPath } from '../../services/fileDialogService';
+import { getRecentFiles, clearRecentFiles, subscribeRecentFiles, RecentFile } from '../../services/recentFilesService';
 import { useAutoSave } from '../../hooks/useAutoSave';
 import { TOOL_GROUPS } from './toolDefinitions';
 import { exportFlattenedPdf, goToPage, runPageOperation, selectAllOnCurrentPage } from './appActions';
@@ -94,6 +96,7 @@ type MenuEntry =
       disabled?: boolean;
       checked?: boolean;
       testId?: string;
+      title?: string;
       /** Ícono a la izquierda (ADR-0023); si la entrada está activa, el ícono se resalta como en Revu. */
       icon?: React.ReactNode;
     }
@@ -186,12 +189,50 @@ export const MenuBar: React.FC = () => {
     disabled: !hasDoc,
   });
 
+  const [recentFiles, setRecentFiles] = useState<RecentFile[]>(() => getRecentFiles());
+  useEffect(() => subscribeRecentFiles((files) => setRecentFiles(files)), []);
+
+  const recentMenuEntries: MenuEntry[] =
+    recentFiles.length === 0
+      ? [
+          {
+            label: 'No Recent Files',
+            disabled: true,
+            testId: 'menu-recent-empty',
+          },
+        ]
+      : [
+          ...recentFiles.map((rf, idx): MenuEntry => ({
+            label: rf.name + (rf.pageCount ? ` (${rf.pageCount} pgs)` : ''),
+            title: rf.path,
+            testId: `menu-recent-item-${idx}`,
+            onSelect: () => {
+              void openPdfFromPath(rf.path);
+            },
+          })),
+          'separator',
+          {
+            icon: <Trash2 size={16} />,
+            label: 'Clear Recent Files',
+            testId: 'menu-clear-recent',
+            onSelect: () => {
+              clearRecentFiles();
+            },
+          },
+        ];
+
   const menus: MenuDef[] = [
     {
       id: 'archivo',
       label: 'File',
       entries: [
         { icon: <FolderOpen size={16} />, label: 'Open PDF…', shortcut: 'Ctrl+O', onSelect: () => openPdfDialog(), testId: 'menu-open' },
+        {
+          icon: <Clock size={16} />,
+          label: 'Open Recent',
+          testId: 'menu-open-recent',
+          submenu: recentMenuEntries,
+        },
         { icon: <Layers size={16} />, label: 'Combine Files…', onSelect: () => setCombineModalOpen(true), testId: 'menu-combine-files' },
         {
           icon: <Save size={16} />,
@@ -599,6 +640,7 @@ export const MenuBar: React.FC = () => {
                                 type="button"
                                 role="menuitem"
                                 data-testid={sub.testId}
+                                title={sub.title}
                                 disabled={sub.disabled}
                                 onClick={() => {
                                   setOpenMenu(null);
@@ -630,6 +672,7 @@ export const MenuBar: React.FC = () => {
                       type="button"
                       role="menuitem"
                       data-testid={entry.testId}
+                      title={entry.title}
                       disabled={entry.disabled}
                       onMouseEnter={() => setOpenSub(null)}
                       onClick={() => {

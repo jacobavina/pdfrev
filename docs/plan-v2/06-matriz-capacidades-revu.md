@@ -19,7 +19,7 @@
 | Capacidad | REA hoy | Fase / hito | Prio. | Público |
 |---|---|---|---|---|
 | Abrir PDF desde diálogo | ✅ ADR-0017 (5319ddd) · `src/services/fileDialogService.test.ts` (9 tests) y E2E de carga del fixture | — | M | K I |
-| Abrir desde el Explorador ("Abrir con", argumentos), recientes | ⬜ (sin recientes de archivos; solo de herramientas en Tool Chest) | P5-B.6 | M | K I |
+| Abrir desde el Explorador ("Abrir con", argumentos), recientes | ✅ ADR-0087 · `get_startup_file_arg` en Tauri + `recentFilesService` + `WelcomeCanvas` · PARITY «Archivos Recientes en Menú y Pantalla Inicial… (ADR-0087)» · `src/services/recentFilesService.test.ts` (5) y `RecentFilesFlow.test.tsx` (9) | — | M | K I |
 | Zoom, rotación de vista | ✅ ADR-0019/0023/0086 · PARITY «Zoom a Ventana (tecla Z), Rotación de Vista 90° y Etiquetas de Página (/PageLabels) (ADR-0086)» · `src/components/ZoomWindowAndRotation.test.tsx` (6 tests) | — | M | K I |
 | Mano, ajustar a ancho/página, zoom a ventana | ✅ ADR-0019/0052/0086 · Pan ✅ ADR-0052 (4c6f951) · PARITY «Pan: arrastrar, Espacio mantenido…»; ajustar a ancho/página ✅ ADR-0019 (28f3240); zoom a ventana con atajo Z y encuadre por arrastre ✅ ADR-0086 (`ZoomWindowAndRotation.test.tsx`) | — | M | K I |
 | Vista continua multipágina | ✅ ADR-0019 (28f3240) · PARITY «Vista continua, ajustar a página/ancho, Ctrl+rueda, cota (Shift+L), puntos de control y zoom con doble clic (ADR-0019/0020/0021)» | — | M | K I |

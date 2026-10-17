@@ -248,6 +248,26 @@ fn open_url(url: String) -> Result<(), String> {
   result.map(|_| ()).map_err(|e| format!("No se pudo abrir el enlace: {}", e))
 }
 
+/// Obtiene el argumento de archivo .pdf pasado en el arranque ("Abrir con" o CLI, ADR-0087)
+#[tauri::command]
+fn get_startup_file_arg() -> Option<String> {
+  std::env::args().skip(1).find_map(|arg| {
+    let lower = arg.to_lowercase();
+    if lower.ends_with(".pdf") {
+      let p = Path::new(&arg);
+      if p.exists() {
+        if let Ok(abs) = std::fs::canonicalize(p) {
+          let path_str = abs.to_string_lossy().to_string();
+          let clean = path_str.strip_prefix(r"\\?\").unwrap_or(&path_str).to_string();
+          return Some(clean);
+        }
+        return Some(arg);
+      }
+    }
+    None
+  })
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -438,6 +458,11 @@ mod tests {
     let _ = fs::remove_file(&file_path);
     let _ = fs::remove_file(backup_path);
   }
+
+  #[test]
+  fn test_get_startup_file_arg_executes_safely() {
+    let _ = get_startup_file_arg();
+  }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -455,7 +480,7 @@ pub fn run() {
     })
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_fs::init())
-    .invoke_handler(tauri::generate_handler![write_bbx, read_bbx, save_export_file, save_pdf, open_url])
+    .invoke_handler(tauri::generate_handler![write_bbx, read_bbx, save_export_file, save_pdf, open_url, get_startup_file_arg])
     .run(tauri::generate_context!())
     .expect("error while building tauri application");
 }

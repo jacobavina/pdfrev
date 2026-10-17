@@ -15,6 +15,7 @@ import { useUiStore } from './store/useUiStore';
 import { useOverlayStore } from './store/useOverlayStore';
 import { useAutoSave } from './hooks/useAutoSave';
 import { loadPdfData, openPdfDialog } from './services/fileDialogService';
+import { isTauriEnvironment } from './services/bbxPersistenceService';
 
 // Paneles y diálogos que no hacen falta para el primer render: se cargan aparte (bundle principal ≤ 800 kB)
 const MeasurementsPanel = lazy(() =>
@@ -114,10 +115,25 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [saveNow]);
 
-  // Carga automática inicial del plano de calibración para desarrollo y E2E
+  // Carga inicial: si se pasa un archivo en el arranque ("Abrir con" o CLI, ADR-0087), se abre;
+  // si no, se carga el plano de calibración para desarrollo y E2E
   useEffect(() => {
     async function loadInitialFixture() {
       if (pdfBytes) return;
+
+      if (isTauriEnvironment()) {
+        try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          const startupFile = await invoke<string | null>('get_startup_file_arg');
+          if (startupFile) {
+            const { openPdfFromPath } = await import('./services/fileDialogService');
+            await openPdfFromPath(startupFile);
+            return;
+          }
+        } catch (tauriErr) {
+          console.warn('[Startup] Error consultando argumento de arranque:', tauriErr);
+        }
+      }
 
       try {
         setLoading(true);

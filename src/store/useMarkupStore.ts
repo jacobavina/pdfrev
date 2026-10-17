@@ -1,6 +1,14 @@
 import { v4 as uuidv4 } from 'uuid';
 import { create } from 'zustand';
-import { Markup, MarkupPoint, MarkupStatus, MarkupStyle, MarkupTextFormat } from '../types/markup';
+import {
+  Markup,
+  MarkupPoint,
+  MarkupReply,
+  MarkupStatus,
+  MarkupStatusTransition,
+  MarkupStyle,
+  MarkupTextFormat,
+} from '../types/markup';
 import { Command, HistoryManager } from './history/command';
 import { DEFAULT_CLOUD_STEP } from '../core/markup/revisionCloud';
 import { dashArrayFor, LineStyleId } from '../core/markup/lineStyles';
@@ -47,6 +55,13 @@ interface MarkupState {
     description?: string
   ) => void;
   updateMarkupStatus: (id: string, status: MarkupStatus) => void;
+  /** Respuestas en hilo (/IRT, /RT /R) con comando deshacible (ADR-0071). */
+  addMarkupReply: (
+    markupId: string,
+    reply: string | { text: string; author?: string; id?: string; createdAt?: string }
+  ) => string | null;
+  updateMarkupReply: (markupId: string, replyId: string, text: string) => void;
+  deleteMarkupReply: (markupId: string, replyId: string) => void;
   deleteMarkup: (id: string) => void;
   deleteSelectedMarkups: () => void;
   selectMarkup: (id: string, multi?: boolean) => void;
@@ -332,6 +347,13 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
         id: m.id,
         previousStatus: m.status,
       }));
+      const prevStatusMap = new Map(targets.map((t) => [t.id, t.previousStatus]));
+      const prevHistoryMap = new Map<string, MarkupStatusTransition[] | undefined>(
+        targetsToUpdate.map((m) => [
+          m.id,
+          m.statusHistory ? m.statusHistory.map((h) => ({ ...h })) : undefined,
+        ])
+      );
 
       const now = new Date().toISOString();
       const desc =
@@ -348,9 +370,31 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
             markups: state.markups.map((m) => {
               const newSt = statusMap.get(m.id);
               if (!newSt) return m;
+              const isUndo = newSt === prevStatusMap.get(m.id) && m.status === status && newSt !== status;
+              if (isUndo) {
+                const restoredHistory = prevHistoryMap.get(m.id);
+                const next: Markup = {
+                  ...m,
+                  status: newSt,
+                  updatedAt: now,
+                };
+                if (restoredHistory) next.statusHistory = restoredHistory.map((h) => ({ ...h }));
+                else delete next.statusHistory;
+                return next;
+              }
+              const baseHistory: MarkupStatusTransition[] = m.statusHistory
+                ? m.statusHistory.map((h) => ({ ...h }))
+                : m.status !== 'pending'
+                ? [{ status: m.status, author: m.author || 'Reviewer', createdAt: m.updatedAt || m.createdAt }]
+                : [];
+              const nextHistory = [
+                ...baseHistory,
+                { status: newSt, author: m.author || 'Reviewer', createdAt: now },
+              ];
               return {
                 ...m,
                 status: newSt,
+                ...(nextHistory.length > 1 ? { statusHistory: nextHistory } : {}),
                 updatedAt: now,
               };
             }),
@@ -359,6 +403,164 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
         },
         desc
       );
+
+      markupHistory.execute(command);
+      syncHistoryFlags();
+    },
+
+    addMarkupReply: (markupId, replyInput) => {
+      const current = get().markups.find((m) => m.id === markupId);
+      if (!current || current.locked) return null;
+      const normalized = typeof replyInput === 'string' ? { text: replyInput } : replyInput;
+      const trimmed = normalized.text.trim();
+      if (!trimmed) return null;
+
+      const now = normalized.createdAt || new Date().toISOString();
+      const replyId = normalized.id || uuidv4();
+      const newReply: MarkupReply = {
+        id: replyId,
+        author: (normalized.author && normalized.author.trim()) || current.author || 'Reviewer',
+        text: trimmed,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const prevReplies = current.replies ? current.replies.map((r) => ({ ...r })) : undefined;
+      const prevUpdatedAt = current.updatedAt;
+
+      const command: Command = {
+        description: `Reply to ${current.type}`,
+        execute: () => {
+          set((state) => ({
+            markups: state.markups.map((m) =>
+              m.id === markupId
+                ? {
+                    ...m,
+                    replies: [...(m.replies ? m.replies.map((r) => ({ ...r })) : []), { ...newReply }],
+                    updatedAt: now,
+                  }
+                : m
+            ),
+            isDirty: true,
+          }));
+        },
+        undo: () => {
+          set((state) => ({
+            markups: state.markups.map((m) => {
+              if (m.id !== markupId) return m;
+              const restored: Markup = {
+                ...m,
+                updatedAt: prevUpdatedAt,
+              };
+              if (prevReplies && prevReplies.length > 0) {
+                restored.replies = prevReplies.map((r) => ({ ...r }));
+              } else {
+                delete restored.replies;
+              }
+              return restored;
+            }),
+            isDirty: true,
+          }));
+        },
+      };
+
+      markupHistory.execute(command);
+      syncHistoryFlags();
+      return replyId;
+    },
+
+    updateMarkupReply: (markupId, replyId, text) => {
+      const current = get().markups.find((m) => m.id === markupId);
+      if (!current || current.locked || !current.replies) return;
+      const targetReply = current.replies.find((r) => r.id === replyId);
+      if (!targetReply || targetReply.text === text) return;
+
+      const prevText = targetReply.text;
+      const prevReplyUpdatedAt = targetReply.updatedAt;
+      const prevMarkupUpdatedAt = current.updatedAt;
+      const now = new Date().toISOString();
+
+      const command: Command = {
+        description: `Edit reply on ${current.type}`,
+        execute: () => {
+          set((state) => ({
+            markups: state.markups.map((m) =>
+              m.id === markupId && m.replies
+                ? {
+                    ...m,
+                    replies: m.replies.map((r) =>
+                      r.id === replyId ? { ...r, text, updatedAt: now } : { ...r }
+                    ),
+                    updatedAt: now,
+                  }
+                : m
+            ),
+            isDirty: true,
+          }));
+        },
+        undo: () => {
+          set((state) => ({
+            markups: state.markups.map((m) =>
+              m.id === markupId && m.replies
+                ? {
+                    ...m,
+                    replies: m.replies.map((r) =>
+                      r.id === replyId ? { ...r, text: prevText, updatedAt: prevReplyUpdatedAt } : { ...r }
+                    ),
+                    updatedAt: prevMarkupUpdatedAt,
+                  }
+                : m
+            ),
+            isDirty: true,
+          }));
+        },
+      };
+
+      markupHistory.execute(command);
+      syncHistoryFlags();
+    },
+
+    deleteMarkupReply: (markupId, replyId) => {
+      const current = get().markups.find((m) => m.id === markupId);
+      if (!current || current.locked || !current.replies) return;
+      if (!current.replies.some((r) => r.id === replyId)) return;
+
+      const prevReplies = current.replies.map((r) => ({ ...r }));
+      const prevMarkupUpdatedAt = current.updatedAt;
+      const now = new Date().toISOString();
+
+      const command: Command = {
+        description: `Delete reply on ${current.type}`,
+        execute: () => {
+          set((state) => ({
+            markups: state.markups.map((m) => {
+              if (m.id !== markupId || !m.replies) return m;
+              const remaining = m.replies.filter((r) => r.id !== replyId).map((r) => ({ ...r }));
+              const next: Markup = {
+                ...m,
+                updatedAt: now,
+              };
+              if (remaining.length > 0) next.replies = remaining;
+              else delete next.replies;
+              return next;
+            }),
+            isDirty: true,
+          }));
+        },
+        undo: () => {
+          set((state) => ({
+            markups: state.markups.map((m) =>
+              m.id === markupId
+                ? {
+                    ...m,
+                    replies: prevReplies.map((r) => ({ ...r })),
+                    updatedAt: prevMarkupUpdatedAt,
+                  }
+                : m
+            ),
+            isDirty: true,
+          }));
+        },
+      };
 
       markupHistory.execute(command);
       syncHistoryFlags();

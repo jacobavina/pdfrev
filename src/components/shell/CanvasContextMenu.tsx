@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { SlidersHorizontal, Copy, CopyPlus, Lock, LockOpen, Trash2, Check } from 'lucide-react';
+import { SlidersHorizontal, Reply, Copy, CopyPlus, Lock, LockOpen, Trash2, Check } from 'lucide-react';
 import { useMarkupStore } from '../../store/useMarkupStore';
 import { useUiStore } from '../../store/useUiStore';
 import { MarkupStatus, VALID_MARKUP_STATUSES } from '../../types/markup';
@@ -52,7 +52,7 @@ export const CanvasContextMenu: React.FC<{ x: number; y: number; onClose: () => 
 
   // Mantener el menú dentro de la ventana
   const left = Math.min(x, window.innerWidth - 230);
-  const top = Math.min(y, window.innerHeight - 330);
+  const top = Math.min(y, window.innerHeight - 360);
 
   const item = (
     testId: string,
@@ -93,6 +93,13 @@ export const CanvasContextMenu: React.FC<{ x: number; y: number; onClose: () => 
       </div>
       {item('canvas-menu-properties', <SlidersHorizontal size={16} />, 'Properties', () =>
         useUiStore.getState().requestPropertiesPanel()
+      )}
+      {item(
+        'canvas-menu-reply',
+        <Reply size={16} />,
+        'Reply…',
+        () => useUiStore.getState().requestReply(first.id),
+        { disabled: Boolean(first.locked) }
       )}
       <div className="my-1 border-t border-cad-border" />
       <div className="px-3 py-0.5 text-2xs uppercase tracking-wider text-gray-500">Status</div>

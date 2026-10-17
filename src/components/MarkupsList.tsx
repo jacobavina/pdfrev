@@ -29,6 +29,7 @@ import {
   Link2,
   Paperclip,
   FormInput,
+  Reply,
 } from 'lucide-react';
 import {
   RectangleToolIcon,
@@ -227,6 +228,9 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
     updateMarkup,
     updateMarkupCustomField,
     toggleLockSelectedMarkups,
+    addMarkupReply,
+    updateMarkupReply,
+    deleteMarkupReply,
   } = useMarkupStore();
 
   const {
@@ -628,15 +632,71 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exportRequest]);
 
+  // Estado de plegado de hilos de respuestas por id de marca y compositor inline de nueva respuesta (ADR-0071)
+  const [collapsedReplies, setCollapsedReplies] = useState<Set<string>>(() => new Set());
+  const [replyingToMarkupId, setReplyingToMarkupId] = useState<string | null>(null);
+  const [replyDraftText, setReplyDraftText] = useState('');
+
+  const toggleReplies = (markupId: string) =>
+    setCollapsedReplies((prev) => {
+      const next = new Set(prev);
+      if (next.has(markupId)) next.delete(markupId);
+      else next.add(markupId);
+      return next;
+    });
+
+  const openReplyComposer = (markupId: string) => {
+    setCollapsedReplies((prev) => {
+      const next = new Set(prev);
+      next.delete(markupId);
+      return next;
+    });
+    setReplyingToMarkupId(markupId);
+    setReplyDraftText('');
+  };
+
+  const submitReply = (markupId: string) => {
+    const trimmed = replyDraftText.trim();
+    if (!trimmed) return;
+    addMarkupReply(markupId, trimmed);
+    setReplyingToMarkupId(null);
+    setReplyDraftText('');
+  };
+
+  const replyRequest = useUiStore((s) => s.replyRequest);
+  const lastReplySeq = React.useRef(replyRequest?.seq ?? 0);
+  React.useEffect(() => {
+    if (!replyRequest || replyRequest.seq === lastReplySeq.current) return;
+    lastReplySeq.current = replyRequest.seq;
+    openReplyComposer(replyRequest.markupId);
+  }, [replyRequest]);
+
   /** Celda de una columna de Revu (ADR-0060): Comments y Status se editan en la propia lista. */
   const renderCell = (id: MarkupColumnId, markup: Markup): React.ReactNode => {
     const base = `py-1.5 px-2 ${COLUMN_CLASS[id] ?? ''}`;
     switch (id) {
-      case 'subject':
+      case 'subject': {
+        const replyCount = markup.replies?.length ?? 0;
+        const repliesCollapsed = collapsedReplies.has(markup.id);
         return (
           <td key={id} className="py-1.5 px-2 flex items-center space-x-1.5">
             {getMarkupIcon(markup.type)}
             <span>{markupTypeLabel(markup.type)}</span>
+            {replyCount > 0 && (
+              <button
+                type="button"
+                data-testid={`toggle-replies-btn-${markup.id}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleReplies(markup.id);
+                }}
+                className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded bg-cad-subtle hover:bg-cad-hover text-2xs text-gray-300"
+                title={repliesCollapsed ? 'Expand replies' : 'Collapse replies'}
+              >
+                {repliesCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+                <span data-testid={`markup-replies-count-${markup.id}`}>{replyCount}</span>
+              </button>
+            )}
             {markup.locked && (
               <span title="Locked markup" data-testid={`markup-locked-badge-${markup.id}`}>
                 <Lock size={16} className="text-amber-400 shrink-0 ml-1" />
@@ -644,6 +704,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
             )}
           </td>
         );
+      }
       case 'comments':
         return (
           <td key={id} className="py-1.5 px-2" onClick={(e) => e.stopPropagation()}>
@@ -671,29 +732,46 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
         );
       case 'status': {
         const statusInfo = STATUS_CONFIG[markup.status];
+        const historyCount = markup.statusHistory?.length ?? 0;
+        const historyTitle =
+          historyCount > 1
+            ? markup.statusHistory!
+                .map((tr) => `${STATUS_CONFIG[tr.status].label} (${tr.author})`)
+                .join(' → ')
+            : undefined;
         return (
           <td key={id} className="py-1.5 px-2 text-center" onClick={(e) => e.stopPropagation()}>
-            <select
-              value={markup.status}
-              onChange={(e) => updateMarkupStatus(markup.id, e.target.value as MarkupStatus)}
-              className={`text-2xs font-medium py-0.5 pl-2 pr-1 rounded-full border-0 outline-none cursor-pointer ${statusInfo.bg} ${statusInfo.text}`}
-            >
-              <option value="pending" className="bg-cad-dark text-amber-300">
-                Pending
-              </option>
-              <option value="accepted" className="bg-cad-dark text-emerald-300">
-                Accepted
-              </option>
-              <option value="rejected" className="bg-cad-dark text-rose-300">
-                Rejected
-              </option>
-              <option value="completed" className="bg-cad-dark text-blue-300">
-                Completed
-              </option>
-              <option value="cancelled" className="bg-cad-dark text-zinc-400">
-                Cancelled
-              </option>
-            </select>
+            <div className="inline-flex items-center gap-1" title={historyTitle}>
+              <select
+                value={markup.status}
+                onChange={(e) => updateMarkupStatus(markup.id, e.target.value as MarkupStatus)}
+                className={`text-2xs font-medium py-0.5 pl-2 pr-1 rounded-full border-0 outline-none cursor-pointer ${statusInfo.bg} ${statusInfo.text}`}
+              >
+                <option value="pending" className="bg-cad-dark text-amber-300">
+                  Pending
+                </option>
+                <option value="accepted" className="bg-cad-dark text-emerald-300">
+                  Accepted
+                </option>
+                <option value="rejected" className="bg-cad-dark text-rose-300">
+                  Rejected
+                </option>
+                <option value="completed" className="bg-cad-dark text-blue-300">
+                  Completed
+                </option>
+                <option value="cancelled" className="bg-cad-dark text-zinc-400">
+                  Cancelled
+                </option>
+              </select>
+              {historyCount > 1 && (
+                <span
+                  data-testid={`markup-status-history-count-${markup.id}`}
+                  className="text-2xs text-gray-400 ui-data"
+                >
+                  ×{historyCount}
+                </span>
+              )}
+            </div>
           </td>
         );
       }
@@ -724,8 +802,8 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
   };
 
   /** Filas de la tabla, agrupadas por Subject como en Revu (ADR-0060) o en una sola lista. */
-  const renderGroupedRows = (renderRow: (markup: Markup) => React.ReactNode): React.ReactNode[] => {
-    if (!groupOn) return displayedMarkups.map(renderRow);
+  const renderGroupedRows = (renderRow: (markup: Markup) => React.ReactNode[]): React.ReactNode[] => {
+    if (!groupOn) return displayedMarkups.flatMap(renderRow);
     const span = visibleColumns.length + (customColumns?.length || 0) + 2;
     return groupBySubject(displayedMarkups, sortField === 'type' && sortDirection === 'desc').flatMap((g) => {
       const collapsed = collapsedGroups.has(g.subject);
@@ -745,7 +823,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
           </td>
         </tr>
       );
-      return collapsed ? [header] : [header, ...g.items.map(renderRow)];
+      return collapsed ? [header] : [header, ...g.items.flatMap(renderRow)];
     });
   };
 
@@ -1102,14 +1180,17 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
                     </th>
                   ))}
 
-                  <th className="py-1.5 px-2 font-medium w-12 text-center">Action</th>
+                  <th className="py-1.5 px-2 font-medium w-20 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-cad-border/50 text-gray-200">
                 {renderGroupedRows((markup) => {
                   const isSelected = selectedMarkupIds.includes(markup.id);
+                  const repliesCollapsed = collapsedReplies.has(markup.id);
+                  const visibleReplies = repliesCollapsed ? [] : markup.replies ?? [];
+                  const isComposingReply = replyingToMarkupId === markup.id;
 
-                  return (
+                  const parentRow = (
                     <tr
                       key={markup.id}
                       onClick={(e) => handleRowClick(markup, e)}
@@ -1119,7 +1200,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
                           selectMarkup(markup.id, false);
                         }
                         const menuWidth = 180;
-                        const menuHeight = 220;
+                        const menuHeight = 250;
                         const posX = Math.min(e.clientX, Math.max(8, window.innerWidth - menuWidth - 8));
                         const posY =
                           e.clientY + menuHeight > window.innerHeight
@@ -1267,6 +1348,16 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
                       {/* Acciones */}
                       <td className="py-1.5 px-2 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <button
+                          type="button"
+                          disabled={Boolean(markup.locked)}
+                          onClick={() => openReplyComposer(markup.id)}
+                          className="p-1 text-gray-400 hover:text-cad-strong disabled:opacity-40 rounded transition-colors mr-1"
+                          title="Reply to markup"
+                          data-testid={`reply-markup-btn-${markup.id}`}
+                        >
+                          <Reply size={16} />
+                        </button>
+                        <button
                           onClick={async () => {
                             const store = useToolChestStore.getState();
                             const activePaletteId = store.activePaletteId || store.palettes[0]?.id;
@@ -1290,6 +1381,145 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
                       </td>
                     </tr>
                   );
+
+                  const replyRows = visibleReplies.map((reply) => (
+                    <tr
+                      key={`reply-${reply.id}`}
+                      data-testid={`markup-reply-row-${reply.id}`}
+                      className="bg-cad-subtle/40 hover:bg-cad-hover/50 text-gray-300"
+                      onClick={(e) => handleRowClick(markup, e)}
+                    >
+                      <td className="py-1 px-2.5 text-center text-gray-500">↳</td>
+                      {visibleColumns.map((colId) => {
+                        if (colId === 'subject') {
+                          return (
+                            <td
+                              key={colId}
+                              className="py-1 pl-6 pr-2 flex items-center space-x-1.5 text-gray-400"
+                            >
+                              <Reply size={16} className="text-gray-500 shrink-0" />
+                              <span>Reply</span>
+                            </td>
+                          );
+                        }
+                        if (colId === 'comments') {
+                          return (
+                            <td key={colId} className="py-1 px-2" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="text"
+                                data-testid={`reply-comment-input-${reply.id}`}
+                                value={reply.text}
+                                disabled={Boolean(markup.locked)}
+                                placeholder="Reply..."
+                                onChange={(e) => updateMarkupReply(markup.id, reply.id, e.target.value)}
+                                className="w-full bg-transparent hover:bg-cad-dark/50 focus:bg-cad-dark px-1.5 py-0.5 rounded border border-transparent focus:border-cad-border text-xs text-gray-200 outline-none truncate"
+                              />
+                            </td>
+                          );
+                        }
+                        if (colId === 'author') {
+                          return (
+                            <td key={colId} className="py-1 px-2 text-gray-400 truncate">
+                              {reply.author}
+                            </td>
+                          );
+                        }
+                        if (colId === 'date' || colId === 'creationDate') {
+                          return (
+                            <td
+                              key={colId}
+                              className="py-1 px-2 text-gray-400 ui-data text-2xs whitespace-nowrap"
+                            >
+                              {formatDate(
+                                colId === 'date' ? reply.updatedAt || reply.createdAt : reply.createdAt
+                              )}
+                            </td>
+                          );
+                        }
+                        return <td key={colId} className="py-1 px-2 text-gray-500" />;
+                      })}
+                      {customColumns?.map((col) => (
+                        <td key={col.id} className="py-1 px-2" />
+                      ))}
+                      <td
+                        className="py-1 px-2 text-center whitespace-nowrap"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          disabled={Boolean(markup.locked)}
+                          data-testid={`delete-reply-btn-${reply.id}`}
+                          onClick={() => deleteMarkupReply(markup.id, reply.id)}
+                          className="p-1 text-gray-400 hover:text-rose-400 disabled:opacity-40 rounded transition-colors"
+                          title="Delete reply"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ));
+
+                  const composerRow = isComposingReply ? (
+                    <tr
+                      key={`reply-composer-${markup.id}`}
+                      data-testid={`reply-composer-row-${markup.id}`}
+                      className="bg-cad-subtle/60"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <td className="py-1.5 px-2.5 text-center text-gray-500">↳</td>
+                      <td
+                        colSpan={visibleColumns.length + (customColumns?.length || 0) + 1}
+                        className="py-1.5 px-2"
+                      >
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            submitReply(markup.id);
+                          }}
+                          className="flex items-center gap-2"
+                        >
+                          <Reply size={16} className="text-cad-accent shrink-0" />
+                          <input
+                            type="text"
+                            autoFocus
+                            data-testid="reply-composer-input"
+                            value={replyDraftText}
+                            onChange={(e) => setReplyDraftText(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Escape') {
+                                e.stopPropagation();
+                                setReplyingToMarkupId(null);
+                                setReplyDraftText('');
+                              }
+                            }}
+                            placeholder="Write a reply..."
+                            className="flex-1 ui-input !h-7"
+                          />
+                          <button
+                            type="submit"
+                            data-testid="reply-composer-submit"
+                            disabled={!replyDraftText.trim()}
+                            className="ui-btn ui-btn-primary !h-7 !px-2.5"
+                          >
+                            Reply
+                          </button>
+                          <button
+                            type="button"
+                            data-testid="reply-composer-cancel"
+                            onClick={() => {
+                              setReplyingToMarkupId(null);
+                              setReplyDraftText('');
+                            }}
+                            className="ui-btn !h-7 !px-2"
+                          >
+                            Cancel
+                          </button>
+                        </form>
+                      </td>
+                    </tr>
+                  ) : null;
+
+                  return [parentRow, ...replyRows, ...(composerRow ? [composerRow] : [])];
                 })}
               </tbody>
               {measurementTotals.hasAny && (
@@ -1494,7 +1724,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
         </div>
       )}
 
-      {/* Menú contextual: Añadir a Tool Chest y Estados Técnicos */}
+      {/* Menú contextual: Responder, Añadir a Tool Chest y Estados Técnicos */}
       {contextMenu && (
         <div
           data-testid="markups-list-context-menu"
@@ -1502,6 +1732,20 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
           style={{ top: contextMenu.y, left: contextMenu.x }}
           onClick={(e) => e.stopPropagation()}
         >
+          <button
+            type="button"
+            disabled={Boolean(contextMenu.markup.locked)}
+            data-testid="context-menu-reply"
+            onClick={() => {
+              openReplyComposer(contextMenu.markup.id);
+              setContextMenu(null);
+            }}
+            className="w-full text-left px-3 py-1.5 hover:bg-cad-hover disabled:opacity-40 flex items-center space-x-2 text-gray-200 hover:text-cad-strong transition-colors cursor-pointer"
+          >
+            <Reply size={16} className="text-cad-accent" />
+            <span>Reply…</span>
+          </button>
+
           <button
             data-testid="context-menu-add-to-toolchest"
             onClick={async () => {

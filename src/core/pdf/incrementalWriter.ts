@@ -455,6 +455,10 @@ export async function saveIncrementalMarkups(
     for (const it of existingItems) {
       if (!it.dict || it.dict.get(PDFName.of('StateModel')) !== undefined) continue;
       if (isSignedSignatureField(it.dict)) continue;
+      const irt = it.dict.get(PDFName.of('IRT'));
+      const rt = it.dict.get(PDFName.of('RT'));
+      if (irt instanceof PDFRef && rt?.toString() !== '/Group') continue;
+      if (it.dict.get(PDFName.of('Subtype'))?.toString() === '/Popup') continue;
       const isRea = it.dict.get(PDFName.of('REA')) instanceof PDFDict;
       const key = annotationKeyFor(it.dict, it.ref);
       if (isRea || (key !== undefined && replacedIds.has(key))) {
@@ -462,17 +466,25 @@ export async function saveIncrementalMarkups(
         if (it.ref) droppedRefKeys.add(refKey(it.ref));
       }
     }
-    for (const it of existingItems) {
-      if (!it.dict || it.drop) continue;
-      const irt = it.dict.get(PDFName.of('IRT'));
-      const parent = it.dict.get(PDFName.of('Parent'));
-      const isReviewState = it.dict.get(PDFName.of('StateModel')) !== undefined;
-      const isPopup = it.dict.get(PDFName.of('Subtype'))?.toString() === '/Popup';
-      if (
-        (isReviewState && irt instanceof PDFRef && droppedRefKeys.has(refKey(irt))) ||
-        (isPopup && parent instanceof PDFRef && droppedRefKeys.has(refKey(parent)))
-      ) {
-        it.drop = true;
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const it of existingItems) {
+        if (!it.dict || it.drop) continue;
+        const irt = it.dict.get(PDFName.of('IRT'));
+        const rt = it.dict.get(PDFName.of('RT'));
+        const parent = it.dict.get(PDFName.of('Parent'));
+        const isReviewState = it.dict.get(PDFName.of('StateModel')) !== undefined;
+        const isReply = !isReviewState && irt instanceof PDFRef && rt?.toString() !== '/Group';
+        const isPopup = it.dict.get(PDFName.of('Subtype'))?.toString() === '/Popup';
+        if (
+          ((isReviewState || isReply) && irt instanceof PDFRef && droppedRefKeys.has(refKey(irt))) ||
+          (isPopup && parent instanceof PDFRef && droppedRefKeys.has(refKey(parent)))
+        ) {
+          it.drop = true;
+          if (it.ref) droppedRefKeys.add(refKey(it.ref));
+          changed = true;
+        }
       }
     }
     const keptObjects: PDFObject[] = existingItems.filter((it) => !it.drop).map((it) => it.obj);
@@ -833,15 +845,62 @@ ${markup.layer && layerOcg.has(markup.layer) ? `  /OC ${layerOcg.get(markup.laye
       annotDict += '>>';
       writer.addObject(annotObjNum, annotDict);
 
-      // 4. Anotación de estado de revisión estándar (/StateModel Review)
-      if (markup.status && markup.status !== 'pending') {
-        const statusStateMap: Record<Exclude<MarkupStatus, 'pending'>, string> = {
-          accepted: 'Accepted',
-          rejected: 'Rejected',
-          completed: 'Completed',
-          cancelled: 'Cancelled',
-        };
+      // 4. Respuestas en hilo estándar ISO 32000-1 §12.5.6.2 (/IRT /RT /R)
+      if (markup.replies && markup.replies.length > 0) {
+        for (const reply of markup.replies) {
+          const replyObjNum = writer.allocateObjectNumber();
+          newAnnotRefsList.push(`${replyObjNum} 0 R`);
+          const replyDict = `<<
+  /Type /Annot
+  /Subtype /Text
+  /Rect [0 0 0 0]
+  /P ${pageObjNum} 0 R
+  /NM ${escapePdfString(reply.id)}
+  /IRT ${annotObjNum} 0 R
+  /RT /R
+  /T ${escapePdfString(reply.author || options.authorDefault || 'Revisor')}
+  /Contents ${escapePdfString(reply.text)}
+  /M ${formatPdfDate(reply.updatedAt || reply.createdAt)}
+  /CreationDate ${formatPdfDate(reply.createdAt)}
+  /Open false
+  /F 4
+>>`;
+          writer.addObject(replyObjNum, replyDict);
+        }
+      }
 
+      // 5. Anotación(es) de estado de revisión estándar (/StateModel Review)
+      const statusStateMap: Record<MarkupStatus, string> = {
+        pending: 'None',
+        accepted: 'Accepted',
+        rejected: 'Rejected',
+        completed: 'Completed',
+        cancelled: 'Cancelled',
+      };
+      const transitions =
+        markup.statusHistory && markup.statusHistory.length > 0
+          ? markup.statusHistory[markup.statusHistory.length - 1].status === markup.status
+            ? markup.statusHistory
+            : [
+                ...markup.statusHistory,
+                {
+                  status: markup.status,
+                  author: markup.author || options.authorDefault || 'Revisor',
+                  createdAt: markup.updatedAt || markup.createdAt,
+                },
+              ]
+          : markup.status && markup.status !== 'pending'
+            ? [
+                {
+                  status: markup.status,
+                  author: markup.author || options.authorDefault || 'Revisor',
+                  createdAt: markup.updatedAt || markup.createdAt,
+                },
+              ]
+            : [];
+
+      let prevStateParentObjNum = annotObjNum;
+      for (const tr of transitions) {
         const stateObjNum = writer.allocateObjectNumber();
         newAnnotRefsList.push(`${stateObjNum} 0 R`);
 
@@ -850,15 +909,17 @@ ${markup.layer && layerOcg.has(markup.layer) ? `  /OC ${layerOcg.get(markup.laye
   /Subtype /Text
   /Rect [0 0 0 0]
   /P ${pageObjNum} 0 R
-  /IRT ${annotObjNum} 0 R
+  /IRT ${prevStateParentObjNum} 0 R
   /RT /R
   /StateModel (Review)
-  /State (${statusStateMap[markup.status]})
-  /T ${escapePdfString(markup.author || options.authorDefault || 'Revisor')}
-  /CreationDate ${formatPdfDate(markup.updatedAt || markup.createdAt)}
+  /State (${statusStateMap[tr.status]})
+  /T ${escapePdfString(tr.author || markup.author || options.authorDefault || 'Revisor')}
+  /M ${formatPdfDate(tr.createdAt)}
+  /CreationDate ${formatPdfDate(tr.createdAt)}
   /F 4
 >>`;
         writer.addObject(stateObjNum, stateDict);
+        prevStateParentObjNum = stateObjNum;
       }
     }
 

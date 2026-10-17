@@ -111,6 +111,24 @@ export function buildCsvContent(
 
     const fullRow = [...baseValues, ...customValues].map(escapeCsvField).join(',');
     rows.push(fullRow);
+
+    if (markup.replies && markup.replies.length > 0) {
+      for (const reply of markup.replies) {
+        const replyBase = [
+          pageNum,
+          'Reply',
+          reply.text ?? '',
+          reply.author ?? '',
+          reply.createdAt ?? '',
+          '',
+          '',
+          '',
+          '',
+        ];
+        const emptyCustom = customColumns.map(() => '');
+        rows.push([...replyBase, ...emptyCustom].map(escapeCsvField).join(','));
+      }
+    }
   }
 
   // 3. Unir con retornos CRLF (\r\n) según RFC 4180
@@ -309,6 +327,41 @@ export async function buildPdfReportContent(
 
     y -= 14;
     rowIndex++;
+
+    if (m.replies && m.replies.length > 0) {
+      for (const reply of m.replies) {
+        if (y < MARGIN + 30) {
+          page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+          y = PAGE_HEIGHT - MARGIN - 10;
+          drawTableHeader(page, y);
+          y -= 20;
+        }
+        const rAuthor = (reply.author || '').slice(0, 18);
+        const rText = (reply.text || '').replace(/[\r\n]+/g, ' ').slice(0, 36);
+        page.drawText('  Reply', {
+          x: colX.type,
+          y,
+          size: 7.5,
+          font: fontRegular,
+          color: rgb(0.35, 0.35, 0.45),
+        });
+        page.drawText(rAuthor, {
+          x: colX.author,
+          y,
+          size: 7.5,
+          font: fontRegular,
+          color: rgb(0.35, 0.35, 0.45),
+        });
+        page.drawText(rText, {
+          x: colX.text,
+          y,
+          size: 7.5,
+          font: fontRegular,
+          color: rgb(0.25, 0.25, 0.35),
+        });
+        y -= 12;
+      }
+    }
   }
 
   return await pdfDoc.save();

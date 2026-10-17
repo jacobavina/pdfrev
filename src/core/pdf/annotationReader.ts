@@ -11,7 +11,15 @@ import {
   PDFRawStream,
   decodePDFRawStream,
 } from 'pdf-lib';
-import { Markup, MarkupPoint, MarkupStatus, MarkupType, LineEndingStyle } from '../../types/markup';
+import {
+  Markup,
+  MarkupPoint,
+  MarkupReply,
+  MarkupStatus,
+  MarkupStatusTransition,
+  MarkupType,
+  LineEndingStyle,
+} from '../../types/markup';
 import { pdfToNormalizedCoordinates, PageTransformInfo } from './operators';
 import { calibrationFromMeasure, readPageCalibration } from './pdfScale';
 import {
@@ -89,6 +97,51 @@ function annotationIdFor(dict: PDFDict, ref: unknown, fallback: string): string 
 }
 
 /**
+ * Convierte una fecha PDF (D:YYYYMMDDHHmmSS...) a ISO 8601 si es posible; de lo contrario devuelve
+ * el valor original o un ISO de respaldo.
+ */
+function parsePdfDateToIso(raw: string, fallbackIso: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return fallbackIso;
+  const m = /^D:(\d{4})(\d{2})?(\d{2})?(\d{2})?(\d{2})?(\d{2})?/.exec(trimmed);
+  if (m) {
+    const yyyy = m[1];
+    const mm = m[2] || '01';
+    const dd = m[3] || '01';
+    const hh = m[4] || '00';
+    const min = m[5] || '00';
+    const ss = m[6] || '00';
+    return `${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}.000Z`;
+  }
+  const parsed = Date.parse(trimmed);
+  if (!Number.isNaN(parsed)) return new Date(parsed).toISOString();
+  return trimmed;
+}
+
+/**
+ * Resuelve la anotación raíz de una cadena /IRT (respuestas anidadas o estados de revisión encadenados),
+ * ignorando relaciones de agrupación (/RT /Group).
+ */
+function resolveRootParentId(dict: PDFDict, pdfDoc: PDFDocument): string {
+  let curDict: PDFDict = dict;
+  let curRef: PDFRef | undefined;
+  const visited = new Set<string>();
+  for (let depth = 0; depth < 32; depth++) {
+    const irt = curDict.get(PDFName.of('IRT'));
+    const rt = curDict.get(PDFName.of('RT'));
+    if (!(irt instanceof PDFRef) || rt?.toString() === '/Group') break;
+    const key = `${irt.objectNumber}:${irt.generationNumber}`;
+    if (visited.has(key)) break;
+    visited.add(key);
+    const parent = pdfDoc.context.lookup(irt);
+    if (!(parent instanceof PDFDict)) break;
+    curDict = parent;
+    curRef = irt;
+  }
+  return curRef ? annotationIdFor(curDict, curRef, '') : '';
+}
+
+/**
  * Convierte un array de números [r, g, b] a formato CSS hexadecimal #rrggbb.
  */
 function pdfColorArrayToHex(arr: unknown): string | undefined {
@@ -124,8 +177,12 @@ export async function importPdfAnnotations(
   let foreignUnsupportedCount = 0;
   const attachments: ImportAnnotationsResult['attachments'] = {};
 
-  // Mapa para vincular estados de revisión estándar (/StateModel Review) con el id de anotación padre
-  const reviewStatesByParentId = new Map<string, MarkupStatus>();
+  // Mapas para vincular estados de revisión (/StateModel Review) y respuestas (/IRT /RT /R) con su anotación raíz
+  const reviewTransitionsByParentId = new Map<
+    string,
+    Array<MarkupStatusTransition & { order: number }>
+  >();
+  const repliesByParentId = new Map<string, Array<MarkupReply & { order: number }>>();
 
   // Primer pase: procesar todas las páginas
   for (let pageIdx = 0; pageIdx < pages.length; pageIdx++) {
@@ -159,31 +216,77 @@ export async function importPdfAnnotations(
       const subtypeNameObj = annotDict.get(PDFName.of('Subtype'));
       const subtype = subtypeNameObj instanceof PDFName ? subtypeNameObj.asString().replace(/^\//, '') : '';
 
-      // Identificar si es una anotación hija de estado de revisión (/StateModel Review)
+      // Identificar si es una anotación hija de estado de revisión (/StateModel Review / Marked)
       const stateModelObj = annotDict.get(PDFName.of('StateModel'));
       if (stateModelObj) {
         const stateModelStr = extractPdfStringValue(stateModelObj);
         if (stateModelStr.toLowerCase() === 'review') {
           const stateObj = annotDict.get(PDFName.of('State'));
           const stateStr = extractPdfStringValue(stateObj).toLowerCase();
-          const irtObj = annotDict.get(PDFName.of('IRT'));
-
-          let parentId = '';
-          if (irtObj instanceof PDFRef) {
-            const parentDict = pdfDoc.context.lookup(irtObj);
-            if (parentDict instanceof PDFDict) {
-              parentId = annotationIdFor(parentDict, irtObj, '');
-            }
-          }
+          const parentId = resolveRootParentId(annotDict, pdfDoc);
 
           if (parentId) {
-            if (stateStr === 'none') reviewStatesByParentId.set(parentId, 'pending');
-            else if (stateStr === 'accepted') reviewStatesByParentId.set(parentId, 'accepted');
-            else if (stateStr === 'rejected') reviewStatesByParentId.set(parentId, 'rejected');
-            else if (stateStr === 'completed') reviewStatesByParentId.set(parentId, 'completed');
-            else if (stateStr === 'cancelled') reviewStatesByParentId.set(parentId, 'cancelled');
+            let mappedStatus: MarkupStatus | undefined;
+            if (stateStr === 'none') mappedStatus = 'pending';
+            else if (stateStr === 'accepted') mappedStatus = 'accepted';
+            else if (stateStr === 'rejected') mappedStatus = 'rejected';
+            else if (stateStr === 'completed') mappedStatus = 'completed';
+            else if (stateStr === 'cancelled') mappedStatus = 'cancelled';
+
+            if (mappedStatus) {
+              const rawDate =
+                extractPdfStringValue(annotDict.get(PDFName.of('M'))) ||
+                extractPdfStringValue(annotDict.get(PDFName.of('CreationDate')));
+              const createdAt = parsePdfDateToIso(rawDate, new Date().toISOString());
+              const stateAuthor =
+                extractPdfStringValue(annotDict.get(PDFName.of('T'))) || 'External author';
+              const list = reviewTransitionsByParentId.get(parentId) || [];
+              list.push({
+                status: mappedStatus,
+                author: stateAuthor,
+                createdAt,
+                order: aIdx,
+              });
+              reviewTransitionsByParentId.set(parentId, list);
+            }
           }
           continue; // Las anotaciones de estado no se agregan como marcas gráficas independientes
+        }
+        if (stateModelStr.toLowerCase() === 'marked') {
+          continue;
+        }
+      }
+
+      // Identificar si es una anotación hija de respuesta en hilo (/IRT con /RT /R o /RT ausente)
+      const irtObj = annotDict.get(PDFName.of('IRT'));
+      const rtObj = annotDict.get(PDFName.of('RT'));
+      if (irtObj instanceof PDFRef && rtObj?.toString() !== '/Group') {
+        const parentId = resolveRootParentId(annotDict, pdfDoc);
+        if (parentId) {
+          const replyId = annotationIdFor(
+            annotDict,
+            annotRefOrDict,
+            `reply-${pageIdx}-${aIdx}`
+          );
+          const replyAuthor =
+            extractPdfStringValue(annotDict.get(PDFName.of('T'))) || 'External author';
+          const replyText = extractPdfStringValue(annotDict.get(PDFName.of('Contents')));
+          const nowIso = new Date().toISOString();
+          const rawCreation = extractPdfStringValue(annotDict.get(PDFName.of('CreationDate')));
+          const rawMod = extractPdfStringValue(annotDict.get(PDFName.of('M')));
+          const createdAt = parsePdfDateToIso(rawCreation || rawMod, nowIso);
+          const updatedAt = parsePdfDateToIso(rawMod || rawCreation, createdAt);
+          const list = repliesByParentId.get(parentId) || [];
+          list.push({
+            id: replyId,
+            author: replyAuthor,
+            text: replyText,
+            createdAt,
+            updatedAt,
+            order: aIdx,
+          });
+          repliesByParentId.set(parentId, list);
+          continue;
         }
       }
 
@@ -726,10 +829,38 @@ export async function importPdfAnnotations(
     }
   }
 
-  // Segundo pase: asociar estados de revisión a sus anotaciones padre correspondientes
+  // Segundo pase: asociar estados de revisión y respuestas en hilo a sus anotaciones padre correspondientes
+  const sortChronologically = <T extends { createdAt: string; order: number }>(items: T[]): T[] =>
+    [...items].sort((a, b) => {
+      const tA = Date.parse(a.createdAt);
+      const tB = Date.parse(b.createdAt);
+      if (Number.isFinite(tA) && Number.isFinite(tB) && tA !== tB) return tA - tB;
+      return a.order - b.order;
+    });
+
   for (const m of markups) {
-    if (reviewStatesByParentId.has(m.id)) {
-      m.status = reviewStatesByParentId.get(m.id)!;
+    const transitions = reviewTransitionsByParentId.get(m.id);
+    if (transitions && transitions.length > 0) {
+      const sorted = sortChronologically(transitions);
+      m.status = sorted[sorted.length - 1].status;
+      if (sorted.length > 1) {
+        m.statusHistory = sorted.map(({ status, author, createdAt }) => ({
+          status,
+          author,
+          createdAt,
+        }));
+      }
+    }
+    const replies = repliesByParentId.get(m.id);
+    if (replies && replies.length > 0) {
+      const sorted = sortChronologically(replies);
+      m.replies = sorted.map(({ id, author, text, createdAt, updatedAt }) => ({
+        id,
+        author,
+        text,
+        createdAt,
+        updatedAt,
+      }));
     }
   }
 

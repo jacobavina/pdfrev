@@ -60,10 +60,15 @@ export function filterMarkups(
     criteria.customFilters && Object.keys(criteria.customFilters).length > 0;
 
   return markups.filter((m) => {
-    // 1. Filtro por término de búsqueda (coincide con texto, autor o valores de columnas personalizadas)
+    // 1. Filtro por término de búsqueda (coincide con texto, autor, respuestas en hilo o valores de columnas personalizadas)
     if (query) {
       const textMatch = (m.text || '').toLowerCase().includes(query);
       const authorMatch = (m.author || '').toLowerCase().includes(query);
+      const replyMatch = (m.replies || []).some(
+        (r) =>
+          (r.text || '').toLowerCase().includes(query) ||
+          (r.author || '').toLowerCase().includes(query)
+      );
 
       let customMatch = false;
       if (m.customFields) {
@@ -80,7 +85,7 @@ export function filterMarkups(
       }
 
       // Si no coincide y hay columnas calculadas, chequear resultados evaluados
-      if (!textMatch && !authorMatch && !customMatch && formulaCols && formulaCols.length > 0) {
+      if (!textMatch && !authorMatch && !replyMatch && !customMatch && formulaCols && formulaCols.length > 0) {
         for (const fCol of formulaCols) {
           const evalRes =
             criteria.evaluationMatrix?.get(m.id)?.get(fCol.id) ??
@@ -92,7 +97,7 @@ export function filterMarkups(
         }
       }
 
-      if (!textMatch && !authorMatch && !customMatch) {
+      if (!textMatch && !authorMatch && !replyMatch && !customMatch) {
         return false;
       }
     }

@@ -160,6 +160,8 @@ interface UiState {
   measurementsOpenRequest: number;
   /** Petición de exportación de la lista de marcas (la ejecuta la lista, respetando sus filtros y columnas). */
   exportRequest: { kind: 'csv' | 'report'; seq: number } | null;
+  /** Petición de abrir el compositor de respuesta en hilo para una marca en la lista de marcas (ADR-0071). */
+  replyRequest: { markupId: string; seq: number } | null;
   shortcutsOpen: boolean;
   viewMode: ViewMode;
   /** Petición de ajuste del zoom (la resuelve el visor, que conoce el tamaño del área y de la página). */
@@ -189,6 +191,7 @@ interface UiState {
   setMarkupsListAtStart: (on: boolean) => void;
   requestMeasurementsPanel: () => void;
   requestExport: (kind: 'csv' | 'report') => void;
+  requestReply: (markupId: string) => void;
   setShortcutsOpen: (open: boolean) => void;
   setViewMode: (mode: ViewMode) => void;
   requestFit: (kind: FitKind) => void;
@@ -213,6 +216,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   propertiesOpenRequest: 0,
   measurementsOpenRequest: 0,
   exportRequest: null,
+  replyRequest: null,
   shortcutsOpen: false,
   viewMode: readStoredViewMode(),
   fitRequest: null,
@@ -266,6 +270,11 @@ export const useUiStore = create<UiState>((set, get) => ({
     set({ markupsListAtStart });
   },
   requestExport: (kind) => set((s) => ({ exportRequest: { kind, seq: (s.exportRequest?.seq ?? 0) + 1 } })),
+  requestReply: (markupId) =>
+    set((s) => ({
+      markupsListOpen: true,
+      replyRequest: { markupId, seq: (s.replyRequest?.seq ?? 0) + 1 },
+    })),
   setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
   setViewMode: (viewMode) => {
     try {

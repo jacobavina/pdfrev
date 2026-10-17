@@ -169,6 +169,20 @@ export interface MarkupTextFormat {
   align?: 'left' | 'center' | 'right';
 }
 
+export interface MarkupReply {
+  id: string;
+  author: string;
+  text: string;
+  createdAt: string; // ISO
+  updatedAt: string; // ISO
+}
+
+export interface MarkupStatusTransition {
+  status: MarkupStatus;
+  author: string;
+  createdAt: string; // ISO
+}
+
 export interface Markup {
   id: string; // uuid v4
   type: MarkupType;
@@ -191,6 +205,8 @@ export interface Markup {
   resolvedFields?: Record<string, string>; // D.2 (Campos dinámicos {{fecha}}, etc.)
   locked?: boolean; // P3-H.5: Bloqueo de marca contra edición, arrastre y eliminación accidental
   measurement?: MarkupMeasurement; // Paquete 4: Datos de medición para takeoff
+  replies?: MarkupReply[]; // A.1 (ADR-0071): Respuestas en hilo (/IRT, /RT /R)
+  statusHistory?: MarkupStatusTransition[]; // A.1 (ADR-0071): Transiciones de estado (/StateModel Review)
 }
 
 export interface BoundingBox {
@@ -522,6 +538,51 @@ export function migrateBbxDocument(raw: unknown): BbxMigrationResult {
       if (leaders.length === 0) leaders = undefined;
     }
 
+    // A.1 (ADR-0071): Validación y preservación de respuestas en hilo (replies)
+    let replies: MarkupReply[] | undefined;
+    if (Array.isArray(item.replies)) {
+      const validReplies: MarkupReply[] = [];
+      for (let rIdx = 0; rIdx < item.replies.length && validReplies.length < 200; rIdx++) {
+        const r = item.replies[rIdx];
+        if (!r || typeof r !== 'object' || Array.isArray(r)) continue;
+        const rObj = r as Record<string, unknown>;
+        const rText = typeof rObj.text === 'string' ? rObj.text.slice(0, 4000) : '';
+        const rAuthor = typeof rObj.author === 'string' && rObj.author.trim() ? rObj.author.trim().slice(0, 200) : author;
+        const rId = typeof rObj.id === 'string' && rObj.id.trim() ? rObj.id.trim() : `${markupId}-reply-${rIdx}`;
+        const rCreated = typeof rObj.createdAt === 'string' && rObj.createdAt ? rObj.createdAt : lastSavedAt;
+        const rUpdated = typeof rObj.updatedAt === 'string' && rObj.updatedAt ? rObj.updatedAt : rCreated;
+        validReplies.push({
+          id: rId,
+          author: rAuthor,
+          text: rText,
+          createdAt: rCreated,
+          updatedAt: rUpdated,
+        });
+      }
+      if (validReplies.length > 0) replies = validReplies;
+    }
+
+    // A.1 (ADR-0071): Validación y preservación de transiciones de estado (statusHistory)
+    let statusHistory: MarkupStatusTransition[] | undefined;
+    if (Array.isArray(item.statusHistory)) {
+      const validTransitions: MarkupStatusTransition[] = [];
+      for (let sIdx = 0; sIdx < item.statusHistory.length && validTransitions.length < 200; sIdx++) {
+        const s = item.statusHistory[sIdx];
+        if (!s || typeof s !== 'object' || Array.isArray(s)) continue;
+        const sObj = s as Record<string, unknown>;
+        const sSt = typeof sObj.status === 'string' ? sObj.status : '';
+        if (!VALID_MARKUP_STATUSES.includes(sSt as MarkupStatus)) continue;
+        const sAuthor = typeof sObj.author === 'string' && sObj.author.trim() ? sObj.author.trim().slice(0, 200) : author;
+        const sCreated = typeof sObj.createdAt === 'string' && sObj.createdAt ? sObj.createdAt : lastSavedAt;
+        validTransitions.push({
+          status: sSt as MarkupStatus,
+          author: sAuthor,
+          createdAt: sCreated,
+        });
+      }
+      if (validTransitions.length > 0) statusHistory = validTransitions;
+    }
+
     return {
       id: typeof item.id === 'string' && item.id.length > 0 ? item.id : 'unknown',
       type,
@@ -570,6 +631,8 @@ export function migrateBbxDocument(raw: unknown): BbxMigrationResult {
                 : {}),
             }
           : undefined,
+      ...(replies ? { replies } : {}),
+      ...(statusHistory ? { statusHistory } : {}),
     };
   });
 

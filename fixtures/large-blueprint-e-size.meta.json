@@ -1,0 +1,13 @@
+{
+  "name": "large-blueprint-e-size.pdf",
+  "pageCount": 1,
+  "pageSize": {
+    "width": 3600,
+    "height": 2400
+  },
+  "markupCount": 5000,
+  "seed": 42,
+  "fileSizeBytes": 16575,
+  "sha256": "f87c2124a78073636e1e323a138e7ba3a1ca80b5fb024c1d799d113660c4aaf6",
+  "generatedAt": "2026-10-18T00:19:13.506Z"
+}

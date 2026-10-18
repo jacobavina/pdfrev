@@ -14,7 +14,8 @@
     "test:native": "node scripts/native-smoke.mjs",
     "test:native:build": "node scripts/native-smoke.mjs --build",
     "verify": "node scripts/verify.mjs",
-    "make-fixture": "tsx scripts/make-fixture.ts"
+    "make-fixture": "tsx scripts/make-fixture.ts",
+    "make-large-fixtures": "tsx scripts/make-large-fixtures.ts"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.2.0",

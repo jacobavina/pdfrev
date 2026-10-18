@@ -28,7 +28,7 @@
 | Marcadores (índice) | 🟡 Panel implementado (ADR-0017, 5319ddd) con el índice del PDF; sin test automatizado ni fila PARITY | P5-B.3 | S | I |
 | Etiquetas de página | ✅ ADR-0086 · Soporte ISO 32000-1 §12.4.2 (/PageLabels, estilos /D, /r, /R, /a, /A, prefijos) · `src/core/pdf/pageLabels.test.ts` (13) y `ThumbnailsSidebar.test.tsx` (5) | — | S | K |
 | Búsqueda de texto | ✅ ADR-0016 (d5a0fdf) · `src/core/search/textSearch.test.ts` (8) y `src/components/PdfViewerSearch.test.tsx` (2) | — | M | K I |
-| Planos grandes (E-size, 100 MB) con fluidez | ⬜ sin medir (el spike del motor evaluó un corpus de 1,001 PDFs, ADR-0010; no hay benchmark de E-size/100 MB) | P5-A | M | K I |
+| Planos grandes (E-size, 100 MB) con fluidez | 🟡 Medido y caracterizado en D.1 (ADR-0088) · Banco de pruebas E-size con 5 000 marcas en docs/perf/BASELINE.md · PARITY «Banco de pruebas de plano grande E-size… (ADR-0088)» · src/core/perf/largeBlueprintBench.test.ts | P5-A | M | K I |
 | Vista dividida sincronizada | ✅ ADR-0049 (08c5322) + ADR-0054 (b5d6f79) · PARITY «Vista lado a lado (Split View)…», «Sync de la vista lado a lado…» y «Sincronización en ambos sentidos…» | — | S | I |
 | Instantánea (snapshot) | ✅ ADR-0085 · `src/components/SnapshotFlow.test.tsx` (4) y `src/services/snapshotService.test.ts` (8) · PARITY «Herramienta Instantánea (Snapshot, G)…» | P5-B.7 (C.4) | C | I |
 | Panel de capas (OCG) | ✅ ADR-0024 (444000d) + ADR-0046 (2358596) · PARITY «Capas del PDF (/OCG) leídas al abrir y visibilidad en el panel Layers», «Capas lógicas OCG…», «Capas del plano conservadas…» y «Capa de anotaciones ajenas leída de su /OC» | — | M | K I |

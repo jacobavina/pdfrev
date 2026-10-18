@@ -416,6 +416,59 @@ describe('MarkupsList Context Menu (Añadir a Tool Chest B.4)', () => {
         spyElem.mockRestore();
       }
     });
+
+    it('formatea fechas ISO y cadenas PDF (D:...) sin mostrar jamás "Invalid Date"', () => {
+      useMarkupStore.setState({
+        markups: [
+          {
+            id: 'mk-date-iso',
+            type: 'area',
+            pageIndex: 0,
+            points: [{ x: 0.1, y: 0.1 }, { x: 0.3, y: 0.3 }],
+            style: { strokeColor: '#ff0000', strokeWidth: 1, opacity: 1 },
+            author: 'Tester',
+            createdAt: '2026-10-18T14:15:30.000Z',
+            updatedAt: '2026-10-18T14:15:30.000Z',
+            status: 'pending',
+            subject: 'Área ISO',
+          },
+          {
+            id: 'mk-date-pdf',
+            type: 'area',
+            pageIndex: 0,
+            points: [{ x: 0.4, y: 0.4 }, { x: 0.6, y: 0.6 }],
+            style: { strokeColor: '#00ff00', strokeWidth: 1, opacity: 1 },
+            author: 'Tester',
+            createdAt: 'D:20261018141530Z',
+            updatedAt: 'D:20261018141530Z',
+            status: 'pending',
+            subject: 'Área PDF D:',
+          },
+          {
+            id: 'mk-date-invalid',
+            type: 'area',
+            pageIndex: 0,
+            points: [{ x: 0.7, y: 0.7 }, { x: 0.9, y: 0.9 }],
+            style: { strokeColor: '#0000ff', strokeWidth: 1, opacity: 1 },
+            author: 'Tester',
+            createdAt: 'not_a_real_date',
+            updatedAt: 'not_a_real_date',
+            status: 'pending',
+            subject: 'Área Fallback',
+          },
+        ],
+      });
+
+      render(<MarkupsList />);
+
+      // Ninguna fila debe contener la cadena "Invalid Date"
+      expect(screen.queryByText(/Invalid Date/i)).toBeNull();
+
+      // Verificar que los elementos se renderizan en la tabla
+      expect(screen.getByTestId('markup-row-mk-date-iso')).toBeInTheDocument();
+      expect(screen.getByTestId('markup-row-mk-date-pdf')).toBeInTheDocument();
+      expect(screen.getByTestId('markup-row-mk-date-invalid')).toBeInTheDocument();
+    });
   });
 });
 

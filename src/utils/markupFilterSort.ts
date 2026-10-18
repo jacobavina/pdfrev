@@ -4,6 +4,7 @@ import {
   evaluateDocumentCustomColumns,
   EvaluationResult,
 } from '../core/columns';
+import { parseDateToTimestamp } from './dateUtils';
 
 export interface MarkupFilterCriteria {
   searchQuery?: string;
@@ -304,9 +305,7 @@ export function sortMarkups(
         comparison = (a.status || '').localeCompare(b.status || '');
         break;
       case 'createdAt': {
-        const timeA = new Date(a.createdAt || 0).getTime();
-        const timeB = new Date(b.createdAt || 0).getTime();
-        comparison = timeA - timeB;
+        comparison = parseDateToTimestamp(a.createdAt) - parseDateToTimestamp(b.createdAt);
         break;
       }
       case 'color': {

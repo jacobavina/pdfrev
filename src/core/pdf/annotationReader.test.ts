@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { PDFDocument, PDFName, PDFString } from 'pdf-lib';
 import { saveIncrementalMarkups } from './incrementalWriter';
-import { importPdfAnnotations } from './annotationReader';
+import { importPdfAnnotations, parsePdfDateToIso } from './annotationReader';
 import { Markup } from '../../types/markup';
 
 describe('PDF Annotation Reader (P3-B.4 / Interoperabilidad e Importación)', () => {
@@ -74,6 +74,8 @@ describe('PDF Annotation Reader (P3-B.4 / Interoperabilidad e Importación)', ()
     expect(rect?.text).toBe('Viga principal V-101');
     expect(rect?.author).toBe('Calculista Principal');
     expect(rect?.status).toBe('accepted');
+    expect(rect?.createdAt).toBe('2026-10-11T10:00:00.000Z');
+    expect(rect?.updatedAt).toBe('2026-10-11T10:00:00.000Z');
     expect(rect?.style.strokeColor.toLowerCase()).toBe('#0055ff');
     expect(rect?.style.fillColor?.toLowerCase()).toBe('#e0edff');
     expect(rect?.customFields?.Disciplina).toBe('Estructuras');
@@ -400,5 +402,72 @@ describe('PDF Annotation Reader (P3-B.4 / Interoperabilidad e Importación)', ()
     // En REA, fillColor conserva su valor exacto y la opacidad global se aplica por separado en el <g> SVG
     expect(importedArea.style.fillColor).toBe('rgba(220, 38, 38, 0.2)');
     expect(importedArea.style.opacity).toBe(0.5);
+  });
+
+  it('convierte fechas PDF nativas (D:...) e ISO a cadenas ISO 8601 estándar sin Invalid Date', () => {
+    const fallback = '2026-01-01T00:00:00.000Z';
+    // Cadena nativa con prefijo D:
+    expect(parsePdfDateToIso('D:20261018141530Z', fallback)).toBe('2026-10-18T14:15:30.000Z');
+    // Cadena con paréntesis literales de PDF
+    expect(parsePdfDateToIso('(D:20261018141530Z)', fallback)).toBe('2026-10-18T14:15:30.000Z');
+    // Cadena sólo fecha YYYYMMDD
+    expect(parsePdfDateToIso('D:20261018', fallback)).toBe('2026-10-18T00:00:00.000Z');
+    // Cadena ISO estándar
+    expect(parsePdfDateToIso('2026-10-18T14:15:30.000Z', fallback)).toBe('2026-10-18T14:15:30.000Z');
+    // Cadenas vacías o nulas devuelven fallback
+    expect(parsePdfDateToIso('', fallback)).toBe(fallback);
+    expect(parsePdfDateToIso(null, fallback)).toBe(fallback);
+    // Cadena corrupta no parseable devuelve fallback en vez de invalid string
+    expect(parsePdfDateToIso('gibberish_date', fallback)).toBe(fallback);
+  });
+
+  it('preserva las fechas createdAt y updatedAt en guardado y re-apertura de mediciones de área sin Invalid Date', async () => {
+    const areaMarkup: Markup = {
+      id: 'mk-area-date-test',
+      type: 'area',
+      pageIndex: 0,
+      points: [
+        { x: 0.2, y: 0.2 },
+        { x: 0.6, y: 0.2 },
+        { x: 0.6, y: 0.6 },
+        { x: 0.2, y: 0.6 },
+      ],
+      style: {
+        strokeColor: '#dc2626',
+        fillColor: 'rgba(220, 38, 38, 0.25)',
+        strokeWidth: 2,
+        opacity: 1,
+      },
+      author: 'Medidor de Obra',
+      createdAt: '2026-10-18T08:30:00.000Z',
+      updatedAt: '2026-10-18T08:45:00.000Z',
+      status: 'pending',
+      measurement: {
+        value: 24.5,
+        unit: 'm',
+        formatted: '24.50 m²',
+      },
+    };
+
+    const pdfUpdated = await saveIncrementalMarkups(originalBytes, [areaMarkup]);
+    const result = await importPdfAnnotations(pdfUpdated);
+
+    expect(result.markups).toHaveLength(1);
+    const imported = result.markups[0];
+    expect(imported.id).toBe('mk-area-date-test');
+    expect(imported.type).toBe('area');
+    expect(imported.createdAt).toBe('2026-10-18T08:30:00.000Z');
+    expect(imported.updatedAt).toBe('2026-10-18T08:45:00.000Z');
+
+    // Comprobar que new Date(imported.createdAt) produce una fecha JavaScript válida
+    const dCreated = new Date(imported.createdAt);
+    expect(Number.isNaN(dCreated.getTime())).toBe(false);
+    expect(dCreated.getUTCFullYear()).toBe(2026);
+    expect(dCreated.getUTCMonth()).toBe(9); // 0-indexed: 9 = October
+    expect(dCreated.getUTCDate()).toBe(18);
+
+    const dUpdated = new Date(imported.updatedAt);
+    expect(Number.isNaN(dUpdated.getTime())).toBe(false);
+    expect(dUpdated.getUTCMinutes()).toBe(45);
   });
 });

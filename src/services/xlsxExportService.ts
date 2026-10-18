@@ -3,6 +3,7 @@ import { countItems } from '../core/markup/countSymbols';
 import { markupTypeLabel } from '../core/markup/typeLabels';
 import { toCents, fromCents, computeItemCostCents } from '../core/measurements/takeoffCosts';
 import type { EvaluatedMatrixInput } from './exportService';
+import { parsePdfDateToIso } from '../utils/dateUtils';
 
 export interface XlsxExportOptions {
   /** Símbolo de moneda para formatos de celda (por defecto '$') */
@@ -378,7 +379,7 @@ export async function exportTakeoffToXlsx(
         m.layer?.trim() || '',
         markupTypeLabel(m.type),
         m.author || '',
-        m.createdAt ? m.createdAt.slice(0, 10) : '',
+        m.createdAt ? parsePdfDateToIso(m.createdAt, '').slice(0, 10) : '',
         m.status || '',
         m.measurement?.formatted || (m.measurement?.value != null ? String(m.measurement.value) : ''),
         extractUnit(m),

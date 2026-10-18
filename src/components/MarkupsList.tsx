@@ -63,6 +63,7 @@ import { useMarkupStore } from '../store/useMarkupStore';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useToolChestStore } from '../store/useToolChestStore';
 import { useUiStore } from '../store/useUiStore';
+import { formatDateForDisplay } from '../utils/dateUtils';
 import { showToast } from '../services/toastService';
 import { markupTypeLabel, MARKUP_TYPE_LABELS } from '../core/markup/typeLabels';
 
@@ -558,14 +559,7 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
     selectMarkup(markup.id, e.ctrlKey || e.metaKey);
   };
 
-  const formatDate = (isoString: string) => {
-    try {
-      const d = new Date(isoString);
-      return `${d.toLocaleDateString('en-US')} ${d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
-    } catch {
-      return isoString;
-    }
-  };
+  const formatDate = formatDateForDisplay;
 
   const renderSortIndicator = (field: MarkupSortField) => {
     if (sortField !== field) return null;

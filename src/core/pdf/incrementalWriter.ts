@@ -65,7 +65,17 @@ export interface IncrementalSaveOptions {
  * Formatea una fecha ISO a la representación canónica de fechas en PDF (D:YYYYMMDDHHmmSSZ).
  */
 export function formatPdfDate(isoDateStr?: string): string {
-  const d = isoDateStr ? new Date(isoDateStr) : new Date();
+  let d = new Date();
+  if (isoDateStr) {
+    if (/^\(?D:\d{4}/i.test(isoDateStr)) {
+      const clean = isoDateStr.trim().replace(/^\(+|\)+$/g, '');
+      return `(${clean})`;
+    }
+    const parsed = new Date(isoDateStr);
+    if (!Number.isNaN(parsed.getTime())) {
+      d = parsed;
+    }
+  }
   const pad = (n: number) => String(n).padStart(2, '0');
   const yyyy = d.getUTCFullYear();
   const mm = pad(d.getUTCMonth() + 1);
@@ -647,6 +657,12 @@ endstream`;
       }
       if (typeof markup.cost === 'number' && Number.isFinite(markup.cost)) {
         reaDict += ` /cost ${markup.cost}`;
+      }
+      if (markup.createdAt) {
+        reaDict += ` /createdAt ${escapePdfString(markup.createdAt)}`;
+      }
+      if (markup.updatedAt) {
+        reaDict += ` /updatedAt ${escapePdfString(markup.updatedAt)}`;
       }
       reaDict += ' >>';
 

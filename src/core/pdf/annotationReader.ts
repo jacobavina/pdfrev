@@ -97,27 +97,8 @@ function annotationIdFor(dict: PDFDict, ref: unknown, fallback: string): string 
   return fallback;
 }
 
-/**
- * Convierte una fecha PDF (D:YYYYMMDDHHmmSS...) a ISO 8601 si es posible; de lo contrario devuelve
- * el valor original o un ISO de respaldo.
- */
-function parsePdfDateToIso(raw: string, fallbackIso: string): string {
-  const trimmed = raw.trim();
-  if (!trimmed) return fallbackIso;
-  const m = /^D:(\d{4})(\d{2})?(\d{2})?(\d{2})?(\d{2})?(\d{2})?/.exec(trimmed);
-  if (m) {
-    const yyyy = m[1];
-    const mm = m[2] || '01';
-    const dd = m[3] || '01';
-    const hh = m[4] || '00';
-    const min = m[5] || '00';
-    const ss = m[6] || '00';
-    return `${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}.000Z`;
-  }
-  const parsed = Date.parse(trimmed);
-  if (!Number.isNaN(parsed)) return new Date(parsed).toISOString();
-  return trimmed;
-}
+import { parsePdfDateToIso } from '../../utils/dateUtils';
+export { parsePdfDateToIso };
 
 /**
  * Resuelve la anotación raíz de una cadena /IRT (respuestas anidadas o estados de revisión encadenados),
@@ -335,8 +316,11 @@ export async function importPdfAnnotations(
       }
 
       // Fechas
-      const mObj = annotDict.get(PDFName.of('M'));
-      const dateStr = extractPdfStringValue(mObj) || new Date().toISOString();
+      const rawMod = extractPdfStringValue(annotDict.get(PDFName.of('M')));
+      const rawCreation = extractPdfStringValue(annotDict.get(PDFName.of('CreationDate')));
+      const nowIso = new Date().toISOString();
+      let createdAt = parsePdfDateToIso(rawCreation || rawMod, nowIso);
+      let updatedAt = parsePdfDateToIso(rawMod || rawCreation, createdAt);
 
       // Puntos y Geometría
       const points: MarkupPoint[] = [];
@@ -344,6 +328,11 @@ export async function importPdfAnnotations(
       const customFields: Record<string, string | number> = {};
 
       if (isRea && reaObj instanceof PDFDict) {
+        const reaCreated = extractPdfStringValue(reaObj.get(PDFName.of('createdAt')));
+        const reaUpdated = extractPdfStringValue(reaObj.get(PDFName.of('updatedAt')));
+        if (reaCreated) createdAt = parsePdfDateToIso(reaCreated, createdAt);
+        if (reaUpdated) updatedAt = parsePdfDateToIso(reaUpdated, updatedAt);
+
         const toolObj = reaObj.get(PDFName.of('tool'));
         if (toolObj) {
           const toolStr = extractPdfStringValue(toolObj);
@@ -605,7 +594,7 @@ export async function importPdfAnnotations(
             ) ?? STAMPS.find((s) => s.id === 'approved')!;
           customFields.stampId = matched.id;
           if ((matched.dynamic ?? 'by') === 'by') {
-            customFields.stampSubtitle = stampSubtitle(author, dateStr);
+            customFields.stampSubtitle = stampSubtitle(author, createdAt);
           }
         }
       } else if (subtype === 'Widget') {
@@ -968,8 +957,8 @@ export async function importPdfAnnotations(
         ...(textFormat ? { textFormat } : {}),
         author,
         status: 'pending',
-        createdAt: dateStr,
-        updatedAt: dateStr,
+        createdAt,
+        updatedAt,
         customFields: Object.keys(customFields).length > 0 ? customFields : undefined,
         locked: locked || undefined,
         measurement,

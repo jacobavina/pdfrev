@@ -1,5 +1,5 @@
 import { useUiStore } from '../store/useUiStore';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MarkupsList } from './MarkupsList';
 import { useMarkupStore } from '../store/useMarkupStore';
@@ -358,6 +358,63 @@ describe('MarkupsList Context Menu (Añadir a Tool Chest B.4)', () => {
       expect(xlsxBtn).toHaveTextContent('Excel (.xlsx)');
       expect(pdfBtn).toHaveTextContent('PDF Report');
       expect(appendBtn).toHaveTextContent('Append Summary');
+    });
+  });
+
+  describe('Virtualización Ligera para Conjuntos Grandes (ADR-0089)', () => {
+    it('renderiza todas las filas sin truncar cuando clientHeight es 0 (entorno de pruebas jsdom)', () => {
+      // Inyectar 120 marcas
+      const largeList = Array.from({ length: 120 }, (_, i) => ({
+        id: `virt-m-${i}`,
+        type: 'rectangle' as const,
+        pageIndex: 0,
+        points: [{ x: 0.1, y: 0.1 }],
+        style: { strokeColor: '#000000', strokeWidth: 1, opacity: 1 },
+        author: 'Tester',
+        createdAt: '2026-10-17T12:00:00.000Z',
+        updatedAt: '2026-10-17T12:00:00.000Z',
+        status: 'pending' as const,
+        subject: 'Virtual Test',
+      }));
+
+      useMarkupStore.setState({ markups: largeList });
+      render(<MarkupsList />);
+
+      // En jsdom clientHeight === 0: no activa el recorte virtual para no romper selectores
+      expect(screen.getByTestId('markup-row-virt-m-0')).toBeInTheDocument();
+      expect(screen.getByTestId('markup-row-virt-m-119')).toBeInTheDocument();
+    });
+
+    it('activa el recorte virtual y renderiza espaciador inferior cuando clientHeight > 0 y markups > 80', () => {
+      const spyHtml = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(300);
+      const spyElem = vi.spyOn(Element.prototype, 'clientHeight', 'get').mockReturnValue(300);
+
+      try {
+        const largeList = Array.from({ length: 120 }, (_, i) => ({
+          id: `virt-active-${i}`,
+          type: 'rectangle' as const,
+          pageIndex: 0,
+          points: [{ x: 0.1, y: 0.1 }],
+          style: { strokeColor: '#000000', strokeWidth: 1, opacity: 1 },
+          author: 'Tester',
+          createdAt: '2026-10-17T12:00:00.000Z',
+          updatedAt: '2026-10-17T12:00:00.000Z',
+          status: 'pending' as const,
+          subject: 'Virtual Active',
+        }));
+
+        useMarkupStore.setState({ markups: largeList });
+        render(<MarkupsList />);
+
+        // Al montar con useLayoutEffect y clientHeight > 0 (300px), se activa la virtualización
+        expect(screen.getByTestId('markup-row-virt-active-0')).toBeInTheDocument();
+        expect(screen.getByTestId('virt-bottom-spacer')).toBeInTheDocument();
+        // Las filas lejanas fuera del sobreexplorado (overscan) no deben estar en el DOM
+        expect(screen.queryByTestId('markup-row-virt-active-119')).not.toBeInTheDocument();
+      } finally {
+        spyHtml.mockRestore();
+        spyElem.mockRestore();
+      }
     });
   });
 });

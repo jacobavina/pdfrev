@@ -298,6 +298,18 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
     const r = listMenuBtnRef.current.getBoundingClientRect();
     setListMenuPos({ left: r.left, bottom: window.innerHeight - r.top + 4 });
   }, [listMenu]);
+
+  // Virtualización ligera para tablas con densidad masiva de anotaciones (> 80 marcas) (ADR-0089)
+  const tableContainerRef = useRef<HTMLDivElement | null>(null);
+  const [tableScrollTop, setTableScrollTop] = useState(0);
+  const [tableClientHeight, setTableClientHeight] = useState(0);
+
+  // Inicialización de clientHeight para virtualización inmediata tras el render de maquetación
+  useLayoutEffect(() => {
+    if (tableContainerRef.current && tableContainerRef.current.clientHeight > 0) {
+      setTableClientHeight(tableContainerRef.current.clientHeight);
+    }
+  }, []);
   useEffect(() => {
     if (!listMenu) return;
     const onDown = (e: MouseEvent) => {
@@ -840,30 +852,90 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
     }
   };
 
-  /** Filas de la tabla, agrupadas por Subject como en Revu (ADR-0060) o en una sola lista. */
+  /** Filas de la tabla, agrupadas por Subject como en Revu (ADR-0060) o en una sola lista, con virtualización por scroll para conjuntos grandes (> 80) (ADR-0089). */
   const renderGroupedRows = (renderRow: (markup: Markup) => React.ReactNode[]): React.ReactNode[] => {
-    if (!groupOn) return displayedMarkups.flatMap(renderRow);
     const span = visibleColumns.length + (customColumns?.length || 0) + 2;
-    return groupBySubject(displayedMarkups, sortField === 'type' && sortDirection === 'desc').flatMap((g) => {
-      const collapsed = collapsedGroups.has(g.subject);
-      const header = (
+
+    let allNodes: React.ReactNode[];
+    if (!groupOn) {
+      allNodes = displayedMarkups.flatMap(renderRow);
+    } else {
+      allNodes = groupBySubject(displayedMarkups, sortField === 'type' && sortDirection === 'desc').flatMap((g) => {
+        const collapsed = collapsedGroups.has(g.subject);
+        const header = (
+          <tr
+            key={`group-${g.subject}`}
+            data-testid={`markups-group-${g.subject}`}
+            aria-expanded={!collapsed}
+            onClick={() => toggleGroup(g.subject)}
+            className="cursor-pointer bg-cad-subtle/70 hover:bg-cad-hover/70"
+          >
+            <td colSpan={span} className="py-1 px-2 text-xs font-semibold text-gray-200">
+              <span className="inline-flex items-center gap-1">
+                {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+                {g.subject} ({g.items.length})
+              </span>
+            </td>
+          </tr>
+        );
+        return collapsed ? [header] : [header, ...g.items.flatMap(renderRow)];
+      });
+    }
+
+    // Regla de virtualización (ADR-0089):
+    // Si la cantidad de elementos es pequeña (<= 80) o el contenedor no tiene altura de diseño (ej. jsdom/vitest clientHeight === 0),
+    // se renderiza todo el DOM sin recortar, garantizando compatibilidad 100% con tests unitarios existentes.
+    const clientH = tableContainerRef.current?.clientHeight ?? tableClientHeight;
+    const totalItems = allNodes.length;
+
+    if (totalItems <= 80 || clientH <= 0) {
+      return allNodes;
+    }
+
+    const ROW_HEIGHT = 28;
+    const OVERSCAN = 10;
+    const scrollTop = tableContainerRef.current?.scrollTop ?? tableScrollTop;
+
+    const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
+    const endIndex = Math.min(totalItems, Math.ceil((scrollTop + clientH) / ROW_HEIGHT) + OVERSCAN);
+
+    const topSpacerHeight = startIndex * ROW_HEIGHT;
+    const bottomSpacerHeight = Math.max(0, (totalItems - endIndex) * ROW_HEIGHT);
+
+    const visibleNodes = allNodes.slice(startIndex, endIndex);
+    const result: React.ReactNode[] = [];
+
+    if (topSpacerHeight > 0) {
+      result.push(
         <tr
-          key={`group-${g.subject}`}
-          data-testid={`markups-group-${g.subject}`}
-          aria-expanded={!collapsed}
-          onClick={() => toggleGroup(g.subject)}
-          className="cursor-pointer bg-cad-subtle/70 hover:bg-cad-hover/70"
+          key="virt-top-spacer"
+          data-testid="virt-top-spacer"
+          style={{ height: `${topSpacerHeight}px` }}
+          aria-hidden="true"
+          className="pointer-events-none border-none p-0 m-0"
         >
-          <td colSpan={span} className="py-1 px-2 text-xs font-semibold text-gray-200">
-            <span className="inline-flex items-center gap-1">
-              {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
-              {g.subject} ({g.items.length})
-            </span>
-          </td>
+          <td colSpan={span} className="p-0 border-none" />
         </tr>
       );
-      return collapsed ? [header] : [header, ...g.items.flatMap(renderRow)];
-    });
+    }
+
+    result.push(...visibleNodes);
+
+    if (bottomSpacerHeight > 0) {
+      result.push(
+        <tr
+          key="virt-bottom-spacer"
+          data-testid="virt-bottom-spacer"
+          style={{ height: `${bottomSpacerHeight}px` }}
+          aria-hidden="true"
+          className="pointer-events-none border-none p-0 m-0"
+        >
+          <td colSpan={span} className="p-0 border-none" />
+        </tr>
+      );
+    }
+
+    return result;
   };
 
   return (
@@ -1183,7 +1255,16 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
       </div>
 
       {/* Contenedor de la Tabla */}
-        <div className="flex-1 overflow-auto bg-cad-panel">
+        <div
+          ref={tableContainerRef}
+          onScroll={(e) => {
+            setTableScrollTop(e.currentTarget.scrollTop);
+            if (tableClientHeight !== e.currentTarget.clientHeight) {
+              setTableClientHeight(e.currentTarget.clientHeight);
+            }
+          }}
+          className="flex-1 overflow-auto bg-cad-panel"
+        >
           {displayedMarkups.length === 0 ? (
             <div className="h-full flex items-center justify-center text-xs text-gray-500 italic" data-testid="markups-empty-message">
               No markups match the applied filters.

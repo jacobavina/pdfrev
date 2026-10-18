@@ -220,6 +220,7 @@ Este documento registra la paridad funcional real implementada en REA, vinculand
 | **Zoom a Ventana (tecla Z), Rotación de Vista 90° y Etiquetas de Página (/PageLabels) (ADR-0086)** | `shipped` | `src/components/ZoomWindowAndRotation.test.tsx` | `atajo Z activa la herramienta zoom y asigna el cursor cursor-zoom-in` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Archivos Recientes en Menú y Pantalla Inicial, Apertura por Argumentos de Sistema ("Abrir con") y Cierre de Fase C (ADR-0087)** | `shipped` | `src/services/recentFilesService.test.ts` | `Sub-entregable C.6: Persistencia, deduplicación a 10 elementos y recuperación ante almacenamiento corrupto` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Banco de pruebas de plano grande E-size (3600x2400 pt) y mediciones base en docs/perf/BASELINE.md (ADR-0088)** | `shipped` | `src/core/perf/largeBlueprintBench.test.ts` | `mide tiempo de primer render, hit-testing con 5000 marcas y memoria de guardado sobre plano E-size sintético` | No aplica (benchmarking automatizado con registro en BASELINE.md) |
+| **Escalabilidad con 5 000 marcas: índice espacial, culling de viewport y virtualización sin degradación (ADR-0089)** | `shipped` | `src/core/markup/spatialIndex.test.ts` | `ejecuta hit-testing y selección marquee sobre 5 000 marcas en menos de 10 ms mediante índice espacial` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 
 
 

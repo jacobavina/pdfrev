@@ -5,6 +5,7 @@ import {
   clampGroupTranslationDelta,
   translateMarkup,
 } from './coordinates';
+import type { SpatialIndex } from '../core/markup/spatialIndex';
 
 export interface DragState {
   startScreenX: number;
@@ -32,6 +33,7 @@ export function handleSelectMouseDown({
   selectMarkup,
   deselectAll,
   pageDimensions,
+  spatialIndex,
 }: {
   point: MarkupPoint;
   screenX: number;
@@ -44,9 +46,12 @@ export function handleSelectMouseDown({
   selectMarkup: (id: string, multi: boolean) => void;
   deselectAll: () => void;
   pageDimensions?: { width: number; height: number };
+  spatialIndex?: SpatialIndex;
 }): DragState | null {
   const isAdditive = Boolean(isCtrlOrShift ?? (isCtrl || isShift));
-  const hit = [...pageMarkups].reverse().find((m) => hitTestMarkup(point, m, 0.015, pageDimensions));
+  const hit = spatialIndex
+    ? spatialIndex.hitTest(point, 0.015, pageDimensions)
+    : [...pageMarkups].reverse().find((m) => hitTestMarkup(point, m, 0.015, pageDimensions));
   if (!hit) {
     if (!isAdditive) {
       deselectAll();

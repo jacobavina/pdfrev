@@ -233,15 +233,16 @@
 | `P4-Medicion` | Medición básica para takeoff y calibración por página | **Cerrado** | ADR-0015. Calibración independiente por página en store Zustand con guardas contra <= 0 y NaN. Herramientas: longitud (`length`), polilínea de medida (`polylineMeasure`), área (`area`) y conteo secuencial (`count`). Test de oro de 4 rotaciones (300×200 pt = 6.00 m² y 10.00 m en 0°, 90°, 180°, 270°). Modal accesible (`calibration-modal`), indicador interactivo en pie de página (`calibration-indicator`), botones en TopBar, columnas `Medida`/`Unidad` y agregación de totales en MarkupsList (`markups-totals-summary`), y exportación CSV con mitigación RFC 4180/DDE. 438 tests vitest pasados (+30 tests nuevos en 6 suites). | Verificación visual nativa PENDIENTE DE VALIDACIÓN por el usuario. |
 | `P5-C.6` | Archivos recientes, pantalla de bienvenida y apertura por argumentos de sistema | **Cerrado** | ADR-0087. Servicio puro de recientes (`recentFilesService.ts`, 5 tests) con límite de 10 elementos, deduplicación y degradación ante fallo de almacenamiento. Menú File ▸ Open Recent con lista dinámica, número de páginas, tooltip de ruta y acción de vaciado (`MenuBar.tsx`). Pantalla inicial CAD (`WelcomeCanvas.tsx`) con dropzone para PDFs, botón "Open PDF…" y acceso rápido a recientes. Comando Tauri `get_startup_file_arg` con canonicalización de rutas absolutas (15 tests cargo). Pruebas de integración en `RecentFilesFlow.test.tsx` (9 tests). | Verificación nativa PENDIENTE DE VALIDACIÓN por el usuario. |
 | `P5-D.1` | Banco de pruebas E-size (3600×2400 pt) y línea base con 5 000 marcas | **Cerrado** | ADR-0088. Generador determinista Mulberry32 (`largeBlueprintGenerator.ts`, 6 tests) de planos E-size y 5 000 marcas sintéticas. Script CLI `scripts/make-large-fixtures.ts`. Suite de benchmarking (`largeBlueprintBench.test.ts`, 1 test) que mide tiempo de parseo (88.57 ms), hit-testing (0.96 ms avg, 14.39 ms max), selección marquee (8.11 ms), guardado incremental (248.04 ms) y prueba el límite de canvas en Chromium (16 384 px a > 227% DPR 2 / > 455% DPR 1). Línea base y propuesta de SLOs en `docs/perf/BASELINE.md`. | No aplica (benchmarking automatizado). |
+| `P5-D.2` | Índice espacial 2D, culling de viewport y virtualización para 5 000 marcas | **Cerrado** | ADR-0089. Grilla espacial uniforme 2D (`spatialIndex.ts`, 8 tests) con hit-testing y selección marquee en 7.68 ms sobre 5 000 marcas (SLO < 10 ms, 0.148 ms/consulta). Culling de viewport en `PdfViewer.tsx` con sobreexploración del 20% e inmunidad de marcas seleccionadas para > 150 marcas. Virtualización ligera de scroll con espaciadores sin dependencias de terceros en `MarkupsList.tsx` (16 tests). | Verificación nativa PENDIENTE DE VALIDACIÓN por el usuario. |
 
 ---
 
 ## 3. Registro de Puertas de Calidad Actual
 
-- **Pruebas Unitarias:** 957 / 957 pasadas en Vitest (`src/`) distribuidas en 113 suites.
-- **Auditoría Literal de Paridad:** Superada (`node scripts/parity-check.mjs`: 210 shipped verificadas literalmente, 0 todo con guion).
+- **Pruebas Unitarias:** 959 / 959 pasadas en Vitest (`src/`) distribuidas en 114 suites.
+- **Auditoría Literal de Paridad:** Superada (`node scripts/parity-check.mjs`: 211 shipped verificadas literalmente, 0 todo con guion).
 - **Pruebas Rust:** 15 / 15 pasadas en `cargo test` (`src-tauri/`).
-- **Compilación de Producción:** Exitosa (`tsc && vite build`), bundle principal medido en 669.10 kB <= 800 kB (puerta de calidad superada).
+- **Compilación de Producción:** Exitosa (`tsc && vite build`), bundle principal medido en 669.25 kB <= 800 kB (puerta de calidad superada).
 - **Pruebas E2E:** 37 / 37 en Playwright suite (`tests/e2e/pdf-viewer.spec.ts`) en 3 pasadas consecutivas verdes.
 - **Smoke Test Nativo (P2-X):** Implementado y superado localmente con `tauri-driver` (`npm run test:native` y `verify.mjs --with-native`). Adhesión WebDriver, render de canvas, IPC real de Rust y acciones W3C.
 - **Warnings en Consola:** 0 warnings reportados.

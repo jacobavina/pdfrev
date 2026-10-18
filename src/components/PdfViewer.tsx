@@ -15,11 +15,12 @@ import {
   screenToNormalized,
   normalizedToScreen,
   hitTestMarkup,
-  selectMarkupsInRect,
   getMarkupBounds,
   exceedsScreenThreshold,
   isPointInPolygon,
 } from '../utils/coordinates';
+import { getSpatialIndexForPage } from '../core/markup/spatialIndex';
+import type { BoundingBox } from '../types/markup';
 import { useToolChestStore } from '../store/useToolChestStore';
 import {
   handleSelectMouseDown,
@@ -261,6 +262,7 @@ export const PdfViewer: React.FC = () => {
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const pageContainerRef = useRef<HTMLDivElement | null>(null);
+  const [scrollPos, setScrollPos] = useState({ scrollLeft: 0, scrollTop: 0 });
 
   // Desplazamiento del plano arrastrando (ADR-0052): herramienta Pan, Espacio mantenido o botón central
   const [panning, setPanning] = useState(false);
@@ -401,6 +403,22 @@ export const PdfViewer: React.FC = () => {
   pageViewportRef.current = pageViewport;
   const scaleRef = useRef(scale);
   scaleRef.current = scale;
+
+  // Dimensiones normalizadas y aceleración espacial celular por página (ADR-0089 / Hito D.2)
+  const pageDims = useMemo(() => {
+    const w = pageViewport.width / (scale || 1.0);
+    const h = pageViewport.height / (scale || 1.0);
+    return { width: w, height: h };
+  }, [pageViewport.width, pageViewport.height, scale]);
+
+  // Marcas de la página activa filtradas por visibilidad de capa (ADR-0024 / ADR-0089)
+  const pageMarkups = useMemo(() => {
+    return markups.filter((m) => m.pageIndex === currentPageIndex && isMarkupVisible(m));
+  }, [markups, currentPageIndex, isMarkupVisible]);
+
+  const pageSpatialIndex = useMemo(() => {
+    return getSpatialIndexForPage(pageMarkups, currentPageIndex, pageDims);
+  }, [pageMarkups, currentPageIndex, pageDims]);
 
   // Tamaño sin escalar (pt, con la rotación aplicada) de todas las páginas (ADR-0019): permite maquetar la vista
   // continua sin saltos antes de renderizar y calcular "Ajustar a página". Vacío si el documento no lo ofrece.
@@ -668,6 +686,9 @@ export const PdfViewer: React.FC = () => {
       programmaticScrollRef.current = null;
     } else {
       publishSplitView();
+      if (el) {
+        setScrollPos({ scrollLeft: el.scrollLeft, scrollTop: el.scrollTop });
+      }
     }
     if (!isContinuous || !el || isProg) return;
     const rect = el.getBoundingClientRect();
@@ -1642,9 +1663,7 @@ export const PdfViewer: React.FC = () => {
   const handleContextMenu = (e: React.MouseEvent<SVGSVGElement>) => {
     e.preventDefault();
     const pt = getEventPoint(e);
-    const pageDims = { width: pageViewport.width / (scale || 1.0), height: pageViewport.height / (scale || 1.0) };
-    const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex && isMarkupVisible(m));
-    const hit = [...pageMarkups].reverse().find((m) => hitTestMarkup(pt, m, 0.015, pageDims));
+    const hit = pageSpatialIndex.hitTest(pt, 0.015, pageDims);
     if (!hit) {
       setContextMenu(null);
       return;
@@ -1688,9 +1707,7 @@ export const PdfViewer: React.FC = () => {
 
     // Borrador (Eraser, Shift+E): eliminar la marca sobre la que se hace clic
     if (activeTool === 'eraser') {
-      const pageDims = { width: pageViewport.width / (scale || 1.0), height: pageViewport.height / (scale || 1.0) };
-      const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex && isMarkupVisible(m));
-      const hit = [...pageMarkups].reverse().find((m) => hitTestMarkup(pt, m, 0.02, pageDims));
+      const hit = pageSpatialIndex.hitTest(pt, 0.02, pageDims);
       if (hit && !hit.locked) {
         useMarkupStore.getState().deleteMarkup(hit.id);
       }
@@ -1700,12 +1717,8 @@ export const PdfViewer: React.FC = () => {
     // Herramientas de recorte (Polygon Cutout / Ellipse Cutout): activar la marca objetivo si no lo está
     if (activeTool === 'polygonCutout' || activeTool === 'ellipseCutout') {
       if (!useUiStore.getState().activeCutoutTargetId) {
-        const pageDims = { width: pageViewport.width / (scale || 1.0), height: pageViewport.height / (scale || 1.0) };
-        const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex && isMarkupVisible(m));
-        const hit = [...pageMarkups].reverse().find(
-          (m) => (m.type === 'area' || m.type === 'volume') && hitTestMarkup(pt, m, 0.015, pageDims)
-        );
-        if (hit) {
+        const hit = pageSpatialIndex.hitTest(pt, 0.015, pageDims);
+        if (hit && (hit.type === 'area' || hit.type === 'volume')) {
           useUiStore.getState().startCutout(hit.id);
           setSelectedMarkupIds([hit.id]);
         } else {
@@ -1728,10 +1741,7 @@ export const PdfViewer: React.FC = () => {
     if (activeTool === 'select') {
       const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex && isMarkupVisible(m));
       const isAdditive = Boolean(e.ctrlKey || e.metaKey || e.shiftKey);
-      const unscaledW = pageViewport.width / (scale || 1.0);
-      const unscaledH = pageViewport.height / (scale || 1.0);
-      const pageDims = { width: unscaledW, height: unscaledH };
-      const hit = [...pageMarkups].reverse().find((m) => hitTestMarkup(pt, m, 0.015, pageDims));
+      const hit = pageSpatialIndex.hitTest(pt, 0.015, pageDims);
 
       if (hit && hit.type === 'link' && (e.ctrlKey || e.metaKey)) {
         followMarkupLink(hit);
@@ -1756,6 +1766,7 @@ export const PdfViewer: React.FC = () => {
           selectMarkup,
           deselectAll,
           pageDimensions: pageDims,
+          spatialIndex: pageSpatialIndex,
         });
         dragStateRef.current = newDragState;
         return;
@@ -1990,8 +2001,7 @@ export const PdfViewer: React.FC = () => {
           height: Math.max(0, maxY - minY),
         };
 
-        const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex && isMarkupVisible(m));
-        const intersectingIds = selectMarkupsInRect(pageMarkups, marqueeRect, pageDims);
+        const intersectingIds = pageSpatialIndex.selectInRect(marqueeRect, pageDims);
 
         if (marqueeStateRef.current.isAdditive) {
           const combined = Array.from(
@@ -2755,18 +2765,15 @@ export const PdfViewer: React.FC = () => {
         return;
       }
     }
-    const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex && isMarkupVisible(m));
-    const unscaledW = pageViewport.width / (scale || 1.0);
-    const unscaledH = pageViewport.height / (scale || 1.0);
-    const hit = [...pageMarkups]
-      .reverse()
-      .find(
-        (m) =>
-          (m.type === 'text' || m.type === 'typewriter' || m.type === 'callout' || m.type === 'stickyNote') &&
-          hitTestMarkup(pt, m, 0.015, { width: unscaledW, height: unscaledH })
-      );
+    const hit = pageSpatialIndex.hitTest(pt, 0.015, pageDims);
 
-    if (hit) {
+    if (
+      hit &&
+      (hit.type === 'text' ||
+        hit.type === 'typewriter' ||
+        hit.type === 'callout' ||
+        hit.type === 'stickyNote')
+    ) {
       setInlineEditing({
         markupId: hit.id,
         initialText: hit.text || '',
@@ -2779,7 +2786,7 @@ export const PdfViewer: React.FC = () => {
 
     // Doble clic en el plano (sin marca debajo): control de zoom en ese punto, como en Revu
     if (activeTool === 'select' || activeTool === 'pan') {
-      const anyHit = pageMarkups.some((m) => hitTestMarkup(pt, m, 0.015, { width: unscaledW, height: unscaledH }));
+      const anyHit = Boolean(pageSpatialIndex.hitTest(pt, 0.015, pageDims));
       if (!anyHit) setZoomWidget({ x: e.clientX, y: e.clientY });
     }
   };
@@ -2963,7 +2970,57 @@ export const PdfViewer: React.FC = () => {
     selection.removeAllRanges();
   };
 
-  const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex && isMarkupVisible(m));
+  // Culling de viewport para planos con densidad masiva de anotaciones (> 150 marcas) (ADR-0089)
+  // Soporta con exactitud milimétrica tanto la vista de página única como la vista continua multi-página
+  const renderedMarkups = useMemo(() => {
+    if (pageMarkups.length <= 150) {
+      return pageMarkups;
+    }
+    const container = containerRef.current;
+    const pageEl = pageContainerRef.current;
+    if (!container || !pageEl || !pageDims) return pageMarkups;
+
+    const cRect = container.getBoundingClientRect();
+    const pRect = pageEl.getBoundingClientRect();
+    if (pRect.width <= 0 || pRect.height <= 0) return pageMarkups;
+
+    // Intersección en píxeles del viewport del contenedor sobre la lámina activa
+    const viewLeft = Math.max(0, cRect.left - pRect.left);
+    const viewTop = Math.max(0, cRect.top - pRect.top);
+    const viewRight = Math.min(pRect.width, cRect.right - pRect.left);
+    const viewBottom = Math.min(pRect.height, cRect.bottom - pRect.top);
+
+    if (viewRight <= viewLeft || viewBottom <= viewTop) {
+      // La página está completamente fuera del viewport en vista continua: conserva solo marcas seleccionadas
+      if (selectedMarkupIds.length === 0) return [];
+      const selSet = new Set(selectedMarkupIds);
+      return pageMarkups.filter((m) => selSet.has(m.id));
+    }
+
+    // Margen de sobreexploración (overscan) del 20%
+    const margin = 0.20;
+    const normX0 = Math.max(0, (viewLeft / pRect.width) - margin);
+    const normY0 = Math.max(0, (viewTop / pRect.height) - margin);
+    const normW = Math.min(1 - normX0, ((viewRight - viewLeft) / pRect.width) + 2 * margin);
+    const normH = Math.min(1 - normY0, ((viewBottom - viewTop) / pRect.height) + 2 * margin);
+
+    const visibleRect: BoundingBox = {
+      x: normX0,
+      y: normY0,
+      width: Math.max(0.01, normW),
+      height: Math.max(0.01, normH),
+    };
+
+    const candidates = pageSpatialIndex.queryRect(visibleRect);
+    const candidateSet = new Set(candidates.map((m) => m.id));
+
+    // Las marcas seleccionadas NUNCA se descartan para que sus handles y bounding boxes no desaparezcan
+    for (const selId of selectedMarkupIds) {
+      candidateSet.add(selId);
+    }
+
+    return pageMarkups.filter((m) => candidateSet.has(m.id));
+  }, [pageMarkups, pageSpatialIndex, pageDims, scrollPos, selectedMarkupIds]);
 
   // Sub-entregable B.5: Arrastre y colocación de herramientas del Tool Chest sobre el lienzo
   const handleDragOver = (e: React.DragEvent) => {
@@ -3263,8 +3320,8 @@ export const PdfViewer: React.FC = () => {
               });
             })}
 
-            {/* Anotaciones guardadas en la página actual */}
-            {pageMarkups.map((markup) => {
+            {/* Anotaciones guardadas en la página actual (con culling de viewport en conjuntos grandes) */}
+            {renderedMarkups.map((markup) => {
               const isSelected = selectedMarkupIds.includes(markup.id);
               const descriptor = getMarkupSvgDescriptor(markup, viewportTransform);
 

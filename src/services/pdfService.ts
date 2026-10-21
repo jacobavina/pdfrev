@@ -4,6 +4,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 // En BUILD (Tauri): Vite compila y emite un asset estático dedicado en dist/assets/
 // resolviendo cualquier problema de CORS, CSP o rutas relativas en WebView2.
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { fitsInSingleCanvas, MAX_CANVAS_AREA_PX, MAX_CANVAS_DIM_PX, RectPx } from '../core/render/tilePlan';
 
 let workerConfigured = false;
 
@@ -22,6 +23,11 @@ export function configurePdfWorker(): void {
 configurePdfWorker();
 
 export interface RenderOptions {
+  /**
+   * Región de la hoja (px CSS) que se rasteriza (ADR-0090). Sin ella se renderiza la hoja entera, reduciendo la
+   * resolución si el búfer no cabe en un canvas.
+   */
+  region?: RectPx;
   scale?: number;
   rotation?: number;
   textLayerContainer?: HTMLDivElement | null;
@@ -32,6 +38,8 @@ export interface RenderOptions {
 }
 
 export interface RenderResult {
+  /** Región rasterizada en el canvas, si no es la hoja entera. */
+  region?: RectPx;
   width: number;
   height: number;
   viewport: pdfjsLib.PageViewport;
@@ -78,9 +86,18 @@ export async function renderPageToCanvas(
 
   // Soporte HiDPI (devicePixelRatio de la pantalla)
   const dpr = window.devicePixelRatio || 1;
-  const outputScale = dpr;
-  const bufferWidth = Math.floor(viewport.width * outputScale);
-  const bufferHeight = Math.floor(viewport.height * outputScale);
+  const region = options.region;
+  // Hoja entera que no cabe en un canvas (y sin región): baja la resolución en vez de dejar el lienzo en blanco
+  let outputScale = dpr;
+  if (!region && !fitsInSingleCanvas(viewport.width, viewport.height, dpr)) {
+    outputScale = Math.min(
+      MAX_CANVAS_DIM_PX / viewport.width,
+      MAX_CANVAS_DIM_PX / viewport.height,
+      Math.sqrt(MAX_CANVAS_AREA_PX / (viewport.width * viewport.height))
+    );
+  }
+  const bufferWidth = Math.floor((region ? region.width : viewport.width) * outputScale);
+  const bufferHeight = Math.floor((region ? region.height : viewport.height) * outputScale);
 
   // Doble buffer con canvas offscreen: elimina ventana en blanco y parpadeo al cambiar página/zoom
   const offscreenCanvas = document.createElement('canvas');
@@ -102,7 +119,8 @@ export async function renderPageToCanvas(
   }
 
   offscreenCtx.save();
-  offscreenCtx.scale(outputScale, outputScale);
+  // La región se desplaza para que su esquina caiga en el origen del canvas
+  offscreenCtx.setTransform(outputScale, 0, 0, outputScale, region ? -region.x * outputScale : 0, region ? -region.y * outputScale : 0);
 
   const renderContext = {
     canvasContext: offscreenCtx,
@@ -125,8 +143,23 @@ export async function renderPageToCanvas(
       canvas.width = bufferWidth;
       canvas.height = bufferHeight;
     }
-    canvas.style.width = `${Math.floor(viewport.width)}px`;
-    canvas.style.height = `${Math.floor(viewport.height)}px`;
+    if (region) {
+      Object.assign(canvas.style, {
+        position: 'absolute',
+        left: `${region.x}px`,
+        top: `${region.y}px`,
+        width: `${region.width}px`,
+        height: `${region.height}px`,
+      });
+    } else {
+      Object.assign(canvas.style, {
+        position: '',
+        left: '',
+        top: '',
+        width: `${Math.floor(viewport.width)}px`,
+        height: `${Math.floor(viewport.height)}px`,
+      });
+    }
 
     const visibleCtx = canvas.getContext('2d', { alpha: false });
     if (visibleCtx) {
@@ -162,6 +195,7 @@ export async function renderPageToCanvas(
       height: viewport.height,
       viewport,
       hasText,
+      ...(region ? { region } : {}),
     };
   } catch (err: unknown) {
     if (

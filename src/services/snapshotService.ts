@@ -106,10 +106,20 @@ export function captureCanvasSlice(
   width: number;
   height: number;
 } {
-  const sx = Math.max(0, Math.min(canvas.width - 1, Math.round(normRect.x * canvas.width)));
-  const sy = Math.max(0, Math.min(canvas.height - 1, Math.round(normRect.y * canvas.height)));
-  const sw = Math.max(1, Math.min(canvas.width - sx, Math.round(normRect.width * canvas.width)));
-  const sh = Math.max(1, Math.min(canvas.height - sy, Math.round(normRect.height * canvas.height)));
+  // Hoja grande renderizada por región (ADR-0090): el canvas solo cubre parte de la hoja, así que el rectángulo
+  // normalizado de la hoja se pasa a coordenadas del canvas
+  const page = canvas.parentElement;
+  const regional = canvas.dataset.region === 'true' && page && canvas.offsetWidth > 0 && canvas.offsetHeight > 0;
+  const kx = regional ? canvas.width / canvas.offsetWidth : 0;
+  const ky = regional ? canvas.height / canvas.offsetHeight : 0;
+  const ax = regional ? (normRect.x * page!.offsetWidth - canvas.offsetLeft) * kx : normRect.x * canvas.width;
+  const ay = regional ? (normRect.y * page!.offsetHeight - canvas.offsetTop) * ky : normRect.y * canvas.height;
+  const aw = regional ? normRect.width * page!.offsetWidth * kx : normRect.width * canvas.width;
+  const ah = regional ? normRect.height * page!.offsetHeight * ky : normRect.height * canvas.height;
+  const sx = Math.max(0, Math.min(canvas.width - 1, Math.round(ax)));
+  const sy = Math.max(0, Math.min(canvas.height - 1, Math.round(ay)));
+  const sw = Math.max(1, Math.min(canvas.width - sx, Math.round(aw)));
+  const sh = Math.max(1, Math.min(canvas.height - sy, Math.round(ah)));
 
   const offscreen = document.createElement('canvas');
   offscreen.width = sw;

@@ -1771,6 +1771,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const ctxMenu = page.locator('[data-testid="canvas-context-menu"]');
     await expect(ctxMenu).toBeVisible();
     await expect(ctxMenu).toContainText('Rectangle');
+    await page.locator('[data-testid="canvas-menu-status"]').hover();
     await page.locator('[data-testid="canvas-menu-status-accepted"]').click();
     await expect(ctxMenu).toHaveCount(0);
     await expect(
@@ -1907,9 +1908,13 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.keyboard.press('Escape');
     await page.keyboard.press('c');
     await drag(at(0.6, 0.5), at(0.8, 0.7));
-    await page.keyboard.press('v');
-    await page.mouse.click(at(0.6, 0.6).x, at(0.6, 0.6).y);
-    await expect(page.locator('[data-testid^="control-point-"]')).toHaveCount(4);
+    // La selección por el borde se reintenta entera: con la máquina cargada el clic podía llegar antes de que la nube
+    // estuviera pintada y la prueba fallaba de forma intermitente (ADR-0092)
+    await expect(async () => {
+      await page.keyboard.press('v');
+      await page.mouse.click(at(0.6, 0.6).x, at(0.6, 0.6).y);
+      await expect(page.locator('[data-testid^="control-point-"]')).toHaveCount(4, { timeout: 1500 });
+    }).toPass({ timeout: 12000 });
     const handle = (await page.locator('[data-testid="control-point-2"]').boundingBox())!;
     await drag({ x: handle.x + handle.width / 2, y: handle.y + handle.height / 2 }, at(0.92, 0.85));
     await expect(page.locator('[data-testid^="control-point-"]')).toHaveCount(4);

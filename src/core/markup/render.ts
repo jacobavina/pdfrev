@@ -270,6 +270,12 @@ export const CALLOUT_MAX_LINE_WIDTH_PT = 216;
 export const CALLOUT_MAX_CHARS_PER_LINE = 36;
 
 /**
+ * Holgura (pt) al decidir si una línea cabe: la caja de un callout se mide justo al texto y al moverla (suma de
+ * coordenadas normalizadas) su ancho cambia en el último decimal; sin holgura el texto saltaba de línea al arrastrar.
+ */
+const WRAP_TOLERANCE_PT = 0.05;
+
+/**
  * Condición 1 (A.3) y Defecto 2: Fuente única para medir y envolver el texto de notas y llamadas.
  * Divide el texto en líneas envolviendo por palabras respetando saltos de línea explícitos,
  * con medición métrica real basada en la tabla AFM de Helvetica para evitar cualquier desbordamiento.
@@ -294,7 +300,7 @@ export function wrapCalloutText(
     for (const word of words) {
       const wordWidth = getHelveticaTextWidth(word, fontSizePt);
       // Si la palabra en sí misma supera el ancho máximo de línea, fraccionarla por caracteres
-      if (wordWidth > maxLineWidthPt) {
+      if (wordWidth > maxLineWidthPt + WRAP_TOLERANCE_PT) {
         if (currentLine) {
           lines.push(currentLine);
           currentLine = '';
@@ -302,7 +308,7 @@ export function wrapCalloutText(
         let chunk = '';
         for (const char of word) {
           const testChunk = chunk + char;
-          if (getHelveticaTextWidth(testChunk, fontSizePt) <= maxLineWidthPt || !chunk) {
+          if (getHelveticaTextWidth(testChunk, fontSizePt) <= maxLineWidthPt + WRAP_TOLERANCE_PT || !chunk) {
             chunk = testChunk;
           } else {
             lines.push(chunk);
@@ -316,7 +322,7 @@ export function wrapCalloutText(
       }
 
       const testLine = currentLine ? `${currentLine} ${word}` : word;
-      if (getHelveticaTextWidth(testLine, fontSizePt) <= maxLineWidthPt || !currentLine) {
+      if (getHelveticaTextWidth(testLine, fontSizePt) <= maxLineWidthPt + WRAP_TOLERANCE_PT || !currentLine) {
         currentLine = testLine;
       } else {
         lines.push(currentLine);

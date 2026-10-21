@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   Scissors,
   Copy,
@@ -75,6 +75,7 @@ export const CanvasContextMenu: React.FC<{
   onClose: () => void;
 }> = ({ x, y, hitCutoutIndex, onClose }) => {
   const ref = useRef<HTMLDivElement | null>(null);
+  const [menuHeight, setMenuHeight] = useState(560);
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
 
   const { markups, selectedMarkupIds, updateMarkupStatus } = useMarkupStore();
@@ -88,6 +89,11 @@ export const CanvasContextMenu: React.FC<{
 
   const palettes = useToolChestStore((s) => s.palettes) ?? [];
   const docLayers = Array.from(new Set(markups.map((m) => m.layer).filter((l): l is string => Boolean(l))));
+
+  useLayoutEffect(() => {
+    const h = ref.current?.offsetHeight;
+    if (h && Math.abs(h - menuHeight) > 1) setMenuHeight(h);
+  });
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
@@ -108,9 +114,10 @@ export const CanvasContextMenu: React.FC<{
 
   if (!first) return null;
 
-  // Mantener el menú dentro de la ventana
+  // Mantener el menú dentro de la ventana (ADR-0092): la altura real se mide tras pintar, porque el menú de Revu 21
+  // es más alto que cualquier cifra fija y sus últimas entradas quedaban fuera de la ventana
   const left = Math.min(x, typeof window !== 'undefined' ? window.innerWidth - 240 : x);
-  const top = Math.min(y, typeof window !== 'undefined' ? Math.max(10, window.innerHeight - 560) : y);
+  const top = Math.max(8, Math.min(y, typeof window !== 'undefined' ? window.innerHeight - menuHeight - 8 : y));
   const openLeft = typeof window !== 'undefined' && left > window.innerWidth - 440;
 
   const item = (

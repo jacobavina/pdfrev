@@ -37,6 +37,30 @@ export async function exportFlattenedPdf(): Promise<void> {
   }
 }
 
+/**
+ * Unflatten Markups (ADR-0093): si el documento abierto fue aplanado por REA, quita lo dibujado en las páginas y
+ * devuelve las marcas editables (un solo paso: se sustituye el documento y sus marcas).
+ */
+export async function unflattenOpenDocument(): Promise<void> {
+  const { pdfBytes, filePath, fileName, setDocument } = useDocumentStore.getState();
+  if (!pdfBytes) {
+    showToast('No PDF document is open.');
+    return;
+  }
+  try {
+    const { unflattenPdf } = await import('../../core/pdf/flattenRecord');
+    const { pdfBytes: restored, markups } = await unflattenPdf(pdfBytes);
+    const { loadPdfDocument } = await import('../../services/pdfService');
+    const doc = await loadPdfDocument(restored);
+    const current = useMarkupStore.getState().markups;
+    useMarkupStore.getState().setMarkups([...current, ...markups]);
+    setDocument(filePath, fileName || 'document.pdf', restored, doc.numPages, doc);
+    showToast(`${markups.length} markup${markups.length === 1 ? '' : 's'} restored from the flattened PDF.`);
+  } catch (err) {
+    showToast(err instanceof Error ? err.message : String(err));
+  }
+}
+
 export async function runPageOperation(
   kind: 'insertBlank' | 'rotate' | 'delete' | 'extract'
 ): Promise<void> {

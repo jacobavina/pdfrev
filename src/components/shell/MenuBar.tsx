@@ -84,7 +84,7 @@ import { openPdfDialog, openPdfFromPath } from '../../services/fileDialogService
 import { getRecentFiles, clearRecentFiles, subscribeRecentFiles, RecentFile } from '../../services/recentFilesService';
 import { useAutoSave } from '../../hooks/useAutoSave';
 import { TOOL_GROUPS } from './toolDefinitions';
-import { exportFlattenedPdf, goToPage, runPageOperation, selectAllOnCurrentPage } from './appActions';
+import { exportFlattenedPdf, unflattenOpenDocument, goToPage, runPageOperation, selectAllOnCurrentPage } from './appActions';
 
 type MenuEntry =
   | {
@@ -257,6 +257,7 @@ export const MenuBar: React.FC = () => {
           testId: 'menu-export',
           submenu: [
             { icon: <FileDown size={16} />, label: 'PDF with Flattened Markups…', onSelect: () => exportFlattenedPdf(), disabled: !hasDoc, testId: 'menu-export-flattened' },
+            { icon: <FileDown size={16} />, label: 'Unflatten Markups of This PDF', onSelect: () => unflattenOpenDocument(), disabled: !hasDoc, testId: 'menu-unflatten' },
             { icon: <FileSpreadsheet size={16} />, label: 'Markups List (CSV)…', onSelect: () => requestExport('csv'), disabled: !hasDoc, testId: 'menu-export-csv' },
             { icon: <FileSpreadsheet size={16} />, label: 'Takeoff Schedule (Excel .xlsx)…', onSelect: () => requestExport('xlsx'), disabled: !hasDoc, testId: 'menu-export-xlsx' },
             { icon: <ClipboardList size={16} />, label: 'Markup Summary Report (PDF)…', onSelect: () => requestExport('report'), disabled: !hasDoc, testId: 'menu-export-report' },

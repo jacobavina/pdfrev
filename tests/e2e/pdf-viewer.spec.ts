@@ -2877,4 +2877,32 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(row).toHaveCount(1);
     await expect(row.locator('input[type="text"]').first()).toHaveValue('Changed vs Rev-B.pdf (1 of 1)');
   });
+
+  test('Aplanar y desaplanar (ADR-0093): el PDF aplanado se reabre y Unflatten devuelve las marcas editables', async ({ page }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
+
+    // 1. File ▸ Export ▸ PDF with Flattened Markups
+    const download = page.waitForEvent('download');
+    await page.locator('[data-testid="menu-archivo"]').click();
+    await page.locator('[data-testid="menu-export"]').hover();
+    await page.locator('[data-testid="menu-export-flattened"]').click();
+    const flatPath = await (await download).path();
+    const flatBytes = fs.readFileSync(flatPath!);
+
+    // 2. Abrir el PDF aplanado: sus marcas ya no son marcas, están en el contenido
+    const chooser = page.waitForEvent('filechooser');
+    await page.keyboard.press('Control+o');
+    await (await chooser).setFiles({ name: 'plano_markups.pdf', mimeType: 'application/pdf', buffer: flatBytes });
+    await expect(page.locator('[data-testid="pdf-page-container"]')).toHaveAttribute('data-rendered-page', '0', { timeout: 15000 });
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(0, { timeout: 15000 });
+
+    // 3. File ▸ Export ▸ Unflatten Markups of This PDF: la marca vuelve, editable
+    await page.locator('[data-testid="menu-archivo"]').click();
+    await page.locator('[data-testid="menu-export"]').hover();
+    await page.locator('[data-testid="menu-unflatten"]').click();
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1, { timeout: 15000 });
+  });
 });

@@ -40,6 +40,7 @@ import { getStickyNoteNormalizedSize } from '../utils/coordinates';
 import { lineEndingShape, lineEndingSize, endpointAngles, CALLOUT_ARROW_HALF_ANGLE } from '../core/markup/lineEndings';
 import { emitMarkupOperators } from '../core/pdf/operators';
 import { PDFName, drawObject } from 'pdf-lib';
+import { recordFlatten, snapshotContentStreams } from '../core/pdf/flattenRecord';
 
 /**
  * Extremos de línea en el PDF aplanado (ADR-0018), con la misma geometría que la pantalla y el /AP.
@@ -436,6 +437,8 @@ export async function exportMarkupsToPdf(
   }
 
   const pages = pdfDoc.getPages();
+  // Flujos de contenido de partida: lo que se añada será lo que "Unflatten" quite (ADR-0093)
+  const contentBefore = snapshotContentStreams(pdfDoc);
 
   let totalReplacedCharacters = 0;
 
@@ -993,6 +996,7 @@ export async function exportMarkupsToPdf(
     }
   }
 
+  recordFlatten(pdfDoc, contentBefore, markups);
   const pdfBytes = await pdfDoc.save();
   return {
     pdfBytes,

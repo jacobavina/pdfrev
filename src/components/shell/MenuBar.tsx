@@ -436,6 +436,13 @@ export const MenuBar: React.FC = () => {
           ],
         },
         {
+          icon: <FileStack size={16} />,
+          label: 'Compare Documents…',
+          testId: 'menu-compare-documents',
+          onSelect: () => void import('../../services/compareService').then((m) => m.compareWithFile()),
+          disabled: !hasDoc,
+        },
+        {
           icon: <Columns2 size={16} />,
           label: 'Side by Side',
           testId: 'menu-side-by-side',

@@ -2847,4 +2847,29 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     expect(sheetXml).toMatch(/<f>SUM\(J\d+(,J\d+)*\)<\/f>/);
     expect(sharedStringsXml).toContain('TOTAL TAKEOFF');
   });
+
+  test('Compare Documents (ADR-0091): compara dos revisiones y marca con nubes lo que cambió', async ({ page }) => {
+    // Revisión B: el mismo plano con un bloque negro nuevo
+    const { PDFDocument, rgb } = await import('pdf-lib');
+    const doc = await PDFDocument.load(fs.readFileSync('fixtures/test-blueprint.pdf'));
+    doc.getPage(0).drawRectangle({ x: 500, y: 350, width: 140, height: 50, color: rgb(0, 0, 0) });
+    const revB = Buffer.from(await doc.save());
+
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
+    const before = await overlaySvg.locator('g[data-testid^="markup-g-"]').count();
+
+    await page.locator('[data-testid="menu-documento"]').click();
+    const chooser = page.waitForEvent('filechooser');
+    await page.locator('[data-testid="menu-compare-documents"]').click();
+    await (await chooser).setFiles({ name: 'Rev-B.pdf', mimeType: 'application/pdf', buffer: revB });
+
+    // Una nube por el bloque nuevo, en la capa Comparison, con el nombre de la revisión
+    await expect(overlaySvg.locator('g[data-testid^="markup-g-"]')).toHaveCount(before + 1, { timeout: 30000 });
+    const row = page.locator('[data-testid="markups-list-panel"] tbody tr').filter({ hasText: 'Cloud' });
+    await expect(row).toHaveCount(1);
+    await expect(row.locator('input[type="text"]').first()).toHaveValue('Changed vs Rev-B.pdf (1 of 1)');
+  });
 });

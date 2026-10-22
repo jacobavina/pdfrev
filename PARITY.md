@@ -240,6 +240,9 @@ Este documento registra la paridad funcional real implementada en REA, vinculand
 | **Tirador del texto de distancias y cotas: se arrastra y un deshacer lo devuelve (ADR-0097)** | `shipped` | `src/components/CaptionOffsetFlow.test.tsx` | `arrastrar el tirador del texto lo separa de la línea y un solo deshacer lo devuelve a su sitio` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Desplazamiento del texto editable en el panel de propiedades (ADR-0097)** | `shipped` | `src/components/CaptionOffsetFlow.test.tsx` | `el panel de propiedades permite escribir el desplazamiento y restablecerlo` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Separar el texto de la flecha desde el plano real (ADR-0097)** | `shipped` | `tests/e2e/pdf-viewer.spec.ts` | `Texto separable de la flecha (ADR-0097): el tirador del texto de una distancia la separa de la línea` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **Perfiles de interfaz Review, Takeoff y Field: cada uno fija pestaña, paneles, lista de marcas, páginas y reglas (ADR-0098)** | `shipped` | `src/core/ui/profiles.test.ts` | `cambia la disposición según el perfil: Takeoff abre mediciones y reglas, Field lo deja todo plegado` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **Perfil Custom: guarda la disposición actual y la recupera tras recargar (ADR-0098)** | `shipped` | `src/core/ui/profiles.test.ts` | `guarda la disposición actual como perfil Custom y la recupera, también tras recargar` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **View ▸ Profiles cambia la disposición y se recuerda al recargar (ADR-0098)** | `shipped` | `tests/e2e/pdf-viewer.spec.ts` | `Perfiles de interfaz (ADR-0098): View ▸ Profiles cambia la disposición y se recuerda al recargar` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 
 
 

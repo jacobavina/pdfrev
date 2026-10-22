@@ -1,5 +1,12 @@
 import { useEffect } from 'react';
 import { create } from 'zustand';
+import {
+  BUILTIN_PROFILES,
+  LayoutSnapshot,
+  ProfileId,
+  isProfileId,
+  parseLayoutSnapshot,
+} from '../core/ui/profiles';
 
 /** Paneles del lado derecho (ADR-0044). */
 export type RightPanelId = 'properties' | 'measure' | 'toolchest';
@@ -53,6 +60,25 @@ const AUTO_PANELS_STORAGE_KEY = 'rea-auto-panels';
 export type RibbonTabId = 'markup' | 'measure' | 'insert';
 
 const LIST_AT_START_STORAGE_KEY = 'rea-markups-list-at-start';
+const PROFILE_STORAGE_KEY = 'rea-profile';
+const CUSTOM_LAYOUT_STORAGE_KEY = 'rea-profile-custom';
+
+function readStoredProfile(): ProfileId | null {
+  try {
+    const v = localStorage.getItem(PROFILE_STORAGE_KEY);
+    return isProfileId(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+function readStoredCustomLayout(): LayoutSnapshot | null {
+  try {
+    return parseLayoutSnapshot(JSON.parse(localStorage.getItem(CUSTOM_LAYOUT_STORAGE_KEY) ?? 'null'));
+  } catch {
+    return null;
+  }
+}
 
 /** La lista de marcas abre cerrada, como en Revu (ADR-0060), salvo con View ▸ Open Markups List at Start. */
 export function readStoredListAtStart(): boolean {
@@ -175,6 +201,14 @@ interface UiState {
   showRulers: boolean;
   /** Abrir solo el panel de la marca seleccionada: Properties o Measure (View ▸ Open Panel on Selection, ADR-0043). */
   autoOpenPanels: boolean;
+  /** Perfil de interfaz elegido (ADR-0098) o null si la disposición es la de arranque. Se recuerda entre sesiones. */
+  profile: ProfileId | null;
+  /** Disposición guardada por el usuario como perfil "Custom". */
+  customLayout: LayoutSnapshot | null;
+  /** Aplica un perfil: pestaña de la cinta, paneles, lista de marcas, modo de página y reglas. */
+  applyProfile: (id: ProfileId) => void;
+  /** Guarda la disposición actual como perfil "Custom" y la activa. */
+  saveCustomProfile: () => void;
 
   setTheme: (theme: Theme) => void;
   /** Olvida la elección del usuario y vuelve a seguir el tema del sistema. */
@@ -239,6 +273,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   showMeasureLabels: true,
   showRulers: readStoredRulers(),
   autoOpenPanels: readStoredAutoPanels(),
+  profile: readStoredProfile(),
+  customLayout: readStoredCustomLayout(),
 
   setTheme: (theme) => {
     applyTheme(theme);
@@ -318,6 +354,45 @@ export const useUiStore = create<UiState>((set, get) => ({
       // Preferencia no persistible: se aplica solo en esta sesión
     }
     set({ showRulers });
+  },
+  applyProfile: (id) => {
+    const layout = id === 'custom' ? get().customLayout : BUILTIN_PROFILES[id];
+    if (!layout) return;
+    try {
+      localStorage.setItem(PROFILE_STORAGE_KEY, id);
+    } catch {
+      // Preferencia no persistible: se aplica solo en esta sesión
+    }
+    // El modo de página y las reglas ya tienen su propia preferencia persistente
+    get().setViewMode(layout.viewMode);
+    get().setShowRulers(layout.showRulers);
+    set({
+      profile: id,
+      ribbonTab: layout.ribbonTab,
+      leftOpen: layout.leftOpen,
+      leftTab: layout.leftTab,
+      rightPanel: layout.rightPanel,
+      markupsListOpen: layout.markupsListOpen,
+    });
+  },
+  saveCustomProfile: () => {
+    const s = get();
+    const layout: LayoutSnapshot = {
+      ribbonTab: s.ribbonTab,
+      leftOpen: s.leftOpen,
+      leftTab: s.leftTab,
+      rightPanel: s.rightPanel,
+      markupsListOpen: s.markupsListOpen,
+      viewMode: s.viewMode,
+      showRulers: s.showRulers,
+    };
+    try {
+      localStorage.setItem(CUSTOM_LAYOUT_STORAGE_KEY, JSON.stringify(layout));
+      localStorage.setItem(PROFILE_STORAGE_KEY, 'custom');
+    } catch {
+      // Preferencia no persistible: se guarda solo en esta sesión
+    }
+    set({ customLayout: layout, profile: 'custom' });
   },
   setAutoOpenPanels: (autoOpenPanels) => {
     try {

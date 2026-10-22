@@ -68,6 +68,12 @@ export const App: React.FC = () => {
   // Al seleccionar marcas se abre su panel: Measure o Properties (ADR-0043)
   useEffect(() => watchSelectionPanels(), []);
 
+  // Perfil de interfaz elegido en una sesión anterior (ADR-0098): se recupera al arrancar
+  useEffect(() => {
+    const { profile, applyProfile } = useUiStore.getState();
+    if (profile) applyProfile(profile);
+  }, []);
+
   // Atajos globales: Ctrl+S (guardar), Ctrl+Shift+S (guardar como), Ctrl+O (abrir), Ctrl+F (buscar), F1 (atajos)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {

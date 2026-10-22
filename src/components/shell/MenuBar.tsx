@@ -36,6 +36,7 @@ import {
   Search,
   Keyboard,
   Contrast,
+  LayoutPanelLeft,
   SaveAll,
   PenLine,
   Stamp as StampIcon,
@@ -84,6 +85,7 @@ import { openPdfDialog, openPdfFromPath } from '../../services/fileDialogService
 import { getRecentFiles, clearRecentFiles, subscribeRecentFiles, RecentFile } from '../../services/recentFilesService';
 import { useAutoSave } from '../../hooks/useAutoSave';
 import { TOOL_GROUPS } from './toolDefinitions';
+import { PROFILE_LABELS } from '../../core/ui/profiles';
 import { exportFlattenedPdf, unflattenOpenDocument, goToPage, runPageOperation, selectAllOnCurrentPage } from './appActions';
 
 type MenuEntry =
@@ -146,6 +148,10 @@ export const MenuBar: React.FC = () => {
     toggleMarkupsList,
     markupsListAtStart,
     setMarkupsListAtStart,
+    profile,
+    customLayout,
+    applyProfile,
+    saveCustomProfile,
   } = useUiStore();
   const { saveNow } = useAutoSave(0);
 
@@ -384,6 +390,36 @@ export const MenuBar: React.FC = () => {
           testId: 'menu-view-list-at-start',
         },
         'separator',
+        // Perfiles de interfaz (ADR-0098): una disposición de la ventana para cada tipo de trabajo
+        {
+          icon: <LayoutPanelLeft size={16} />,
+          label: 'Profiles',
+          testId: 'menu-view-profiles',
+          submenu: [
+            ...(['review', 'takeoff', 'field'] as const).map((id) => ({
+              icon: <LayoutPanelLeft size={16} />,
+              label: PROFILE_LABELS[id],
+              checked: profile === id,
+              onSelect: () => applyProfile(id),
+              testId: `menu-profile-${id}`,
+            })),
+            {
+              icon: <LayoutPanelLeft size={16} />,
+              label: 'Custom',
+              checked: profile === 'custom',
+              disabled: !customLayout,
+              onSelect: () => applyProfile('custom'),
+              testId: 'menu-profile-custom',
+            },
+            'separator' as const,
+            {
+              icon: <Save size={16} />,
+              label: 'Save Current Layout as Custom',
+              onSelect: saveCustomProfile,
+              testId: 'menu-profile-save',
+            },
+          ],
+        },
         {
           icon: <Contrast size={16} />,
           label: 'Dark Mode',

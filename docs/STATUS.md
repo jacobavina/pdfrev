@@ -241,6 +241,7 @@
 | `P4-B.4` | Relleno dinámico de áreas (F.7) | **Cerrado** | ADR-0095. Herramienta `Dynamic Fill` (J) en Measure: un clic dentro de un recinto rasteriza la hoja, cierra huecos de hasta `gap` px, inunda el espacio libre y crea la medición de área del contorno exterior. Recinto abierto o clic sobre una línea avisan. 7 tests unitarios + 1 E2E. | Verificación nativa con planos reales PENDIENTE DE VALIDACIÓN por el usuario. |
 | `P4-D.4` | Informe de marcas con miniaturas (E.3) | **Cerrado** | ADR-0096. El informe PDF de la lista de marcas añade "Sheets with Markups": miniaturas de las hojas (hasta 12, 480 px) con el contorno de sus marcas. 3 tests unitarios + 1 E2E. | Verificación nativa PENDIENTE DE VALIDACIÓN por el usuario. |
 | `P4-B.5` | Texto separable de la flecha en Length y Dimension | **Cerrado** | ADR-0097. Desplazamiento del texto (`/CO`) a lo largo y por encima de la línea, con un tirador arrastrable y campos en Propiedades; igual en pantalla, /AP y aplanado, e ida y vuelta con Revu/Acrobat. 8 tests unitarios + 1 E2E. | Verificación nativa y en Revu/Acrobat PENDIENTE DE VALIDACIÓN por el usuario. |
+| `P5-B.7` | Perfiles de interfaz (F.6, perfiles) | **Cerrado** | ADR-0098. `View ▸ Profiles`: Review, Takeoff, Field y Custom (guarda la disposición actual); se recuerda entre sesiones. 3 tests unitarios + 1 E2E. | Verificación nativa PENDIENTE DE VALIDACIÓN por el usuario. |
 
 ---
 

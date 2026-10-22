@@ -3003,4 +3003,32 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     expect(Math.abs((await textX()) - x0)).toBeLessThan(1);
     expect(Math.abs((await textY()) - y0)).toBeLessThan(1);
   });
+
+  test('Perfiles de interfaz (ADR-0098): View ▸ Profiles cambia la disposición y se recuerda al recargar', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('[data-testid="markup-overlay-svg"]')).toBeVisible({ timeout: 15000 });
+
+    const choose = async (id: string) => {
+      await page.locator('[data-testid="menu-ver"]').click();
+      await page.locator('[data-testid="menu-view-profiles"]').hover();
+      await page.locator(`[data-testid="menu-profile-${id}"]`).click();
+    };
+
+    // Takeoff: pestaña Measure y panel de mediciones
+    await choose('takeoff');
+    await expect(page.locator('[data-testid="ribbon-tab-measure"]')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('[data-testid="measurements-panel"]')).toBeVisible();
+
+    // Field: todo plegado
+    await choose('field');
+    await expect(page.locator('[data-testid="measurements-panel"]')).toBeHidden();
+    await expect(page.locator('[data-testid="markups-list-panel"]')).toBeHidden();
+
+    // Se recuerda al recargar: Takeoff vuelve con su pestaña y su panel
+    await choose('takeoff');
+    await page.reload();
+    await expect(page.locator('[data-testid="markup-overlay-svg"]')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="ribbon-tab-measure"]')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('[data-testid="measurements-panel"]')).toBeVisible();
+  });
 });

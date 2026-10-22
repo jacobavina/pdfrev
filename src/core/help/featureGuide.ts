@@ -439,6 +439,17 @@ export const FEATURE_GUIDE: GuideSection[] = [
         where: 'Left panel ▸ Bookmarks',
       },
       {
+        id: 'ocr',
+        title: 'OCR: make a scanned drawing searchable',
+        summary: 'Reads the text of a scanned page with the Windows text recognition engine and adds it as invisible text, so you can search and select it. Desktop app only.',
+        steps: [
+          'Choose Document ▸ OCR ▸ OCR This Page, or OCR All Pages Without Text.',
+          'When it finishes, press Ctrl+F to search the drawing. Save to keep the text in the PDF.',
+          'If Windows has no OCR language installed, the message tells you where to add one.',
+        ],
+        where: 'Document ▸ OCR',
+      },
+      {
         id: 'compare',
         title: 'Compare Documents',
         summary: 'Compares this page with the same page of another revision and marks every change with a cloud on the Comparison layer.',

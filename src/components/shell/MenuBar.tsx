@@ -36,6 +36,7 @@ import {
   Search,
   Keyboard,
   Contrast,
+  ScanText,
   BookOpen,
   LayoutPanelLeft,
   SaveAll,
@@ -471,6 +472,27 @@ export const MenuBar: React.FC = () => {
               testId: 'menu-overlay-self',
               onSelect: () => void import('../../services/overlayService').then((m) => m.startOverlayWithThisDocument()),
               disabled: !hasDoc || numPages < 2,
+            },
+          ],
+        },
+        // OCR local con el motor de Windows (ADR-0102): hace buscable un plano escaneado
+        {
+          icon: <ScanText size={16} />,
+          label: 'OCR',
+          testId: 'menu-ocr',
+          disabled: !hasDoc,
+          submenu: [
+            {
+              icon: <ScanText size={16} />,
+              label: 'OCR This Page',
+              testId: 'menu-ocr-page',
+              onSelect: () => void import('../../services/ocrService').then((m) => m.runOcr('page')),
+            },
+            {
+              icon: <ScanText size={16} />,
+              label: 'OCR All Pages Without Text',
+              testId: 'menu-ocr-all',
+              onSelect: () => void import('../../services/ocrService').then((m) => m.runOcr('all')),
             },
           ],
         },

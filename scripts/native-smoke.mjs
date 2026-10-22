@@ -468,6 +468,29 @@ try {
   }
   console.log(`    ✓ read_bbx leyó el archivo correctamente a través de Rust IPC.`);
 
+  // OCR nativo de Windows vía IPC real (ADR-0102): imagen propia con "HELLO OCR 123"
+  const ocrPng = fs.readFileSync(path.resolve('src-tauri', 'tests', 'ocr_hello.png'));
+  const ocrRes = await executeAsync(`
+    const done = arguments[arguments.length - 1];
+    const [image] = arguments;
+    window.__TAURI_INTERNALS__.invoke('ocr_recognize', { image })
+      .then((page) => done({ success: true, page }))
+      .catch((err) => done({ error: String(err) }));
+  `, [Array.from(ocrPng)]);
+  if (ocrRes?.error) {
+    if (/idioma de OCR/.test(ocrRes.error)) {
+      console.log(`    ⚠ ocr_recognize: este equipo no tiene idioma de OCR instalado (${ocrRes.error}).`);
+    } else {
+      throw new Error(`ocr_recognize falló vía IPC nativo: ${ocrRes.error}`);
+    }
+  } else {
+    const ocrText = ocrRes.page.words.map((w) => w.text.toUpperCase()).join(' ');
+    if (!ocrText.includes('HELLO') || !ocrText.includes('123')) {
+      throw new Error(`ocr_recognize no leyó el texto de la imagen: "${ocrText}"`);
+    }
+    console.log(`    ✓ ocr_recognize leyó "${ocrText}" con el motor de Windows (${ocrRes.page.language}).`);
+  }
+
   // Limpiar archivo temporal de disco
   fs.unlinkSync(tempBbxPath);
   console.log(`    ✓ Archivo temporal de prueba eliminado.`);

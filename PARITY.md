@@ -249,6 +249,8 @@ Este documento registra la paridad funcional real implementada en REA, vinculand
 | **Importar un Tool Set de Revu (.btx) como paleta: línea con flecha, nube, rectángulo con relleno; omite los sellos (ADR-0101)** | `shipped` | `src/core/toolchest/btx.test.ts` | `importa las herramientas de un .btx como marcas de REA: línea con flecha, nube, rectángulo con relleno y omite los sellos` | PENDIENTE DE VERIFICAR por el usuario con sus Tool Sets de Revu |
 | **Exportar una paleta como .btx con la estructura de Revu y releerla igual (ADR-0101)** | `shipped` | `src/core/toolchest/btx.test.ts` | `exporta las herramientas de REA a un .btx y vuelven iguales al importarlas` | PENDIENTE DE VERIFICAR por el usuario abriendo el .btx en Revu |
 | **Importar y exportar .btx desde el panel del Tool Chest (ADR-0101)** | `shipped` | `tests/e2e/pdf-viewer.spec.ts` | `Tool Sets de Revu (ADR-0101): importar un .btx crea una paleta y exportarla genera un .btx legible` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa y en Revu |
+| **OCR local sobre páginas escaneadas: inyecta capa de texto invisible (/Tr 3) buscable y seleccionable (ADR-0102)** | `shipped` | `src/core/pdf/ocrLayer.test.ts` | `inserta palabras reconocidas por OCR como texto invisible /Tr 3 en la página y permite buscarlas y resaltarlas` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa con un plano escaneado |
+| **OCR: reconoce la página activa o las páginas sin texto y conserva la página y el zoom (ADR-0102)** | `shipped` | `src/services/ocrService.test.ts` | `inserta palabras reconocidas por OCR como texto buscable en la página activa y conserva la página y el zoom` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa con un plano escaneado |
 
 
 

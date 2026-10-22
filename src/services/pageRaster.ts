@@ -18,14 +18,17 @@ export async function rasterizePage(
   bytes: Uint8Array,
   pageIndex: number,
   fit?: { width: number; height: number },
-  width = RASTER_WIDTH_PX
+  width = RASTER_WIDTH_PX,
+  /** Lado máximo en píxeles: el ancho baja si la página es tan alta que su alto pasaría de este límite. */
+  maxSide?: number
 ) {
   const { loadPdfDocument } = await import('./pdfService');
   const doc = await loadPdfDocument(bytes);
   try {
     const page = await doc.getPage(Math.min(pageIndex, doc.numPages - 1) + 1);
     const natural = page.getViewport({ scale: 1 });
-    const scale = (fit?.width ?? width) / natural.width;
+    const targetWidth = Math.min(width, maxSide ? (maxSide * natural.width) / natural.height : Infinity);
+    const scale = (fit?.width ?? targetWidth) / natural.width;
     const viewport = page.getViewport({ scale });
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(viewport.width);
@@ -52,3 +55,15 @@ export async function rasterizePage(
   }
 }
 
+/** Codifica una rasterización como PNG. */
+export async function rasterToPng(raster: Raster): Promise<Uint8Array> {
+  const canvas = document.createElement('canvas');
+  canvas.width = raster.width;
+  canvas.height = raster.height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Could not create a canvas to encode the image.');
+  ctx.putImageData(new ImageData(new Uint8ClampedArray(raster.data), raster.width, raster.height), 0, 0);
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob((b) => resolve(b), 'image/png'));
+  if (!blob) throw new Error('Could not encode the image as PNG.');
+  return new Uint8Array(await blob.arrayBuffer());
+}

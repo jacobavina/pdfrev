@@ -243,6 +243,7 @@
 | `P4-B.5` | Texto separable de la flecha en Length y Dimension | **Cerrado** | ADR-0097. Desplazamiento del texto (`/CO`) a lo largo y por encima de la línea, con un tirador arrastrable y campos en Propiedades; igual en pantalla, /AP y aplanado, e ida y vuelta con Revu/Acrobat. 8 tests unitarios + 1 E2E. | Verificación nativa y en Revu/Acrobat PENDIENTE DE VALIDACIÓN por el usuario. |
 | `P5-B.7` | Perfiles de interfaz (F.6, perfiles) | **Cerrado** | ADR-0098. `View ▸ Profiles`: Review, Takeoff, Field y Custom (guarda la disposición actual); se recuerda entre sesiones. 3 tests unitarios + 1 E2E. | Verificación nativa PENDIENTE DE VALIDACIÓN por el usuario. |
 | `P5-H.1` | Guía de funciones en Help | **Cerrado** | ADR-0100. `Help ▸ Feature Guide`: 7 secciones, más de 40 funciones con qué hacen, dónde están, atajo y pasos, y buscador; una prueba exige documentar toda herramienta con atajo. 4 tests unitarios + 1 E2E. | Verificación nativa PENDIENTE DE VALIDACIÓN por el usuario. |
+| `P5-D.5` | Tool Sets .btx de Revu: importar y exportar (E.2) | **Cerrado** | ADR-0101. El formato se dedujo de 12 Tool Sets reales de Revu 21 (XML con la anotación PDF de cada herramienta comprimida con zlib). Importar crea una paleta (78 de 79 herramientas de los Tool Sets del usuario; los sellos con arte propio y las partes hijas de herramientas compuestas no se importan); exportar escribe un `.btx` de la paleta activa. Rust admite `.btx`. 4 tests unitarios + 1 Rust + 1 E2E. | Que Revu abra un `.btx` exportado por REA PENDIENTE DE VALIDACIÓN por el usuario. |
 
 ---
 

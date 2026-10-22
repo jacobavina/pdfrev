@@ -246,6 +246,9 @@ Este documento registra la paridad funcional real implementada en REA, vinculand
 | **Guía de funciones en Help con buscador: todas las herramientas con atajo están documentadas (ADR-0100)** | `shipped` | `src/core/help/featureGuide.test.ts` | `todas las herramientas de la cinta con atajo aparecen en la guía, para que una herramienta nueva no se quede sin documentar` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Diálogo de la guía: secciones, búsqueda y cierre con Escape (ADR-0100)** | `shipped` | `src/components/shell/FeatureGuideDialog.test.tsx` | `muestra las secciones, filtra al buscar y se cierra con Escape` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Help ▸ Feature Guide abre, busca y cierra la guía (ADR-0100)** | `shipped` | `tests/e2e/pdf-viewer.spec.ts` | `Guía de funciones (ADR-0100): Help ▸ Feature Guide se abre, busca y se cierra` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **Importar un Tool Set de Revu (.btx) como paleta: línea con flecha, nube, rectángulo con relleno; omite los sellos (ADR-0101)** | `shipped` | `src/core/toolchest/btx.test.ts` | `importa las herramientas de un .btx como marcas de REA: línea con flecha, nube, rectángulo con relleno y omite los sellos` | PENDIENTE DE VERIFICAR por el usuario con sus Tool Sets de Revu |
+| **Exportar una paleta como .btx con la estructura de Revu y releerla igual (ADR-0101)** | `shipped` | `src/core/toolchest/btx.test.ts` | `exporta las herramientas de REA a un .btx y vuelven iguales al importarlas` | PENDIENTE DE VERIFICAR por el usuario abriendo el .btx en Revu |
+| **Importar y exportar .btx desde el panel del Tool Chest (ADR-0101)** | `shipped` | `tests/e2e/pdf-viewer.spec.ts` | `Tool Sets de Revu (ADR-0101): importar un .btx crea una paleta y exportarla genera un .btx legible` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa y en Revu |
 
 
 

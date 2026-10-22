@@ -609,7 +609,7 @@ export async function buildXlsxTakeoffContent(
  */
 export async function saveExportFileWithDialog(
   defaultName: string,
-  extension: 'csv' | 'pdf' | 'xlsx',
+  extension: 'csv' | 'pdf' | 'xlsx' | 'btx',
   bytes: Uint8Array
 ): Promise<boolean> {
   const filterName =
@@ -617,6 +617,8 @@ export async function saveExportFileWithDialog(
       ? 'CSV file (*.csv)'
       : extension === 'xlsx'
       ? 'Excel Workbook (*.xlsx)'
+      : extension === 'btx'
+      ? 'Revu Tool Set (*.btx)'
       : 'PDF document (*.pdf)';
 
   try {
@@ -647,6 +649,8 @@ export async function saveExportFileWithDialog(
           ? 'text/csv;charset=utf-8;'
           : extension === 'xlsx'
           ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          : extension === 'btx'
+          ? 'application/xml'
           : 'application/pdf';
       const blob = new Blob([bytes.buffer as ArrayBuffer], { type: mime });
       const url = URL.createObjectURL(blob);

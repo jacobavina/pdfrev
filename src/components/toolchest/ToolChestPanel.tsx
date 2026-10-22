@@ -8,6 +8,8 @@ import {
   AlertCircle,
   Check,
   X,
+  Upload,
+  Download,
 } from 'lucide-react';
 import { useToolChestStore } from '../../store/useToolChestStore';
 import { useRightPanel } from '../../store/useUiStore';
@@ -127,14 +129,33 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
           <label className="ui-section-title">
             Palette
           </label>
-          <button
-            onClick={() => setIsCreatingPalette(true)}
-            className="p-0.5 text-gray-400 hover:text-cad-strong hover:bg-cad-hover rounded"
-            title="Create new palette"
-            data-testid="create-palette-btn"
-          >
-            <Plus size={16} />
-          </button>
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={() => void import('../../services/btxService').then((m) => m.importBtxFromPicker())}
+              className="p-0.5 text-gray-400 hover:text-cad-strong hover:bg-cad-hover rounded"
+              title="Import a Revu tool set (.btx)"
+              data-testid="import-btx-btn"
+            >
+              <Upload size={16} />
+            </button>
+            <button
+              onClick={() => activePalette && void import('../../services/btxService').then((m) => m.exportPaletteToBtx(activePalette.id))}
+              disabled={!activePalette || activeTools.length === 0}
+              className="p-0.5 text-gray-400 hover:text-cad-strong hover:bg-cad-hover rounded disabled:opacity-35"
+              title="Export this palette as a Revu tool set (.btx)"
+              data-testid="export-btx-btn"
+            >
+              <Download size={16} />
+            </button>
+            <button
+              onClick={() => setIsCreatingPalette(true)}
+              className="p-0.5 text-gray-400 hover:text-cad-strong hover:bg-cad-hover rounded"
+              title="Create new palette"
+              data-testid="create-palette-btn"
+            >
+              <Plus size={16} />
+            </button>
+          </div>
         </div>
 
         {isCreatingPalette ? (

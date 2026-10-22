@@ -309,7 +309,11 @@ export const FEATURE_GUIDE: GuideSection[] = [
         id: 'toolchest',
         title: 'Tool Chest',
         summary: 'Saves a markup, with its style, as a reusable tool in a tool set. Measurement tools keep their subject and price.',
-        steps: ['Open the Tool Chest panel on the right.', 'Add a markup to a tool set from the Markups list or its context menu, then drag a tool onto the drawing.'],
+        steps: [
+          'Open the Tool Chest panel on the right (Alt+X in Revu).',
+          'Add a markup to a tool set from the Markups list or its context menu, then drag a tool onto the drawing.',
+          'Import a Revu tool set (.btx) with the upload button next to the palette name, or export the palette as a .btx with the download button.',
+        ],
         where: 'Right panel ▸ Tool Chest',
       },
       {

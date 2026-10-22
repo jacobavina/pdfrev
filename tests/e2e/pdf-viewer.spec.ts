@@ -2896,7 +2896,9 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
 
     // 2. Abrir el PDF aplanado: sus marcas ya no son marcas, están en el contenido
     const chooser = page.waitForEvent('filechooser');
-    await page.keyboard.press('Control+o');
+    // Por el menú: el atajo dependía de dónde estuviera el foco tras cerrar el menú anterior
+    await page.locator('[data-testid="menu-archivo"]').click();
+    await page.locator('[data-testid="menu-open"]').click();
     await (await chooser).setFiles({ name: 'plano_markups.pdf', mimeType: 'application/pdf', buffer: flatBytes });
     await expect(page.locator('[data-testid="pdf-page-container"]')).toHaveAttribute('data-rendered-page', '0', { timeout: 15000 });
     await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(0, { timeout: 15000 });
@@ -3044,5 +3046,49 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(page.locator('[data-testid="feature-guide-entry-open"]')).toHaveCount(0);
     await page.keyboard.press('Escape');
     await expect(guide).toHaveCount(0);
+  });
+
+  test('Tool Sets de Revu (ADR-0101): importar un .btx crea una paleta y exportarla genera un .btx legible', async ({ page }) => {
+    const { deflateSync } = await import('zlib');
+    const hex = (s: string) => deflateSync(Buffer.from(s, 'latin1')).toString('hex');
+    const item = (type: string, dict: string, i: number) =>
+      `  <ToolChestItem Version="1">\r\n    <Name>${'ABCDEFGHIJKLMNOP'}</Name>\r\n    <Type>${type}</Type>\r\n    <Raw>${hex(dict)}</Raw>\r\n    <X>5</X>\r\n    <Y>5</Y>\r\n    <Index>${i}</Index>\r\n    <Mode>properties</Mode>\r\n  </ToolChestItem>`;
+    const btx = [
+      '\uFEFF<?xml version="1.0" encoding="utf-8"?>',
+      '<BluebeamRevuToolSet Version="1">',
+      `  <Title>${hex('Revu E2E')}</Title>`,
+      item('Bluebeam.PDF.Annotations.AnnotationSquare', '<</Subj(Cuadro azul)/Subtype/Square/Rect[0 0 60 40]/F 4/C[0 0 1]/BS<</W 2/S/S/Type/Border>>>>', 0),
+      item('Bluebeam.PDF.Annotations.AnnotationLine', '<</LE[/None/ClosedArrow]/L[5 5 80 60]/Subj(Flecha)/Subtype/Line/Rect[0 0 85 65]/F 4/C[1 0 0]/BS<</W 1/S/S/Type/Border>>>>', 1),
+      '</BluebeamRevuToolSet>',
+    ].join('\r\n');
+
+    await page.goto('/');
+    await expect(page.locator('[data-testid="markup-overlay-svg"]')).toBeVisible({ timeout: 15000 });
+    // El plano de prueba ya cargado: al terminar de cargar la app pliega el panel derecho, y abrirlo antes lo cerraba
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
+    await page.locator('[data-testid="expand-tool-chest-btn"]').click();
+    await expect(page.locator('[data-testid="tool-chest-panel"]')).toHaveAttribute('data-collapsed', 'false');
+
+    // Importar (con el panel ya cargado)
+    await expect(page.locator('[data-testid="palette-select"]')).toBeVisible();
+    const chooser = page.waitForEvent('filechooser');
+    await page.locator('[data-testid="import-btx-btn"]').click();
+    await (await chooser).setFiles({ name: 'Revu E2E.btx', mimeType: 'application/xml', buffer: Buffer.from(btx, 'utf8') });
+    await expect(page.locator('[data-testid="palette-select"]')).toHaveValue(/.+/);
+    await expect(page.locator('[data-testid="palette-select"] option:checked')).toContainText('Revu E2E');
+    await expect(page.locator('[data-testid^="tool-item-"]')).toHaveCount(2);
+
+    // Exportar: el .btx descargado se vuelve a leer con las dos herramientas
+    // El aviso de la importación tapa los botones del panel: se descarta antes
+    await page.locator('[role="alert"]').getByTitle('Dismiss').click();
+    const download = page.waitForEvent('download');
+    await page.locator('[data-testid="export-btx-btn"]').click();
+    const dl = await download;
+    expect(dl.suggestedFilename()).toBe('Revu E2E.btx');
+    const text = fs.readFileSync((await dl.path())!, 'utf8');
+    expect(text).toContain('<BluebeamRevuToolSet Version="1">');
+    expect(text.match(/<ToolChestItem /g)).toHaveLength(2);
+    expect(text).toContain('<Type>Bluebeam.PDF.Annotations.AnnotationSquare</Type>');
+    expect(text).toContain('<Type>Bluebeam.PDF.Annotations.AnnotationLine</Type>');
   });
 });

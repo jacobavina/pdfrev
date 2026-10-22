@@ -127,6 +127,18 @@ export const FEATURE_GUIDE: GuideSection[] = [
         shortcut: 'Ctrl+3',
       },
       {
+        id: 'select-text',
+        title: 'Select and copy the text of the drawing',
+        summary: 'Selects the text that is part of the PDF (or that OCR added) so you can copy it. The other tools do not select text.',
+        steps: [
+          'Press Shift+T or choose the Copy tool in the Select group.',
+          'Drag over the text, or double-click a word, then press Ctrl+C.',
+          'If the page has no text, run Document ▸ OCR ▸ OCR This Page first.',
+        ],
+        where: 'Markup tab ▸ Select ▸ Copy',
+        shortcut: 'Shift+T',
+      },
+      {
         id: 'search',
         title: 'Find text',
         summary: 'Searches the text of the drawing and highlights each match.',

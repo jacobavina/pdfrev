@@ -1,5 +1,5 @@
 import React from 'react';
-import { MousePointer, Hand, ZoomIn, ListOrdered, PaintBucket, EyeOff } from 'lucide-react';
+import { MousePointer, Hand, ZoomIn, ListOrdered, PaintBucket, EyeOff, TextSelect } from 'lucide-react';
 import {
   CloudIcon,
   CloudPlusIcon,
@@ -66,6 +66,14 @@ export const TOOL_GROUPS: ToolGroup[] = [
     tools: [
       { type: 'select', label: 'Select (V)', short: 'Select', icon: <MousePointer size={18} />, shortcut: 'V' },
       { type: 'pan', label: 'Pan (Shift+V, or hold Space)', short: 'Pan', icon: <Hand size={18} />, shortcut: 'Shift+V' },
+      {
+        type: 'selectText',
+        label: 'Select Text (Shift+T): drag over the text of the drawing, then Ctrl+C to copy it',
+        short: 'Copy',
+        icon: <TextSelect size={18} />,
+        shortcut: 'Shift+T',
+        testId: 'tool-select-text',
+      },
       { type: 'zoom', label: 'Zoom Window (Z)', short: 'Zoom', icon: <ZoomIn size={18} />, shortcut: 'Z', testId: 'tool-zoom' },
       { type: 'snapshot', label: 'Snapshot (G)', short: 'Snapshot', icon: <SnapshotIcon size={18} />, shortcut: 'G', testId: 'tool-snapshot' },
     ],

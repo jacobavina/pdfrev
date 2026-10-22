@@ -3125,4 +3125,25 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(page.locator('[data-testid="pdf-page-container"]').getByText('PLANO DE PRUEBA', { exact: false })).toHaveCount(0);
     await expect(page.locator('[data-testid="pdf-page-container"]').getByText('RECTÁNGULO DE CONTROL', { exact: false }).first()).toBeAttached({ timeout: 15000 });
   });
+
+  test('Select Text (ADR-0104): arrastrar sobre el texto del plano lo selecciona para copiarlo', async ({ page }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="pdf-page-container"]').getByText('PLANO DE PRUEBA', { exact: false }).first()).toBeAttached({ timeout: 15000 });
+    await page.locator('[data-testid="tool-select-text"]').click();
+    const box = (await overlaySvg.boundingBox())!;
+    const at = (nx: number, ny: number) => ({ x: box.x + box.width * nx, y: box.y + box.height * ny });
+    const a = at(0.07, 0.073);
+    const b = at(0.68, 0.073);
+    await page.mouse.move(a.x, a.y);
+    await page.mouse.down();
+    await page.mouse.move(b.x, b.y, { steps: 8 });
+    await page.mouse.up();
+    const selected = await page.evaluate(() => window.getSelection()?.toString() ?? '');
+    expect(selected).toContain('PLANO DE PRUEBA');
+    // Con Select, la capa de texto no recibe el ratón: el arrastre es de las marcas
+    await page.locator('[data-testid="tool-select"]').click();
+    await expect(page.locator('[data-testid="pdf-text-layer"]')).toHaveCSS('pointer-events', 'none');
+  });
 });

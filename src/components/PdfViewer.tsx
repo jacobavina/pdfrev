@@ -1076,6 +1076,8 @@ export const PdfViewer: React.FC = () => {
 
       // Portapapeles: Copiar (Ctrl+C / Cmd+C)
       if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
+        // Con texto del plano seleccionado (ADR-0104) copia el navegador el texto, no las marcas
+        if (window.getSelection()?.toString().trim()) return;
         if (selectedMarkupIds.length > 0) {
           e.preventDefault();
           copySelectedMarkups();
@@ -1167,6 +1169,7 @@ export const PdfViewer: React.FC = () => {
           v: 'pan',
           e: 'eraser',
           c: 'arc',
+          t: 'selectText',
         };
         const tool = shiftTool[e.key.toLowerCase()];
         if (tool) {
@@ -3001,6 +3004,13 @@ export const PdfViewer: React.FC = () => {
   };
 
   const handleTextSelectionMouseUp = () => {
+    // Select Text (ADR-0104): la selección es la del navegador; solo se avisa si la página no tiene texto
+    if (activeTool === 'selectText') {
+      if (pageHasText[currentPageIndex] === false) {
+        showToast('This page has no selectable text. Run Document ▸ OCR ▸ OCR This Page to read it.');
+      }
+      return;
+    }
     if (
       activeTool !== 'highlightText' &&
       activeTool !== 'underline' &&
@@ -3216,7 +3226,8 @@ export const PdfViewer: React.FC = () => {
                 activeTool === 'highlightText' ||
                 activeTool === 'underline' ||
                 activeTool === 'strikeOut' ||
-                activeTool === 'squiggly'
+                activeTool === 'squiggly' ||
+                activeTool === 'selectText'
                   ? 'auto'
                   : 'none',
             } as React.CSSProperties}
@@ -3364,7 +3375,8 @@ export const PdfViewer: React.FC = () => {
               activeTool === 'highlightText' ||
               activeTool === 'underline' ||
               activeTool === 'strikeOut' ||
-              activeTool === 'squiggly'
+              activeTool === 'squiggly' ||
+              activeTool === 'selectText'
                 ? 'pointer-events-none'
                 : activeTool === 'select'
                 ? 'cursor-rea-select'

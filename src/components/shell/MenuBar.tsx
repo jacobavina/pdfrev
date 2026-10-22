@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   Moon,
   Sun,
@@ -117,6 +117,31 @@ interface MenuDef {
  * Barra de menús de la aplicación (ADR-0017). Es el <header> de la ventana: los tests E2E lo usan
  * como zona neutra para quitar el foco, por eso el centro solo contiene el título del documento.
  */
+/**
+ * Submenú que se desplaza lo justo para quedar entero dentro de la ventana (ADR-0104): en una ventana baja o estrecha
+ * el submenú de una entrada del final del menú se salía por abajo y no se podían alcanzar sus opciones.
+ */
+const SubmenuPopup: React.FC<{ testId: string; className: string; children: React.ReactNode }> = ({ testId, className, children }) => {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.transform = '';
+    const r = el.getBoundingClientRect();
+    const dx = Math.max(0, r.right - (window.innerWidth - 8));
+    const dy = Math.max(0, r.bottom - (window.innerHeight - 8));
+    // Y no por encima del borde superior de la ventana
+    const top = r.top - dy;
+    const fixY = top < 8 ? 8 - top : 0;
+    if (dx || dy || fixY) el.style.transform = `translate(${-dx}px, ${-dy + fixY}px)`;
+  });
+  return (
+    <div ref={ref} role="menu" data-testid={testId} className={className}>
+      {children}
+    </div>
+  );
+};
+
 export const MenuBar: React.FC = () => {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [openSub, setOpenSub] = useState<string | null>(null);
@@ -720,9 +745,8 @@ export const MenuBar: React.FC = () => {
                         <ChevronRight size={16} />
                       </button>
                       {openSub === entry.label && (
-                        <div
-                          role="menu"
-                          data-testid={`${entry.testId}-popup`}
+                        <SubmenuPopup
+                          testId={`${entry.testId}-popup`}
                           className="absolute left-full top-0 -mt-1 ml-0.5 min-w-[240px] max-h-[70vh] overflow-y-auto bg-cad-panel border border-cad-border rounded-lg shadow-float p-1 z-50"
                         >
                           {entry.submenu.map((sub, j) =>
@@ -757,7 +781,7 @@ export const MenuBar: React.FC = () => {
                               </button>
                             )
                           )}
-                        </div>
+                        </SubmenuPopup>
                       )}
                     </div>
                   ) : (

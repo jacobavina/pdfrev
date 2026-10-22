@@ -28,7 +28,8 @@ export type ToolType =
   | 'snapshot'
   | 'sequence'
   | 'dynamicFill'
-  | 'redact';
+  | 'redact'
+  | 'selectText';
 
 interface ToolState {
   activeTool: ToolType;

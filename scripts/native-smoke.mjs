@@ -495,6 +495,39 @@ try {
   fs.unlinkSync(tempBbxPath);
   console.log(`    ✓ Archivo temporal de prueba eliminado.`);
 
+  // Tool Sets de Revu instalados (ADR-0105): lista, lectura y rechazo de rutas ajenas, por el IPC real
+  const revuList = await executeAsync(`
+    const done = arguments[arguments.length - 1];
+    window.__TAURI_INTERNALS__.invoke('list_revu_toolsets')
+      .then((files) => done({ success: true, files }))
+      .catch((err) => done({ error: String(err) }));
+  `, []);
+  if (revuList?.error) throw new Error(`list_revu_toolsets falló vía IPC nativo: ${revuList.error}`);
+  if (!Array.isArray(revuList.files)) throw new Error('list_revu_toolsets no devolvió una lista.');
+  if (revuList.files.length > 0) {
+    const firstRevu = await executeAsync(`
+      const done = arguments[arguments.length - 1];
+      const [path] = arguments;
+      window.__TAURI_INTERNALS__.invoke('read_revu_toolset', { path })
+        .then((bytes) => done({ success: true, head: String.fromCharCode(...bytes.slice(0, 60)) }))
+        .catch((err) => done({ error: String(err) }));
+    `, [revuList.files[0].path]);
+    if (firstRevu?.error || !/BluebeamRevuToolSet|<\?xml/.test(firstRevu.head)) {
+      throw new Error(`read_revu_toolset no leyó un Tool Set: ${JSON.stringify(firstRevu)}`);
+    }
+    console.log(`    ✓ list_revu_toolsets encontró ${revuList.files.length} Tool Sets de Revu y read_revu_toolset leyó el primero.`);
+  } else {
+    console.log('    ⚠ list_revu_toolsets: este equipo no tiene Tool Sets de Revu.');
+  }
+  const outside = await executeAsync(`
+    const done = arguments[arguments.length - 1];
+    window.__TAURI_INTERNALS__.invoke('read_revu_toolset', { path: 'C:/Windows/win.ini' })
+      .then(() => done({ read: true }))
+      .catch((err) => done({ rejected: String(err) }));
+  `, []);
+  if (outside?.read) throw new Error('read_revu_toolset leyó un archivo fuera de la carpeta de Revu.');
+  console.log('    ✓ read_revu_toolset rechaza rutas fuera de la carpeta de Bluebeam.');
+
   // (d) Interacciones reales W3C Actions API (dibujar rectángulo y seleccionarlo)
   console.log('\n  [Sub-verificación D] Acciones de ratón W3C (dibujar y seleccionar rectángulo)...');
 

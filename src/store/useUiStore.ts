@@ -191,6 +191,9 @@ interface UiState {
   shortcutsOpen: boolean;
   /** Guía de funciones abierta (ADR-0100). */
   featureGuideOpen: boolean;
+  /** Diálogo de Tool Sets de Revu (ADR-0105). */
+  revuToolSetsOpen: boolean;
+  setRevuToolSetsOpen: (open: boolean) => void;
   setFeatureGuideOpen: (open: boolean) => void;
   combineModalOpen: boolean;
   viewMode: ViewMode;
@@ -269,6 +272,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   replyRequest: null,
   shortcutsOpen: false,
   featureGuideOpen: false,
+  revuToolSetsOpen: false,
+  setRevuToolSetsOpen: (revuToolSetsOpen) => set({ revuToolSetsOpen }),
   setFeatureGuideOpen: (featureGuideOpen) => set({ featureGuideOpen }),
   combineModalOpen: false,
   setCombineModalOpen: (combineModalOpen) => set({ combineModalOpen }),

@@ -324,7 +324,8 @@ export const FEATURE_GUIDE: GuideSection[] = [
         steps: [
           'Open the Tool Chest panel on the right (Alt+X in Revu).',
           'Add a markup to a tool set from the Markups list or its context menu, then drag a tool onto the drawing.',
-          'Import a Revu tool set (.btx) with the upload button next to the palette name, or export the palette as a .btx with the download button.',
+          'Bring in the tool sets Revu has installed with the folder button next to the palette name; pick the ones you want.',
+          'Import any Revu tool set file (.btx) with the upload button, or export the palette as a .btx with the download button.',
         ],
         where: 'Right panel ▸ Tool Chest',
       },

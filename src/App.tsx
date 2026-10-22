@@ -28,6 +28,9 @@ const PropertiesInspectorPanel = lazy(() =>
   import('./components/PropertiesInspectorPanel').then((m) => ({ default: m.PropertiesInspectorPanel }))
 );
 const SearchBar = lazy(() => import('./components/SearchBar').then((m) => ({ default: m.SearchBar })));
+const RevuToolSetsDialog = lazy(() =>
+  import('./components/toolchest/RevuToolSetsDialog').then((m) => ({ default: m.RevuToolSetsDialog }))
+);
 const FeatureGuideDialog = lazy(() =>
   import('./components/shell/FeatureGuideDialog').then((m) => ({ default: m.FeatureGuideDialog }))
 );
@@ -265,6 +268,7 @@ export const App: React.FC = () => {
       <Suspense fallback={null}>
         <ShortcutsDialog />
         <FeatureGuideDialog />
+        <RevuToolSetsDialog />
       </Suspense>
       {combineModalOpen && (
         <Suspense fallback={null}>

@@ -260,6 +260,8 @@ Este documento registra la paridad funcional real implementada en REA, vinculand
 | **Ctrl+C con texto seleccionado copia el texto y no las marcas (ADR-0104)** | `shipped` | `src/components/SelectText.test.tsx` | `Ctrl+C con texto seleccionado deja copiar el texto y no las marcas; sin texto seleccionado copia las marcas` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Seleccionar texto de un PDF real arrastrando con Select Text (ADR-0104)** | `shipped` | `tests/e2e/pdf-viewer.spec.ts` | `Select Text (ADR-0104): arrastrar sobre el texto del plano lo selecciona para copiarlo` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Submenús siempre enteros dentro de la ventana (ADR-0104)** | `shipped` | `src/components/shell/MenuBarSubmenu.test.tsx` | `un submenú que se sale por abajo se sube lo justo para que se vean todas sus opciones` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **Listar los Tool Sets instalados con Revu con su título y número de herramientas (ADR-0105)** | `shipped` | `src/components/toolchest/RevuToolSetsDialog.test.tsx` | `lista los Tool Sets de la carpeta de Revu con su título y su número de herramientas` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa con su carpeta de Revu |
+| **Importar como paletas los Tool Sets elegidos de la carpeta de Revu (ADR-0105)** | `shipped` | `src/components/toolchest/RevuToolSetsDialog.test.tsx` | `el diálogo muestra los Tool Sets, deja elegir y crea una paleta por cada uno con sus herramientas` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa con su carpeta de Revu |
 
 
 

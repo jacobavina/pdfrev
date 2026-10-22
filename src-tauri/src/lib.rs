@@ -1,4 +1,5 @@
 mod ocr;
+mod revu;
 
 use std::fs::{self, File};
 use std::io::Write;
@@ -501,7 +502,7 @@ pub fn run() {
     })
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_fs::init())
-    .invoke_handler(tauri::generate_handler![write_bbx, read_bbx, save_export_file, save_pdf, open_url, get_startup_file_arg, ocr::ocr_recognize])
+    .invoke_handler(tauri::generate_handler![write_bbx, read_bbx, save_export_file, save_pdf, open_url, get_startup_file_arg, ocr::ocr_recognize, revu::list_revu_toolsets, revu::read_revu_toolset])
     .run(tauri::generate_context!())
     .expect("error while building tauri application");
 }

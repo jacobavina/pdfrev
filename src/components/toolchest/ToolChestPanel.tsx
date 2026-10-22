@@ -10,8 +10,10 @@ import {
   X,
   Upload,
   Download,
+  FolderInput,
 } from 'lucide-react';
 import { useToolChestStore } from '../../store/useToolChestStore';
+import { useUiStore } from '../../store/useUiStore';
 import { useRightPanel } from '../../store/useUiStore';
 import { ToolVectorThumbnail } from '../markup/ToolVectorThumbnail';
 import { ToolChestTool, RecentTool } from '../../types/toolChest';
@@ -130,6 +132,14 @@ export const ToolChestPanel: React.FC<ToolChestPanelProps> = ({
             Palette
           </label>
           <div className="flex items-center gap-0.5">
+            <button
+              onClick={() => useUiStore.getState().setRevuToolSetsOpen(true)}
+              className="p-0.5 text-gray-400 hover:text-cad-strong hover:bg-cad-hover rounded"
+              title="Import tool sets installed with Revu"
+              data-testid="import-revu-btn"
+            >
+              <FolderInput size={16} />
+            </button>
             <button
               onClick={() => void import('../../services/btxService').then((m) => m.importBtxFromPicker())}
               className="p-0.5 text-gray-400 hover:text-cad-strong hover:bg-cad-hover rounded"

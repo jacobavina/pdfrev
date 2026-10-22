@@ -119,6 +119,19 @@ export const FEATURE_GUIDE: GuideSection[] = [
         shortcut: 'Ctrl+R',
       },
       {
+        id: 'grid',
+        title: 'Grid and Snap to Grid',
+        summary:
+          'Draws a grid over the sheet in the units of the page scale (a line every 20 mm, 1 m… depending on zoom, a heavier one every five). With Snap to Grid, drawing and measuring tools jump to the nearest grid intersection.',
+        steps: [
+          'Choose View ▸ Show Grid (Shift+F9) to see it, and View ▸ Snap to Grid (Ctrl+Shift+F9) to snap to it.',
+          'Open the Measurements panel ▸ Snap to set a fixed spacing in the units of the scale, or clear it for automatic spacing.',
+          'Snapping to a markup or to the drawing wins over the grid when the cursor is near one.',
+        ],
+        where: 'View ▸ Show Grid / Snap to Grid',
+        shortcut: 'Shift+F9',
+      },
+      {
         id: 'dark',
         title: 'Dark mode',
         summary: 'Switches between the light and dark interface, or follows the system theme.',

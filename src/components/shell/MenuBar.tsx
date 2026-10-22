@@ -50,6 +50,8 @@ import {
   Layers2,
   Columns2,
   FileStack,
+  Grid3x3,
+  Magnet,
 } from 'lucide-react';
 import { FIELD_TYPES, FieldType } from '../../core/markup/formFields';
 import { fieldTypeIcon } from './fieldIcons';
@@ -171,6 +173,10 @@ export const MenuBar: React.FC = () => {
     requestFit,
     showRulers,
     setShowRulers,
+    showGrid,
+    setShowGrid,
+    snapToGrid,
+    setSnapToGrid,
     autoOpenPanels,
     setAutoOpenPanels,
     markupsListOpen,
@@ -389,6 +395,8 @@ export const MenuBar: React.FC = () => {
         { icon: <SinglePageIcon size={16} />, label: 'Single Page', shortcut: 'Ctrl+4', checked: viewMode === 'single', onSelect: () => setViewMode('single') },
         { icon: <ContinuousIcon size={16} />, label: 'Continuous Pages', shortcut: 'Ctrl+5', checked: viewMode === 'continuous', onSelect: () => setViewMode('continuous'), testId: 'menu-view-continuous' },
         { icon: <RulersIcon size={16} />, label: 'Rulers', shortcut: 'Ctrl+R', checked: showRulers, onSelect: () => setShowRulers(!showRulers), testId: 'menu-view-rulers' },
+        { icon: <Grid3x3 size={16} />, label: 'Show Grid', shortcut: 'Shift+F9', checked: showGrid, onSelect: () => setShowGrid(!showGrid), testId: 'menu-view-grid' },
+        { icon: <Magnet size={16} />, label: 'Snap to Grid', shortcut: 'Ctrl+Shift+F9', checked: snapToGrid, onSelect: () => setSnapToGrid(!snapToGrid), testId: 'menu-view-snap-grid' },
         'separator',
         { icon: <PanelLeft size={16} />, label: 'Thumbnails Panel', onSelect: () => setLeftTab('pages') },
         { icon: <Bookmark size={16} />, label: 'Bookmarks Panel', onSelect: () => setLeftTab('bookmarks') },

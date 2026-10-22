@@ -262,9 +262,7 @@ Este documento registra la paridad funcional real implementada en REA, vinculand
 | **Submenús siempre enteros dentro de la ventana (ADR-0104)** | `shipped` | `src/components/shell/MenuBarSubmenu.test.tsx` | `un submenú que se sale por abajo se sube lo justo para que se vean todas sus opciones` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Listar los Tool Sets instalados con Revu con su título y número de herramientas (ADR-0105)** | `shipped` | `src/components/toolchest/RevuToolSetsDialog.test.tsx` | `lista los Tool Sets de la carpeta de Revu con su título y su número de herramientas` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa con su carpeta de Revu |
 | **Importar como paletas los Tool Sets elegidos de la carpeta de Revu (ADR-0105)** | `shipped` | `src/components/toolchest/RevuToolSetsDialog.test.tsx` | `el diálogo muestra los Tool Sets, deja elegir y crea una paleta por cada uno con sus herramientas` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa con su carpeta de Revu |
-
-
-
-
-
-
+| **Show Grid (Shift+F9) dibuja la rejilla de la hoja sin interceptar el ratón (ADR-0106)** | `shipped` | `src/components/PdfViewerGrid.test.tsx` | `Show Grid dibuja las líneas sobre la hoja y al apagarlo desaparecen` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **Snap to Grid lleva los puntos de medición a intersecciones de la rejilla (ADR-0106)** | `shipped` | `src/components/PdfViewerGrid.test.tsx` | `con Snap to Grid, un Radius arrastrado entre puntos sueltos queda en intersecciones de la rejilla` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **Paso automático de la rejilla en unidades de la escala y adaptado al zoom (ADR-0106)** | `shipped` | `src/core/markup/grid.test.ts` | `la rejilla automática deja las líneas a no menos de 48 px y se adapta al zoom` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **View ▸ Show Grid y Snap to Grid con marca de activo (ADR-0106)** | `shipped` | `src/components/PdfViewerGrid.test.tsx` | `View ▸ Show Grid y Snap to Grid alternan los ajustes y muestran la marca de activo` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |

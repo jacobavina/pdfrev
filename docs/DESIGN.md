@@ -36,7 +36,7 @@ o en Tailwind (`bg-cad-panel`, `text-gray-400`…). Los tokens `cad-*` y `gray-*
 | `--cad-accent-fill` | Acento sólido bajo texto blanco (≥ 4.5:1): selección resaltada (la marca ya no usa pastilla, ADR-0068) |
 | `--cad-sheet-shadow` | Sombra de la hoja |
 | `--icon-highlight`, `--icon-measure`, `--icon-pen` | Acentos semánticos de los iconos (ADR-0066): barra del resaltador, punteado de las mediciones y snap, punta del lápiz. No son estado y no cambian con el tema |
-| `--ov-*` | Overlay de edición sobre la hoja: tiradores (`ov-handle`, `ov-count`), avisos (`ov-warn`), vistas previas (`ov-preview`), búsqueda (`ov-find*`), snap (`ov-snap`), halo blanco (`ov-halo`) |
+| `--ov-*` | Overlay de edición sobre la hoja: tiradores (`ov-handle`, `ov-count`), avisos (`ov-warn`), vistas previas (`ov-preview`), búsqueda (`ov-find*`), snap (`ov-snap`), rejilla (`ov-grid`), halo blanco (`ov-halo`) |
 
 **Reglas del acento:**
 - **Sí:** fila, página, sello u opción seleccionados; la marca ✓ de lo elegido; el rectángulo y los tiradores de

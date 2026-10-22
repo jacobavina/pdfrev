@@ -57,6 +57,7 @@ const THEME_STORAGE_KEY = 'rea-theme';
 const VIEW_MODE_STORAGE_KEY = 'rea-view-mode';
 const RULERS_STORAGE_KEY = 'rea-rulers';
 const AUTO_PANELS_STORAGE_KEY = 'rea-auto-panels';
+const GRID_STORAGE_KEY = 'rea-grid';
 export type RibbonTabId = 'markup' | 'measure' | 'insert';
 
 const LIST_AT_START_STORAGE_KEY = 'rea-markups-list-at-start';
@@ -102,6 +103,31 @@ export function readStoredRulers(): boolean {
     return localStorage.getItem(RULERS_STORAGE_KEY) === '1';
   } catch {
     return false;
+  }
+}
+
+/** Rejilla de la hoja (ADR-0106): se ve, imanta y con qué espaciado (null = automático, en unidades de la escala). */
+export interface GridPrefs {
+  show: boolean;
+  snap: boolean;
+  spacing: number | null;
+}
+
+export function readStoredGrid(): GridPrefs {
+  try {
+    const raw = JSON.parse(localStorage.getItem(GRID_STORAGE_KEY) ?? 'null') as Partial<GridPrefs> | null;
+    const spacing = typeof raw?.spacing === 'number' && raw.spacing > 0 ? raw.spacing : null;
+    return { show: raw?.show === true, snap: raw?.snap === true, spacing };
+  } catch {
+    return { show: false, snap: false, spacing: null };
+  }
+}
+
+function storeGrid(prefs: GridPrefs): void {
+  try {
+    localStorage.setItem(GRID_STORAGE_KEY, JSON.stringify(prefs));
+  } catch {
+    // Preferencia no persistible: se aplica solo en esta sesión
   }
 }
 
@@ -205,6 +231,9 @@ interface UiState {
   showMeasureLabels: boolean;
   /** Reglas superior e izquierda en las unidades de la escala (View ▸ Rulers, Ctrl+R; ADR-0029). */
   showRulers: boolean;
+  showGrid: boolean;
+  snapToGrid: boolean;
+  gridSpacing: number | null;
   /** Abrir solo el panel de la marca seleccionada: Properties o Measure (View ▸ Open Panel on Selection, ADR-0043). */
   autoOpenPanels: boolean;
   /** Perfil de interfaz elegido (ADR-0098) o null si la disposición es la de arranque. Se recuerda entre sesiones. */
@@ -240,6 +269,9 @@ interface UiState {
   setSnap: (update: Partial<SnapSettings>) => void;
   setShowMeasureLabels: (show: boolean) => void;
   setShowRulers: (show: boolean) => void;
+  setShowGrid: (show: boolean) => void;
+  setSnapToGrid: (snap: boolean) => void;
+  setGridSpacing: (spacing: number | null) => void;
   setAutoOpenPanels: (on: boolean) => void;
   /** Marca sobre la que se está dibujando un recorte / cutout (ADR-0075). */
   activeCutoutTargetId: string | null;
@@ -282,6 +314,9 @@ export const useUiStore = create<UiState>((set, get) => ({
   snap: readStoredSnap(),
   showMeasureLabels: true,
   showRulers: readStoredRulers(),
+  showGrid: readStoredGrid().show,
+  snapToGrid: readStoredGrid().snap,
+  gridSpacing: readStoredGrid().spacing,
   autoOpenPanels: readStoredAutoPanels(),
   profile: readStoredProfile(),
   customLayout: readStoredCustomLayout(),
@@ -364,6 +399,19 @@ export const useUiStore = create<UiState>((set, get) => ({
       // Preferencia no persistible: se aplica solo en esta sesión
     }
     set({ showRulers });
+  },
+  setShowGrid: (showGrid) => {
+    storeGrid({ show: showGrid, snap: get().snapToGrid, spacing: get().gridSpacing });
+    set({ showGrid });
+  },
+  setSnapToGrid: (snapToGrid) => {
+    storeGrid({ show: get().showGrid, snap: snapToGrid, spacing: get().gridSpacing });
+    set({ snapToGrid });
+  },
+  setGridSpacing: (spacing) => {
+    const gridSpacing = spacing && spacing > 0 ? spacing : null;
+    storeGrid({ show: get().showGrid, snap: get().snapToGrid, spacing: gridSpacing });
+    set({ gridSpacing });
   },
   applyProfile: (id) => {
     const layout = id === 'custom' ? get().customLayout : BUILTIN_PROFILES[id];

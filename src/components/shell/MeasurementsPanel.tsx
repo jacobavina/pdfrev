@@ -129,6 +129,12 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
   const updateMarkup = useMarkupStore((s) => s.updateMarkup);
   const snap = useUiStore((s) => s.snap);
   const setSnap = useUiStore((s) => s.setSnap);
+  const showGrid = useUiStore((s) => s.showGrid);
+  const setShowGrid = useUiStore((s) => s.setShowGrid);
+  const snapToGridOn = useUiStore((s) => s.snapToGrid);
+  const setSnapToGrid = useUiStore((s) => s.setSnapToGrid);
+  const gridSpacing = useUiStore((s) => s.gridSpacing);
+  const setGridSpacing = useUiStore((s) => s.setGridSpacing);
   const showMeasureLabels = useUiStore((s) => s.showMeasureLabels);
   const setShowMeasureLabels = useUiStore((s) => s.setShowMeasureLabels);
 
@@ -697,6 +703,28 @@ export const MeasurementsPanel: React.FC<{ defaultCollapsed?: boolean }> = ({ de
               className="accent-cad-accent"
             />
             Snap to drawing (lines of the PDF)
+          </label>
+          <label className="flex items-center gap-1.5 text-gray-300 cursor-pointer">
+            <input type="checkbox" data-testid="grid-show" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} className="accent-cad-accent" />
+            Show grid
+          </label>
+          <label className="flex items-center gap-1.5 text-gray-300 cursor-pointer">
+            <input type="checkbox" data-testid="grid-snap" checked={snapToGridOn} onChange={(e) => setSnapToGrid(e.target.checked)} className="accent-cad-accent" />
+            Snap to grid
+          </label>
+          <label className="flex items-center gap-1.5 text-gray-300">
+            <span className="w-14">Spacing</span>
+            <input
+              type="number"
+              min={0}
+              step="any"
+              data-testid="grid-spacing"
+              value={gridSpacing ?? ''}
+              placeholder="Auto"
+              onChange={(e) => setGridSpacing(e.target.value === '' ? null : Number(e.target.value))}
+              className="ui-input w-20"
+            />
+            <span className="text-gray-400">{calib.unit}</span>
           </label>
         </Section>
 

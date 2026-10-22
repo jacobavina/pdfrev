@@ -46,6 +46,7 @@ import {
   HIGHLIGHT_STYLE,
 } from '../types/markup';
 import { useCalibrationStore } from '../store/useCalibrationStore';
+import { DEFAULT_PAGE_CALIBRATION } from '../core/measurements/calculate';
 // Editor inline de texto bajo demanda (bundle principal ≤ 800 kB)
 const InlineTextEditor = lazy(() => import('./markup/InlineTextEditor').then((m) => ({ default: m.InlineTextEditor })));
 import { extractTextForLineRect, mergeLineRects } from '../utils/textLayerUtils';
@@ -62,6 +63,7 @@ import { controlPointsOf, applyControlPointDrag, controlPointShape, editableCont
 import { revisionCloudPathNormalized } from '../core/markup/revisionCloud';
 import { calloutBoxFromDrag, CALLOUT_LANDING_PT } from '../core/markup/calloutLayout';
 import { snapPoint, SnapResult } from '../core/markup/snap';
+import { gridLines, gridStepPt, snapToGrid } from '../core/markup/grid';
 import { remeasureMarkup, SCALED_MEASURE_TYPES } from '../core/measurements/remeasure';
 import {
   markupBounds,
@@ -1432,6 +1434,14 @@ export const PdfViewer: React.FC = () => {
     };
   }, [wantsContent, pdfDoc, currentPageIndex, rotation]);
 
+  // Rejilla de la hoja (ADR-0106): su paso sigue la escala de la página y el zoom
+  const showGrid = useUiStore((s) => s.showGrid);
+  const snapToGridOn = useUiStore((s) => s.snapToGrid);
+  const gridSpacing = useUiStore((s) => s.gridSpacing);
+  const pageCalibrationScale = useCalibrationStore((s) => s.calibrations[currentPageIndex]?.scale ?? DEFAULT_PAGE_CALIBRATION.scale);
+  const gridZoom = scale || 1.0;
+  const gridStep = useMemo(() => gridStepPt(gridSpacing, pageCalibrationScale, gridZoom), [gridSpacing, pageCalibrationScale, gridZoom]);
+
   const snapAt = useCallback(
     (pt: MarkupPoint): SnapResult | null => {
       if (!SNAP_TOOLS.has(useToolStore.getState().activeTool)) return null;
@@ -1471,7 +1481,12 @@ export const PdfViewer: React.FC = () => {
       const screenX = e.clientX - rect.left;
       const screenY = e.clientY - rect.top;
       const raw = screenToNormalized(screenX, screenY, viewportTransform);
-      const pt = snapAt(raw)?.point ?? raw;
+      let pt = snapAt(raw)?.point ?? null;
+      // Snap to Grid (ADR-0106): sin ajuste a una marca ni al plano, el cursor va a la intersección más cercana
+      if (!pt && snapToGridOn && SNAP_TOOLS.has(useToolStore.getState().activeTool)) {
+        pt = snapToGrid(raw, gridStep, { width: viewportTransform.width / gridZoom, height: viewportTransform.height / gridZoom });
+      }
+      pt = pt ?? raw;
       // Shift (ADR-0047/0048): cajas cuadradas o circulares; trazos a 0°, 45° o 90° (salvo al cerrar el contorno
       // sobre su primer vértice)
       const { anchor, first, box } = orthoAnchorRef.current;
@@ -1483,7 +1498,7 @@ export const PdfViewer: React.FC = () => {
       if (first && Math.hypot((pt.x - first.x) * dims.width, (pt.y - first.y) * dims.height) < 8) return pt;
       return orthoConstrain(anchor, pt, dims);
     },
-    [viewportTransform, snapAt]
+    [viewportTransform, snapAt, snapToGridOn, gridStep, gridZoom]
   );
 
   /**
@@ -3402,6 +3417,23 @@ export const PdfViewer: React.FC = () => {
             onDragOver={handleDragOver}
             onDrop={handleDrop}
           >
+            {/* Rejilla de la hoja (ADR-0106): líneas cada paso, una principal cada cinco */}
+            {showGrid && (() => {
+              const g = gridLines(pageViewport.width / gridZoom, pageViewport.height / gridZoom, gridStep);
+              const minor = tok('ov-grid', 0.28);
+              const major = tok('ov-grid', 0.6);
+              return (
+                <g data-testid="grid-overlay" pointerEvents="none">
+                  {g.xs.map((l) => (
+                    <line key={`x${l.at}`} x1={l.at * gridZoom} y1={0} x2={l.at * gridZoom} y2={pageViewport.height} stroke={l.major ? major : minor} strokeWidth={l.major ? 1 : 0.6} />
+                  ))}
+                  {g.ys.map((l) => (
+                    <line key={`y${l.at}`} x1={0} y1={l.at * gridZoom} x2={pageViewport.width} y2={l.at * gridZoom} stroke={l.major ? major : minor} strokeWidth={l.major ? 1 : 0.6} />
+                  ))}
+                </g>
+              );
+            })()}
+
             {/* Viewports regionales de la página (ADR-0076) */}
             {currentPageViewports.map((vp) => {
               const vx = vp.bounds.x * viewportTransform.width;

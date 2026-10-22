@@ -118,6 +118,16 @@ export const App: React.FC = () => {
           setSnap({ endpoint: on, midpoint: on, intersection: on });
           showToast(`Snap to markups: ${on ? 'on' : 'off'}`);
         }
+      } else if (e.key === 'F9' && e.shiftKey && !e.altKey) {
+        // Show Grid (Shift+F9) y Snap to Grid (Ctrl+Shift+F9), ADR-0106
+        e.preventDefault();
+        const ui = useUiStore.getState();
+        if (e.ctrlKey || e.metaKey) {
+          ui.setSnapToGrid(!ui.snapToGrid);
+          showToast(`Snap to grid: ${!ui.snapToGrid ? 'on' : 'off'}`);
+        } else {
+          ui.setShowGrid(!ui.showGrid);
+        }
       } else if (e.key === 'F1') {
         e.preventDefault();
         useUiStore.getState().setShortcutsOpen(true);

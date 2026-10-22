@@ -3146,4 +3146,37 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.locator('[data-testid="tool-select"]').click();
     await expect(page.locator('[data-testid="pdf-text-layer"]')).toHaveCSS('pointer-events', 'none');
   });
+
+  test('Offset y Multiply (ADR-0107): Ctrl+M repite el rectángulo en filas y columnas y O abre Offset', async ({ page }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="pdf-page-container"]').getByText('PLANO DE PRUEBA', { exact: false }).first()).toBeAttached({ timeout: 15000 });
+    const marks = overlaySvg.locator('g[data-testid^="markup-g-"]');
+    // Las marcas del plano de prueba se importan después de pintar el texto: se espera a la primera antes de contar
+    await expect(marks.first()).toBeAttached({ timeout: 15000 });
+    const before = await marks.count();
+    await page.locator('button[title*="Rectangle (R)"]').click();
+    const box = (await overlaySvg.boundingBox())!;
+    await page.mouse.move(box.x + 100, box.y + 100);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 160, box.y + 140, { steps: 4 });
+    await page.mouse.up();
+    await expect(marks).toHaveCount(before + 1);
+    await page.locator('[data-testid="tool-select"]').click();
+    await page.mouse.click(box.x + 102, box.y + 120);
+    await page.keyboard.press('Control+m');
+    await expect(page.locator('[data-testid="copytools-dialog"]')).toBeVisible();
+    await page.locator('[data-testid="multiply-rows"]').fill('2');
+    await page.locator('[data-testid="multiply-columns"]').fill('3');
+    await page.locator('[data-testid="multiply-gap-x"]').fill('5');
+    await page.locator('[data-testid="multiply-gap-y"]').fill('5');
+    await page.locator('[data-testid="copytools-apply"]').click();
+    await expect(marks).toHaveCount(before + 6);
+    await page.keyboard.press('o');
+    await expect(page.locator('[data-testid="copytools-dialog"]')).toHaveAttribute('aria-label', 'Offset');
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Control+z');
+    await expect(marks).toHaveCount(before + 1);
+  });
 });

@@ -40,6 +40,7 @@ const ShortcutsDialog = lazy(() =>
 const DocumentBar = lazy(() =>
   import('./components/shell/DocumentBar').then((m) => ({ default: m.DocumentBar }))
 );
+const CopyToolsDialog = lazy(() => import('./components/modals/CopyToolsDialog').then((m) => ({ default: m.CopyToolsDialog })));
 const CombinePdfsModal = lazy(() =>
   import('./components/modals/CombinePdfsModal').then((m) => ({ default: m.CombinePdfsModal }))
 );
@@ -56,6 +57,13 @@ const SplitPane = lazy(() => import('./components/viewer/SplitPane'));
 // Lista de marcas bajo demanda (ADR-0035): libera presupuesto del bundle principal; mientras carga se reserva su barra
 const MarkupsList = lazy(() => import('./components/MarkupsList').then((m) => ({ default: m.MarkupsList })));
 import fixtureMeta from '../fixtures/test-blueprint.meta.json';
+
+/** El foco está en un campo donde se escribe: las teclas sueltas no son atajos. */
+function isTypingTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el || !el.tagName) return false
+  return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable;
+}
 
 export const App: React.FC = () => {
   const { pdfBytes, setLoading } = useDocumentStore();
@@ -117,6 +125,15 @@ export const App: React.FC = () => {
           const on = !(snap.endpoint || snap.midpoint || snap.intersection);
           setSnap({ endpoint: on, midpoint: on, intersection: on });
           showToast(`Snap to markups: ${on ? 'on' : 'off'}`);
+        }
+      } else if (
+        ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === 'm' || e.key === 'M')) ||
+        (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && (e.key === 'o' || e.key === 'O') && !isTypingTarget(e.target))
+      ) {
+        // Multiply (Ctrl+M) y Offset (O) de la selección, como en Revu (ADR-0107)
+        if (useMarkupStore.getState().selectedMarkupIds.length > 0) {
+          e.preventDefault();
+          useUiStore.getState().setCopyToolDialog(e.key.toLowerCase() === 'm' ? 'multiply' : 'offset');
         }
       } else if (e.key === 'F9' && e.shiftKey && !e.altKey) {
         // Show Grid (Shift+F9) y Snap to Grid (Ctrl+Shift+F9), ADR-0106
@@ -279,6 +296,7 @@ export const App: React.FC = () => {
         <ShortcutsDialog />
         <FeatureGuideDialog />
         <RevuToolSetsDialog />
+        <CopyToolsDialog />
       </Suspense>
       {combineModalOpen && (
         <Suspense fallback={null}>

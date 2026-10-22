@@ -309,6 +309,28 @@ export const FEATURE_GUIDE: GuideSection[] = [
         where: 'Edit ▸ Align & Flip',
       },
       {
+        id: 'offset',
+        title: 'Offset',
+        summary: 'Makes a parallel copy of lines, polylines and closed shapes at an exact distance, in the units of the page scale. Measurements are recalculated.',
+        steps: [
+          'Select the markups, then press O or choose Edit ▸ Offset…',
+          'Type the distance and choose the side: left or right of the drawing direction for lines; outside or inside for closed shapes.',
+        ],
+        where: 'Edit ▸ Offset…',
+        shortcut: 'O',
+      },
+      {
+        id: 'multiply',
+        title: 'Multiply',
+        summary: 'Repeats the selection as a block in rows and columns with an exact gap between copies.',
+        steps: [
+          'Select the markups, then press Ctrl+M or choose Edit ▸ Multiply…',
+          'Set rows, columns and the gap (edge to edge). Copies that would fall outside the page are left out. One Undo removes them all.',
+        ],
+        where: 'Edit ▸ Multiply…',
+        shortcut: 'Ctrl+M',
+      },
+      {
         id: 'copy',
         title: 'Copy, paste, duplicate, lock and delete',
         summary: 'Standard editing for markups. Locked markups cannot be moved or edited.',

@@ -398,9 +398,13 @@ export const CanvasContextMenu: React.FC<{
         shortcut: 'Ctrl+V',
         disabled: allLocked || (useMarkupStore.getState().clipboardMarkups.length === 0 && !hasSnapshotInCache()),
       })}
-      {item('canvas-menu-multiply', <CopyPlus size={16} />, 'Multiply…', undefined, {
+      {item('canvas-menu-offset', <CopyPlus size={16} />, 'Offset…', () => useUiStore.getState().setCopyToolDialog('offset'), {
+        shortcut: 'O',
+        disabled: allLocked,
+      })}
+      {item('canvas-menu-multiply', <CopyPlus size={16} />, 'Multiply…', () => useUiStore.getState().setCopyToolDialog('multiply'), {
         shortcut: 'Ctrl+M',
-        disabled: true,
+        disabled: allLocked,
       })}
       {item('canvas-menu-duplicate', <CopyPlus size={16} />, 'Duplicate', () => useMarkupStore.getState().duplicateSelectedMarkups(), {
         shortcut: 'Ctrl+D',

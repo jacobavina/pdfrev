@@ -249,6 +249,7 @@
 | `P5-B.8` | Seleccionar y copiar texto del plano; submenús enteros (corrección) | **Cerrado** | ADR-0104. Herramienta `Select Text` (Shift+T): la capa de texto recibe el ratón, `Ctrl+C` copia el texto; avisa si la página no tiene texto (OCR). Los submenús se desplazan para quedar dentro de la ventana. 7 tests unitarios + 1 E2E. | Verificación nativa con un plano PENDIENTE DE VALIDACIÓN por el usuario. |
 | `P5-D.6` | Importar los Tool Sets instalados de Revu (E.2, ampliación) | **Cerrado** | ADR-0105. Comandos Rust `list_revu_toolsets` y `read_revu_toolset` (solo `.btx` dentro de `%APPDATA%\Bluebeam Software`) y diálogo del Tool Chest para elegir cuáles traer como paletas. 3 tests unitarios + 3 Rust + comprobación por IPC en la prueba de humo nativa. | Verificación con su carpeta de Revu PENDIENTE DE VALIDACIÓN por el usuario. |
 | `P5-D.7` | Rejilla de la hoja: Show Grid y Snap to Grid | **Cerrado** | ADR-0106. `View ▸ Show Grid` (Shift+F9) y `Snap to Grid` (Ctrl+Shift+F9), paso en unidades de la escala (automático según zoom o fijo en Measurements ▸ Snap), preferencias persistentes. Falta verificarlo en ventana nativa. |
+| `P5-D.8` | Offset y Multiply de marcas | **Cerrado** | ADR-0107. `Edit ▸ Offset…` (O) y `Multiply…` (Ctrl+M): copias paralelas a distancia exacta y repetición en filas y columnas, con medidas recalculadas y un solo Undo. Falta verificarlo en ventana nativa. |
 
 ---
 

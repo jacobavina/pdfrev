@@ -222,6 +222,8 @@ interface UiState {
   setRevuToolSetsOpen: (open: boolean) => void;
   setFeatureGuideOpen: (open: boolean) => void;
   combineModalOpen: boolean;
+  /** Diálogo de Offset o Multiply abierto (ADR-0107). */
+  copyToolDialog: 'offset' | 'multiply' | null;
   viewMode: ViewMode;
   /** Petición de ajuste del zoom (la resuelve el visor, que conoce el tamaño del área y de la página). */
   fitRequest: { kind: FitKind; seq: number } | null;
@@ -264,6 +266,7 @@ interface UiState {
   requestReply: (markupId: string) => void;
   setShortcutsOpen: (open: boolean) => void;
   setCombineModalOpen: (open: boolean) => void;
+  setCopyToolDialog: (dialog: 'offset' | 'multiply' | null) => void;
   setViewMode: (mode: ViewMode) => void;
   requestFit: (kind: FitKind) => void;
   setSnap: (update: Partial<SnapSettings>) => void;
@@ -308,6 +311,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   setRevuToolSetsOpen: (revuToolSetsOpen) => set({ revuToolSetsOpen }),
   setFeatureGuideOpen: (featureGuideOpen) => set({ featureGuideOpen }),
   combineModalOpen: false,
+  copyToolDialog: null,
+  setCopyToolDialog: (copyToolDialog) => set({ copyToolDialog }),
   setCombineModalOpen: (combineModalOpen) => set({ combineModalOpen }),
   viewMode: readStoredViewMode(),
   fitRequest: null,

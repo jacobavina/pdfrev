@@ -331,6 +331,8 @@ export const MenuBar: React.FC = () => {
           testId: 'menu-edit-snapshot',
         },
         { icon: <CopyPlus size={16} />, label: 'Duplicate', shortcut: 'Ctrl+D', onSelect: () => useMarkupStore.getState().duplicateSelectedMarkups(), disabled: !hasSelection },
+        { icon: <CopyPlus size={16} />, label: 'Offset…', shortcut: 'O', onSelect: () => useUiStore.getState().setCopyToolDialog('offset'), disabled: !hasSelection, testId: 'menu-offset' },
+        { icon: <CopyPlus size={16} />, label: 'Multiply…', shortcut: 'Ctrl+M', onSelect: () => useUiStore.getState().setCopyToolDialog('multiply'), disabled: !hasSelection, testId: 'menu-multiply' },
         { icon: <Lock size={16} />, label: 'Lock / Unlock', onSelect: () => useMarkupStore.getState().toggleLockSelectedMarkups(), disabled: !hasSelection },
         { icon: <Trash2 size={16} />, label: 'Delete', shortcut: 'Del', onSelect: () => useMarkupStore.getState().deleteSelectedMarkups(), disabled: !hasSelection },
         'separator',

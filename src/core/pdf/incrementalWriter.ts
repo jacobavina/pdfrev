@@ -712,7 +712,7 @@ endstream`;
 ${titleLine}${subjLine}  /Contents ${escapePdfString(markup.text || '')}
   /M ${formatPdfDate(markup.updatedAt || markup.createdAt)}
   /CreationDate ${formatPdfDate(markup.createdAt)}
-  /F ${markup.locked ? 132 : 4}
+  /F ${(markup.locked ? 132 : 4) | (markup.hidden ? 2 : 0)}
   /BS ${borderStyleEntry(strokeWidth, markup.style.dashArray)}
 ${markup.layer && layerOcg.has(markup.layer) ? `  /OC ${layerOcg.get(markup.layer)} 0 R\n` : ''}${apLine}  /REA ${reaDict}
 `;

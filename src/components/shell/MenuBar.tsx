@@ -52,6 +52,8 @@ import {
   FileStack,
   Grid3x3,
   Magnet,
+  Paintbrush,
+  Eye,
 } from 'lucide-react';
 import { FIELD_TYPES, FieldType } from '../../core/markup/formFields';
 import { fieldTypeIcon } from './fieldIcons';
@@ -91,6 +93,7 @@ import { getRecentFiles, clearRecentFiles, subscribeRecentFiles, RecentFile } fr
 import { useAutoSave } from '../../hooks/useAutoSave';
 import { TOOL_GROUPS } from './toolDefinitions';
 import { PROFILE_LABELS } from '../../core/ui/profiles';
+import { copyFormat, hideSelected, pasteFormat, pasteInPlace, showHidden } from '../../core/markup/copyActions';
 import { exportFlattenedPdf, unflattenOpenDocument, goToPage, runPageOperation, selectAllOnCurrentPage } from './appActions';
 
 type MenuEntry =
@@ -221,6 +224,7 @@ export const MenuBar: React.FC = () => {
 
   const hasDoc = Boolean(pdfBytes);
   const hasSelection = selectedMarkupIds.length > 0;
+  const hasHiddenMarkups = useMarkupStore((s) => s.markups.some((m) => m.hidden));
   /** Entrada de Tools ▸ Form: elige el tipo de campo y activa la herramienta (ADR-0027). */
   const fieldEntry = (type: FieldType, label: string): MenuEntry => ({
     icon: fieldTypeIcon(type),
@@ -334,6 +338,9 @@ export const MenuBar: React.FC = () => {
           onSelect: () => useMarkupStore.getState().pasteMarkups(currentPageIndex),
           disabled: useMarkupStore.getState().clipboardMarkups.length === 0 && !hasSnapshotInCache(),
         },
+        { icon: <ClipboardPaste size={16} />, label: 'Paste in Place', shortcut: 'Ctrl+Shift+V', onSelect: pasteInPlace, disabled: useMarkupStore.getState().clipboardMarkups.length === 0, testId: 'menu-paste-in-place' },
+        { icon: <Paintbrush size={16} />, label: 'Copy Format', shortcut: 'Ctrl+Shift+C', onSelect: copyFormat, disabled: !hasSelection, testId: 'menu-copy-format' },
+        { icon: <Paintbrush size={16} />, label: 'Paste Format', shortcut: 'Ctrl+Alt+V', onSelect: pasteFormat, disabled: !hasSelection || useMarkupStore.getState().formatClipboard === null, testId: 'menu-paste-format' },
         {
           icon: <SnapshotIcon size={16} />,
           label: 'Snapshot',
@@ -345,6 +352,8 @@ export const MenuBar: React.FC = () => {
         { icon: <CopyPlus size={16} />, label: 'Duplicate', shortcut: 'Ctrl+D', onSelect: () => useMarkupStore.getState().duplicateSelectedMarkups(), disabled: !hasSelection },
         { icon: <CopyPlus size={16} />, label: 'Offset…', shortcut: 'O', onSelect: () => useUiStore.getState().setCopyToolDialog('offset'), disabled: !hasSelection, testId: 'menu-offset' },
         { icon: <CopyPlus size={16} />, label: 'Multiply…', shortcut: 'Ctrl+M', onSelect: () => useUiStore.getState().setCopyToolDialog('multiply'), disabled: !hasSelection, testId: 'menu-multiply' },
+        { icon: <EyeOff size={16} />, label: 'Hide', onSelect: hideSelected, disabled: !hasSelection, testId: 'menu-hide' },
+        { icon: <Eye size={16} />, label: 'Show Hidden Markups', onSelect: showHidden, disabled: !hasHiddenMarkups, testId: 'menu-show-hidden' },
         { icon: <Lock size={16} />, label: 'Lock / Unlock', onSelect: () => useMarkupStore.getState().toggleLockSelectedMarkups(), disabled: !hasSelection },
         { icon: <Trash2 size={16} />, label: 'Delete', shortcut: 'Del', onSelect: () => useMarkupStore.getState().deleteSelectedMarkups(), disabled: !hasSelection },
         'separator',

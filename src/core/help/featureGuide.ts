@@ -309,6 +309,33 @@ export const FEATURE_GUIDE: GuideSection[] = [
         where: 'Edit ▸ Align & Flip',
       },
       {
+        id: 'paste-in-place',
+        title: 'Paste in Place',
+        summary: 'Pastes the copied markups at exactly the same position, on the page you are viewing. Useful to repeat a markup on another sheet.',
+        steps: ['Copy with Ctrl+C, go to the other page, then press Ctrl+Shift+V or choose Edit ▸ Paste in Place.'],
+        where: 'Edit ▸ Paste in Place',
+        shortcut: 'Ctrl+Shift+V',
+      },
+      {
+        id: 'format-painter',
+        title: 'Format Painter',
+        summary: 'Copies the look of one markup (colour, fill, line width, opacity, line type, text style) and paints it on others, without changing their shape or content.',
+        steps: [
+          'Select the markup to copy from and press Ctrl+Shift+C (Edit ▸ Copy Format).',
+          'Select the markups to paint and press Ctrl+Alt+V (Edit ▸ Paste Format). One Undo reverts them all.',
+          'Locked markups, stamps and images are not painted.',
+        ],
+        where: 'Edit ▸ Copy Format / Paste Format',
+        shortcut: 'Ctrl+Shift+C',
+      },
+      {
+        id: 'hide',
+        title: 'Hide markups',
+        summary: 'Hides markups from the sheet without deleting them. Hidden markups are not drawn, not flattened into the exported PDF and are marked Hidden in the file, so other viewers hide them too.',
+        steps: ['Select the markups and choose Edit ▸ Hide (or Hide in the right-click menu).', 'Edit ▸ Show Hidden Markups brings all of them back.'],
+        where: 'Edit ▸ Hide / Show Hidden Markups',
+      },
+      {
         id: 'offset',
         title: 'Offset',
         summary: 'Makes a parallel copy of lines, polylines and closed shapes at an exact distance, in the units of the page scale. Measurements are recalculated.',

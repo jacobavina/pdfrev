@@ -15,6 +15,7 @@ import { Command, HistoryManager } from './history/command';
 import { DEFAULT_CLOUD_STEP } from '../core/markup/revisionCloud';
 import { dashArrayFor, LineStyleId } from '../core/markup/lineStyles';
 import { isPatternLineStyle, PATTERN_MARKUP_TYPES } from '../core/markup/linePatterns';
+import { applyFormat, canCopyFormat, canPasteFormat, captureFormat, type MarkupFormat } from '../core/markup/formatPainter';
 import { UpdateMarkupStatusCommand, MarkupStatusTarget } from './history/UpdateMarkupStatusCommand';
 import { UpdateMarkupCustomFieldCommand } from './history/UpdateMarkupCustomFieldCommand';
 import {
@@ -47,6 +48,8 @@ interface MarkupState {
   markups: Markup[];
   selectedMarkupIds: string[];
   clipboardMarkups: Markup[];
+  /** Format Painter (ADR-0109): el aspecto copiado de una marca. */
+  formatClipboard: MarkupFormat | null;
   isDirty: boolean;
   canUndo: boolean;
   canRedo: boolean;
@@ -102,6 +105,11 @@ interface MarkupState {
    */
   applyLineStyle: (ids: string[], id: LineStyleId) => void;
   copySelectedMarkups: () => void;
+  /** Format Painter (ADR-0109): copia el formato de la marca seleccionada y lo pega en otras. */
+  copyFormatOfSelection: () => boolean;
+  pasteFormatToSelection: () => number;
+  /** Oculta marcas sin borrarlas (ADR-0109); `ids` null = todas. Devuelve cuántas cambiaron. */
+  setMarkupsHidden: (ids: string[] | null, hidden: boolean) => number;
   setClipboardMarkups: (clipboardMarkups: Markup[]) => void;
   pasteMarkups: (targetPageIndex?: number, offset?: { x: number; y: number }) => void;
   duplicateSelectedMarkups: () => void;
@@ -159,6 +167,7 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
     markups: [],
     selectedMarkupIds: [],
     clipboardMarkups: [],
+    formatClipboard: null,
     isDirty: false,
     canUndo: false,
     canRedo: false,
@@ -1145,6 +1154,67 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
       set({ clipboardMarkups: copied });
     },
 
+    copyFormatOfSelection: () => {
+      const { markups, selectedMarkupIds } = get();
+      const source = markups.find((m) => selectedMarkupIds.includes(m.id) && canCopyFormat(m));
+      if (!source) return false;
+      set({ formatClipboard: captureFormat(source) });
+      return true;
+    },
+
+    pasteFormatToSelection: () => {
+      const { markups, selectedMarkupIds, formatClipboard } = get();
+      if (!formatClipboard) return 0;
+      const now = new Date().toISOString();
+      const before = new Map<string, Markup>();
+      const after = new Map<string, Markup>();
+      for (const m of markups) {
+        if (!selectedMarkupIds.includes(m.id) || !canPasteFormat(m)) continue;
+        before.set(m.id, m);
+        after.set(m.id, applyFormat(m, formatClipboard, now));
+      }
+      if (after.size === 0) return 0;
+      const apply = (map: Map<string, Markup>) =>
+        set((state) => ({ markups: state.markups.map((m) => map.get(m.id) ?? m), isDirty: true }));
+      markupHistory.execute({
+        description: after.size === 1 ? 'Paste format' : `Paste format to ${after.size} markups`,
+        execute: () => apply(after),
+        undo: () => apply(before),
+      });
+      syncHistoryFlags();
+      return after.size;
+    },
+
+    setMarkupsHidden: (ids, hidden) => {
+      const { markups } = get();
+      const now = new Date().toISOString();
+      const before = new Map<string, Markup>();
+      const after = new Map<string, Markup>();
+      for (const m of markups) {
+        if (ids && !ids.includes(m.id)) continue;
+        if (Boolean(m.hidden) === hidden) continue;
+        if (hidden && m.locked) continue;
+        before.set(m.id, m);
+        after.set(m.id, { ...m, hidden: hidden ? true : undefined, updatedAt: now });
+      }
+      if (after.size === 0) return 0;
+      const apply = (map: Map<string, Markup>) =>
+        set((state) => ({
+          markups: state.markups.map((m) => map.get(m.id) ?? m),
+          // Lo que se oculta deja de estar seleccionado
+          selectedMarkupIds: hidden ? state.selectedMarkupIds.filter((id) => !map.has(id)) : state.selectedMarkupIds,
+          isDirty: true,
+        }));
+      markupHistory.execute({
+        description: hidden ? `Hide ${after.size} markup${after.size === 1 ? '' : 's'}` : `Show ${after.size} hidden markup${after.size === 1 ? '' : 's'}`,
+        execute: () => apply(after),
+        undo: () =>
+          set((state) => ({ markups: state.markups.map((m) => before.get(m.id) ?? m), isDirty: true })),
+      });
+      syncHistoryFlags();
+      return after.size;
+    },
+
     setClipboardMarkups: (clipboardMarkups: Markup[]) => {
       set({ clipboardMarkups });
     },
@@ -1158,6 +1228,9 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
 
       const dx = offset?.x ?? 0.02;
       const dy = offset?.y ?? 0.02;
+      // Pegar en el sitio (ADR-0109): sin desplazamiento no se recorta nada hacia dentro de la hoja
+      const lo = dx === 0 && dy === 0 ? 0 : 0.01;
+      const hi = dx === 0 && dy === 0 ? 1 : 0.98;
       const now = new Date().toISOString();
 
       const groupMap = new Map<string, string>();
@@ -1178,14 +1251,14 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
           pageIndex: pIndex,
           groupId: newGroupId,
           points: m.points.map((p) => ({
-            x: Math.min(0.98, Math.max(0.01, p.x + dx)),
-            y: Math.min(0.98, Math.max(0.01, p.y + dy)),
+            x: Math.min(hi, Math.max(lo, p.x + dx)),
+            y: Math.min(hi, Math.max(lo, p.y + dy)),
           })),
           leaders: m.leaders
             ? m.leaders.map((lead) =>
                 lead.map((p) => ({
-                  x: Math.min(0.98, Math.max(0.01, p.x + dx)),
-                  y: Math.min(0.98, Math.max(0.01, p.y + dy)),
+                  x: Math.min(hi, Math.max(lo, p.x + dx)),
+                  y: Math.min(hi, Math.max(lo, p.y + dy)),
                 }))
               )
             : undefined,

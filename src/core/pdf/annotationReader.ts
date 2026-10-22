@@ -899,6 +899,8 @@ export async function importPdfAnnotations(
       if (fObj instanceof PDFNumber && (fObj.asNumber() & 128) !== 0) {
         locked = true;
       }
+      // Bit Hidden de /F (ADR-0109): la marca se importa oculta
+      const hidden = fObj instanceof PDFNumber && (fObj.asNumber() & 2) !== 0;
 
       // Comprobar extremos de línea (/LE: array de 2 nombres en Line/PolyLine o nombre único en FreeTextCallout)
       let lineEndingStart: LineEndingStyle | undefined;
@@ -969,6 +971,7 @@ export async function importPdfAnnotations(
         updatedAt,
         customFields: Object.keys(customFields).length > 0 ? customFields : undefined,
         locked: locked || undefined,
+        hidden: hidden || undefined,
         measurement,
         ...(leaders ? { leaders } : {}),
         ...(cutouts ? { cutouts } : {}),

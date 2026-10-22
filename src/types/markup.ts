@@ -227,6 +227,7 @@ export interface Markup {
   stampId?: string; // D.2 (Identificador de catálogo de sello)
   resolvedFields?: Record<string, string>; // D.2 (Campos dinámicos {{fecha}}, etc.)
   locked?: boolean; // P3-H.5: Bloqueo de marca contra edición, arrastre y eliminación accidental
+  hidden?: boolean; // ADR-0109: marca oculta (Hide): no se dibuja ni se aplana; en el PDF lleva el bit Hidden de /F
   measurement?: MarkupMeasurement; // Paquete 4: Datos de medición para takeoff
   replies?: MarkupReply[]; // A.1 (ADR-0071): Respuestas en hilo (/IRT, /RT /R)
   statusHistory?: MarkupStatusTransition[]; // A.1 (ADR-0071): Transiciones de estado (/StateModel Review)

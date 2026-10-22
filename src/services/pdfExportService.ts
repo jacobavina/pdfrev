@@ -448,6 +448,8 @@ export async function exportMarkupsToPdf(
   // Agrupar marcas por página
   const markupsByPage: Record<number, Markup[]> = {};
   for (const m of markups) {
+    // Una marca oculta (ADR-0109) no se aplana: no se ve en pantalla y no debe aparecer en el PDF final
+    if (m.hidden) continue;
     if (!markupsByPage[m.pageIndex]) {
       markupsByPage[m.pageIndex] = [];
     }

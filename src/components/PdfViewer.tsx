@@ -266,7 +266,7 @@ export const PdfViewer: React.FC = () => {
   const hiddenLayers = useUiStore((s) => s.hiddenLayers);
   const setCursorPt = useUiStore((s) => s.setCursorPt);
   const isMarkupVisible = useCallback(
-    (m: Markup) => !hiddenLayers.includes(m.layer ?? NO_LAYER),
+    (m: Markup) => !m.hidden && !hiddenLayers.includes(m.layer ?? NO_LAYER),
     [hiddenLayers]
   );
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; hitCutoutIndex?: number | null } | null>(null);
@@ -1076,6 +1076,23 @@ export const PdfViewer: React.FC = () => {
         }
       }
 
+      // Format Painter y Pegar en el sitio (ADR-0109): Ctrl+Shift+C copia el formato de la marca, Ctrl+Alt+V lo pega
+      // en la selección y Ctrl+Shift+V pega las marcas copiadas en el mismo sitio
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault();
+        void import('../core/markup/copyActions').then((m) => m.copyFormat());
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && (e.key === 'v' || e.key === 'V')) {
+        e.preventDefault();
+        void import('../core/markup/copyActions').then((m) => m.pasteInPlace());
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.altKey && !e.shiftKey && e.code === 'KeyV') {
+        e.preventDefault();
+        void import('../core/markup/copyActions').then((m) => m.pasteFormat());
+        return;
+      }
       // Portapapeles: Copiar (Ctrl+C / Cmd+C)
       if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
         // Con texto del plano seleccionado (ADR-0104) copia el navegador el texto, no las marcas
@@ -1449,7 +1466,7 @@ export const PdfViewer: React.FC = () => {
       const page = useDocumentStore.getState().currentPageIndex;
       const candidates = useMarkupStore
         .getState()
-        .markups.filter((m) => m.pageIndex === page && !hidden.includes(m.layer ?? NO_LAYER));
+        .markups.filter((m) => m.pageIndex === page && !m.hidden && !hidden.includes(m.layer ?? NO_LAYER));
       return snapPoint(
         pt,
         candidates,

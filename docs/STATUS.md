@@ -254,6 +254,8 @@
 | `P5-D.10` | Paste in Place, Format Painter y Hide | **Cerrado** | ADR-0109. `Ctrl+Shift+V` pega en el sitio; `Ctrl+Shift+C` / `Ctrl+Alt+V` copian y pegan el formato; `Edit ▸ Hide` oculta marcas (bit Hidden de `/F`, no se aplanan) y `Show Hidden Markups` las devuelve. Falta verificarlo en ventana nativa. |
 | `P5-D.11` | Lasso y Undo History | **Cerrado** | ADR-0110. `Shift+O` selecciona con un lazo libre; `Edit ▸ Undo History…` lista los cambios y salta a cualquier paso. Falta verificarlo en ventana nativa. |
 | `P5-D.12` | Gramática de iconos de acción y plan de diseño | **Cerrado** | ADR-0111 y `docs/plan-v2/11-plan-de-diseno.md`. Iconos propios para Offset, Multiply, Paste in Place, Redact, Flatten, Unflatten y Fill; pipeta/brocha para el formato; 10 hallazgos con 5 resueltos y 5 propuestos. |
+| `P5-D.13` | Menú View agrupado y miniaturas en una línea | **Cerrado** | ADR-0112. Hallazgos 6, 7 y 8 del plan de diseño. |
+| `P5-D.14` | Document Properties, Crop Pages y Number Pages | **Cerrado** | ADR-0113. Propiedades editables, recorte por CropBox reversible con las marcas remapeadas, y numeración estampada. Falta verificarlo en ventana nativa con planos reales. |
 
 ---
 

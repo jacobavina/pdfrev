@@ -91,7 +91,8 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
       <div className="flex items-center justify-between w-full mt-1.5 px-1">
         <span
           data-testid={`page-label-${pageIndex}`}
-          className={`text-xs font-medium ${
+          title={pageText}
+          className={`min-w-0 flex-1 truncate whitespace-nowrap text-xs font-medium ${
             isActive ? 'text-cad-accent font-bold' : 'text-gray-400 group-hover:text-gray-200'
           }`}
         >

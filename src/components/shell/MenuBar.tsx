@@ -26,7 +26,6 @@ import {
   Bookmark,
   Layers,
   SlidersHorizontal,
-  Ruler,
   MonitorCog,
   ChevronLeft,
   ChevronRight,
@@ -67,6 +66,8 @@ import {
   ScanSearch,
   ShieldCheck,
   History,
+  Crop,
+  ListOrdered,
 } from 'lucide-react';
 import { FIELD_TYPES, FieldType } from '../../core/markup/formFields';
 import { fieldTypeIcon } from './fieldIcons';
@@ -434,26 +435,33 @@ export const MenuBar: React.FC = () => {
         { icon: <Grid3x3 size={16} />, label: 'Show Grid', shortcut: 'Shift+F9', checked: showGrid, onSelect: () => setShowGrid(!showGrid), testId: 'menu-view-grid' },
         { icon: <Crosshair size={16} />, label: 'Snap to Grid', shortcut: 'Ctrl+Shift+F9', checked: snapToGrid, onSelect: () => setSnapToGrid(!snapToGrid), testId: 'menu-view-snap-grid' },
         'separator',
-        { icon: <PanelLeft size={16} />, label: 'Thumbnails Panel', onSelect: () => setLeftTab('pages') },
-        { icon: <Bookmark size={16} />, label: 'Bookmarks Panel', onSelect: () => setLeftTab('bookmarks') },
-        { icon: <Layers size={16} />, label: 'Layers Panel', onSelect: () => setLeftTab('layers') },
-        { icon: <SlidersHorizontal size={16} />, label: 'Properties Panel', onSelect: requestPropertiesPanel },
-        { icon: <Ruler size={16} />, label: 'Measurements Panel', onSelect: requestMeasurementsPanel },
+        // Paneles agrupados (ADR-0112): la lista de View es larga y mezclaba vista, paneles y perfiles
+        {
+          icon: <PanelLeft size={16} />,
+          label: 'Panels',
+          testId: 'menu-view-panels',
+          submenu: [
+            { icon: <PanelLeft size={16} />, label: 'Thumbnails Panel', onSelect: () => setLeftTab('pages'), testId: 'menu-panel-thumbnails' },
+            { icon: <Bookmark size={16} />, label: 'Bookmarks Panel', onSelect: () => setLeftTab('bookmarks'), testId: 'menu-panel-bookmarks' },
+            { icon: <Layers size={16} />, label: 'Layers Panel', onSelect: () => setLeftTab('layers'), testId: 'menu-panel-layers' },
+            { icon: <SlidersHorizontal size={16} />, label: 'Properties Panel', onSelect: requestPropertiesPanel, testId: 'menu-panel-properties' },
+            { icon: <LengthMeasureIcon size={16} />, label: 'Measurements Panel', onSelect: requestMeasurementsPanel, testId: 'menu-panel-measurements' },
+            {
+              icon: <ListIcon size={16} />,
+              label: 'Markups List',
+              shortcut: 'Alt+L',
+              checked: markupsListOpen,
+              onSelect: toggleMarkupsList,
+              testId: 'menu-view-markups-list',
+            },
+          ],
+        },
         {
           icon: <PanelRightOpen size={16} />,
           label: 'Open Panel on Selection',
           checked: autoOpenPanels,
           onSelect: () => setAutoOpenPanels(!autoOpenPanels),
           testId: 'menu-view-auto-panels',
-        },
-        // Lista de marcas de Revu (ADR-0060): abre cerrada salvo que se pida abrirla al arrancar
-        {
-          icon: <ListIcon size={16} />,
-          label: 'Markups List',
-          shortcut: 'Alt+L',
-          checked: markupsListOpen,
-          onSelect: toggleMarkupsList,
-          testId: 'menu-view-markups-list',
         },
         {
           icon: <ListStart size={16} />,
@@ -521,6 +529,10 @@ export const MenuBar: React.FC = () => {
         { icon: <RotateCwSquare size={16} />, label: 'Rotate Page 90°', shortcut: 'Ctrl+Shift+R', onSelect: () => runPageOperation('rotate'), disabled: !hasDoc },
         { icon: <FileOutput size={16} />, label: 'Extract Page…', shortcut: 'Ctrl+Shift+X', onSelect: () => runPageOperation('extract'), disabled: !hasDoc },
         { icon: <FileX2 size={16} />, label: 'Delete Page', onSelect: () => runPageOperation('delete'), disabled: !hasDoc || numPages <= 1 },
+        { icon: <Crop size={16} />, label: 'Crop Pages…', onSelect: () => useUiStore.getState().setPageToolDialog('crop'), disabled: !hasDoc, testId: 'menu-crop-pages' },
+        { icon: <ListOrdered size={16} />, label: 'Number Pages…', onSelect: () => useUiStore.getState().setPageToolDialog('number'), disabled: !hasDoc, testId: 'menu-number-pages' },
+        'separator',
+        { icon: <FileText size={16} />, label: 'Document Properties…', onSelect: () => useUiStore.getState().setPageToolDialog('properties'), disabled: !hasDoc, testId: 'menu-document-properties' },
         'separator',
         { icon: <Search size={16} />, label: 'Find Text…', shortcut: 'Ctrl+F', onSelect: () => useSearchStore.getState().setIsOpen(true), disabled: !hasDoc },
         'separator',
@@ -712,7 +724,7 @@ export const MenuBar: React.FC = () => {
           disabled: !hasDoc,
         },
         'separator',
-        { icon: <Ruler size={16} />, label: 'Measurements Panel', onSelect: requestMeasurementsPanel },
+        { icon: <LengthMeasureIcon size={16} />, label: 'Measurements Panel', onSelect: requestMeasurementsPanel },
       ],
     },
     {

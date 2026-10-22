@@ -508,6 +508,34 @@ export const FEATURE_GUIDE: GuideSection[] = [
     title: 'Pages and documents',
     entries: [
       {
+        id: 'crop-pages',
+        title: 'Crop pages',
+        summary: 'Trims the margins of one page, a range or all pages. The file keeps the full page, so you can restore it, and the markups move with the new corner.',
+        steps: [
+          'Choose Document ▸ Crop Pages…, set the margin on each side and the units, and choose the pages.',
+          'The dialog shows the size the page will have, and warns if a markup would end up outside the crop.',
+          'Restore full page brings the whole page back.',
+        ],
+        where: 'Document ▸ Crop Pages…',
+      },
+      {
+        id: 'number-pages',
+        title: 'Number pages',
+        summary: 'Stamps a number on each chosen page, for example "Page 3 of 12". The text is written upright on rotated pages too.',
+        steps: [
+          'Choose Document ▸ Number Pages…, write the text with {n}, {total}, {page} or {pages}, and pick the corner, size, colour and first number.',
+          'The numbers become part of the page content and cannot be undone: save a copy first if you may need the original.',
+        ],
+        where: 'Document ▸ Number Pages…',
+      },
+      {
+        id: 'document-properties',
+        title: 'Document properties',
+        summary: 'Shows the file, its size, PDF version, pages and page size, and lets you edit the title, author, subject and keywords.',
+        steps: ['Choose Document ▸ Document Properties…, edit the description fields and press Apply, then save the document.'],
+        where: 'Document ▸ Document Properties…',
+      },
+      {
         id: 'page-ops',
         title: 'Insert, rotate, delete, extract and reorder pages',
         summary: 'Edits the pages of the PDF. Markups, scales and links follow their pages.',

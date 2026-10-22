@@ -226,6 +226,8 @@ interface UiState {
   copyToolDialog: 'offset' | 'multiply' | null;
   /** Lista del historial de cambios abierta (ADR-0110). */
   undoHistoryOpen: boolean;
+  /** Diálogo de páginas abierto: propiedades del documento, recorte o numeración (ADR-0113). */
+  pageToolDialog: 'properties' | 'crop' | 'number' | null;
   viewMode: ViewMode;
   /** Petición de ajuste del zoom (la resuelve el visor, que conoce el tamaño del área y de la página). */
   fitRequest: { kind: FitKind; seq: number } | null;
@@ -270,6 +272,7 @@ interface UiState {
   setCombineModalOpen: (open: boolean) => void;
   setCopyToolDialog: (dialog: 'offset' | 'multiply' | null) => void;
   setUndoHistoryOpen: (open: boolean) => void;
+  setPageToolDialog: (dialog: 'properties' | 'crop' | 'number' | null) => void;
   setViewMode: (mode: ViewMode) => void;
   requestFit: (kind: FitKind) => void;
   setSnap: (update: Partial<SnapSettings>) => void;
@@ -316,6 +319,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   combineModalOpen: false,
   copyToolDialog: null,
   undoHistoryOpen: false,
+  pageToolDialog: null,
+  setPageToolDialog: (pageToolDialog) => set({ pageToolDialog }),
   setUndoHistoryOpen: (undoHistoryOpen) => set({ undoHistoryOpen }),
   setCopyToolDialog: (copyToolDialog) => set({ copyToolDialog }),
   setCombineModalOpen: (combineModalOpen) => set({ combineModalOpen }),

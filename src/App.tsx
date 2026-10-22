@@ -40,6 +40,9 @@ const ShortcutsDialog = lazy(() =>
 const DocumentBar = lazy(() =>
   import('./components/shell/DocumentBar').then((m) => ({ default: m.DocumentBar }))
 );
+const DocumentPropertiesDialog = lazy(() => import('./components/modals/DocumentPropertiesDialog').then((m) => ({ default: m.DocumentPropertiesDialog })));
+const CropPagesDialog = lazy(() => import('./components/modals/CropPagesDialog').then((m) => ({ default: m.CropPagesDialog })));
+const NumberPagesDialog = lazy(() => import('./components/modals/NumberPagesDialog').then((m) => ({ default: m.NumberPagesDialog })));
 const UndoHistoryDialog = lazy(() => import('./components/modals/UndoHistoryDialog').then((m) => ({ default: m.UndoHistoryDialog })));
 const CopyToolsDialog = lazy(() => import('./components/modals/CopyToolsDialog').then((m) => ({ default: m.CopyToolsDialog })));
 const CombinePdfsModal = lazy(() =>
@@ -299,6 +302,9 @@ export const App: React.FC = () => {
         <RevuToolSetsDialog />
         <CopyToolsDialog />
         <UndoHistoryDialog />
+        <DocumentPropertiesDialog />
+        <CropPagesDialog />
+        <NumberPagesDialog />
       </Suspense>
       {combineModalOpen && (
         <Suspense fallback={null}>

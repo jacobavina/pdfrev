@@ -3245,4 +3245,49 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.locator('[data-testid="undo-history-step-0"]').click();
     await expect(marks).toHaveCount(before);
   });
+
+  test('Number Pages y Document Properties (ADR-0113): el número estampado aparece como texto de la página y las propiedades se editan', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('[data-testid="markup-overlay-svg"]')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="pdf-page-container"]').getByText('PLANO DE PRUEBA', { exact: false }).first()).toBeAttached({ timeout: 15000 });
+    await page.locator('[data-testid="menu-documento"]').click();
+    await page.locator('[data-testid="menu-number-pages"]').click();
+    await expect(page.locator('[data-testid="number-sample"]')).toContainText('Page 1 of 3');
+    await page.locator('[data-testid="number-apply"]').click();
+    await expect(page.locator('[data-testid="number-pages-dialog"]')).toHaveCount(0);
+    // El texto estampado pasa a la capa de texto de la primera página
+    await expect(page.locator('[data-testid="pdf-page-container"]').getByText('Page 1 of 3', { exact: true }).first()).toBeAttached({ timeout: 15000 });
+    await page.locator('[data-testid="menu-documento"]').click();
+    await page.locator('[data-testid="menu-document-properties"]').click();
+    await expect(page.locator('[data-testid="props-pages"]')).toContainText('3');
+    await page.locator('[data-testid="props-title"]').fill('Plano de prueba E2E');
+    await page.locator('[data-testid="props-apply"]').click();
+    await expect(page.locator('[data-testid="document-properties-dialog"]')).toHaveCount(0);
+    await page.locator('[data-testid="menu-documento"]').click();
+    await page.locator('[data-testid="menu-document-properties"]').click();
+    await expect(page.locator('[data-testid="props-title"]')).toHaveValue('Plano de prueba E2E');
+  });
+
+  test('Crop Pages (ADR-0113): recortar los márgenes de la página 1 cambia su tamaño y Restore full page lo devuelve', async ({ page }) => {
+    await page.goto('/');
+    const container = page.locator('[data-testid="pdf-page-container"]').first();
+    await expect(container).toBeVisible({ timeout: 15000 });
+    await expect(container.getByText('PLANO DE PRUEBA', { exact: false }).first()).toBeAttached({ timeout: 15000 });
+    const before = (await page.locator('[data-testid="markup-overlay-svg"]').boundingBox())!;
+    await page.locator('[data-testid="menu-documento"]').click();
+    await page.locator('[data-testid="menu-crop-pages"]').click();
+    await page.locator('[data-testid="crop-top"]').fill('10');
+    await page.locator('[data-testid="crop-bottom"]').fill('10');
+    await page.locator('[data-testid="crop-left"]').fill('10');
+    await page.locator('[data-testid="crop-right"]').fill('10');
+    await expect(page.locator('[data-testid="crop-result"]')).toContainText('262 × 192 mm');
+    await page.locator('[data-testid="crop-apply"]').click();
+    await expect(page.locator('[data-testid="crop-pages-dialog"]')).toHaveCount(0);
+    await expect.poll(async () => (await page.locator('[data-testid="markup-overlay-svg"]').boundingBox())!.width).toBeLessThan(before.width - 20);
+    await page.locator('[data-testid="menu-documento"]').click();
+    await page.locator('[data-testid="menu-crop-pages"]').click();
+    await page.locator('[data-testid="crop-restore"]').click();
+    await expect(page.locator('[data-testid="crop-pages-dialog"]')).toHaveCount(0);
+    await expect.poll(async () => Math.round((await page.locator('[data-testid="markup-overlay-svg"]').boundingBox())!.width)).toBe(Math.round(before.width));
+  });
 });

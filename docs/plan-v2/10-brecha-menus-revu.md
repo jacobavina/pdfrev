@@ -29,6 +29,7 @@
 | Show Grid y Snap to Grid | View ▸ Show Grid y Snap to Grid (ADR-0106) |
 | Paste in Place, Format Painter y Hide | Edit ▸ Paste in Place, Copy Format / Paste Format, Hide / Show Hidden Markups (ADR-0109) |
 | Lasso (Shift+O) y Undo History | Select ▸ Lasso y Edit ▸ Undo History… (ADR-0110) |
+| Document Properties, Crop Pages, Number Pages | Document ▸ Document Properties…, Crop Pages…, Number Pages… (ADR-0113) |
 | Snapshot (G) | Edit ▸ Snapshot |
 | Rotate Pages, Delete Pages, Extract Pages | Document ▸ Rotate Page 90°, Delete Page, Extract Page… (de una en una) |
 | Combine | File ▸ Combine Files… |
@@ -45,7 +46,6 @@
 - **Sketch to Scale:** dibujar formas con cota o escala fija.
 
 ### Oleada 2: documento
-- **Document Properties (Ctrl+D)**, **Crop Pages** (`/CropBox`), **Number Pages**, **Headers & Footers**,
   **Replace Pages**, **Split Document**, **Insert desde archivo** y edición de **Page Labels**.
 - **Print.**
 

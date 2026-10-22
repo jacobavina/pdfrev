@@ -125,17 +125,29 @@ interface MenuDef {
  */
 const SubmenuPopup: React.FC<{ testId: string; className: string; children: React.ReactNode }> = ({ testId, className, children }) => {
   const ref = useRef<HTMLDivElement | null>(null);
+  // Posición fija junto a su entrada: el menú de arriba se desplaza cuando no cabe en la ventana y recortaría a un
+  // submenú absoluto. Se coloca a la derecha de la entrada (a la izquierda si no hay sitio) y a 8 px del borde de la ventana.
   useLayoutEffect(() => {
     const el = ref.current;
-    if (!el) return;
-    el.style.transform = '';
+    const anchor = el?.parentElement;
+    if (!el || !anchor) return;
+    const pr = anchor.getBoundingClientRect();
+    el.style.position = 'fixed';
+    el.style.margin = '0';
+    el.style.left = `${pr.right}px`;
+    el.style.top = `${pr.top}px`;
+    el.style.maxHeight = '';
     const r = el.getBoundingClientRect();
-    const dx = Math.max(0, r.right - (window.innerWidth - 8));
-    const dy = Math.max(0, r.bottom - (window.innerHeight - 8));
-    // Y no por encima del borde superior de la ventana
-    const top = r.top - dy;
-    const fixY = top < 8 ? 8 - top : 0;
-    if (dx || dy || fixY) el.style.transform = `translate(${-dx}px, ${-dy + fixY}px)`;
+    const room = window.innerHeight - 16;
+    const w = r.right - r.left;
+    const h = Math.min(r.bottom - r.top, room);
+    let left = pr.right;
+    if (left + w > window.innerWidth - 8) left = pr.left - w >= 8 ? pr.left - w : Math.max(8, window.innerWidth - 8 - w);
+    let top = pr.top;
+    if (top + h > window.innerHeight - 8) top = Math.max(8, window.innerHeight - 8 - h);
+    el.style.left = `${left}px`;
+    el.style.top = `${top}px`;
+    el.style.maxHeight = `${room}px`;
   });
   return (
     <div ref={ref} role="menu" data-testid={testId} className={className}>
@@ -724,7 +736,7 @@ export const MenuBar: React.FC = () => {
               <div
                 role="menu"
                 data-testid={`menu-popup-${menu.id}`}
-                className="absolute left-0 top-full mt-0.5 min-w-[260px] bg-cad-panel border border-cad-border rounded-lg shadow-float p-1 z-50"
+                className="absolute left-0 top-full mt-0.5 min-w-[260px] max-h-[calc(100vh-3.5rem)] overflow-y-auto bg-cad-panel border border-cad-border rounded-lg shadow-float p-1 z-50"
               >
                 {menu.entries.map((entry, idx) =>
                   entry === 'separator' ? (
@@ -757,7 +769,7 @@ export const MenuBar: React.FC = () => {
                       {openSub === entry.label && (
                         <SubmenuPopup
                           testId={`${entry.testId}-popup`}
-                          className="absolute left-full top-0 -mt-1 ml-0.5 min-w-[240px] max-h-[70vh] overflow-y-auto bg-cad-panel border border-cad-border rounded-lg shadow-float p-1 z-50"
+                          className="min-w-[240px] overflow-y-auto bg-cad-panel border border-cad-border rounded-lg shadow-float p-1 z-50"
                         >
                           {entry.submenu.map((sub, j) =>
                             sub === 'separator' ? (

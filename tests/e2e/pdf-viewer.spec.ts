@@ -3179,4 +3179,27 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.keyboard.press('Control+z');
     await expect(marks).toHaveCount(before + 1);
   });
+
+  test('Menús en ventana baja (ADR-0108): el menú View se desplaza por dentro y su último submenú queda entero a la vista', async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 480 });
+    await page.goto('/');
+    await expect(page.locator('[data-testid="markup-overlay-svg"]')).toBeVisible({ timeout: 15000 });
+    await page.locator('[data-testid="menu-ver"]').click();
+    const popup = page.locator('[data-testid="menu-popup-ver"]');
+    const pb = (await popup.boundingBox())!;
+    expect(pb.y + pb.height).toBeLessThanOrEqual(480);
+    expect(await popup.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+    // La última entrada (Profiles) se alcanza desplazando el menú y su submenú cabe en la ventana
+    const profiles = page.locator('[data-testid="menu-view-profiles"]');
+    await profiles.scrollIntoViewIfNeeded();
+    await profiles.hover();
+    const sub = page.locator('[data-testid="menu-view-profiles-popup"]');
+    await expect(sub).toBeVisible();
+    const sb = (await sub.boundingBox())!;
+    expect(sb.y).toBeGreaterThanOrEqual(0);
+    expect(sb.y + sb.height).toBeLessThanOrEqual(480);
+    expect(sb.x + sb.width).toBeLessThanOrEqual(900);
+    // Todas las opciones de perfiles están ahí
+    await expect(sub.locator('[role="menuitem"]').first()).toBeVisible();
+  });
 });

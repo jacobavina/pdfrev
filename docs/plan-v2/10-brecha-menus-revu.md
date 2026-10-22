@@ -28,6 +28,7 @@
 | Offset (O) y Multiply (Ctrl+M) | Edit ▸ Offset… y Multiply… (ADR-0107) |
 | Show Grid y Snap to Grid | View ▸ Show Grid y Snap to Grid (ADR-0106) |
 | Paste in Place, Format Painter y Hide | Edit ▸ Paste in Place, Copy Format / Paste Format, Hide / Show Hidden Markups (ADR-0109) |
+| Lasso (Shift+O) y Undo History | Select ▸ Lasso y Edit ▸ Undo History… (ADR-0110) |
 | Snapshot (G) | Edit ▸ Snapshot |
 | Rotate Pages, Delete Pages, Extract Pages | Document ▸ Rotate Page 90°, Delete Page, Extract Page… (de una en una) |
 | Combine | File ▸ Combine Files… |
@@ -40,8 +41,6 @@
 ## 3. Plan por oleadas
 
 ### Oleada 1: edición y dibujo (la más usada)
-- **Lasso (Shift+O):** selección con una forma libre.
-- **Undo History:** lista del historial para saltar a un punto.
 - **Full-Screen Crosshair** (Snap to Markup ya existe con Ctrl+Shift+F7).
 - **Sketch to Scale:** dibujar formas con cota o escala fija.
 

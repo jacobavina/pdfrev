@@ -3202,4 +3202,47 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     // Todas las opciones de perfiles están ahí
     await expect(sub.locator('[role="menuitem"]').first()).toBeVisible();
   });
+
+  test('Lasso (ADR-0110): un lazo libre alrededor del rectángulo del plano lo selecciona y devuelve la herramienta Select', async ({ page }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await expect(overlaySvg.locator('g[data-testid^="markup-g-"]').first()).toBeAttached({ timeout: 15000 });
+    const box = (await overlaySvg.boundingBox())!;
+    const at = (nx: number, ny: number) => ({ x: box.x + box.width * nx, y: box.y + box.height * ny });
+    // El plano de prueba abre con su rectángulo seleccionado: un clic en un rincón vacío lo deselecciona
+    await page.mouse.click(at(0.93, 0.95).x, at(0.93, 0.95).y);
+    await expect(overlaySvg.locator('[data-testid="selection-bbox"]')).toHaveCount(0);
+    await page.locator('[data-testid="tool-lasso"]').click();
+    const loop = [at(0.05, 0.38), at(0.3, 0.33), at(0.62, 0.4), at(0.64, 0.78), at(0.3, 0.84), at(0.06, 0.76), at(0.05, 0.38)];
+    await page.mouse.move(loop[0].x, loop[0].y);
+    await page.mouse.down();
+    for (const p of loop.slice(1)) await page.mouse.move(p.x, p.y, { steps: 4 });
+    await expect(page.locator('[data-testid="lasso-path"]')).toBeVisible();
+    await page.mouse.up();
+    await expect(page.locator('[data-testid="tool-select"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(overlaySvg.locator('[data-testid="selection-bbox"]').first()).toBeVisible();
+  });
+
+  test('Undo History (ADR-0110): la lista muestra los cambios y volver a "Document as opened" los deshace', async ({ page }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await expect(overlaySvg.locator('g[data-testid^="markup-g-"]').first()).toBeAttached({ timeout: 15000 });
+    const marks = overlaySvg.locator('g[data-testid^="markup-g-"]');
+    const before = await marks.count();
+    await page.locator('button[title*="Rectangle (R)"]').click();
+    const box = (await overlaySvg.boundingBox())!;
+    await page.mouse.move(box.x + 100, box.y + 100);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 160, box.y + 140, { steps: 4 });
+    await page.mouse.up();
+    await expect(marks).toHaveCount(before + 1);
+    await page.locator('[data-testid="menu-editar"]').click();
+    await page.locator('[data-testid="menu-undo-history"]').click();
+    await expect(page.locator('[data-testid="undo-history-dialog"]')).toBeVisible();
+    await expect(page.locator('[data-testid="undo-history-step-1"]')).toHaveAttribute('aria-current', 'step');
+    await page.locator('[data-testid="undo-history-step-0"]').click();
+    await expect(marks).toHaveCount(before);
+  });
 });

@@ -72,6 +72,9 @@ Escala 4 / 8 / 12 / 16 px en cabeceras de panel, cinta, secciones de estilo y ri
 - Tamaños fijos: **16** (controles, listas, barra de estado), **18** (herramientas de la cinta), **20** (acciones
   grandes).
 - Color: el del texto. Inactivo `gray-400`; hover y activo `cad-strong`.
+- Iconos de acción (ADR-0111): una acción, un dibujo. Lo que se copia, repite o desplaza va en trazo discontinuo y el
+  original en pleno; los pares copiar/aplicar usan verbos distintos (pipeta / brocha); toda medición lleva el marco de
+  regla violeta.
 - Acentos (ADR-0066): el resaltador lleva su barra amarilla (`icon-highlight`), las mediciones su punteado violeta
   (`icon-measure`) y el lápiz su punta azul (`icon-pen`), siempre con `tok()`. Los iconos por tipo de la lista de
   marcas conservan su color por tipo. Nunca se usa `cad-accent` en un icono que no esté seleccionado o activo.

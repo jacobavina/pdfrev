@@ -29,7 +29,8 @@ export type ToolType =
   | 'sequence'
   | 'dynamicFill'
   | 'redact'
-  | 'selectText';
+  | 'selectText'
+  | 'lasso';
 
 interface ToolState {
   activeTool: ToolType;

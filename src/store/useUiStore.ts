@@ -224,6 +224,8 @@ interface UiState {
   combineModalOpen: boolean;
   /** Diálogo de Offset o Multiply abierto (ADR-0107). */
   copyToolDialog: 'offset' | 'multiply' | null;
+  /** Lista del historial de cambios abierta (ADR-0110). */
+  undoHistoryOpen: boolean;
   viewMode: ViewMode;
   /** Petición de ajuste del zoom (la resuelve el visor, que conoce el tamaño del área y de la página). */
   fitRequest: { kind: FitKind; seq: number } | null;
@@ -267,6 +269,7 @@ interface UiState {
   setShortcutsOpen: (open: boolean) => void;
   setCombineModalOpen: (open: boolean) => void;
   setCopyToolDialog: (dialog: 'offset' | 'multiply' | null) => void;
+  setUndoHistoryOpen: (open: boolean) => void;
   setViewMode: (mode: ViewMode) => void;
   requestFit: (kind: FitKind) => void;
   setSnap: (update: Partial<SnapSettings>) => void;
@@ -312,6 +315,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   setFeatureGuideOpen: (featureGuideOpen) => set({ featureGuideOpen }),
   combineModalOpen: false,
   copyToolDialog: null,
+  undoHistoryOpen: false,
+  setUndoHistoryOpen: (undoHistoryOpen) => set({ undoHistoryOpen }),
   setCopyToolDialog: (copyToolDialog) => set({ copyToolDialog }),
   setCombineModalOpen: (combineModalOpen) => set({ combineModalOpen }),
   viewMode: readStoredViewMode(),

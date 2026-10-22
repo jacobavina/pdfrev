@@ -53,6 +53,8 @@ interface MarkupState {
   isDirty: boolean;
   canUndo: boolean;
   canRedo: boolean;
+  /** Sube con cada cambio del historial, para que la lista del historial se redibuje (ADR-0110). */
+  historyRevision: number;
 
   // Acciones
   addMarkup: (markup: Markup) => void;
@@ -147,6 +149,8 @@ interface MarkupState {
   // Historial
   undo: () => void;
   redo: () => void;
+  /** Salta en el historial: negativo deshace esa cantidad de pasos y positivo los rehace; devuelve los realizados. */
+  jumpInHistory: (steps: number) => number;
   clearHistory: () => void;
 }
 
@@ -157,10 +161,11 @@ export function registerPasteFallback(fn: (targetPageIndex?: number) => void) {
 
 export const useMarkupStore = create<MarkupState>((set, get) => {
   const syncHistoryFlags = () => {
-    set({
+    set((state) => ({
       canUndo: markupHistory.canUndo(),
       canRedo: markupHistory.canRedo(),
-    });
+      historyRevision: state.historyRevision + 1,
+    }));
   };
 
   return {
@@ -171,6 +176,7 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
     isDirty: false,
     canUndo: false,
     canRedo: false,
+    historyRevision: 0,
 
     addMarkup: (markup: Markup) => {
       get().addMarkups([markup], `Add ${markup.type}`);
@@ -1543,6 +1549,16 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
       if (markupHistory.redo()) {
         syncHistoryFlags();
       }
+    },
+
+    jumpInHistory: (steps) => {
+      let done = 0;
+      for (let i = 0; i < Math.abs(steps); i++) {
+        if (!(steps < 0 ? markupHistory.undo() : markupHistory.redo())) break;
+        done++;
+      }
+      if (done > 0) syncHistoryFlags();
+      return done;
     },
 
     clearHistory: () => {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { MousePointer, Hand, ZoomIn, ListOrdered, PaintBucket, EyeOff, TextSelect } from 'lucide-react';
+import { MousePointer, Hand, ZoomIn, ListOrdered, TextSelect, LassoSelect } from 'lucide-react';
 import {
   CloudIcon,
   CloudPlusIcon,
@@ -34,8 +34,7 @@ import {
   EllipseCutoutIcon,
   EraserIcon,
   ArcIcon,
-  SnapshotIcon,
-} from './customIcons';
+  SnapshotIcon, RedactIcon, FillMeasureIcon } from './customIcons';
 import { ToolType } from '../../store/useToolStore';
 import { MARKUP_COLORS } from '../../core/markup/palette';
 
@@ -74,6 +73,14 @@ export const TOOL_GROUPS: ToolGroup[] = [
         shortcut: 'Shift+T',
         testId: 'tool-select-text',
       },
+      {
+        type: 'lasso',
+        label: 'Lasso (Shift+O): drag a free loop around markups to select them. Hold Shift to add to the selection',
+        short: 'Lasso',
+        icon: <LassoSelect size={18} />,
+        shortcut: 'Shift+O',
+        testId: 'tool-lasso',
+      },
       { type: 'zoom', label: 'Zoom Window (Z)', short: 'Zoom', icon: <ZoomIn size={18} />, shortcut: 'Z', testId: 'tool-zoom' },
       { type: 'snapshot', label: 'Snapshot (G)', short: 'Snapshot', icon: <SnapshotIcon size={18} />, shortcut: 'G', testId: 'tool-snapshot' },
     ],
@@ -85,7 +92,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
       { type: 'text', label: 'Text Box (T)', short: 'Text', icon: <TextBoxIcon />, shortcut: 'T' },
       { type: 'typewriter', label: 'Typewriter (W)', short: 'Typewriter', icon: <TypewriterIcon />, shortcut: 'W' },
       { type: 'callout', label: 'Callout (Q)', short: 'Callout', icon: <CalloutIcon />, shortcut: 'Q' },
-      { type: 'redact', label: 'Redact: draw a box over what must be removed for good', short: 'Redact', icon: <EyeOff size={18} />, testId: 'tool-redact' },
+      { type: 'redact', label: 'Redact: draw a box over what must be removed for good', short: 'Redact', icon: <RedactIcon />, testId: 'tool-redact' },
       { type: 'stickyNote', label: 'Note (N)', short: 'Note', icon: <NoteIcon />, shortcut: 'N' },
       { type: 'sequence', label: 'Numbered Sequence', short: 'Sequence', icon: <ListOrdered size={18} />, testId: 'tool-sequence' },
       { type: 'highlightText', label: 'Text Highlight (Shift+H)', short: 'Highlight', icon: <TextHighlightIcon />, shortcut: 'Shift+H' },
@@ -139,7 +146,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
         type: 'dynamicFill',
         label: 'Dynamic Fill (J): click inside an enclosed area to measure it',
         short: 'Fill',
-        icon: <PaintBucket size={18} />,
+        icon: <FillMeasureIcon />,
         testId: 'tool-dynamic-fill',
         shortcut: 'J',
       },

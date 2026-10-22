@@ -64,6 +64,7 @@ import { revisionCloudPathNormalized } from '../core/markup/revisionCloud';
 import { calloutBoxFromDrag, CALLOUT_LANDING_PT } from '../core/markup/calloutLayout';
 import { snapPoint, SnapResult } from '../core/markup/snap';
 import { gridLines, gridStepPt, snapToGrid } from '../core/markup/grid';
+import { LASSO_MIN_STEP, lassoSelect } from '../core/markup/lasso';
 import { remeasureMarkup, SCALED_MEASURE_TYPES } from '../core/measurements/remeasure';
 import {
   markupBounds,
@@ -420,6 +421,10 @@ export const PdfViewer: React.FC = () => {
     current: MarkupPoint;
   } | null>(null);
 
+  // Lasso (ADR-0110): el contorno libre en curso y la selección con que empezó (para sumar con Shift)
+  const lassoRef = useRef<{ points: MarkupPoint[]; additive: boolean; initialSelectedIds: string[] } | null>(null);
+  const [lassoPoints, setLassoPoints] = useState<MarkupPoint[] | null>(null);
+
   const [pageViewport, setPageViewport] = useState<{ width: number; height: number }>({
     width: 800,
     height: 600,
@@ -677,6 +682,7 @@ export const PdfViewer: React.FC = () => {
         inlineEditing ||
         dragStateRef.current ||
         marqueeStateRef.current ||
+        lassoRef.current ||
         anchorDragRef.current ||
         vertexDragRef.current
     );
@@ -971,6 +977,12 @@ export const PdfViewer: React.FC = () => {
 
       // Criterio 3: Escape cancela el trazo en curso, el arrastre activo o el marquee
       if (e.key === 'Escape') {
+        if (lassoRef.current) {
+          e.preventDefault();
+          lassoRef.current = null;
+          setLassoPoints(null);
+          return;
+        }
         if (marqueeStateRef.current) {
           e.preventDefault();
           setSelectedMarkupIds(marqueeStateRef.current.initialSelectedIds);
@@ -1189,6 +1201,7 @@ export const PdfViewer: React.FC = () => {
           e: 'eraser',
           c: 'arc',
           t: 'selectText',
+          o: 'lasso',
         };
         const tool = shiftTool[e.key.toLowerCase()];
         if (tool) {
@@ -1794,6 +1807,15 @@ export const PdfViewer: React.FC = () => {
     if (e.button !== 0) return;
     const pt = getEventPoint(e);
 
+    // Lasso (Shift+O): arrastrar dibuja un contorno libre y al soltar elige las marcas que toca
+    if (activeTool === 'lasso') {
+      const additive = e.shiftKey || e.ctrlKey || e.metaKey;
+      lassoRef.current = { points: [pt], additive, initialSelectedIds: additive ? [...selectedMarkupIds] : [] };
+      if (!additive) deselectAll();
+      setLassoPoints([pt]);
+      return;
+    }
+
     // Borrador (Eraser, Shift+E): eliminar la marca sobre la que se hace clic
     if (activeTool === 'eraser') {
       const hit = pageSpatialIndex.hitTest(pt, 0.02, pageDims);
@@ -1991,8 +2013,35 @@ export const PdfViewer: React.FC = () => {
     }
   };
 
+  /** Cierra el lazo: elige lo que toca (sumándolo con Shift) y vuelve a Select para poder mover o editar el resultado. */
+  const finishLasso = () => {
+    const lasso = lassoRef.current;
+    if (!lasso) return;
+    lassoRef.current = null;
+    setLassoPoints(null);
+    const { markups: all } = useMarkupStore.getState();
+    const candidates = all.filter((m) => m.pageIndex === currentPageIndex && isMarkupVisible(m));
+    const picked = lassoSelect(candidates, lasso.points);
+    if (picked.length === 0) {
+      setSelectedMarkupIds(lasso.initialSelectedIds);
+      showToast('The loop did not touch any markup. Drag a closed shape around what you want to select.');
+      return;
+    }
+    setSelectedMarkupIds(Array.from(new Set([...lasso.initialSelectedIds, ...picked])));
+    useToolStore.getState().setActiveTool('select');
+  };
+
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const pt = getEventPoint(e);
+    if (lassoRef.current) {
+      const pts = lassoRef.current.points;
+      const last = pts[pts.length - 1];
+      if (Math.hypot(pt.x - last.x, pt.y - last.y) >= LASSO_MIN_STEP) {
+        pts.push(pt);
+        setLassoPoints([...pts]);
+      }
+      return;
+    }
     {
       const rect = e.currentTarget.getBoundingClientRect();
       const snapped = snapAt(screenToNormalized(e.clientX - rect.left, e.clientY - rect.top, viewportTransform));
@@ -2296,6 +2345,10 @@ export const PdfViewer: React.FC = () => {
 
   const latestDrawPoint = currentDrawPoint;
   const handleMouseUp = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (lassoRef.current) {
+      finishLasso();
+      return;
+    }
     // Herramientas de dos puntos: el punto final es el del propio evento (con snap), sin esperar al render
     const upPoint = TWO_CLICK_TOOLS.has(activeTool) && drawingStart ? getEventPoint(e) : null;
     const currentDrawPoint = upPoint ?? latestDrawPoint;
@@ -3428,6 +3481,7 @@ export const PdfViewer: React.FC = () => {
             onMouseLeave={() => {
               setCursorPt(null);
               setSnapIndicator(null);
+              finishLasso();
             }}
             onContextMenu={handleContextMenu}
             onDoubleClick={handleDoubleClick}
@@ -4400,6 +4454,20 @@ export const PdfViewer: React.FC = () => {
                 </g>
               );
             })()}
+
+            {/* Lasso (ADR-0110): contorno libre en curso, cerrado hacia el primer punto */}
+            {lassoPoints && lassoPoints.length > 1 && (
+              <polygon
+                data-testid="lasso-path"
+                points={lassoPoints.map((p) => { const q = normalizedToScreen(p, viewportTransform); return `${q.x},${q.y}`; }).join(' ')}
+                fill={tok('cad-accent', 0.12)}
+                stroke={tok('cad-accent')}
+                strokeWidth={1.5}
+                strokeDasharray="5 3"
+                strokeLinejoin="round"
+                className="pointer-events-none"
+              />
+            )}
 
             {/* D. Rectángulo elástico de selección Marquee (Sub-entregable A.2) */}
             {marqueeState && (() => {

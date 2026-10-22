@@ -40,6 +40,7 @@ const ShortcutsDialog = lazy(() =>
 const DocumentBar = lazy(() =>
   import('./components/shell/DocumentBar').then((m) => ({ default: m.DocumentBar }))
 );
+const UndoHistoryDialog = lazy(() => import('./components/modals/UndoHistoryDialog').then((m) => ({ default: m.UndoHistoryDialog })));
 const CopyToolsDialog = lazy(() => import('./components/modals/CopyToolsDialog').then((m) => ({ default: m.CopyToolsDialog })));
 const CombinePdfsModal = lazy(() =>
   import('./components/modals/CombinePdfsModal').then((m) => ({ default: m.CombinePdfsModal }))
@@ -297,6 +298,7 @@ export const App: React.FC = () => {
         <FeatureGuideDialog />
         <RevuToolSetsDialog />
         <CopyToolsDialog />
+        <UndoHistoryDialog />
       </Suspense>
       {combineModalOpen && (
         <Suspense fallback={null}>

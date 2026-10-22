@@ -252,6 +252,8 @@
 | `P5-D.8` | Offset y Multiply de marcas | **Cerrado** | ADR-0107. `Edit ▸ Offset…` (O) y `Multiply…` (Ctrl+M): copias paralelas a distancia exacta y repetición en filas y columnas, con medidas recalculadas y un solo Undo. Falta verificarlo en ventana nativa. |
 | `P5-D.9` | Menús desplazables en ventana baja | **Cerrado** | ADR-0108. Cada menú de pestaña se limita a la altura de la ventana y se desplaza; los submenús pasan a posición fija. Falta verificarlo en ventana nativa. |
 | `P5-D.10` | Paste in Place, Format Painter y Hide | **Cerrado** | ADR-0109. `Ctrl+Shift+V` pega en el sitio; `Ctrl+Shift+C` / `Ctrl+Alt+V` copian y pegan el formato; `Edit ▸ Hide` oculta marcas (bit Hidden de `/F`, no se aplanan) y `Show Hidden Markups` las devuelve. Falta verificarlo en ventana nativa. |
+| `P5-D.11` | Lasso y Undo History | **Cerrado** | ADR-0110. `Shift+O` selecciona con un lazo libre; `Edit ▸ Undo History…` lista los cambios y salta a cualquier paso. Falta verificarlo en ventana nativa. |
+| `P5-D.12` | Gramática de iconos de acción y plan de diseño | **Cerrado** | ADR-0111 y `docs/plan-v2/11-plan-de-diseno.md`. Iconos propios para Offset, Multiply, Paste in Place, Redact, Flatten, Unflatten y Fill; pipeta/brocha para el formato; 10 hallazgos con 5 resueltos y 5 propuestos. |
 
 ---
 

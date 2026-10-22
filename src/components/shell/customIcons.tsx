@@ -344,3 +344,70 @@ export const SnapshotIcon: React.FC<{ size?: number }> = ({ size }) => (
   </Icon>
 );
 
+
+// ── Acciones de edición (ADR-0111) ────────────────────────────────────────────────────────────────────────────────
+// Gramática: la forma principal va con trazo pleno; lo que se copia, se repite o se desplaza va en discontinuo o más
+// fino. Ningún icono de acción comparte dibujo con otro.
+
+/** Offset: un trazado con esquina y su copia paralela por dentro, concéntrica (el desfase de un contorno). */
+export const OffsetIcon: React.FC<{ size?: number }> = ({ size }) => (
+  <Icon size={size}>
+    <path d="M3.5 21V9a5.5 5.5 0 0 1 5.5-5.5h12" />
+    <path d="M9 21V9h12" strokeDasharray="2.6 2.2" />
+  </Icon>
+);
+
+/** Multiply: el original y tres copias en cuadrícula (las copias, en discontinuo). */
+export const MultiplyIcon: React.FC<{ size?: number }> = ({ size }) => (
+  <Icon size={size}>
+    <rect x="3" y="3" width="7.5" height="7.5" rx="1.4" />
+    <rect x="13.5" y="3" width="7.5" height="7.5" rx="1.4" strokeDasharray="2.2 2" />
+    <rect x="3" y="13.5" width="7.5" height="7.5" rx="1.4" strokeDasharray="2.2 2" />
+    <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.4" strokeDasharray="2.2 2" />
+  </Icon>
+);
+
+/** Paste in Place: portapapeles con la mira de la posición exacta. */
+export const PasteInPlaceIcon: React.FC<{ size?: number }> = ({ size }) => (
+  <Icon size={size}>
+    <path d="M8.5 4.5H6a2 2 0 0 0-2 2v12.5a2 2 0 0 0 2 2h5" />
+    <rect x="8" y="2.5" width="5.5" height="4" rx="1" />
+    <path d="M13.5 4.5H16a2 2 0 0 1 2 2V9" />
+    <circle cx="17.5" cy="16.5" r="3.6" />
+    <path d="M17.5 11.5v2.2M17.5 19.3v2.2M12.5 16.5h2.2M20.3 16.5h2.2" strokeWidth={1.5} />
+  </Icon>
+);
+
+/** Redact: texto con una barra negra encima. */
+export const RedactIcon: React.FC<{ size?: number }> = ({ size }) => (
+  <Icon size={size}>
+    <path d="M4 6.5h9M16.5 6.5H20M4 17.5h4.5M12 17.5h8" />
+    <rect x="3" y="10.2" width="18" height="3.8" rx="0.9" fill="currentColor" />
+  </Icon>
+);
+
+/** Flatten: las capas se aplastan en una (flechas hacia la línea central). */
+export const FlattenIcon: React.FC<{ size?: number }> = ({ size }) => (
+  <Icon size={size}>
+    <path d="M12 3v5.5M9 6.2l3 3 3-3" />
+    <path d="M12 21v-5.5M9 17.8l3-3 3 3" />
+    <path d="M4 12h16" />
+  </Icon>
+);
+
+/** Unflatten: lo aplastado vuelve a separarse (flechas que se alejan de la línea central, ahora discontinua). */
+export const UnflattenIcon: React.FC<{ size?: number }> = ({ size }) => (
+  <Icon size={size}>
+    <path d="M12 9.5V4M9 6.8l3-3 3 3" />
+    <path d="M12 14.5V20M9 17.2l3 3 3-3" />
+    <path d="M4 12h16" strokeDasharray="2.6 2.2" />
+  </Icon>
+);
+
+/** Fill (relleno de un área medida): el polígono de área ya relleno, con la gota que lo vierte. */
+export const FillMeasureIcon: React.FC<{ size?: number }> = ({ size }) => (
+  <MeasureFrame size={size}>
+    <path d="M7 20V8h7l6 6v6z" fill={MEASURE_ACCENT} fillOpacity={0.3} />
+    <path d="M13.5 12.6c1.4 1.7 2.1 2.6 2.1 3.5a2.1 2.1 0 0 1-4.2 0c0-.9.7-1.8 2.1-3.5z" fill="currentColor" stroke="none" />
+  </MeasureFrame>
+);

@@ -309,6 +309,25 @@ export const FEATURE_GUIDE: GuideSection[] = [
         where: 'Edit ▸ Align & Flip',
       },
       {
+        id: 'lasso',
+        title: 'Lasso',
+        summary: 'Selects markups with a free-form loop: useful when a rectangle would also catch things you do not want.',
+        steps: [
+          'Press Shift+O (or choose Lasso in the Select group) and drag a loop around the markups. Release to select every markup the loop touches.',
+          'Hold Shift while you start the loop to add to the current selection. Esc cancels the loop.',
+          'After selecting, the tool goes back to Select so you can move, copy or edit the result.',
+        ],
+        where: 'Markup ribbon ▸ Select ▸ Lasso',
+        shortcut: 'Shift+O',
+      },
+      {
+        id: 'undo-history',
+        title: 'Undo History',
+        summary: 'Lists every change you made (the last 50) and lets you jump back to any point, or forward again until you make a new change.',
+        steps: ['Choose Edit ▸ Undo History…, then click the step you want to go back to. "Document as opened" is the starting point.'],
+        where: 'Edit ▸ Undo History…',
+      },
+      {
         id: 'paste-in-place',
         title: 'Paste in Place',
         summary: 'Pastes the copied markups at exactly the same position, on the page you are viewing. Useful to repeat a markup on another sheet.',

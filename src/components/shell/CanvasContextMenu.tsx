@@ -11,6 +11,7 @@ import {
   LockOpen,
   EyeOff,
   Paintbrush,
+  Pipette,
   Check,
   ChevronRight,
   Layers,
@@ -32,7 +33,7 @@ import {
   distributeSelectedMarkups,
   flipSelectedMarkups,
 } from '../../core/markup/transformTools';
-import { PolygonCutoutIcon, EllipseCutoutIcon } from './customIcons';
+import { PolygonCutoutIcon, EllipseCutoutIcon, OffsetIcon, MultiplyIcon, PasteInPlaceIcon } from './customIcons';
 import { showToast } from '../../services/toastService';
 import { copyFormat, hideSelected, pasteFormat, pasteInPlace } from '../../core/markup/copyActions';
 import { hasSnapshotInCache } from '../../services/snapshotService';
@@ -400,20 +401,20 @@ export const CanvasContextMenu: React.FC<{
         shortcut: 'Ctrl+V',
         disabled: allLocked || (useMarkupStore.getState().clipboardMarkups.length === 0 && !hasSnapshotInCache()),
       })}
-      {item('canvas-menu-paste-in-place', <Clipboard size={16} />, 'Paste in Place', pasteInPlace, {
+      {item('canvas-menu-paste-in-place', <PasteInPlaceIcon size={16} />, 'Paste in Place', pasteInPlace, {
         shortcut: 'Ctrl+Shift+V',
         disabled: allLocked || useMarkupStore.getState().clipboardMarkups.length === 0,
       })}
-      {item('canvas-menu-copy-format', <Paintbrush size={16} />, 'Copy Format', copyFormat, { shortcut: 'Ctrl+Shift+C' })}
+      {item('canvas-menu-copy-format', <Pipette size={16} />, 'Copy Format', copyFormat, { shortcut: 'Ctrl+Shift+C' })}
       {item('canvas-menu-paste-format', <Paintbrush size={16} />, 'Paste Format', pasteFormat, {
         shortcut: 'Ctrl+Alt+V',
         disabled: allLocked || useMarkupStore.getState().formatClipboard === null,
       })}
-      {item('canvas-menu-offset', <CopyPlus size={16} />, 'Offset…', () => useUiStore.getState().setCopyToolDialog('offset'), {
+      {item('canvas-menu-offset', <OffsetIcon size={16} />, 'Offset…', () => useUiStore.getState().setCopyToolDialog('offset'), {
         shortcut: 'O',
         disabled: allLocked,
       })}
-      {item('canvas-menu-multiply', <CopyPlus size={16} />, 'Multiply…', () => useUiStore.getState().setCopyToolDialog('multiply'), {
+      {item('canvas-menu-multiply', <MultiplyIcon size={16} />, 'Multiply…', () => useUiStore.getState().setCopyToolDialog('multiply'), {
         shortcut: 'Ctrl+M',
         disabled: allLocked,
       })}

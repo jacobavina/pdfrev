@@ -66,6 +66,14 @@ export class HistoryManager {
     this.redoStack = [];
   }
 
+  /** Descripciones del historial: lo hecho (de la más antigua a la última) y lo rehacible (la próxima en rehacerse primero). */
+  public getEntries(): { past: string[]; future: string[] } {
+    return {
+      past: this.undoStack.map((c) => c.description),
+      future: [...this.redoStack].reverse().map((c) => c.description),
+    };
+  }
+
   public getStacks(): { undoStack: Command[]; redoStack: Command[] } {
     return { undoStack: [...this.undoStack], redoStack: [...this.redoStack] };
   }

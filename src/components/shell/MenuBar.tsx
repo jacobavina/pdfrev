@@ -51,9 +51,22 @@ import {
   Columns2,
   FileStack,
   Grid3x3,
-  Magnet,
+  Crosshair,
   Paintbrush,
   Eye,
+  AlignHorizontalDistributeCenter,
+  Blend,
+  Diff,
+  FileSearch,
+  ListStart,
+  ListX,
+  Merge,
+  PanelRightOpen,
+  Pipette,
+  RotateCwSquare,
+  ScanSearch,
+  ShieldCheck,
+  History,
 } from 'lucide-react';
 import { FIELD_TYPES, FieldType } from '../../core/markup/formFields';
 import { fieldTypeIcon } from './fieldIcons';
@@ -77,8 +90,7 @@ import {
   RulersIcon,
   PolygonCutoutIcon,
   EllipseCutoutIcon,
-  SnapshotIcon,
-} from './customIcons';
+  SnapshotIcon, FlattenIcon, MultiplyIcon, OffsetIcon, PasteInPlaceIcon, RedactIcon, UnflattenIcon } from './customIcons';
 import { hasSnapshotInCache } from '../../services/snapshotService';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useMarkupStore } from '../../store/useMarkupStore';
@@ -269,7 +281,7 @@ export const MenuBar: React.FC = () => {
           })),
           'separator',
           {
-            icon: <Trash2 size={16} />,
+            icon: <ListX size={16} />,
             label: 'Clear Recent Files',
             testId: 'menu-clear-recent',
             onSelect: () => {
@@ -290,7 +302,7 @@ export const MenuBar: React.FC = () => {
           testId: 'menu-open-recent',
           submenu: recentMenuEntries,
         },
-        { icon: <Layers size={16} />, label: 'Combine Files…', onSelect: () => setCombineModalOpen(true), testId: 'menu-combine-files' },
+        { icon: <Merge size={16} />, label: 'Combine Files…', onSelect: () => setCombineModalOpen(true), testId: 'menu-combine-files' },
         {
           icon: <Save size={16} />,
           label: filePath ? 'Save' : 'Save…',
@@ -313,8 +325,8 @@ export const MenuBar: React.FC = () => {
           label: 'Export',
           testId: 'menu-export',
           submenu: [
-            { icon: <FileDown size={16} />, label: 'PDF with Flattened Markups…', onSelect: () => exportFlattenedPdf(), disabled: !hasDoc, testId: 'menu-export-flattened' },
-            { icon: <FileDown size={16} />, label: 'Unflatten Markups of This PDF', onSelect: () => unflattenOpenDocument(), disabled: !hasDoc, testId: 'menu-unflatten' },
+            { icon: <FlattenIcon size={16} />, label: 'PDF with Flattened Markups…', onSelect: () => exportFlattenedPdf(), disabled: !hasDoc, testId: 'menu-export-flattened' },
+            { icon: <UnflattenIcon size={16} />, label: 'Unflatten Markups of This PDF', onSelect: () => unflattenOpenDocument(), disabled: !hasDoc, testId: 'menu-unflatten' },
             { icon: <FileSpreadsheet size={16} />, label: 'Markups List (CSV)…', onSelect: () => requestExport('csv'), disabled: !hasDoc, testId: 'menu-export-csv' },
             { icon: <FileSpreadsheet size={16} />, label: 'Takeoff Schedule (Excel .xlsx)…', onSelect: () => requestExport('xlsx'), disabled: !hasDoc, testId: 'menu-export-xlsx' },
             { icon: <ClipboardList size={16} />, label: 'Markup Summary Report (PDF)…', onSelect: () => requestExport('report'), disabled: !hasDoc, testId: 'menu-export-report' },
@@ -329,6 +341,7 @@ export const MenuBar: React.FC = () => {
       entries: [
         { icon: <Undo2 size={16} />, label: 'Undo', shortcut: 'Ctrl+Z', onSelect: undo, disabled: !canUndo },
         { icon: <Redo2 size={16} />, label: 'Redo', shortcut: 'Ctrl+Y', onSelect: redo, disabled: !canRedo },
+        { icon: <History size={16} />, label: 'Undo History…', onSelect: () => useUiStore.getState().setUndoHistoryOpen(true), testId: 'menu-undo-history' },
         'separator',
         { icon: <Copy size={16} />, label: 'Copy', shortcut: 'Ctrl+C', onSelect: () => useMarkupStore.getState().copySelectedMarkups(), disabled: !hasSelection },
         {
@@ -338,8 +351,8 @@ export const MenuBar: React.FC = () => {
           onSelect: () => useMarkupStore.getState().pasteMarkups(currentPageIndex),
           disabled: useMarkupStore.getState().clipboardMarkups.length === 0 && !hasSnapshotInCache(),
         },
-        { icon: <ClipboardPaste size={16} />, label: 'Paste in Place', shortcut: 'Ctrl+Shift+V', onSelect: pasteInPlace, disabled: useMarkupStore.getState().clipboardMarkups.length === 0, testId: 'menu-paste-in-place' },
-        { icon: <Paintbrush size={16} />, label: 'Copy Format', shortcut: 'Ctrl+Shift+C', onSelect: copyFormat, disabled: !hasSelection, testId: 'menu-copy-format' },
+        { icon: <PasteInPlaceIcon size={16} />, label: 'Paste in Place', shortcut: 'Ctrl+Shift+V', onSelect: pasteInPlace, disabled: useMarkupStore.getState().clipboardMarkups.length === 0, testId: 'menu-paste-in-place' },
+        { icon: <Pipette size={16} />, label: 'Copy Format', shortcut: 'Ctrl+Shift+C', onSelect: copyFormat, disabled: !hasSelection, testId: 'menu-copy-format' },
         { icon: <Paintbrush size={16} />, label: 'Paste Format', shortcut: 'Ctrl+Alt+V', onSelect: pasteFormat, disabled: !hasSelection || useMarkupStore.getState().formatClipboard === null, testId: 'menu-paste-format' },
         {
           icon: <SnapshotIcon size={16} />,
@@ -350,15 +363,15 @@ export const MenuBar: React.FC = () => {
           testId: 'menu-edit-snapshot',
         },
         { icon: <CopyPlus size={16} />, label: 'Duplicate', shortcut: 'Ctrl+D', onSelect: () => useMarkupStore.getState().duplicateSelectedMarkups(), disabled: !hasSelection },
-        { icon: <CopyPlus size={16} />, label: 'Offset…', shortcut: 'O', onSelect: () => useUiStore.getState().setCopyToolDialog('offset'), disabled: !hasSelection, testId: 'menu-offset' },
-        { icon: <CopyPlus size={16} />, label: 'Multiply…', shortcut: 'Ctrl+M', onSelect: () => useUiStore.getState().setCopyToolDialog('multiply'), disabled: !hasSelection, testId: 'menu-multiply' },
+        { icon: <OffsetIcon size={16} />, label: 'Offset…', shortcut: 'O', onSelect: () => useUiStore.getState().setCopyToolDialog('offset'), disabled: !hasSelection, testId: 'menu-offset' },
+        { icon: <MultiplyIcon size={16} />, label: 'Multiply…', shortcut: 'Ctrl+M', onSelect: () => useUiStore.getState().setCopyToolDialog('multiply'), disabled: !hasSelection, testId: 'menu-multiply' },
         { icon: <EyeOff size={16} />, label: 'Hide', onSelect: hideSelected, disabled: !hasSelection, testId: 'menu-hide' },
         { icon: <Eye size={16} />, label: 'Show Hidden Markups', onSelect: showHidden, disabled: !hasHiddenMarkups, testId: 'menu-show-hidden' },
         { icon: <Lock size={16} />, label: 'Lock / Unlock', onSelect: () => useMarkupStore.getState().toggleLockSelectedMarkups(), disabled: !hasSelection },
         { icon: <Trash2 size={16} />, label: 'Delete', shortcut: 'Del', onSelect: () => useMarkupStore.getState().deleteSelectedMarkups(), disabled: !hasSelection },
         'separator',
         {
-          icon: <Columns2 size={16} />,
+          icon: <AlignHorizontalDistributeCenter size={16} />,
           label: 'Align & Flip',
           testId: 'menu-edit-transform',
           submenu: [
@@ -387,7 +400,7 @@ export const MenuBar: React.FC = () => {
         { icon: <ZoomIn size={16} />, label: 'Zoom In', shortcut: 'Ctrl+wheel', onSelect: zoomIn, disabled: !hasDoc },
         { icon: <ZoomOut size={16} />, label: 'Zoom Out', shortcut: 'Ctrl+wheel', onSelect: zoomOut, disabled: !hasDoc },
         {
-          icon: <ZoomIn size={16} />,
+          icon: <ScanSearch size={16} />,
           label: 'Zoom Window',
           shortcut: 'Z',
           onSelect: () => useToolStore.getState().setActiveTool('zoom'),
@@ -419,7 +432,7 @@ export const MenuBar: React.FC = () => {
         { icon: <ContinuousIcon size={16} />, label: 'Continuous Pages', shortcut: 'Ctrl+5', checked: viewMode === 'continuous', onSelect: () => setViewMode('continuous'), testId: 'menu-view-continuous' },
         { icon: <RulersIcon size={16} />, label: 'Rulers', shortcut: 'Ctrl+R', checked: showRulers, onSelect: () => setShowRulers(!showRulers), testId: 'menu-view-rulers' },
         { icon: <Grid3x3 size={16} />, label: 'Show Grid', shortcut: 'Shift+F9', checked: showGrid, onSelect: () => setShowGrid(!showGrid), testId: 'menu-view-grid' },
-        { icon: <Magnet size={16} />, label: 'Snap to Grid', shortcut: 'Ctrl+Shift+F9', checked: snapToGrid, onSelect: () => setSnapToGrid(!snapToGrid), testId: 'menu-view-snap-grid' },
+        { icon: <Crosshair size={16} />, label: 'Snap to Grid', shortcut: 'Ctrl+Shift+F9', checked: snapToGrid, onSelect: () => setSnapToGrid(!snapToGrid), testId: 'menu-view-snap-grid' },
         'separator',
         { icon: <PanelLeft size={16} />, label: 'Thumbnails Panel', onSelect: () => setLeftTab('pages') },
         { icon: <Bookmark size={16} />, label: 'Bookmarks Panel', onSelect: () => setLeftTab('bookmarks') },
@@ -427,7 +440,7 @@ export const MenuBar: React.FC = () => {
         { icon: <SlidersHorizontal size={16} />, label: 'Properties Panel', onSelect: requestPropertiesPanel },
         { icon: <Ruler size={16} />, label: 'Measurements Panel', onSelect: requestMeasurementsPanel },
         {
-          icon: <SlidersHorizontal size={16} />,
+          icon: <PanelRightOpen size={16} />,
           label: 'Open Panel on Selection',
           checked: autoOpenPanels,
           onSelect: () => setAutoOpenPanels(!autoOpenPanels),
@@ -443,7 +456,7 @@ export const MenuBar: React.FC = () => {
           testId: 'menu-view-markups-list',
         },
         {
-          icon: <ListIcon size={16} />,
+          icon: <ListStart size={16} />,
           label: 'Open Markups List at Start',
           checked: markupsListAtStart,
           onSelect: () => setMarkupsListAtStart(!markupsListAtStart),
@@ -505,14 +518,14 @@ export const MenuBar: React.FC = () => {
         { icon: <ChevronRight size={16} />, label: 'Next Page', shortcut: 'PgDn', onSelect: () => goToPage(1), disabled: currentPageIndex >= numPages - 1 },
         'separator',
         { icon: <FilePlus2 size={16} />, label: 'Insert Blank Page After', onSelect: () => runPageOperation('insertBlank'), disabled: !hasDoc },
-        { icon: <RotateCcw size={16} />, label: 'Rotate Page 90°', shortcut: 'Ctrl+Shift+R', onSelect: () => runPageOperation('rotate'), disabled: !hasDoc },
+        { icon: <RotateCwSquare size={16} />, label: 'Rotate Page 90°', shortcut: 'Ctrl+Shift+R', onSelect: () => runPageOperation('rotate'), disabled: !hasDoc },
         { icon: <FileOutput size={16} />, label: 'Extract Page…', shortcut: 'Ctrl+Shift+X', onSelect: () => runPageOperation('extract'), disabled: !hasDoc },
         { icon: <FileX2 size={16} />, label: 'Delete Page', onSelect: () => runPageOperation('delete'), disabled: !hasDoc || numPages <= 1 },
         'separator',
         { icon: <Search size={16} />, label: 'Find Text…', shortcut: 'Ctrl+F', onSelect: () => useSearchStore.getState().setIsOpen(true), disabled: !hasDoc },
         'separator',
         {
-          icon: <Layers2 size={16} />,
+          icon: <Blend size={16} />,
           label: 'Overlay Pages',
           testId: 'menu-overlay',
           submenu: [
@@ -524,7 +537,7 @@ export const MenuBar: React.FC = () => {
               disabled: !hasDoc,
             },
             {
-              icon: <Copy size={16} />,
+              icon: <Layers2 size={16} />,
               label: 'Overlay with a Page of This Document',
               testId: 'menu-overlay-self',
               onSelect: () => void import('../../services/overlayService').then((m) => m.startOverlayWithThisDocument()),
@@ -534,20 +547,20 @@ export const MenuBar: React.FC = () => {
         },
         // Redacción permanente (ADR-0103)
         {
-          icon: <EyeOff size={16} />,
+          icon: <RedactIcon size={16} />,
           label: 'Redaction',
           testId: 'menu-redaction',
           disabled: !hasDoc,
           submenu: [
             {
-              icon: <EyeOff size={16} />,
+              icon: <FileSearch size={16} />,
               label: 'Mark Search Results for Redaction',
               testId: 'menu-redaction-mark-search',
               onSelect: () =>
                 void import('../../services/redactionService').then((m) => m.markSearchResultsForRedaction(useSearchStore.getState().matches)),
             },
             {
-              icon: <EyeOff size={16} />,
+              icon: <ShieldCheck size={16} />,
               label: 'Apply Redactions…',
               testId: 'menu-redaction-apply',
               onSelect: () => void import('../../services/redactionService').then((m) => m.applyRedactions()),
@@ -576,7 +589,7 @@ export const MenuBar: React.FC = () => {
           ],
         },
         {
-          icon: <FileStack size={16} />,
+          icon: <Diff size={16} />,
           label: 'Compare Documents…',
           testId: 'menu-compare-documents',
           onSelect: () => void import('../../services/compareService').then((m) => m.compareWithFile()),
@@ -595,7 +608,7 @@ export const MenuBar: React.FC = () => {
               onSelect: () => void import('../../services/splitService').then((m) => m.startSplitFromFile()),
             },
             {
-              icon: <Columns2 size={16} />,
+              icon: <Diff size={16} />,
               label: 'Compare with a Page of This Document',
               testId: 'menu-split-this',
               onSelect: () => void import('../../services/splitService').then((m) => m.startSplitWithThisDocument()),

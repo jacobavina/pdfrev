@@ -435,6 +435,14 @@ export async function importPdfAnnotations(
           const cp = annotDict.get(PDFName.of('CP'));
           if (markupType === 'length' && cp instanceof PDFName && cp.asString() === '/Top') customFields.captionStyle = 'top';
         }
+        // Texto desplazado respecto de su sitio normal (/CO: a lo largo de la línea y perpendicular, ADR-0097)
+        const coObj = annotDict.get(PDFName.of('CO'));
+        if ((markupType === 'length' || markupType === 'dimension') && coObj instanceof PDFArray && coObj.size() >= 2) {
+          const along = coObj.get(0);
+          const up = coObj.get(1);
+          if (along instanceof PDFNumber && Math.abs(along.asNumber()) > 1e-6) customFields.captionOffsetX = along.asNumber();
+          if (up instanceof PDFNumber && Math.abs(up.asNumber()) > 1e-6) customFields.captionOffsetY = up.asNumber();
+        }
         const lObj = annotDict.get(PDFName.of('L'));
         if (lObj instanceof PDFArray && lObj.size() >= 4) {
           const lx1 = lObj.get(0);

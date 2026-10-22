@@ -41,6 +41,54 @@ export interface LineCaptionLayout {
 export const captionStyleOf = (v: unknown): CaptionStyle => (v === 'top' ? 'top' : 'inline');
 
 /**
+ * Desplazamiento del texto respecto de su sitio normal (/CO de la anotación /Line, ADR-0097), en pt de página:
+ * `along` a lo largo de la línea (positivo = a la derecha del texto) y `up` perpendicular (positivo = hacia arriba).
+ */
+export interface CaptionOffset {
+  along: number;
+  up: number;
+}
+
+export const NO_CAPTION_OFFSET: CaptionOffset = { along: 0, up: 0 };
+
+const finiteOr0 = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+
+export function captionOffsetOf(customFields: Record<string, string | number> | undefined): CaptionOffset {
+  return { along: finiteOr0(customFields?.captionOffsetX), up: finiteOr0(customFields?.captionOffsetY) };
+}
+
+export const hasCaptionOffset = (o: CaptionOffset | undefined): o is CaptionOffset =>
+  Boolean(o) && (Math.abs(o!.along) > 1e-6 || Math.abs(o!.up) > 1e-6);
+
+/**
+ * Desplaza un texto: `along` sigue su dirección y `up` su "arriba". `yUp` indica que el sistema tiene la y hacia
+ * arriba (PDF); en pantalla y en el espacio visual de la página crece hacia abajo.
+ */
+export function shiftCaption(caption: CaptionText, offset: CaptionOffset, scale = 1, yUp = false): CaptionText {
+  if (!hasCaptionOffset(offset)) return caption;
+  const c = Math.cos(caption.angle);
+  const s = Math.sin(caption.angle);
+  const up = yUp ? { x: -s, y: c } : { x: s, y: -c };
+  const dir = { x: c, y: s };
+  return {
+    ...caption,
+    origin: {
+      x: caption.origin.x + (dir.x * offset.along + up.x * offset.up) * scale,
+      y: caption.origin.y + (dir.y * offset.along + up.y * offset.up) * scale,
+    },
+  };
+}
+
+/** Pasa un punto (por ejemplo, del puntero) a los ejes del texto: cuánto está a lo largo y por encima del origen. */
+export function offsetFromPoint(origin: Pt, angle: number, point: Pt, scale = 1): CaptionOffset {
+  const dx = point.x - origin.x;
+  const dy = point.y - origin.y;
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  return { along: (dx * c + dy * s) / scale, up: (dx * s - dy * c) / scale };
+}
+
+/**
  * Texto a lo largo de un segmento a→b. `endInset` es lo que ocupan los extremos (flechas) en cada punta: si el
  * texto no cabe entre ellos, va encima de la línea.
  */
@@ -51,7 +99,23 @@ export function lineCaptionLayout(
   fontSize: number,
   style: CaptionStyle,
   endInset = 0,
-  widthOf: (text: string, size: number) => number = getHelveticaTextWidth
+  widthOf: (text: string, size: number) => number = getHelveticaTextWidth,
+  /** Desplazamiento del texto en las mismas unidades que a y b (ADR-0097). La línea deja de interrumpirse. */
+  offset?: CaptionOffset
+): LineCaptionLayout {
+  const base = lineCaptionLayoutBase(a, b, text, fontSize, style, endInset, widthOf);
+  if (!hasCaptionOffset(offset)) return base;
+  return { pieces: [[a, b]], caption: shiftCaption(base.caption, offset), style: base.style };
+}
+
+function lineCaptionLayoutBase(
+  a: Pt,
+  b: Pt,
+  text: string,
+  fontSize: number,
+  style: CaptionStyle,
+  endInset: number,
+  widthOf: (text: string, size: number) => number
 ): LineCaptionLayout {
   const dx = b.x - a.x;
   const dy = b.y - a.y;

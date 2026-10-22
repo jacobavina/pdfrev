@@ -56,6 +56,8 @@ const CanvasContextMenu = React.lazy(() => import('./shell/CanvasContextMenu').t
 import { runPageOperation } from './shell/appActions';
 import { translucentFill } from '../core/markup/typeLabels';
 import { defaultDimensionLinePoint } from '../core/markup/dimension';
+import { measureCaptionFrame } from '../core/markup/render';
+import { captionOffsetOf, offsetFromPoint, shiftCaption } from '../core/markup/measureCaption';
 import { controlPointsOf, applyControlPointDrag, controlPointShape, editableControlPointTarget } from '../core/markup/controlPoints';
 import { revisionCloudPathNormalized } from '../core/markup/revisionCloud';
 import { calloutBoxFromDrag, CALLOUT_LANDING_PT } from '../core/markup/calloutLayout';
@@ -123,6 +125,22 @@ const WelcomeCanvas = lazy(() => import('./viewer/WelcomeCanvas').then((m) => ({
  */
 // El callout (ADR-0067) también: clic en la punta de la flecha y clic donde va el texto, o arrastre
 const TWO_CLICK_TOOLS = new Set<string>(['length', 'radius', 'diameter', 'dimension', 'line', 'arrow', 'calibrate', 'callout']);
+
+/** Distancia a la que el tirador del texto queda por encima de su línea base, en píxeles (ADR-0097). */
+const CAPTION_HANDLE_LIFT_PX = 14;
+
+/** Dónde se pinta el tirador del texto de una distancia o cota: sobre el texto, ya desplazado. */
+function captionHandlePosition(
+  markup: Markup,
+  frame: { origin: { x: number; y: number }; angle: number; pxPerPt: number }
+): { x: number; y: number } {
+  const shifted = shiftCaption(
+    { text: '', origin: frame.origin, angle: frame.angle, fontSize: 0 },
+    captionOffsetOf(markup.customFields),
+    frame.pxPerPt
+  ).origin;
+  return { x: shifted.x + CAPTION_HANDLE_LIFT_PX * Math.sin(frame.angle), y: shifted.y - CAPTION_HANDLE_LIFT_PX * Math.cos(frame.angle) };
+}
 
 const SNAP_TOOLS = new Set<string>([
   'line', 'arrow', 'dimension', 'length', 'polylineMeasure', 'area', 'count', 'calibrate',
@@ -374,6 +392,8 @@ export const PdfViewer: React.FC = () => {
     latest: Markup;
     /** Tiradores de la caja (ADR-0039): escalar desde una esquina o rotar alrededor del centro. */
     transform?: { mode: 'scale' | 'rotate'; corner: number; startAngle: number; grab: MarkupPoint };
+    /** Texto de una distancia o cota (ADR-0097): sitio normal del texto y dónde se agarró el tirador, en pantalla. */
+    caption?: { origin: { x: number; y: number }; angle: number; pxPerPt: number; grab: { x: number; y: number } };
   } | null>(null);
   // Control de zoom del doble clic (ADR-0021): posición en pantalla
   const [zoomWidget, setZoomWidget] = useState<{ x: number; y: number } | null>(null);
@@ -868,6 +888,25 @@ export const PdfViewer: React.FC = () => {
     vertexDragRef.current = { original: markup, index, hasMoved: false, latest: markup };
   };
 
+  /** Arrastrar el texto de una distancia o cota para separarlo de la línea (ADR-0097). */
+  const handleCaptionMouseDown = (e: React.MouseEvent, markup: Markup) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    if (markup.locked) return;
+    const frame = measureCaptionFrame(markup, viewportTransform);
+    if (!frame) return;
+    const rect = (e.currentTarget as SVGElement).ownerSVGElement!.getBoundingClientRect();
+    const here = captionHandlePosition(markup, frame);
+    vertexDragRef.current = {
+      original: markup,
+      index: -1,
+      hasMoved: false,
+      latest: markup,
+      caption: { origin: frame.origin, angle: frame.angle, pxPerPt: frame.pxPerPt, grab: { x: e.clientX - rect.left - here.x, y: e.clientY - rect.top - here.y } },
+    };
+  };
+
   /** Escalar desde una esquina o rotar con el tirador superior (ADR-0039). */
   const handleTransformMouseDown = (e: React.MouseEvent, markup: Markup, mode: 'scale' | 'rotate', corner = 0) => {
     if (e.button !== 0) return;
@@ -895,6 +934,17 @@ export const PdfViewer: React.FC = () => {
     vertexDragRef.current = null;
     if (!drag.hasMoved) return;
     const { original, latest } = drag;
+    if (drag.caption) {
+      // El texto desplazado se guarda como un cambio de propiedades, deshacible de una vez
+      const o = captionOffsetOf(latest.customFields);
+      setMarkupsTransient([original]);
+      useMarkupStore.getState().applyPropertiesToMarkups(
+        [original.id],
+        { customFields: { captionOffsetX: o.along, captionOffsetY: o.up } },
+        'Move value text'
+      );
+      return;
+    }
     useMarkupStore.getState().reshapeMarkup(
       original.id,
       { points: original.points, measurement: original.measurement, text: original.text, leaders: original.leaders },
@@ -1927,6 +1977,23 @@ export const PdfViewer: React.FC = () => {
     if (vertexDragRef.current) {
       const drag = vertexDragRef.current;
       drag.hasMoved = true;
+      if (drag.caption) {
+        // Texto de una distancia o cota (ADR-0097): el puntero fija el desplazamiento respecto de su sitio normal
+        const rect = e.currentTarget.getBoundingClientRect();
+        const cap = drag.caption;
+        const target = { x: e.clientX - rect.left - cap.grab.x, y: e.clientY - rect.top - cap.grab.y };
+        // El tirador está sobre el texto, no en su línea base
+        const base = { x: target.x - (CAPTION_HANDLE_LIFT_PX * Math.sin(cap.angle)), y: target.y + (CAPTION_HANDLE_LIFT_PX * Math.cos(cap.angle)) };
+        const raw = offsetFromPoint(cap.origin, cap.angle, base, cap.pxPerPt);
+        // Cerca de su sitio normal el texto "se pega" a él
+        const snap = (v: number) => (Math.abs(v) < 2 ? 0 : Math.round(v * 100) / 100);
+        drag.latest = {
+          ...drag.original,
+          customFields: { ...(drag.original.customFields ?? {}), captionOffsetX: snap(raw.along), captionOffsetY: snap(raw.up) },
+        };
+        setMarkupsTransient([drag.latest]);
+        return;
+      }
       if (drag.transform) {
         // Tiradores de la caja (ADR-0039): escala (Mayús = proporcional) o rotación (Mayús = pasos de 15°)
         const dims = { width: pageViewport.width / (scale || 1), height: pageViewport.height / (scale || 1) };
@@ -3574,6 +3641,30 @@ export const PdfViewer: React.FC = () => {
                 if (!cps) return null;
                 return (
                   <g data-testid="control-points-layer">
+                    {(markup.type === 'length' || markup.type === 'dimension') &&
+                      (() => {
+                        const frame = measureCaptionFrame(markup, viewportTransform);
+                        if (!frame) return null;
+                        const at = captionHandlePosition(markup, frame);
+                        return (
+                          <rect
+                            key={`cap-${markup.id}`}
+                            data-testid="caption-handle"
+                            x={at.x - 4}
+                            y={at.y - 4}
+                            width={8}
+                            height={8}
+                            transform={`rotate(45 ${at.x} ${at.y})`}
+                            fill={tok('ov-handle')}
+                            stroke={tok('ov-handle-edge')}
+                            strokeWidth={1}
+                            className="cursor-move"
+                            onMouseDown={(e) => handleCaptionMouseDown(e, markup)}
+                          >
+                            <title>Drag to move the value text away from the line</title>
+                          </rect>
+                        );
+                      })()}
                     {cps.map((cp, idx) => {
                       const scr = normalizedToScreen(cp, viewportTransform);
                       if (controlPointShape(markup, idx) === 'square') {

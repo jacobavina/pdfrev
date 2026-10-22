@@ -5,6 +5,7 @@ import { useRightPanel } from '../store/useUiStore';
 import { InteractiveProperties } from './markup/InteractiveProperties';
 import { StyleSection } from './shell/StyleSection';
 import { Markup, MarkupStatus, VALID_MARKUP_STATUSES } from '../types/markup';
+import { captionOffsetOf } from '../core/markup/measureCaption';
 
 const STATUS_LABELS: Record<MarkupStatus, string> = {
   pending: 'Pending',
@@ -91,6 +92,12 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
   // Posición del valor de las distancias ("Caption Style" de Acrobat)
   const allLengths = selectedMarkups.length > 0 && selectedMarkups.every((m) => m.type === 'length');
   const captionStyle = getUnifiedValue((m) => (m.customFields?.captionStyle === 'top' ? 'top' : 'inline'));
+  // Texto separable de la línea en distancias y cotas (ADR-0097): desplazamiento a lo largo y por encima
+  const allCaptioned = selectedMarkups.length > 0 && selectedMarkups.every((m) => m.type === 'length' || m.type === 'dimension');
+  const captionAlong = getUnifiedValue((m) => captionOffsetOf(m.customFields).along);
+  const captionUp = getUnifiedValue((m) => captionOffsetOf(m.customFields).up);
+  const setCaptionOffset = (patch: { captionOffsetX?: number; captionOffsetY?: number }) =>
+    applyPropertiesToMarkups(selectedMarkupIds, { customFields: patch }, 'Move value text');
 
   const handleTextChange = (newText: string) => {
     applyPropertiesToMarkups(
@@ -177,6 +184,46 @@ export const PropertiesInspectorPanel: React.FC<PropertiesInspectorPanelProps> =
               <option value="inline">Inside the line</option>
               <option value="top">On top of the line</option>
             </select>
+          </div>
+        )}
+
+        {/* Texto separado de la línea: a lo largo, por encima y restablecer (ADR-0097); también se arrastra */}
+        {allCaptioned && (
+          <div className="ui-row" data-testid="prop-caption-offset">
+            <label className="ui-label" title="Move the value text away from the line (drag the handle on the plan or type the distance in points)">
+              Text offset
+            </label>
+            <div className="flex items-center gap-1">
+              <input
+                data-testid="prop-caption-along"
+                type="number"
+                step={1}
+                aria-label="Text offset along the line (pt)"
+                title="Along the line (pt), positive to the right"
+                value={captionAlong === MIXED_VALUE ? '' : (captionAlong as number)}
+                onChange={(e) => setCaptionOffset({ captionOffsetX: Number(e.target.value) || 0 })}
+                className="ui-input ui-data w-16"
+              />
+              <input
+                data-testid="prop-caption-up"
+                type="number"
+                step={1}
+                aria-label="Text offset above the line (pt)"
+                title="Above the line (pt), positive up"
+                value={captionUp === MIXED_VALUE ? '' : (captionUp as number)}
+                onChange={(e) => setCaptionOffset({ captionOffsetY: Number(e.target.value) || 0 })}
+                className="ui-input ui-data w-16"
+              />
+              <button
+                type="button"
+                data-testid="prop-caption-reset"
+                title="Put the text back in its normal place"
+                onClick={() => setCaptionOffset({ captionOffsetX: 0, captionOffsetY: 0 })}
+                className="ui-btn !h-7 !px-2"
+              >
+                Reset
+              </button>
+            </div>
           </div>
         )}
 

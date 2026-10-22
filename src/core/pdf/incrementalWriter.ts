@@ -16,7 +16,7 @@ import { viewportArrayFor, measureDictFor, readPageCalibration } from './pdfScal
 import { DEFAULT_PAGE_CALIBRATION } from '../measurements/calculate';
 import { markupTypeLabel } from '../markup/typeLabels';
 import { stampById } from '../markup/stamps';
-import { measureLineEndings, MEASURE_LEADER_EXTENSION_PT } from '../markup/measureCaption';
+import { measureLineEndings, MEASURE_LEADER_EXTENSION_PT, captionOffsetOf, hasCaptionOffset } from '../markup/measureCaption';
 import {
   FieldType,
   fieldOptions,
@@ -740,9 +740,15 @@ ${markup.layer && layerOcg.has(markup.layer) ? `  /OC ${layerOcg.get(markup.laye
         const p1 = normalizedToPdfCoordinates(markup.points[0], transform);
         const p2 = normalizedToPdfCoordinates(markup.points[1], transform);
         annotDict += `  /L [${p1.x.toFixed(2)} ${p1.y.toFixed(2)} ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}]\n  ${leEntry}\n`;
+        // Texto desplazado respecto de su sitio normal (/CO, ADR-0097): a lo largo de la línea y perpendicular
+        const captionOffset = captionOffsetOf(markup.customFields);
+        const coEntry = hasCaptionOffset(captionOffset)
+          ? `  /CO [${captionOffset.along.toFixed(2)} ${captionOffset.up.toFixed(2)}]\n`
+          : '';
         if (markup.type === 'dimension') {
-          annotDict += `  ${dimensionLineEntries(markup, transform)}\n`;
+          annotDict += `  ${dimensionLineEntries(markup, transform)}\n${coEntry}`;
         } else if (markup.type === 'length') {
+          annotDict += coEntry;
           // Líneas de referencia de Acrobat (ADR-0033): /LL con signo, /LLE lo que sobresalen, /LLO 0
           if (markup.points[2]) {
             annotDict += `  /LL ${leaderLengthOf(markup, transform).toFixed(2)} /LLE ${MEASURE_LEADER_EXTENSION_PT} /LLO 0\n`;

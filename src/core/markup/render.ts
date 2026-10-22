@@ -17,6 +17,8 @@ import {
   MEASURE_CAPTION_COLOR,
   MEASURE_CAPTION_PT,
   captionStyleOf,
+  captionOffsetOf,
+  shiftCaption,
   lineCaptionLayout,
   pointCaption,
   verticesCenter,
@@ -685,6 +687,58 @@ function fontAttrs(font: CaptionFont): Record<string, string> {
 }
 
 /** Tamaño en px del texto de las mediciones: 10 pt de página con el zoom del visor (ADR-0032). */
+/** Desplazamiento del texto de una medición (ADR-0097), de pt de página a las unidades de la pantalla. */
+function scaledCaptionOffset(markup: Markup, pxPerPt: number) {
+  const o = captionOffsetOf(markup.customFields);
+  return { along: o.along * pxPerPt, up: o.up * pxPerPt };
+}
+
+/**
+ * Dónde está el texto de una distancia o una cota sin desplazar (ADR-0097): origen y ángulo en pantalla. El tirador
+ * del texto parte de aquí, y arrastrarlo calcula el desplazamiento respecto de este punto.
+ */
+export function measureCaptionFrame(
+  markup: Markup,
+  transform: ViewportTransform
+): { origin: { x: number; y: number }; angle: number; pxPerPt: number } | null {
+  if ((markup.type !== 'length' && markup.type !== 'dimension') || markup.points.length < 2) return null;
+  const pxPerPt = transform.zoom ?? transform.scale ?? 1;
+  const [p1, p2] = markup.points.map((p) => normalizedToScreen(p, transform));
+  const style = markup.style;
+  if (markup.type === 'length') {
+    const label = measureLabelText(markup, markup.measurement?.formatted || markup.text || '');
+    if (!label) return null;
+    const inset = lineEndingSize(style.strokeWidth || 1) * pxPerPt;
+    const geom = distanceGeometry(
+      markup.points.map((p) => normalizedToScreen(p, transform)),
+      MEASURE_LEADER_EXTENSION_PT * pxPerPt,
+      MEASURE_END_TICK_PT * pxPerPt
+    ) ?? { a: p1, b: p2, leaders: [] };
+    const layout = lineCaptionLayout(
+      geom.a,
+      geom.b,
+      label,
+      captionPx(transform, markup),
+      captionStyleOf(markup.customFields?.captionStyle),
+      inset,
+      (t, size) => captionTextWidth(t, size, captionFontOf(markup))
+    );
+    return { origin: layout.caption.origin, angle: layout.caption.angle, pxPerPt };
+  }
+  if (!markup.text) return null;
+  const s3 = markup.points[2]
+    ? normalizedToScreen(markup.points[2], transform)
+    : defaultDimensionLinePoint(p1, p2, 15 * (transform.scale || 1));
+  const geom = dimensionGeometry(p1, p2, s3, {
+    gap: DIMENSION_EXTENSION_GAP * pxPerPt,
+    overshoot: DIMENSION_EXTENSION_OVERSHOOT * pxPerPt,
+    textGap: 3 * pxPerPt,
+  });
+  if (!geom) return null;
+  const fontSize = (style.fontSize ?? 10) * (transform.scale || 1);
+  return { origin: dimensionTextBaseline(geom, fontSize, false), angle: geom.textAngle, pxPerPt };
+}
+
 function captionPx(transform: ViewportTransform, markup?: Markup): number {
   const size = markup ? captionFontOf(markup).size : MEASURE_CAPTION_PT;
   return size * (transform.zoom ?? transform.scale ?? 1);
@@ -1188,7 +1242,12 @@ export function getMarkupSvgDescriptor(
 
       if (markup.text) {
         const fontSize = (style.fontSize ?? 10) * (transform.scale || 1);
-        const base = dimensionTextBaseline(geom, fontSize, false);
+        // Texto separable de la línea (ADR-0097): /CO desplaza el texto respecto de su sitio normal
+        const base = shiftCaption(
+          { text: markup.text, origin: dimensionTextBaseline(geom, fontSize, false), angle: geom.textAngle, fontSize },
+          captionOffsetOf(markup.customFields),
+          pxPerPt
+        ).origin;
         const deg = (geom.textAngle * 180) / Math.PI;
         children.push({
           tag: 'text',
@@ -1332,7 +1391,8 @@ export function getMarkupSvgDescriptor(
               captionPx(transform, markup),
               captionStyleOf(markup.customFields?.captionStyle),
               inset,
-              (t, size) => captionTextWidth(t, size, captionFontOf(markup))
+              (t, size) => captionTextWidth(t, size, captionFontOf(markup)),
+              scaledCaptionOffset(markup, pxPerPt)
             )
           : null;
       const pieces = layout ? layout.pieces : [[geom.a, geom.b] as [{ x: number; y: number }, { x: number; y: number }]];

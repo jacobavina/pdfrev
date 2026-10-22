@@ -2961,4 +2961,46 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const raw = fs.readFileSync(path!).toString('latin1');
     expect(raw).toContain('/Subtype /Image');
   });
+
+  test('Texto separable de la flecha (ADR-0097): el tirador del texto de una distancia la separa de la línea', async ({ page }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
+    const box = (await overlaySvg.boundingBox())!;
+    const at = (nx: number, ny: number) => ({ x: box.x + box.width * nx, y: box.y + box.height * ny });
+
+    // Distancia corta
+    await page.locator('[data-testid="ribbon-tab-measure"]').click();
+    await page.locator('[data-testid="tool-measure-length"]').click();
+    const a = at(0.6, 0.85);
+    const b = at(0.66, 0.85);
+    // Arrastrar crea una distancia rápida de dos puntos (ADR-0035)
+    await page.mouse.move(a.x, a.y);
+    await page.mouse.down();
+    await page.mouse.move(b.x, b.y, { steps: 6 });
+    await page.mouse.up();
+    const length = overlaySvg.locator('g[data-testid^="markup-length-"]:not([data-testid*="preview"])');
+    await expect(length).toHaveCount(1);
+    const textX = async () => Number(await length.locator('text').first().getAttribute('x'));
+    const textY = async () => Number(await length.locator('text').first().getAttribute('y'));
+    const x0 = await textX();
+    const y0 = await textY();
+
+    // Seleccionarla y arrastrar el tirador del texto hacia arriba y a la derecha
+    await page.locator('[data-testid="tool-select"]').click();
+    await page.mouse.click(a.x + (b.x - a.x) * 0.15, a.y);
+    const handle = page.locator('[data-testid="caption-handle"]');
+    await expect(handle).toHaveCount(1);
+    const hb = (await handle.boundingBox())!;
+    await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(hb.x + hb.width / 2 + 70, hb.y + hb.height / 2 - 45, { steps: 6 });
+    await page.mouse.up();
+    expect(Math.hypot((await textX()) - x0, (await textY()) - y0)).toBeGreaterThan(40);
+    // Un deshacer deja el texto donde estaba
+    await page.keyboard.press('Control+z');
+    expect(Math.abs((await textX()) - x0)).toBeLessThan(1);
+    expect(Math.abs((await textY()) - y0)).toBeLessThan(1);
+  });
 });

@@ -25,6 +25,8 @@ import { calloutBoxPaint } from '../markup/calloutLayout';
 import {
   CaptionText,
   captionStyleOf,
+  captionOffsetOf,
+  shiftCaption,
   lineCaptionLayout,
   measureLabelText,
   measureLineEndings,
@@ -577,7 +579,8 @@ export function emitMarkupOperators(
             capFont.size,
             captionStyleOf(markup.customFields?.captionStyle),
             lineEndingSize(strokeWidth),
-            (t, size) => captionTextWidth(t, size, capFont)
+            (t, size) => captionTextWidth(t, size, capFont),
+            captionOffsetOf(markup.customFields)
           )
         : null;
       for (const [u, w] of layout ? layout.pieces : [[a, b] as [Pt, Pt]]) {
@@ -1303,9 +1306,16 @@ export function emitMarkupOperators(
       emitLineEndings([geom.dimStart, geom.dimEnd], ends, undefined, outside ?? undefined);
       const fontSize = markup.style.fontSize ?? 10;
       if (markup.text) {
+        // Texto desplazado respecto de su sitio normal (/CO, ADR-0097); el PDF tiene la y hacia arriba
+        const textBase = shiftCaption(
+          { text: markup.text, origin: dimensionTextBaseline(geom, fontSize, true), angle: geom.textAngle, fontSize },
+          captionOffsetOf(markup.customFields),
+          1,
+          true
+        ).origin;
         textPdf(
           markup.text,
-          dimensionTextBaseline(geom, fontSize, true),
+          textBase,
           geom.textAngle,
           fontSize,
           strokeParsed ?? DARK_TEXT,

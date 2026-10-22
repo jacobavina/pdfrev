@@ -1,5 +1,5 @@
 import React from 'react';
-import { MousePointer, Hand, ZoomIn, ListOrdered } from 'lucide-react';
+import { MousePointer, Hand, ZoomIn, ListOrdered, PaintBucket } from 'lucide-react';
 import {
   CloudIcon,
   CloudPlusIcon,
@@ -125,6 +125,14 @@ export const TOOL_GROUPS: ToolGroup[] = [
         icon: <AreaMeasureIcon />,
         testId: 'tool-measure-area',
         shortcut: 'Shift+Alt+A',
+      },
+      {
+        type: 'dynamicFill',
+        label: 'Dynamic Fill (J): click inside an enclosed area to measure it',
+        short: 'Fill',
+        icon: <PaintBucket size={18} />,
+        testId: 'tool-dynamic-fill',
+        shortcut: 'J',
       },
       {
         type: 'perimeter',

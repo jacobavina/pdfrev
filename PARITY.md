@@ -231,6 +231,9 @@ Este documento registra la paridad funcional real implementada en REA, vinculand
 | **Secuencias numeradas: formatos 1/A/a/I/i con prefijo y sufijo (ADR-0094)** | `shipped` | `src/core/markup/sequences.test.ts` | `formatea números, letras y romanos con prefijo y sufijo` | No aplica (lógica pura) |
 | **Secuencias numeradas: cada clic coloca el siguiente número como cuadro de texto (ADR-0094)** | `shipped` | `src/components/SequenceFlow.test.tsx` | `cada clic coloca el siguiente número como cuadro de texto y la secuencia sigue entre clics` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Secuencias numeradas elegidas en el panel de propiedades y colocadas desde la cinta (ADR-0094)** | `shipped` | `tests/e2e/pdf-viewer.spec.ts` | `Secuencias numeradas (ADR-0094): cada clic coloca el siguiente número y el formato se elige en el panel` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **Relleno dinámico de áreas (Dynamic Fill, J): detecta el contorno encerrado y crea la medición de área (ADR-0095)** | `shipped` | `src/core/measurements/dynamicFill.test.ts` | `detecta por flood-fill el polígono interior de un recinto con umbral de vanos y genera su medición de área` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **Relleno dinámico: un clic dentro del recinto crea la marca de área con la calibración de la página (ADR-0095)** | `shipped` | `src/services/dynamicFillService.test.ts` | `un clic dentro del recinto crea una medición de área con el contorno del recinto` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **Relleno dinámico desde la cinta Measure sobre un plano real (ADR-0095)** | `shipped` | `tests/e2e/pdf-viewer.spec.ts` | `Relleno dinámico (ADR-0095): un clic dentro del rectángulo de control crea su medición de área` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 
 
 

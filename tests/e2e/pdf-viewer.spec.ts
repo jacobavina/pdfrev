@@ -2934,4 +2934,20 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.mouse.click(box2.x + box2.width * 0.6, box2.y + box2.height * 0.9);
     await expect(overlaySvg.locator('text').filter({ hasText: /^A$/ })).toHaveCount(1);
   });
+
+  test('Relleno dinámico (ADR-0095): un clic dentro del rectángulo de control crea su medición de área', async ({ page }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
+    const box = (await overlaySvg.boundingBox())!;
+
+    await page.locator('[data-testid="ribbon-tab-measure"]').click();
+    await page.locator('[data-testid="tool-dynamic-fill"]').click();
+    // Dentro del rectángulo del plano de prueba: x 100..400 pt, y 150..350 pt de una hoja de 800 × 600 pt
+    await page.mouse.click(box.x + box.width * 0.36, box.y + box.height * 0.62);
+    const row = page.locator('[data-testid="markups-list-panel"] tbody tr').filter({ hasText: 'Area' });
+    await expect(row).toHaveCount(1, { timeout: 20000 });
+    await expect(overlaySvg.locator('g[data-testid^="markup-area-"]')).toHaveCount(1);
+  });
 });

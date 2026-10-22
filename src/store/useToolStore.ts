@@ -26,7 +26,8 @@ export type ToolType =
   | 'ellipseCutout'
   | 'eraser'
   | 'snapshot'
-  | 'sequence';
+  | 'sequence'
+  | 'dynamicFill';
 
 interface ToolState {
   activeTool: ToolType;
@@ -59,6 +60,9 @@ interface ToolState {
   autoSizeText: boolean;
   /** Secuencia numerada de marcadores (ADR-0094). */
   sequence: SequenceConfig;
+  /** Relleno dinámico (ADR-0095): píxeles de hueco que se cierran en el contorno. */
+  dynamicFillGap: number;
+  setDynamicFillGap: (gap: number) => void;
   setSequence: (patch: Partial<SequenceConfig>) => void;
   /** Devuelve el texto del siguiente marcador y avanza el contador. */
   takeNextSequence: () => { text: string; index: number };
@@ -105,6 +109,7 @@ export const useToolStore = create<ToolState>((set, get) => ({
   activeCountId: null,
   autoSizeText: false,
   sequence: DEFAULT_SEQUENCE,
+  dynamicFillGap: 3,
   measureCaption: 'inline',
   // Flujo de Acrobat por defecto (ADR-0035): clic, clic y un tercer clic para desplazar la línea
   measureLeaders: readStoredLeaders(),
@@ -132,6 +137,7 @@ export const useToolStore = create<ToolState>((set, get) => ({
     set({ measureLeaders });
   },
   setCalloutBorder: (calloutBorder) => set({ calloutBorder }),
+  setDynamicFillGap: (gap) => set({ dynamicFillGap: Number.isFinite(gap) ? Math.max(0, Math.min(20, Math.round(gap))) : 3 }),
   setSequence: (patch) =>
     set((state) => {
       const next = { ...state.sequence, ...patch };

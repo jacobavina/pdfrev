@@ -79,6 +79,7 @@ import { executeSnapshot } from '../services/snapshotService';
 import { ORTHO_TOOLS, SQUARE_TOOLS, orthoConstrain, squareConstrain } from '../core/markup/ortho';
 import { stampById } from '../core/markup/stamps';
 import { SEQUENCE_BOX_PT } from '../core/markup/sequences';
+import { dynamicFillArea } from '../services/dynamicFillService';
 import { stampTexts, stampDefaultSize } from '../core/markup/stampArt';
 import { fieldTypeDef, fieldTypeOf, nextFieldName } from '../core/markup/formFields';
 import { useAttachmentStore } from '../store/useAttachmentStore';
@@ -1160,6 +1161,7 @@ export const PdfViewer: React.FC = () => {
           k: 'cloudPlus',
           s: 'stamp',
           g: 'snapshot',
+          j: 'dynamicFill',
           z: 'zoom',
         };
         const tool = toolByKey[e.key.toLowerCase()];
@@ -2453,6 +2455,31 @@ export const PdfViewer: React.FC = () => {
       }
       setDrawingStart(null);
       setCurrentDrawPoint(null);
+      return;
+    }
+
+    // Relleno dinámico (ADR-0095): un clic dentro de un recinto crea su medición de área
+    if (activeTool === 'dynamicFill') {
+      const seed = drawingStart;
+      const bytes = useDocumentStore.getState().pdfBytes;
+      setDrawingStart(null);
+      setCurrentDrawPoint(null);
+      if (seed && bytes) {
+        void dynamicFillArea({
+          pdfBytes: bytes,
+          pageIndex: currentPageIndex,
+          seed,
+          pageDimsPt: { width: pageViewport.width / (scale || 1), height: pageViewport.height / (scale || 1) },
+          style: { ...currentStyle },
+          author: author || 'Reviewer',
+          layer: activeLayer,
+          gap: useToolStore.getState().dynamicFillGap,
+        }).then((markup) => {
+          if (!markup) return;
+          addMarkup(markup);
+          setSelectedMarkupIds([markup.id]);
+        });
+      }
       return;
     }
 

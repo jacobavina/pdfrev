@@ -61,6 +61,8 @@ export const StyleSection: React.FC = () => {
     autoSizeText,
     sequence,
     setSequence,
+    dynamicFillGap,
+    setDynamicFillGap,
   } = useToolStore();
 
   // Barra de propiedades contextual (ADR-0040), como la de Revu: con marcas seleccionadas edita la selección; sin
@@ -262,6 +264,24 @@ export const StyleSection: React.FC = () => {
               <span data-testid="ribbon-sequence-preview" className="ui-data text-xs text-gray-300">
                 {formatSequence(sequence.next, sequence)}
               </span>
+            </div>
+          )}
+
+          {activeTool === 'dynamicFill' && !editingSelection && (
+            <div className="prop-section" data-testid="ribbon-dynamic-fill-group" title="Dynamic Fill">
+              <span className="prop-label">Dynamic Fill</span>
+              <label className="flex items-center gap-1 text-xs text-gray-400" title="Pixels of gap between lines that are closed when detecting the area">
+                Gap
+                <input
+                  data-testid="ribbon-dynamic-fill-gap"
+                  type="number"
+                  min={0}
+                  max={20}
+                  value={dynamicFillGap}
+                  onChange={(e) => setDynamicFillGap(Number(e.target.value))}
+                  className="ui-data h-6 w-14 rounded-md border border-cad-border bg-cad-field px-1 text-xs text-gray-200"
+                />
+              </label>
             </div>
           )}
 

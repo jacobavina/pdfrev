@@ -7,6 +7,7 @@ import { useMarkupStore } from '../store/useMarkupStore';
 import { Markup } from '../types/markup';
 import { pickPdf } from './overlayService';
 import { showToast } from './toastService';
+import { rasterizePage, Raster } from './pageRaster';
 
 /**
  * Compare Documents (ADR-0091): compara la página activa con la misma página de otra revisión del plano y marca con
@@ -14,14 +15,6 @@ import { showToast } from './toastService';
  */
 
 export const COMPARISON_LAYER = 'Comparison';
-/** Ancho de rasterización de las dos páginas, en píxeles: suficiente para ver trazos finos sin disparar la memoria. */
-const RASTER_WIDTH_PX = 1600;
-
-export interface Raster {
-  data: Uint8ClampedArray;
-  width: number;
-  height: number;
-}
 
 /** Nubes de revisión (rectángulos) que rodean cada región cambiada. */
 export function comparisonClouds(rects: NormalizedRect[], pageIndex: number, otherName: string, author: string): Markup[] {
@@ -59,40 +52,6 @@ export function applyComparison(base: Raster, other: Raster, pageIndex: number, 
   const author = useToolStore.getState().author || 'Reviewer';
   useMarkupStore.getState().addMarkups(comparisonClouds(rects, pageIndex, otherName, author), 'Compare documents');
   return rects.length;
-}
-
-/** Rasteriza una página a `width` px de ancho (blanco de fondo); `fit` estira la página a un tamaño dado. */
-async function rasterizePage(bytes: Uint8Array, pageIndex: number, fit?: { width: number; height: number }) {
-  const { loadPdfDocument } = await import('./pdfService');
-  const doc = await loadPdfDocument(bytes);
-  try {
-    const page = await doc.getPage(Math.min(pageIndex, doc.numPages - 1) + 1);
-    const natural = page.getViewport({ scale: 1 });
-    const scale = (fit?.width ?? RASTER_WIDTH_PX) / natural.width;
-    const viewport = page.getViewport({ scale });
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.round(viewport.width);
-    canvas.height = Math.round(viewport.height);
-    const ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: true })!;
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    await page.render({ canvasContext: ctx, viewport }).promise;
-    if (fit && (canvas.width !== fit.width || canvas.height !== fit.height)) {
-      const fitted = document.createElement('canvas');
-      fitted.width = fit.width;
-      fitted.height = fit.height;
-      const fctx = fitted.getContext('2d', { alpha: false, willReadFrequently: true })!;
-      fctx.fillStyle = '#ffffff';
-      fctx.fillRect(0, 0, fit.width, fit.height);
-      fctx.drawImage(canvas, 0, 0, fit.width, fit.height);
-      const img = fctx.getImageData(0, 0, fit.width, fit.height);
-      return { raster: { data: img.data, width: fit.width, height: fit.height }, aspect: natural.width / natural.height };
-    }
-    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    return { raster: { data: img.data, width: canvas.width, height: canvas.height }, aspect: natural.width / natural.height };
-  } finally {
-    await doc.destroy();
-  }
 }
 
 /** Pide la otra revisión y marca con nubes lo que cambió respecto de la página activa. */

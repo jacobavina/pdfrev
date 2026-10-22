@@ -36,6 +36,7 @@ import {
   Search,
   Keyboard,
   Contrast,
+  BookOpen,
   LayoutPanelLeft,
   SaveAll,
   PenLine,
@@ -136,6 +137,7 @@ export const MenuBar: React.FC = () => {
     requestMeasurementsPanel,
     requestExport,
     setShortcutsOpen,
+    setFeatureGuideOpen,
     setCombineModalOpen,
     viewMode,
     setViewMode,
@@ -602,7 +604,10 @@ export const MenuBar: React.FC = () => {
     {
       id: 'ayuda',
       label: 'Help',
-      entries: [{ icon: <Keyboard size={16} />, label: 'Keyboard Shortcuts', shortcut: 'F1', onSelect: () => setShortcutsOpen(true) }],
+      entries: [
+        { icon: <BookOpen size={16} />, label: 'Feature Guide', onSelect: () => setFeatureGuideOpen(true), testId: 'menu-help-guide' },
+        { icon: <Keyboard size={16} />, label: 'Keyboard Shortcuts', shortcut: 'F1', onSelect: () => setShortcutsOpen(true) },
+      ],
     },
   ];
 

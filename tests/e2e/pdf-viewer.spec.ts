@@ -3031,4 +3031,18 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(page.locator('[data-testid="ribbon-tab-measure"]')).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('[data-testid="measurements-panel"]')).toBeVisible();
   });
+
+  test('Guía de funciones (ADR-0100): Help ▸ Feature Guide se abre, busca y se cierra', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('[data-testid="markup-overlay-svg"]')).toBeVisible({ timeout: 15000 });
+    await page.locator('[data-testid="menu-ayuda"]').click();
+    await page.locator('[data-testid="menu-help-guide"]').click();
+    const guide = page.locator('[data-testid="feature-guide"]');
+    await expect(guide).toBeVisible();
+    await page.locator('[data-testid="feature-guide-search"]').fill('dynamic fill');
+    await expect(page.locator('[data-testid="feature-guide-entry-dynamic-fill"]')).toBeVisible();
+    await expect(page.locator('[data-testid="feature-guide-entry-open"]')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await expect(guide).toHaveCount(0);
+  });
 });

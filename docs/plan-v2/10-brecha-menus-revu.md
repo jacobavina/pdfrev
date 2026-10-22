@@ -11,7 +11,7 @@
 | Menú | Entradas útiles que faltan |
 |---|---|
 | Edit | Offset, Multiply, Paste in Place, Format Painter, Hide, Lasso, Undo History |
-| View | Show Grid, Snap to Grid, Snap to Markup, Full-Screen Crosshair, Side-by-Side y Split dentro de View con Synchronize, Always Show Reply Indicators |
+| View | Show Grid, Snap to Grid, Full-Screen Crosshair, Side-by-Side y Split dentro de View con Synchronize, Always Show Reply Indicators |
 | Document | Document Properties, Crop Pages, Number Pages, Headers & Footers, Replace Pages, Split Document, Insert desde archivo, Create Page Labels, Security |
 | Batch | Los mismos procesos sobre varios archivos: Flatten, Summary, Headers & Footers, OCR, Crop & Page Setup, Rotate Pages |
 | Window | Full Screen (F11), Hide Panels (Shift+F4), Always On Top, paneles Spaces, Links, Sets, Flags, Forms y Signatures |
@@ -43,7 +43,7 @@
 - **Lasso (Shift+O):** selección con una forma libre.
 - **Undo History:** lista del historial para saltar a un punto.
 - **Show Grid y Snap to Grid:** cuadrícula configurable en pt o en la unidad calibrada, con ajuste del cursor.
-- **Snap to Markup** y **Full-Screen Crosshair.**
+- **Full-Screen Crosshair** (Snap to Markup ya existe con Ctrl+Shift+F7).
 - **Sketch to Scale:** dibujar formas con cota o escala fija.
 
 ### Oleada 2: documento

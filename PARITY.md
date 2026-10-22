@@ -243,6 +243,9 @@ Este documento registra la paridad funcional real implementada en REA, vinculand
 | **Perfiles de interfaz Review, Takeoff y Field: cada uno fija pestaña, paneles, lista de marcas, páginas y reglas (ADR-0098)** | `shipped` | `src/core/ui/profiles.test.ts` | `cambia la disposición según el perfil: Takeoff abre mediciones y reglas, Field lo deja todo plegado` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Perfil Custom: guarda la disposición actual y la recupera tras recargar (ADR-0098)** | `shipped` | `src/core/ui/profiles.test.ts` | `guarda la disposición actual como perfil Custom y la recupera, también tras recargar` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **View ▸ Profiles cambia la disposición y se recuerda al recargar (ADR-0098)** | `shipped` | `tests/e2e/pdf-viewer.spec.ts` | `Perfiles de interfaz (ADR-0098): View ▸ Profiles cambia la disposición y se recuerda al recargar` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **Guía de funciones en Help con buscador: todas las herramientas con atajo están documentadas (ADR-0100)** | `shipped` | `src/core/help/featureGuide.test.ts` | `todas las herramientas de la cinta con atajo aparecen en la guía, para que una herramienta nueva no se quede sin documentar` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **Diálogo de la guía: secciones, búsqueda y cierre con Escape (ADR-0100)** | `shipped` | `src/components/shell/FeatureGuideDialog.test.tsx` | `muestra las secciones, filtra al buscar y se cierra con Escape` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **Help ▸ Feature Guide abre, busca y cierra la guía (ADR-0100)** | `shipped` | `tests/e2e/pdf-viewer.spec.ts` | `Guía de funciones (ADR-0100): Help ▸ Feature Guide se abre, busca y se cierra` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 
 
 

@@ -28,6 +28,9 @@ const PropertiesInspectorPanel = lazy(() =>
   import('./components/PropertiesInspectorPanel').then((m) => ({ default: m.PropertiesInspectorPanel }))
 );
 const SearchBar = lazy(() => import('./components/SearchBar').then((m) => ({ default: m.SearchBar })));
+const FeatureGuideDialog = lazy(() =>
+  import('./components/shell/FeatureGuideDialog').then((m) => ({ default: m.FeatureGuideDialog }))
+);
 const ShortcutsDialog = lazy(() =>
   import('./components/shell/ShortcutsDialog').then((m) => ({ default: m.ShortcutsDialog }))
 );
@@ -261,6 +264,7 @@ export const App: React.FC = () => {
       <ToastHost />
       <Suspense fallback={null}>
         <ShortcutsDialog />
+        <FeatureGuideDialog />
       </Suspense>
       {combineModalOpen && (
         <Suspense fallback={null}>

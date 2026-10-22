@@ -189,6 +189,9 @@ interface UiState {
   /** Petición de abrir el compositor de respuesta en hilo para una marca en la lista de marcas (ADR-0071). */
   replyRequest: { markupId: string; seq: number } | null;
   shortcutsOpen: boolean;
+  /** Guía de funciones abierta (ADR-0100). */
+  featureGuideOpen: boolean;
+  setFeatureGuideOpen: (open: boolean) => void;
   combineModalOpen: boolean;
   viewMode: ViewMode;
   /** Petición de ajuste del zoom (la resuelve el visor, que conoce el tamaño del área y de la página). */
@@ -265,6 +268,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   exportRequest: null,
   replyRequest: null,
   shortcutsOpen: false,
+  featureGuideOpen: false,
+  setFeatureGuideOpen: (featureGuideOpen) => set({ featureGuideOpen }),
   combineModalOpen: false,
   setCombineModalOpen: (combineModalOpen) => set({ combineModalOpen }),
   viewMode: readStoredViewMode(),

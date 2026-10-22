@@ -82,6 +82,7 @@ import { ORTHO_TOOLS, SQUARE_TOOLS, orthoConstrain, squareConstrain } from '../c
 import { stampById } from '../core/markup/stamps';
 import { SEQUENCE_BOX_PT } from '../core/markup/sequences';
 import { dynamicFillArea } from '../services/dynamicFillService';
+import { redactionMarkup } from '../core/markup/redaction';
 import { stampTexts, stampDefaultSize } from '../core/markup/stampArt';
 import { fieldTypeDef, fieldTypeOf, nextFieldName } from '../core/markup/formFields';
 import { useAttachmentStore } from '../store/useAttachmentStore';
@@ -2614,6 +2615,11 @@ export const PdfViewer: React.FC = () => {
 
       if (activeTool === 'cloudPlus') {
         createCloudPlus([drawingStart, currentDrawPoint]);
+      } else if (activeTool === 'redact') {
+        // Redacción (ADR-0103): una caja que luego se aplica con Document ▸ Redaction ▸ Apply Redactions
+        const mark = redactionMarkup(currentPageIndex, drawingStart, currentDrawPoint, author || 'Reviewer', activeLayer);
+        addMarkup(mark);
+        setSelectedMarkupIds([mark.id]);
       } else if (activeTool === 'callout') {
         const newId = uuidv4();
         const initialText = 'Note';
@@ -3904,7 +3910,7 @@ export const PdfViewer: React.FC = () => {
                     );
                   }
 
-                  if (activeTool === 'rectangle') {
+                  if (activeTool === 'rectangle' || activeTool === 'redact') {
                     const rect = getRectGeometry(p1, p2);
                     return (
                       <rect

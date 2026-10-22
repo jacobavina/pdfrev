@@ -3091,4 +3091,38 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     expect(text).toContain('<Type>Bluebeam.PDF.Annotations.AnnotationSquare</Type>');
     expect(text).toContain('<Type>Bluebeam.PDF.Annotations.AnnotationLine</Type>');
   });
+
+  test('Redacción permanente (ADR-0103): una caja sobre el título lo elimina del PDF y deja de poder buscarse', async ({ page }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
+    // El título del plano es texto del PDF: está en la capa de texto
+    const title = page.locator('[data-testid="pdf-page-container"]').getByText('PLANO DE PRUEBA', { exact: false });
+    await expect(title.first()).toBeAttached({ timeout: 15000 });
+
+    const marksBefore = await overlaySvg.locator('g[data-testid^="markup-g-"]').count();
+    // Marca de redacción sobre el título
+    const box = (await overlaySvg.boundingBox())!;
+    const at = (nx: number, ny: number) => ({ x: box.x + box.width * nx, y: box.y + box.height * ny });
+    await page.locator('[data-testid="tool-redact"]').click();
+    const a = at(0.03, 0.05);
+    const b = at(0.62, 0.115);
+    await page.mouse.move(a.x, a.y);
+    await page.mouse.down();
+    await page.mouse.move(b.x, b.y, { steps: 6 });
+    await page.mouse.up();
+    await expect(overlaySvg.locator('g[data-testid^="markup-g-"]')).toHaveCount(marksBefore + 1);
+
+    // Aplicar: el navegador pide confirmación
+    page.once('dialog', (d) => void d.accept());
+    await page.locator('[data-testid="menu-documento"]').click();
+    await page.locator('[data-testid="menu-redaction"]').hover();
+    await page.locator('[data-testid="menu-redaction-apply"]').click();
+
+    // El documento se recarga sin el título y sin la marca; el resto del texto sigue
+    await expect(overlaySvg.locator('g[data-testid^="markup-g-"]')).toHaveCount(marksBefore, { timeout: 20000 });
+    await expect(page.locator('[data-testid="pdf-page-container"]').getByText('PLANO DE PRUEBA', { exact: false })).toHaveCount(0);
+    await expect(page.locator('[data-testid="pdf-page-container"]').getByText('RECTÁNGULO DE CONTROL', { exact: false }).first()).toBeAttached({ timeout: 15000 });
+  });
 });

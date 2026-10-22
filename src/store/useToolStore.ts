@@ -27,7 +27,8 @@ export type ToolType =
   | 'eraser'
   | 'snapshot'
   | 'sequence'
-  | 'dynamicFill';
+  | 'dynamicFill'
+  | 'redact';
 
 interface ToolState {
   activeTool: ToolType;

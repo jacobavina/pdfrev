@@ -37,6 +37,7 @@ import {
   Keyboard,
   Contrast,
   ScanText,
+  EyeOff,
   BookOpen,
   LayoutPanelLeft,
   SaveAll,
@@ -472,6 +473,28 @@ export const MenuBar: React.FC = () => {
               testId: 'menu-overlay-self',
               onSelect: () => void import('../../services/overlayService').then((m) => m.startOverlayWithThisDocument()),
               disabled: !hasDoc || numPages < 2,
+            },
+          ],
+        },
+        // Redacción permanente (ADR-0103)
+        {
+          icon: <EyeOff size={16} />,
+          label: 'Redaction',
+          testId: 'menu-redaction',
+          disabled: !hasDoc,
+          submenu: [
+            {
+              icon: <EyeOff size={16} />,
+              label: 'Mark Search Results for Redaction',
+              testId: 'menu-redaction-mark-search',
+              onSelect: () =>
+                void import('../../services/redactionService').then((m) => m.markSearchResultsForRedaction(useSearchStore.getState().matches)),
+            },
+            {
+              icon: <EyeOff size={16} />,
+              label: 'Apply Redactions…',
+              testId: 'menu-redaction-apply',
+              onSelect: () => void import('../../services/redactionService').then((m) => m.applyRedactions()),
             },
           ],
         },

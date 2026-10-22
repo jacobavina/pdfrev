@@ -1,5 +1,5 @@
 import React from 'react';
-import { MousePointer, Hand, ZoomIn, ListOrdered, PaintBucket } from 'lucide-react';
+import { MousePointer, Hand, ZoomIn, ListOrdered, PaintBucket, EyeOff } from 'lucide-react';
 import {
   CloudIcon,
   CloudPlusIcon,
@@ -77,6 +77,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
       { type: 'text', label: 'Text Box (T)', short: 'Text', icon: <TextBoxIcon />, shortcut: 'T' },
       { type: 'typewriter', label: 'Typewriter (W)', short: 'Typewriter', icon: <TypewriterIcon />, shortcut: 'W' },
       { type: 'callout', label: 'Callout (Q)', short: 'Callout', icon: <CalloutIcon />, shortcut: 'Q' },
+      { type: 'redact', label: 'Redact: draw a box over what must be removed for good', short: 'Redact', icon: <EyeOff size={18} />, testId: 'tool-redact' },
       { type: 'stickyNote', label: 'Note (N)', short: 'Note', icon: <NoteIcon />, shortcut: 'N' },
       { type: 'sequence', label: 'Numbered Sequence', short: 'Sequence', icon: <ListOrdered size={18} />, testId: 'tool-sequence' },
       { type: 'highlightText', label: 'Text Highlight (Shift+H)', short: 'Highlight', icon: <TextHighlightIcon />, shortcut: 'Shift+H' },

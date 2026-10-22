@@ -439,6 +439,17 @@ export const FEATURE_GUIDE: GuideSection[] = [
         where: 'Left panel ▸ Bookmarks',
       },
       {
+        id: 'redaction',
+        title: 'Redaction: remove content for good',
+        summary: 'Removes text and shapes from the PDF so they cannot be recovered, for sharing a drawing without sensitive data. A black box covers the area.',
+        steps: [
+          'Choose the Redact tool and draw a box over the text. Or search with Ctrl+F and choose Document ▸ Redaction ▸ Mark Search Results for Redaction.',
+          'Review the red boxes, then choose Document ▸ Redaction ▸ Apply Redactions… and confirm. It cannot be undone, so save a copy first.',
+          'If an image lies under a box, that page becomes an image with the box in black. The message tells you.',
+        ],
+        where: 'Markup tab ▸ Text & Review ▸ Redact; Document ▸ Redaction',
+      },
+      {
         id: 'ocr',
         title: 'OCR: make a scanned drawing searchable',
         summary: 'Reads the text of a scanned page with the Windows text recognition engine and adds it as invisible text, so you can search and select it. Desktop app only.',

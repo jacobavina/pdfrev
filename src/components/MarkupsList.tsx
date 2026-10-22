@@ -588,7 +588,10 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
       const { buildPdfReportContent, saveExportFileWithDialog } = await import('../services/exportService');
       const defaultBase = fileName ? fileName.replace(/\.[^/.]+$/, '') : 'reporte';
       const defaultName = `${defaultBase}-markup-summary.pdf`;
-      const bytes = await buildPdfReportContent(fileName || 'PDF document', displayedMarkups);
+      // Miniaturas de las hojas con marcas (ADR-0096), si hay un documento abierto
+      const sourceBytes = useDocumentStore.getState().pdfBytes;
+      const thumbnails = sourceBytes ? await (await import('../services/reportThumbnails')).buildReportThumbnails(sourceBytes, displayedMarkups) : [];
+      const bytes = await buildPdfReportContent(fileName || 'PDF document', displayedMarkups, { thumbnails });
       await saveExportFileWithDialog(defaultName, 'pdf', bytes);
     } catch (err) {
       console.error('Error al generar Reporte PDF:', err);
@@ -606,7 +609,9 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
       const { appendPdfSummaryReport, saveExportFileWithDialog } = await import('../services/exportService');
       const defaultBase = fileName ? fileName.replace(/\.[^/.]+$/, '') : 'document';
       const defaultName = `${defaultBase}-with-summary.pdf`;
-      const bytes = await appendPdfSummaryReport(pdfBytes, fileName || 'PDF document', displayedMarkups);
+      const { buildReportThumbnails } = await import('../services/reportThumbnails');
+      const thumbnails = await buildReportThumbnails(pdfBytes, displayedMarkups);
+      const bytes = await appendPdfSummaryReport(pdfBytes, fileName || 'PDF document', displayedMarkups, { thumbnails });
       await saveExportFileWithDialog(defaultName, 'pdf', bytes);
     } catch (err) {
       console.error('Error al anexar Reporte PDF:', err);

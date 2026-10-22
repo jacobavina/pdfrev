@@ -1,6 +1,7 @@
 import type { PDFDocument } from 'pdf-lib';
 import { Markup, BbxCustomColumn } from '../types/markup';
 import { toCents } from '../core/measurements/takeoffCosts';
+import { markupBounds } from '../core/markup/transformHandles';
 import { isTauriEnvironment } from './bbxPersistenceService';
 import { showToast } from './toastService';
 
@@ -174,6 +175,16 @@ export interface PdfReportOptions {
   customColumns?: BbxCustomColumn[];
   /** Matriz de valores calculados opcionales. */
   evaluatedFields?: EvaluatedMatrixInput;
+  /** Miniaturas PNG de las hojas con marcas (ADR-0096): se incluyen con las marcas dibujadas encima. */
+  thumbnails?: ReportThumbnail[];
+}
+
+export interface ReportThumbnail {
+  pageIndex: number;
+  png: Uint8Array;
+  /** Tamaño en píxeles de la imagen, para conservar la proporción. */
+  width: number;
+  height: number;
 }
 
 /**
@@ -319,7 +330,64 @@ export async function buildPdfReportContent(
   }
   y -= 15;
 
+  // Hojas con marcas (ADR-0096): miniatura de cada hoja con el contorno de sus marcas
+  if (options?.thumbnails && options.thumbnails.length > 0) {
+    const THUMB_W = 160;
+    const GAP = 16;
+    const perRow = Math.max(1, Math.floor((CONTENT_WIDTH + GAP) / (THUMB_W + GAP)));
+    page.drawText('Sheets with Markups', { x: MARGIN, y, size: 13, font: fontBold, color: rgb(0.15, 0.15, 0.3) });
+    y -= 12;
+    const thumbs = [...options.thumbnails].sort((a, b) => a.pageIndex - b.pageIndex);
+    for (let i = 0; i < thumbs.length; i += perRow) {
+      const row = thumbs.slice(i, i + perRow);
+      const rowH = Math.max(...row.map((t) => (THUMB_W * t.height) / Math.max(1, t.width))) + 26;
+      if (y - rowH < MARGIN) {
+        page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+        y = PAGE_HEIGHT - MARGIN;
+      }
+      for (let c = 0; c < row.length; c++) {
+        const t = row[c];
+        const h = (THUMB_W * t.height) / Math.max(1, t.width);
+        const x = MARGIN + c * (THUMB_W + GAP);
+        const top = y - 4;
+        try {
+          const img = await pdfDoc.embedPng(t.png);
+          page.drawImage(img, { x, y: top - h, width: THUMB_W, height: h });
+        } catch {
+          // Miniatura ilegible: solo el marco y el pie
+        }
+        page.drawRectangle({ x, y: top - h, width: THUMB_W, height: h, borderColor: rgb(0.7, 0.7, 0.75), borderWidth: 0.6 });
+        const onPage = markups.filter((m) => (m.pageIndex ?? 0) === t.pageIndex);
+        for (const m of onPage) {
+          const b = markupBounds(m);
+          if (!b) continue;
+          page.drawRectangle({
+            x: x + b.minX * THUMB_W,
+            y: top - (b.maxY * h),
+            width: Math.max(2, (b.maxX - b.minX) * THUMB_W),
+            height: Math.max(2, (b.maxY - b.minY) * h),
+            borderColor: rgb(0.88, 0.14, 0.14),
+            borderWidth: 0.8,
+          });
+        }
+        page.drawText(`Page ${t.pageIndex + 1}  -  ${onPage.length} markup${onPage.length === 1 ? '' : 's'}`, {
+          x,
+          y: top - h - 12,
+          size: 8.5,
+          font: fontRegular,
+          color: rgb(0.2, 0.2, 0.2),
+        });
+      }
+      y -= rowH;
+    }
+    y -= 10;
+  }
+
   // Tabla Detallada
+  if (y < MARGIN + 80) {
+    page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+    y = PAGE_HEIGHT - MARGIN;
+  }
   page.drawText('Markup Details', {
     x: MARGIN,
     y,

@@ -234,6 +234,8 @@ Este documento registra la paridad funcional real implementada en REA, vinculand
 | **Relleno dinámico de áreas (Dynamic Fill, J): detecta el contorno encerrado y crea la medición de área (ADR-0095)** | `shipped` | `src/core/measurements/dynamicFill.test.ts` | `detecta por flood-fill el polígono interior de un recinto con umbral de vanos y genera su medición de área` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Relleno dinámico: un clic dentro del recinto crea la marca de área con la calibración de la página (ADR-0095)** | `shipped` | `src/services/dynamicFillService.test.ts` | `un clic dentro del recinto crea una medición de área con el contorno del recinto` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Relleno dinámico desde la cinta Measure sobre un plano real (ADR-0095)** | `shipped` | `tests/e2e/pdf-viewer.spec.ts` | `Relleno dinámico (ADR-0095): un clic dentro del rectángulo de control crea su medición de área` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **Informe de marcas en PDF con miniaturas de las hojas y las marcas dibujadas encima (ADR-0096)** | `shipped` | `src/services/reportThumbnails.test.ts` | `genera informes ejecutivos en PDF con miniaturas del plano, con las marcas dibujadas sobre cada hoja` | PENDIENTE DE VERIFICAR por el usuario abriendo el informe |
+| **Informe con miniaturas desde la lista de marcas sobre un plano real (ADR-0096)** | `shipped` | `tests/e2e/pdf-viewer.spec.ts` | `Informe de marcas con miniaturas (ADR-0096): el PDF del informe incluye la imagen de la hoja` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 
 
 

@@ -2950,4 +2950,15 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(row).toHaveCount(1, { timeout: 20000 });
     await expect(overlaySvg.locator('g[data-testid^="markup-area-"]')).toHaveCount(1);
   });
+
+  test('Informe de marcas con miniaturas (ADR-0096): el PDF del informe incluye la imagen de la hoja', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('[data-testid="markup-overlay-svg"]')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
+    const download = page.waitForEvent('download');
+    await page.locator('[data-testid="export-pdf-report-button"]').click();
+    const path = await (await download).path();
+    const raw = fs.readFileSync(path!).toString('latin1');
+    expect(raw).toContain('/Subtype /Image');
+  });
 });

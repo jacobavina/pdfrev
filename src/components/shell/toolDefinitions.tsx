@@ -1,5 +1,5 @@
 import React from 'react';
-import { MousePointer, Hand, ZoomIn } from 'lucide-react';
+import { MousePointer, Hand, ZoomIn, ListOrdered } from 'lucide-react';
 import {
   CloudIcon,
   CloudPlusIcon,
@@ -78,6 +78,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
       { type: 'typewriter', label: 'Typewriter (W)', short: 'Typewriter', icon: <TypewriterIcon />, shortcut: 'W' },
       { type: 'callout', label: 'Callout (Q)', short: 'Callout', icon: <CalloutIcon />, shortcut: 'Q' },
       { type: 'stickyNote', label: 'Note (N)', short: 'Note', icon: <NoteIcon />, shortcut: 'N' },
+      { type: 'sequence', label: 'Numbered Sequence', short: 'Sequence', icon: <ListOrdered size={18} />, testId: 'tool-sequence' },
       { type: 'highlightText', label: 'Text Highlight (Shift+H)', short: 'Highlight', icon: <TextHighlightIcon />, shortcut: 'Shift+H' },
       { type: 'underline', label: 'Underline (U)', short: 'Underline', icon: <UnderlineIcon />, shortcut: 'U' },
       { type: 'squiggly', label: 'Squiggly (Shift+U)', short: 'Squiggly', icon: <SquigglyIcon />, shortcut: 'Shift+U' },

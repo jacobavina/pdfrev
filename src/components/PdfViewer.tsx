@@ -1,5 +1,5 @@
 import { tok } from './viewer/paint';
-import { DEFAULT_MARKUP_COLOR, ATTACHMENT_COLOR, FORM_FIELD_COLOR, LINK_COLOR, STAMP_FILL } from '../core/markup/palette';
+import { DEFAULT_MARKUP_COLOR, ATTACHMENT_COLOR, FORM_FIELD_COLOR, LINK_COLOR, STAMP_FILL, WHITE } from '../core/markup/palette';
 import { isAutosizeText } from '../core/markup/autosizeText';
 import { countMeasurement, countSymbolSizePt } from '../core/markup/countSymbols';
 import React, { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react';
@@ -78,6 +78,7 @@ import { showToast } from '../services/toastService';
 import { executeSnapshot } from '../services/snapshotService';
 import { ORTHO_TOOLS, SQUARE_TOOLS, orthoConstrain, squareConstrain } from '../core/markup/ortho';
 import { stampById } from '../core/markup/stamps';
+import { SEQUENCE_BOX_PT } from '../core/markup/sequences';
 import { stampTexts, stampDefaultSize } from '../core/markup/stampArt';
 import { fieldTypeDef, fieldTypeOf, nextFieldName } from '../core/markup/formFields';
 import { useAttachmentStore } from '../store/useAttachmentStore';
@@ -2411,6 +2412,45 @@ export const PdfViewer: React.FC = () => {
     // Enlace, adjunto y campo de formulario (ADR-0027): clic = tamaño por defecto; arrastre = caja
     if (activeTool === 'link' || activeTool === 'fileAttachment' || activeTool === 'formField') {
       if (drawingStart && currentDrawPoint) createInteractiveMarkup(activeTool, drawingStart, currentDrawPoint);
+      setDrawingStart(null);
+      setCurrentDrawPoint(null);
+      return;
+    }
+
+    // Secuencia numerada (ADR-0094): cada clic coloca el siguiente número como cuadro de texto centrado
+    if (activeTool === 'sequence') {
+      if (drawingStart) {
+        const pw = Math.max(1, pageViewport.width / (scale || 1));
+        const ph = Math.max(1, pageViewport.height / (scale || 1));
+        const w = SEQUENCE_BOX_PT.width / pw;
+        const h = SEQUENCE_BOX_PT.height / ph;
+        const x = Math.max(0, Math.min(1 - w, drawingStart.x - w / 2));
+        const y = Math.max(0, Math.min(1 - h, drawingStart.y - h / 2));
+        const { text, index } = useToolStore.getState().takeNextSequence();
+        const now = new Date().toISOString();
+        const id = uuidv4();
+        const marker: Markup = {
+          id,
+          type: 'text',
+          pageIndex: currentPageIndex,
+          points: [
+            { x, y },
+            { x: x + w, y: y + h },
+          ],
+          text,
+          style: { ...currentStyle, fillColor: WHITE, strokeWidth: 1.5, opacity: 1 },
+          textFormat: { align: 'center', bold: true },
+          author: author || 'Reviewer',
+          createdAt: now,
+          updatedAt: now,
+          status: 'pending',
+          layer: activeLayer,
+          subject: 'Sequence',
+          customFields: { sequenceIndex: index },
+        };
+        addMarkup(marker);
+        setSelectedMarkupIds([id]);
+      }
       setDrawingStart(null);
       setCurrentDrawPoint(null);
       return;

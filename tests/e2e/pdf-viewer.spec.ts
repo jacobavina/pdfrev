@@ -1236,6 +1236,8 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
 
     // 2. Expandir el panel de Tool Chest si está colapsado
     const expandBtn = page.locator('[data-testid="expand-tool-chest-btn"]');
+    // isVisible() no espera: con la carga lenta el botón aún no existía y el panel no se abría (ADR-0092)
+    await expandBtn.waitFor({ state: 'visible', timeout: 10000 }).catch(() => undefined);
     if (await expandBtn.isVisible()) {
       await expandBtn.click();
     }
@@ -2904,5 +2906,32 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.locator('[data-testid="menu-export"]').hover();
     await page.locator('[data-testid="menu-unflatten"]').click();
     await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1, { timeout: 15000 });
+  });
+
+  test('Secuencias numeradas (ADR-0094): cada clic coloca el siguiente número y el formato se elige en el panel', async ({ page }) => {
+    await page.goto('/');
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
+    const box = (await overlaySvg.boundingBox())!;
+    const at = (nx: number, ny: number) => ({ x: box.x + box.width * nx, y: box.y + box.height * ny });
+
+    await page.locator('[data-testid="tool-sequence"]').click();
+    for (const x of [0.6, 0.7, 0.8]) {
+      const p = at(x, 0.8);
+      await page.mouse.click(p.x, p.y);
+    }
+    const rows = page.locator('[data-testid="markups-list-panel"] tbody tr');
+    await expect(rows.filter({ hasText: 'Text Box' })).toHaveCount(3);
+    await expect(overlaySvg.locator('text').filter({ hasText: /^[123]$/ })).toHaveCount(3);
+
+    // El siguiente marcador sigue la secuencia elegida en el panel de propiedades
+    await page.locator('[data-testid="expand-properties-btn"]').click();
+    await page.locator('[data-testid="ribbon-sequence-format"]').selectOption('A');
+    await page.locator('[data-testid="ribbon-sequence-next"]').fill('1');
+    await page.locator('[data-testid="collapse-properties-btn"]').click();
+    const box2 = (await overlaySvg.boundingBox())!;
+    await page.mouse.click(box2.x + box2.width * 0.6, box2.y + box2.height * 0.9);
+    await expect(overlaySvg.locator('text').filter({ hasText: /^A$/ })).toHaveCount(1);
   });
 });

@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import type { CaptionStyle } from '../core/markup/measureCaption';
 import { MarkupStyle, MarkupType } from '../types/markup';
 import type { FieldType } from '../core/markup/formFields';
+import { DEFAULT_SEQUENCE, formatSequence, SequenceConfig } from '../core/markup/sequences';
 
 const LEADERS_KEY = 'rea-measure-leaders';
 function readStoredLeaders(): boolean {
@@ -24,7 +25,8 @@ export type ToolType =
   | 'polygonCutout'
   | 'ellipseCutout'
   | 'eraser'
-  | 'snapshot';
+  | 'snapshot'
+  | 'sequence';
 
 interface ToolState {
   activeTool: ToolType;
@@ -55,6 +57,11 @@ interface ToolState {
   activeCountId: string | null;
   /** Autosize Text de Revu en los callouts y cuadros de texto nuevos (ADR-0061). */
   autoSizeText: boolean;
+  /** Secuencia numerada de marcadores (ADR-0094). */
+  sequence: SequenceConfig;
+  setSequence: (patch: Partial<SequenceConfig>) => void;
+  /** Devuelve el texto del siguiente marcador y avanza el contador. */
+  takeNextSequence: () => { text: string; index: number };
 
   // Actions
   setActiveTool: (tool: ToolType) => void;
@@ -76,7 +83,7 @@ export function registerOnSetActiveTool(fn: () => void) {
   onSetActiveToolHook = fn;
 }
 
-export const useToolStore = create<ToolState>((set) => ({
+export const useToolStore = create<ToolState>((set, get) => ({
   activeTool: 'select',
   currentStyle: {
     strokeColor: '#e02424', // Default red
@@ -97,6 +104,7 @@ export const useToolStore = create<ToolState>((set) => ({
   countScale: 100,
   activeCountId: null,
   autoSizeText: false,
+  sequence: DEFAULT_SEQUENCE,
   measureCaption: 'inline',
   // Flujo de Acrobat por defecto (ADR-0035): clic, clic y un tercer clic para desplazar la línea
   measureLeaders: readStoredLeaders(),
@@ -124,6 +132,17 @@ export const useToolStore = create<ToolState>((set) => ({
     set({ measureLeaders });
   },
   setCalloutBorder: (calloutBorder) => set({ calloutBorder }),
+  setSequence: (patch) =>
+    set((state) => {
+      const next = { ...state.sequence, ...patch };
+      next.next = Number.isFinite(next.next) ? Math.max(1, Math.floor(next.next)) : 1;
+      return { sequence: next };
+    }),
+  takeNextSequence: () => {
+    const cfg = get().sequence;
+    set({ sequence: { ...cfg, next: cfg.next + 1 } });
+    return { text: formatSequence(cfg.next, cfg), index: cfg.next };
+  },
   setCloudOptions: ({ size, invert }) =>
     set((state) => ({
       cloudSize: size !== undefined && Number.isFinite(size) && size > 0 ? Math.max(0.25, Math.min(10, size)) : state.cloudSize,

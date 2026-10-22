@@ -12,6 +12,7 @@ import { CountSymbolPreview, COUNT_SYMBOL_OPTIONS } from './CountPreview';
 import { isAutosizeText } from '../../core/markup/autosizeText';
 import { clampCountScale, countItems, countScaleOf, countSymbolOf, CountSymbolId } from '../../core/markup/countSymbols';
 import { calloutBoxPaint } from '../../core/markup/calloutLayout';
+import { formatSequence, SEQUENCE_FORMATS, SequenceFormat } from '../../core/markup/sequences';
 import {
   IconPicker,
   LineStylePreview,
@@ -58,6 +59,8 @@ export const StyleSection: React.FC = () => {
     countScale,
     activeCountId,
     autoSizeText,
+    sequence,
+    setSequence,
   } = useToolStore();
 
   // Barra de propiedades contextual (ADR-0040), como la de Revu: con marcas seleccionadas edita la selección; sin
@@ -212,6 +215,55 @@ export const StyleSection: React.FC = () => {
               onChange={changeCloud}
             />
           </div>
+
+          {activeTool === 'sequence' && !editingSelection && (
+            <div className="prop-section" data-testid="ribbon-sequence-group" title="Numbered sequence">
+              <span className="prop-label">Sequence</span>
+              <select
+                data-testid="ribbon-sequence-format"
+                aria-label="Sequence format"
+                value={sequence.format}
+                onChange={(e) => setSequence({ format: e.target.value as SequenceFormat })}
+                className="h-6 rounded-md border border-cad-border bg-cad-field px-1 text-xs text-gray-200"
+              >
+                {SEQUENCE_FORMATS.map((f) => (
+                  <option key={f.value} value={f.value}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+              <input
+                data-testid="ribbon-sequence-prefix"
+                aria-label="Sequence prefix"
+                placeholder="Prefix"
+                value={sequence.prefix}
+                onChange={(e) => setSequence({ prefix: e.target.value })}
+                className="h-6 w-14 rounded-md border border-cad-border bg-cad-field px-1 text-xs text-gray-200"
+              />
+              <input
+                data-testid="ribbon-sequence-suffix"
+                aria-label="Sequence suffix"
+                placeholder="Suffix"
+                value={sequence.suffix}
+                onChange={(e) => setSequence({ suffix: e.target.value })}
+                className="h-6 w-14 rounded-md border border-cad-border bg-cad-field px-1 text-xs text-gray-200"
+              />
+              <label className="flex items-center gap-1 text-xs text-gray-400">
+                Next
+                <input
+                  data-testid="ribbon-sequence-next"
+                  type="number"
+                  min={1}
+                  value={sequence.next}
+                  onChange={(e) => setSequence({ next: Number(e.target.value) })}
+                  className="ui-data h-6 w-14 rounded-md border border-cad-border bg-cad-field px-1 text-xs text-gray-200"
+                />
+              </label>
+              <span data-testid="ribbon-sequence-preview" className="ui-data text-xs text-gray-300">
+                {formatSequence(sequence.next, sequence)}
+              </span>
+            </div>
+          )}
 
           {countContext && (
             <div className="prop-section" data-testid="ribbon-count-group" title="Count">

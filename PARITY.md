@@ -228,6 +228,9 @@ Este documento registra la paridad funcional real implementada en REA, vinculand
 | **Aplanar y desaplanar: Unflatten quita lo dibujado y devuelve las marcas con el contenido original intacto (ADR-0093)** | `shipped` | `src/core/pdf/flattenRecord.test.ts` | `desaplanar quita lo dibujado al aplanar y devuelve las marcas, dejando el contenido original intacto` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa y en Revu/Acrobat |
 | **Un PDF aplanado por otra herramienta no se puede desaplanar y se avisa (ADR-0093)** | `shipped` | `src/core/pdf/flattenRecord.test.ts` | `un PDF que no aplanó REA no se puede desaplanar y se avisa` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 | **Aplanar, reabrir y desaplanar desde el menú File ▸ Export (ADR-0093)** | `shipped` | `tests/e2e/pdf-viewer.spec.ts` | `Aplanar y desaplanar (ADR-0093): el PDF aplanado se reabre y Unflatten devuelve las marcas editables` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **Secuencias numeradas: formatos 1/A/a/I/i con prefijo y sufijo (ADR-0094)** | `shipped` | `src/core/markup/sequences.test.ts` | `formatea números, letras y romanos con prefijo y sufijo` | No aplica (lógica pura) |
+| **Secuencias numeradas: cada clic coloca el siguiente número como cuadro de texto (ADR-0094)** | `shipped` | `src/components/SequenceFlow.test.tsx` | `cada clic coloca el siguiente número como cuadro de texto y la secuencia sigue entre clics` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
+| **Secuencias numeradas elegidas en el panel de propiedades y colocadas desde la cinta (ADR-0094)** | `shipped` | `tests/e2e/pdf-viewer.spec.ts` | `Secuencias numeradas (ADR-0094): cada clic coloca el siguiente número y el formato se elige en el panel` | PENDIENTE DE VERIFICAR por el usuario en ventana nativa |
 
 
 

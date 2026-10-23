@@ -588,13 +588,24 @@ export const FEATURE_GUIDE: GuideSection[] = [
       {
         id: 'batch',
         title: 'Batch',
-        summary: 'Applies one operation to many PDF files without opening them: flatten the markups, number the pages or rotate every page. The originals are not changed.',
+        summary: 'Applies one operation to many PDF files without opening them: flatten the markups, number the pages, rotate every page or reduce the file size. The originals are not changed.',
         steps: [
           'Choose File ▸ Batch…, add the PDF files, choose the operation and press Run. In the desktop app you pick the folder for the results; in the browser they are downloaded.',
-          'Each result keeps the name with a suffix: _flattened, _numbered or _rotated90. A file that fails (damaged, or with no markups to flatten) is marked with the reason and the rest are still processed.',
+          'Each result keeps the name with a suffix: _flattened, _numbered, _reduced or _rotated90. A file that fails (damaged, or with no markups to flatten) is marked with the reason and the rest are still processed.',
           'Save report writes a CSV with the result of every file. Up to 200 files per batch.',
         ],
         where: 'File ▸ Batch…',
+      },
+      {
+        id: 'reduce-size',
+        title: 'Reduce File Size',
+        summary: 'Makes the PDF smaller by lowering the resolution of large images and compressing them again. Lines and text are not touched.',
+        steps: [
+          'Choose Document ▸ Reduce File Size…, pick the quality and press Reduce: Smallest file compresses the most, High quality changes the images the least.',
+          'The report shows the size before and after, how many images were reduced and why the others were left as they were (black and white scans, or already small).',
+          'It replaces the images in the open document and cannot be undone, so save a copy first. Batch can do the same to many files (_reduced).',
+        ],
+        where: 'Document ▸ Reduce File Size…',
       },
       {
         id: 'print',

@@ -140,3 +140,23 @@ export async function executeUpdateProperties(p: EditableProperties): Promise<bo
     return false;
   }
 }
+
+// ── Reduce File Size ────────────────────────────────────────────────────────────────────────────────────────────
+
+/** Reduce las imágenes del PDF abierto. Devuelve el informe; el documento solo cambia si el archivo queda más pequeño. */
+export async function executeReduceSize(
+  quality: import('../core/pdf/reduceSize').ReduceQuality,
+  onProgress?: (done: number, total: number) => void
+): Promise<{ ok: boolean; message: string; report?: import('../core/pdf/reduceSize').ReduceReport }> {
+  const { pdfBytes } = useDocumentStore.getState();
+  if (!pdfBytes) return { ok: false, message: 'No document open.' };
+  try {
+    const { reducePdfSize, browserImageCodec } = await import('../core/pdf/reduceSize');
+    const { bytes, report } = await reducePdfSize(pdfBytes, quality, browserImageCodec, onProgress);
+    if (report.after >= report.before) return { ok: false, message: 'The file could not be made smaller.', report };
+    await replaceOpenDocument(bytes);
+    return { ok: true, message: 'File size reduced. Save the document to keep it.', report };
+  } catch (err) {
+    return { ok: false, message: `Could not reduce the file: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}

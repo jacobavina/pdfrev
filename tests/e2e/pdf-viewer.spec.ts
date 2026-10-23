@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import fs from 'fs';
+import zlib from 'zlib';
 import { PDFDocument, PDFName } from 'pdf-lib';
 
 /**
@@ -3634,5 +3635,57 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     expect(names.sort()).toEqual(['test-blueprint-rotated_rotated180.pdf', 'test-blueprint_rotated180.pdf']);
     // El documento abierto no cambió: sigue con sus tres páginas
     await expect(page.locator('[data-testid="page-indicator"]')).toContainText('/ 3');
+  });
+  test('Reduce File Size (ADR-0126): en Batch una imagen grande y ruidosa se recomprime y el PDF resultante pesa menos y se abre', async ({ page }, testInfo) => {
+    // PDF con una imagen RGB de 1800×1200 con ruido: casi no se comprime sin pérdida
+    const w = 1800;
+    const h = 1200;
+    const raw = Buffer.alloc((w * 3 + 1) * h);
+    let seed = 7;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w * 3; x++) {
+        seed = (seed * 1664525 + 1013904223) >>> 0;
+        // Degradado suave con algo de ruido, como una foto: se comprime bien como JPEG
+        raw[y * (w * 3 + 1) + 1 + x] = ((x / 3 / w) * 200 + (y / h) * 55 + ((seed >>> 25) & 63)) & 0xff;
+      }
+    }
+    const chunk = (type: string, data: Buffer) => {
+      const len = Buffer.alloc(4);
+      len.writeUInt32BE(data.length);
+      const body = Buffer.concat([Buffer.from(type, 'latin1'), data]);
+      const crc = Buffer.alloc(4);
+      crc.writeUInt32BE(zlib.crc32(body) >>> 0);
+      return Buffer.concat([len, body, crc]);
+    };
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(w, 0);
+    ihdr.writeUInt32BE(h, 4);
+    ihdr[8] = 8;
+    ihdr[9] = 2;
+    const png = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw, { level: 1 })), chunk('IEND', Buffer.alloc(0))]);
+    const doc = await PDFDocument.create();
+    doc.addPage([600, 400]).drawImage(await doc.embedPng(png), { x: 0, y: 0, width: 600, height: 400 });
+    const input = testInfo.outputPath('foto.pdf');
+    fs.mkdirSync(testInfo.outputDir, { recursive: true });
+    fs.writeFileSync(input, await doc.save());
+
+    await openApp(page);
+    await page.locator('[data-testid="menu-archivo"]').click();
+    await page.locator('[data-testid="menu-batch"]').click();
+    const chooser = page.waitForEvent('filechooser');
+    await page.locator('[data-testid="batch-add"]').click();
+    await (await chooser).setFiles([input]);
+    await expect(page.locator('[data-testid="batch-count"]')).toHaveText('1 file');
+    await page.locator('[data-testid="batch-kind-reduce"]').check();
+    await page.locator('[data-testid="batch-quality"]').selectOption('low');
+    const download = page.waitForEvent('download');
+    await page.locator('[data-testid="batch-run"]').click();
+    const d = await download;
+    expect(d.suggestedFilename()).toBe('foto_reduced.pdf');
+    await expect(page.locator('[data-testid="batch-summary"]')).toContainText('1 of 1 processed', { timeout: 60000 });
+    const out = fs.readFileSync((await d.path())!);
+    expect(out.length).toBeLessThan(fs.statSync(input).size / 2);
+    const back = await PDFDocument.load(out);
+    expect(back.getPageCount()).toBe(1);
   });
 });

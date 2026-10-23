@@ -49,6 +49,7 @@ const PrintDialog = lazy(() => import('./components/modals/PrintDialog').then((m
 const HeadersFootersDialog = lazy(() => import('./components/modals/HeadersFootersDialog').then((m) => ({ default: m.HeadersFootersDialog })));
 const ReplacePagesDialog = lazy(() => import('./components/modals/ReplacePagesDialog').then((m) => ({ default: m.ReplacePagesDialog })));
 const SplitDocumentDialog = lazy(() => import('./components/modals/SplitDocumentDialog').then((m) => ({ default: m.SplitDocumentDialog })));
+const ReduceSizeDialog = lazy(() => import('./components/modals/ReduceSizeDialog').then((m) => ({ default: m.ReduceSizeDialog })));
 const NumberPagesDialog = lazy(() => import('./components/modals/NumberPagesDialog').then((m) => ({ default: m.NumberPagesDialog })));
 const UndoHistoryDialog = lazy(() => import('./components/modals/UndoHistoryDialog').then((m) => ({ default: m.UndoHistoryDialog })));
 const CopyToolsDialog = lazy(() => import('./components/modals/CopyToolsDialog').then((m) => ({ default: m.CopyToolsDialog })));
@@ -329,6 +330,7 @@ export const App: React.FC = () => {
         <DocumentPropertiesDialog />
         <CropPagesDialog />
         <NumberPagesDialog />
+        <ReduceSizeDialog />
         <HeadersFootersDialog />
         <PrintDialog />
         <InsertPagesDialog />

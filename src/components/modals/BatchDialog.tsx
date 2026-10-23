@@ -3,6 +3,7 @@ import { CircleAlert, CircleCheck, Layers, Trash2, X } from 'lucide-react';
 import { useUiStore } from '../../store/useUiStore';
 import { MAX_BATCH_FILES, type BatchInput, type BatchOp, type BatchResult } from '../../services/batchOps';
 import type { NumberPosition } from '../../core/pages/pageNumbers';
+import { QUALITY_PRESETS, type ReduceQuality } from '../../core/pdf/reduceSize';
 import { showToast } from '../../services/toastService';
 
 type Kind = BatchOp['kind'];
@@ -21,6 +22,7 @@ export const BatchDialog: React.FC = () => {
   const [format, setFormat] = useState('Page {n} of {total}');
   const [position, setPosition] = useState<NumberPosition>('bottom-center');
   const [degrees, setDegrees] = useState<90 | 180 | 270>(90);
+  const [quality, setQuality] = useState<ReduceQuality>('medium');
   const [running, setRunning] = useState<{ done: number; total: number } | null>(null);
   const [results, setResults] = useState<BatchResult[] | null>(null);
   const [where, setWhere] = useState('');
@@ -53,7 +55,7 @@ export const BatchDialog: React.FC = () => {
     });
   };
 
-  const op = (): BatchOp => (kind === 'flatten' ? { kind } : kind === 'rotate' ? { kind, degrees } : { kind, format, position, fontSize: 9, marginPt: 28 });
+  const op = (): BatchOp => (kind === 'flatten' ? { kind } : kind === 'rotate' ? { kind, degrees } : kind === 'reduce' ? { kind, quality } : { kind, format, position, fontSize: 9, marginPt: 28 });
   const problem = files.length === 0 ? 'Add the PDF files to process.' : kind === 'number' && !format.trim() ? 'Write the text to stamp, for example: Page {n} of {total}.' : null;
 
   const run = async () => {
@@ -157,6 +159,21 @@ export const BatchDialog: React.FC = () => {
                   <option value={90}>90° clockwise</option>
                   <option value={180}>180°</option>
                   <option value={270}>90° counterclockwise</option>
+                </select>
+              </div>
+            )}
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="batch-kind" data-testid="batch-kind-reduce" checked={kind === 'reduce'} onChange={() => setKind('reduce')} className="accent-cad-accent" />
+              Reduce the file size <span className="text-gray-500">(_reduced)</span>
+            </label>
+            {kind === 'reduce' && (
+              <div className="pl-6">
+                <select data-testid="batch-quality" aria-label="Quality" value={quality} onChange={(e) => setQuality(e.target.value as ReduceQuality)} className="ui-input !h-6">
+                  {(Object.keys(QUALITY_PRESETS) as ReduceQuality[]).map((q) => (
+                    <option key={q} value={q}>
+                      {QUALITY_PRESETS[q].label}
+                    </option>
+                  ))}
                 </select>
               </div>
             )}

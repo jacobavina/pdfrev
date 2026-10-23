@@ -1,4 +1,5 @@
 import type { NumberPosition } from '../core/pages/pageNumbers';
+import type { ReduceQuality } from '../core/pdf/reduceSize';
 
 /**
  * Procesos por lotes (Batch, ADR-0125): una operación aplicada a varios PDF, uno tras otro, sin abrirlos en el visor. Cada
@@ -8,13 +9,14 @@ import type { NumberPosition } from '../core/pages/pageNumbers';
 export type BatchOp =
   | { kind: 'flatten' }
   | { kind: 'number'; format: string; position: NumberPosition; fontSize: number; marginPt: number }
-  | { kind: 'rotate'; degrees: 90 | 180 | 270 };
+  | { kind: 'rotate'; degrees: 90 | 180 | 270 }
+  | { kind: 'reduce'; quality: ReduceQuality };
 
 export const MAX_BATCH_FILES = 200;
 
 /** Sufijo del archivo de salida según la operación. */
 export function opSuffix(op: BatchOp): string {
-  return op.kind === 'flatten' ? 'flattened' : op.kind === 'number' ? 'numbered' : `rotated${op.degrees}`;
+  return op.kind === 'flatten' ? 'flattened' : op.kind === 'number' ? 'numbered' : op.kind === 'reduce' ? 'reduced' : `rotated${op.degrees}`;
 }
 
 /** Nombre del archivo de salida; si ya hay otro igual en la lista de salidas, lleva un número. */
@@ -81,6 +83,13 @@ async function numberFile(bytes: Uint8Array, op: Extract<BatchOp, { kind: 'numbe
   });
 }
 
+async function reduceFile(bytes: Uint8Array, quality: ReduceQuality): Promise<Uint8Array> {
+  const { reducePdfSize, browserImageCodec } = await import('../core/pdf/reduceSize');
+  const { bytes: out, report } = await reducePdfSize(bytes, quality, browserImageCodec);
+  if (report.after >= report.before) throw new Error('This file cannot be made smaller.');
+  return out;
+}
+
 /** Aplica la operación a los bytes de un archivo. */
 export async function runBatchOp(bytes: Uint8Array, op: BatchOp): Promise<Uint8Array> {
   switch (op.kind) {
@@ -90,6 +99,8 @@ export async function runBatchOp(bytes: Uint8Array, op: BatchOp): Promise<Uint8A
       return rotateFile(bytes, op.degrees);
     case 'number':
       return numberFile(bytes, op);
+    case 'reduce':
+      return reduceFile(bytes, op.quality);
   }
 }
 

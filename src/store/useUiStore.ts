@@ -233,7 +233,7 @@ interface UiState {
   /** Paneles que había abiertos al pulsar Hide Panels; null si no están ocultos. */
   panelsBackup: PanelsState<RightPanelId | null> | null;
   /** Diálogo de páginas abierto: propiedades del documento, recorte o numeración (ADR-0113). */
-  pageToolDialog: 'properties' | 'crop' | 'number' | 'headerFooter' | 'replace' | 'split' | 'print' | 'insert' | 'labels' | 'batch' | null;
+  pageToolDialog: 'properties' | 'crop' | 'number' | 'headerFooter' | 'replace' | 'split' | 'print' | 'insert' | 'labels' | 'batch' | 'reduce' | null;
   viewMode: ViewMode;
   /** Petición de ajuste del zoom (la resuelve el visor, que conoce el tamaño del área y de la página). */
   fitRequest: { kind: FitKind; seq: number } | null;
@@ -283,7 +283,7 @@ interface UiState {
   setFullscreenState: (on: boolean) => void;
   toggleFullscreen: () => Promise<void>;
   toggleAlwaysOnTop: () => Promise<void>;
-  setPageToolDialog: (dialog: 'properties' | 'crop' | 'number' | 'headerFooter' | 'replace' | 'split' | 'print' | 'insert' | 'labels' | 'batch' | null) => void;
+  setPageToolDialog: (dialog: 'properties' | 'crop' | 'number' | 'headerFooter' | 'replace' | 'split' | 'print' | 'insert' | 'labels' | 'batch' | 'reduce' | null) => void;
   setViewMode: (mode: ViewMode) => void;
   requestFit: (kind: FitKind) => void;
   setSnap: (update: Partial<SnapSettings>) => void;

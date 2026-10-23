@@ -3697,7 +3697,16 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const v = await page.locator('[data-testid="crosshair-v"]').boundingBox();
     expect(Math.round(h!.y)).toBe(300);
     expect(Math.round(v!.x)).toBe(500);
-    expect(h!.width).toBeGreaterThan(1000);
+    // Las líneas se limitan al área de trabajo: no llegan al borde de la ventana ni pasan por los paneles
+    const area = (await page.locator('[data-testid="pdf-viewer-container"]').boundingBox())!;
+    expect(h!.x).toBeGreaterThanOrEqual(area.x - 1);
+    expect(h!.x + h!.width).toBeLessThanOrEqual(area.x + area.width + 1);
+    expect(v!.y).toBeGreaterThanOrEqual(area.y - 1);
+    expect(v!.y + v!.height).toBeLessThanOrEqual(area.y + area.height + 1);
+    await page.mouse.move(10, 300);
+    await expect(page.locator('[data-testid="crosshair"]')).toHaveCount(0);
+    await page.mouse.move(500, 300);
+    await expect(page.locator('[data-testid="crosshair-h"]')).toBeVisible();
     await page.keyboard.press('Shift+F8');
     await expect(page.locator('[data-testid="crosshair"]')).toHaveCount(0);
   });

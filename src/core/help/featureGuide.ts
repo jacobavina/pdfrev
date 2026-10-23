@@ -145,7 +145,7 @@ export const FEATURE_GUIDE: GuideSection[] = [
       {
         id: 'crosshair',
         title: 'Full-Screen Crosshair',
-        summary: 'Draws a thin line across the whole window, horizontal and vertical, through the cursor. It helps line up elements that are far apart on a large drawing.',
+        summary: 'Draws a thin horizontal and a vertical line across the whole work area (the sheet and its grey background), through the cursor. It helps line up elements that are far apart on a large drawing.',
         steps: ['Choose View ▸ Full-Screen Crosshair or press Shift+F8; repeat to turn it off.', 'It does not change the markups or block the mouse, and it stays on the next time you open the app.'],
         where: 'View ▸ Full-Screen Crosshair',
         shortcut: 'Shift+F8',

@@ -11,13 +11,14 @@ ofrece una cruz que cruza toda la ventana por el cursor.
 ## 2. Decisión
 
 1. **View ▸ Full-Screen Crosshair** (Shift+F8; Ctrl+Shift+F8 sigue siendo Snap to Content) alterna una línea horizontal y
-   otra vertical de 1 px que cruzan toda la ventana por el cursor, con el color de acento.
+   otra vertical de 1 px que cruzan toda el **área de trabajo** (la hoja y su fondo, sin barras de desplazamiento) por el cursor, con el color de acento. No salen de ella: no pasan por los paneles, la cinta ni la barra de estado, y sobre ellos la cruz no se dibuja.
 2. Es una capa fija con `pointer-events: none`: no captura el ratón, no se imprime ni se guarda y no toca las marcas.
 3. Se oculta cuando el cursor sale de la ventana y se recuerda entre sesiones (`rea-crosshair`).
 4. Componente propio (`FullScreenCrosshair`) cargado perezosamente; la posición se lee de `mousemove` en la ventana.
 
 ## 3. Alcance y límites
 
+- Corrección posterior a la primera versión (que cruzaba toda la ventana, indicada por el usuario con una captura).
 - Sigue al cursor, no a la herramienta activa; no hay opción de grosor ni de color.
 - No va dentro de la exportación a PDF ni de la impresión (es una ayuda de pantalla).
 

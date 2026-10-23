@@ -11,7 +11,7 @@ export type ProfileRightPanel = 'properties' | 'measure' | 'toolchest' | null;
 export interface LayoutSnapshot {
   ribbonTab: 'markup' | 'measure' | 'insert';
   leftOpen: boolean;
-  leftTab: 'pages' | 'bookmarks' | 'layers' | 'links' | 'flags' | 'spaces';
+  leftTab: 'pages' | 'bookmarks' | 'layers' | 'links' | 'flags' | 'spaces' | 'sets';
   rightPanel: ProfileRightPanel;
   markupsListOpen: boolean;
   viewMode: 'continuous' | 'single';
@@ -60,7 +60,7 @@ export const BUILTIN_PROFILES: Record<Exclude<ProfileId, 'custom'>, LayoutSnapsh
 };
 
 const RIBBON_TABS = ['markup', 'measure', 'insert'];
-const LEFT_TABS = ['pages', 'bookmarks', 'layers', 'links', 'flags', 'spaces'];
+const LEFT_TABS = ['pages', 'bookmarks', 'layers', 'links', 'flags', 'spaces', 'sets'];
 const RIGHT_PANELS = ['properties', 'measure', 'toolchest'];
 const VIEW_MODES = ['continuous', 'single'];
 

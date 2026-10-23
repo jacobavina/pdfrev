@@ -18,7 +18,7 @@ export type RightPanelId = 'properties' | 'measure' | 'toolchest';
  */
 
 export type Theme = 'light' | 'dark';
-export type LeftPanelTab = 'pages' | 'bookmarks' | 'layers' | 'links' | 'flags' | 'spaces';
+export type LeftPanelTab = 'pages' | 'bookmarks' | 'layers' | 'links' | 'flags' | 'spaces' | 'sets';
 /** Modo de visualización de páginas (ADR-0019): todas apiladas con scroll continuo, o una sola página. */
 export type ViewMode = 'continuous' | 'single';
 export type FitKind = 'page' | 'width';

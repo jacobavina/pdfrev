@@ -3508,4 +3508,14 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(overlaySvg.getByText('101 · Sala de juntas', { exact: false })).toBeAttached({ timeout: 10000 });
     await expect(page.locator('[data-testid="spaces-total"]')).toContainText('Total · 1 space');
   });
+
+  test('Sets (ADR-0119): en el navegador el panel explica que necesita la aplicación de escritorio', async ({ page }) => {
+    await openApp(page);
+    await page.locator('[data-testid="menu-ver"]').click();
+    await page.locator('[data-testid="menu-view-panels"]').hover();
+    await page.locator('[data-testid="menu-panel-sets"]').click();
+    await expect(page.locator('[data-testid="sets-panel"]')).toBeVisible();
+    await expect(page.locator('[data-testid="sets-desktop-only"]')).toContainText('desktop app');
+    await expect(page.locator('[data-testid="sets-create"]')).toHaveCount(0);
+  });
 });

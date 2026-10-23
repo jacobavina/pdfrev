@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Files, Bookmark, Layers, Link2, Flag, DoorOpen, Eye, EyeOff, ChevronRight, ChevronDown } from 'lucide-react';
+import { Files, Bookmark, Layers, Link2, Flag, DoorOpen, Library, Eye, EyeOff, ChevronRight, ChevronDown } from 'lucide-react';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { listPdfLayers, OptionalContentConfigLike } from '../../core/pdf/pdfLayers';
 import { useMarkupStore } from '../../store/useMarkupStore';
@@ -9,6 +9,7 @@ import { PanelShell } from './PanelShell';
 import { LinksPanel } from '../panels/LinksPanel';
 import { FlagsPanel } from '../panels/FlagsPanel';
 import { SpacesPanel } from '../panels/SpacesPanel';
+import { SetsPanel } from '../panels/SetsPanel';
 
 const TABS: { id: LeftPanelTab; label: string; icon: React.ReactNode }[] = [
   { id: 'pages', label: 'Thumbnails', icon: <Files size={16} /> },
@@ -17,6 +18,7 @@ const TABS: { id: LeftPanelTab; label: string; icon: React.ReactNode }[] = [
   { id: 'links', label: 'Links', icon: <Link2 size={16} /> },
   { id: 'flags', label: 'Flags', icon: <Flag size={16} /> },
   { id: 'spaces', label: 'Spaces', icon: <DoorOpen size={16} /> },
+  { id: 'sets', label: 'Sets', icon: <Library size={16} /> },
 ];
 
 // ---------------------------------------------------------------- Marcadores (índice del PDF)
@@ -277,6 +279,7 @@ export const LeftDock: React.FC = () => {
       {leftOpen && pdfDoc && leftTab === 'links' && <LinksPanel />}
       {leftOpen && leftTab === 'flags' && <FlagsPanel />}
       {leftOpen && leftTab === 'spaces' && <SpacesPanel />}
+      {leftOpen && leftTab === 'sets' && <SetsPanel />}
     </div>
   );
 };

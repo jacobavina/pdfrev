@@ -74,6 +74,7 @@ import {
   Printer,
   Flag,
   DoorOpen,
+  Library,
 } from 'lucide-react';
 import { FIELD_TYPES, FieldType } from '../../core/markup/formFields';
 import { fieldTypeIcon } from './fieldIcons';
@@ -456,6 +457,7 @@ export const MenuBar: React.FC = () => {
             { icon: <Link2 size={16} />, label: 'Links Panel', onSelect: () => setLeftTab('links'), testId: 'menu-panel-links' },
             { icon: <Flag size={16} />, label: 'Flags Panel', onSelect: () => setLeftTab('flags'), testId: 'menu-panel-flags' },
             { icon: <DoorOpen size={16} />, label: 'Spaces Panel', onSelect: () => setLeftTab('spaces'), testId: 'menu-panel-spaces' },
+            { icon: <Library size={16} />, label: 'Sets Panel', onSelect: () => setLeftTab('sets'), testId: 'menu-panel-sets' },
             { icon: <SlidersHorizontal size={16} />, label: 'Properties Panel', onSelect: requestPropertiesPanel, testId: 'menu-panel-properties' },
             { icon: <LengthMeasureIcon size={16} />, label: 'Measurements Panel', onSelect: requestMeasurementsPanel, testId: 'menu-panel-measurements' },
             {

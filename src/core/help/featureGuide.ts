@@ -508,6 +508,17 @@ export const FEATURE_GUIDE: GuideSection[] = [
     title: 'Pages and documents',
     entries: [
       {
+        id: 'sets-panel',
+        title: 'Sets',
+        summary: 'Groups the documents of a project so you can open them together. A set keeps file paths only; the files are not copied or changed. Desktop app only.',
+        steps: [
+          'Open the panel with the library button of the left rail or View ▸ Panels ▸ Sets Panel. Type a name and press + for an empty set, or the library button to start from the documents you have open.',
+          'Expand a set to add files (Add files… or Add open), reorder them with the arrows, or remove them. Click a file to open it; the folder button opens the whole set, one document per tab.',
+          'A dot marks the documents that are already open. Deleting a set does not touch the files.',
+        ],
+        where: 'View ▸ Panels ▸ Sets Panel',
+      },
+      {
         id: 'spaces-panel',
         title: 'Spaces',
         summary: 'Turns Area measurements into named rooms. The Spaces panel lists them by level (page) with number, name, area and perimeter, adds up the totals and exports the table.',

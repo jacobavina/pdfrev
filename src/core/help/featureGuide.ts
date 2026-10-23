@@ -519,6 +519,17 @@ export const FEATURE_GUIDE: GuideSection[] = [
     title: 'Pages and documents',
     entries: [
       {
+        id: 'forms-panel',
+        title: 'Forms panel',
+        summary: 'Lists the form fields of the document by page, with their values, so you can fill a whole form from one place.',
+        steps: [
+          'Open it with the field button of the left rail or View ▸ Panels ▸ Forms Panel. The header shows how many fields are filled in.',
+          'Type in a text field, tick a check box, pick an option in a dropdown or list: each change is one Undo step. Press Enter or leave the box to save a text, Esc to cancel.',
+          'The arrow goes to the next empty field, the eraser clears every field (Undo brings them back) and the download button saves the values as a CSV. Signature fields are in the Signatures panel.',
+        ],
+        where: 'View ▸ Panels ▸ Forms Panel',
+      },
+      {
         id: 'sets-panel',
         title: 'Sets',
         summary: 'Groups the documents of a project so you can open them together. A set keeps file paths only; the files are not copied or changed. Desktop app only.',

@@ -3538,4 +3538,27 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(page.locator('[data-testid="thumbnail-0"]')).toBeVisible();
     await expect(page.locator('[data-testid="markups-list-panel"]')).toBeVisible();
   });
+
+  test('Forms (ADR-0121): una casilla creada aparece en el panel, se marca desde él y se ve marcada sobre el plano', async ({ page }) => {
+    await openApp(page);
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg.locator('g[data-testid^="markup-g-"]').first()).toBeAttached({ timeout: 15000 });
+    const box = (await overlaySvg.boundingBox())!;
+    await page.locator('[data-testid="menu-herramientas"]').click();
+    await page.locator('[data-testid="menu-tools-form"]').hover();
+    await page.locator('[data-testid="menu-field-checkbox"]').click();
+    await page.mouse.click(box.x + box.width * 0.8, box.y + box.height * 0.2);
+    const field = overlaySvg.locator('g[data-testid^="markup-field-"]');
+    await expect(field).toHaveCount(1);
+    await page.locator('[data-testid="menu-ver"]').click();
+    await page.locator('[data-testid="menu-view-panels"]').hover();
+    await page.locator('[data-testid="menu-panel-forms"]').click();
+    await expect(page.locator('[data-testid="forms-progress"]')).toHaveText('0 of 1 filled');
+    await page.locator('[data-testid^="form-check-"]').check();
+    await expect(page.locator('[data-testid="forms-progress"]')).toHaveText('1 of 1 filled');
+    await expect(field.locator('path')).toHaveCount(1); // la marca de verificación sobre el plano
+    await page.locator('[data-testid="forms-clear"]').click();
+    await expect(page.locator('[data-testid="forms-progress"]')).toHaveText('0 of 1 filled');
+    await expect(field.locator('path')).toHaveCount(0);
+  });
 });

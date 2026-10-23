@@ -3459,4 +3459,23 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.getByRole('menuitem', { name: 'Undo Ctrl+Z' }).click();
     await expect(page.locator('[data-testid="links-panel"] li')).toHaveCount(1);
   });
+
+  test('Flags (ADR-0117): Ctrl+Alt+F pone una bandera visible sobre la marca, el panel la lista y se quita desde él', async ({ page }) => {
+    await openApp(page);
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    const mark = overlaySvg.locator('g[data-testid^="markup-g-"]').first();
+    await expect(mark).toBeAttached({ timeout: 15000 });
+    // El rectángulo del plano de prueba abre seleccionado: se pulsa la combinación sobre él
+    await page.keyboard.press('Control+Alt+f');
+    await expect(overlaySvg.locator('[data-testid^="flag-glyph-"]')).toHaveCount(1);
+    await page.locator('[data-testid="menu-ver"]').click();
+    await page.locator('[data-testid="menu-view-panels"]').hover();
+    await page.locator('[data-testid="menu-panel-flags"]').click();
+    await expect(page.locator('[data-testid="flags-count"]')).toHaveText('1');
+    await expect(page.locator('[data-testid="flags-panel"] li')).toHaveCount(1);
+    // Quitarla desde el panel
+    await page.locator('[data-testid^="flag-remove-"]').click();
+    await expect(page.locator('[data-testid="flags-empty"]')).toBeVisible();
+    await expect(overlaySvg.locator('[data-testid^="flag-glyph-"]')).toHaveCount(0);
+  });
 });

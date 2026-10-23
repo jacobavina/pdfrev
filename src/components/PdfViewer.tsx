@@ -65,6 +65,7 @@ import { calloutBoxFromDrag, CALLOUT_LANDING_PT } from '../core/markup/calloutLa
 import { snapPoint, SnapResult } from '../core/markup/snap';
 import { gridLines, gridStepPt, snapToGrid } from '../core/markup/grid';
 import { LASSO_MIN_STEP, lassoSelect } from '../core/markup/lasso';
+import { flagAnchor, isFlagged } from '../core/markup/flags';
 import { remeasureMarkup, SCALED_MEASURE_TYPES } from '../core/measurements/remeasure';
 import {
   markupBounds,
@@ -1088,6 +1089,12 @@ export const PdfViewer: React.FC = () => {
         }
       }
 
+      // Bandera (ADR-0117): Ctrl+Alt+F pone o quita la bandera de las marcas seleccionadas
+      if ((e.ctrlKey || e.metaKey) && e.altKey && !e.shiftKey && e.code === 'KeyF') {
+        e.preventDefault();
+        void import('../core/markup/copyActions').then((m) => m.toggleFlagSelected());
+        return;
+      }
       // Format Painter y Pegar en el sitio (ADR-0109): Ctrl+Shift+C copia el formato de la marca, Ctrl+Alt+V lo pega
       // en la selección y Ctrl+Shift+V pega las marcas copiadas en el mismo sitio
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && (e.key === 'c' || e.key === 'C')) {
@@ -4454,6 +4461,21 @@ export const PdfViewer: React.FC = () => {
                 </g>
               );
             })()}
+
+            {/* Banderas (ADR-0117): una bandera en la esquina superior derecha de cada marca marcada */}
+            {pageMarkups
+              .filter(isFlagged)
+              .map((m) => {
+                const at = flagAnchor(m);
+                if (!at) return null;
+                const q = normalizedToScreen(at, viewportTransform);
+                return (
+                  <g key={`flag-${m.id}`} data-testid={`flag-glyph-${m.id}`} transform={`translate(${q.x + 2} ${q.y - 16})`} pointerEvents="none">
+                    <path d="M1 1v15" stroke={tok('ov-warn')} strokeWidth={1.6} strokeLinecap="round" />
+                    <path d="M1.8 1.5h9.5l-2.4 3.4 2.4 3.4H1.8z" fill={tok('ov-warn')} stroke={tok('ov-halo', 0.9)} strokeWidth={0.8} strokeLinejoin="round" />
+                  </g>
+                );
+              })}
 
             {/* Lasso (ADR-0110): contorno libre en curso, cerrado hacia el primer punto */}
             {lassoPoints && lassoPoints.length > 1 && (

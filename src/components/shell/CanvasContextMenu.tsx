@@ -10,6 +10,7 @@ import {
   Lock,
   LockOpen,
   EyeOff,
+  Flag,
   Paintbrush,
   Pipette,
   Check,
@@ -35,7 +36,8 @@ import {
 } from '../../core/markup/transformTools';
 import { PolygonCutoutIcon, EllipseCutoutIcon, OffsetIcon, MultiplyIcon, PasteInPlaceIcon } from './customIcons';
 import { showToast } from '../../services/toastService';
-import { copyFormat, hideSelected, pasteFormat, pasteInPlace } from '../../core/markup/copyActions';
+import { copyFormat, hideSelected, pasteFormat, pasteInPlace, toggleFlagSelected } from '../../core/markup/copyActions';
+import { isFlagged } from '../../core/markup/flags';
 import { hasSnapshotInCache } from '../../services/snapshotService';
 
 const STATUS_LABELS: Record<MarkupStatus, string> = {
@@ -537,6 +539,7 @@ export const CanvasContextMenu: React.FC<{
         () => useMarkupStore.getState().toggleLockSelectedMarkups(),
         { shortcut: 'Ctrl+Shift+L' }
       )}
+      {item('canvas-menu-flag', <Flag size={16} />, selected.length > 0 && selected.every(isFlagged) ? 'Remove Flag' : 'Flag', toggleFlagSelected, { shortcut: 'Ctrl+Alt+F' })}
       {item('canvas-menu-hide', <EyeOff size={16} />, 'Hide', hideSelected, { disabled: allLocked })}
 
       {separator()}

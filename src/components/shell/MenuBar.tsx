@@ -72,6 +72,7 @@ import {
   Replace,
   Scissors,
   Printer,
+  Flag,
 } from 'lucide-react';
 import { FIELD_TYPES, FieldType } from '../../core/markup/formFields';
 import { fieldTypeIcon } from './fieldIcons';
@@ -110,7 +111,7 @@ import { getRecentFiles, clearRecentFiles, subscribeRecentFiles, RecentFile } fr
 import { useAutoSave } from '../../hooks/useAutoSave';
 import { TOOL_GROUPS } from './toolDefinitions';
 import { PROFILE_LABELS } from '../../core/ui/profiles';
-import { copyFormat, hideSelected, pasteFormat, pasteInPlace, showHidden } from '../../core/markup/copyActions';
+import { copyFormat, hideSelected, pasteFormat, pasteInPlace, showHidden, toggleFlagSelected } from '../../core/markup/copyActions';
 import { exportFlattenedPdf, unflattenOpenDocument, goToPage, runPageOperation, selectAllOnCurrentPage } from './appActions';
 
 type MenuEntry =
@@ -371,6 +372,7 @@ export const MenuBar: React.FC = () => {
         { icon: <CopyPlus size={16} />, label: 'Duplicate', shortcut: 'Ctrl+D', onSelect: () => useMarkupStore.getState().duplicateSelectedMarkups(), disabled: !hasSelection },
         { icon: <OffsetIcon size={16} />, label: 'Offset…', shortcut: 'O', onSelect: () => useUiStore.getState().setCopyToolDialog('offset'), disabled: !hasSelection, testId: 'menu-offset' },
         { icon: <MultiplyIcon size={16} />, label: 'Multiply…', shortcut: 'Ctrl+M', onSelect: () => useUiStore.getState().setCopyToolDialog('multiply'), disabled: !hasSelection, testId: 'menu-multiply' },
+        { icon: <Flag size={16} />, label: 'Flag / Remove Flag', shortcut: 'Ctrl+Alt+F', onSelect: toggleFlagSelected, disabled: !hasSelection, testId: 'menu-flag' },
         { icon: <EyeOff size={16} />, label: 'Hide', onSelect: hideSelected, disabled: !hasSelection, testId: 'menu-hide' },
         { icon: <Eye size={16} />, label: 'Show Hidden Markups', onSelect: showHidden, disabled: !hasHiddenMarkups, testId: 'menu-show-hidden' },
         { icon: <Lock size={16} />, label: 'Lock / Unlock', onSelect: () => useMarkupStore.getState().toggleLockSelectedMarkups(), disabled: !hasSelection },
@@ -450,6 +452,7 @@ export const MenuBar: React.FC = () => {
             { icon: <Bookmark size={16} />, label: 'Bookmarks Panel', onSelect: () => setLeftTab('bookmarks'), testId: 'menu-panel-bookmarks' },
             { icon: <Layers size={16} />, label: 'Layers Panel', onSelect: () => setLeftTab('layers'), testId: 'menu-panel-layers' },
             { icon: <Link2 size={16} />, label: 'Links Panel', onSelect: () => setLeftTab('links'), testId: 'menu-panel-links' },
+            { icon: <Flag size={16} />, label: 'Flags Panel', onSelect: () => setLeftTab('flags'), testId: 'menu-panel-flags' },
             { icon: <SlidersHorizontal size={16} />, label: 'Properties Panel', onSelect: requestPropertiesPanel, testId: 'menu-panel-properties' },
             { icon: <LengthMeasureIcon size={16} />, label: 'Measurements Panel', onSelect: requestMeasurementsPanel, testId: 'menu-panel-measurements' },
             {

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Files, Bookmark, Layers, Link2, Eye, EyeOff, ChevronRight, ChevronDown } from 'lucide-react';
+import { Files, Bookmark, Layers, Link2, Flag, Eye, EyeOff, ChevronRight, ChevronDown } from 'lucide-react';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { listPdfLayers, OptionalContentConfigLike } from '../../core/pdf/pdfLayers';
 import { useMarkupStore } from '../../store/useMarkupStore';
@@ -7,12 +7,14 @@ import { useUiStore, LeftPanelTab, NO_LAYER } from '../../store/useUiStore';
 import { ThumbnailsSidebar } from '../ThumbnailsSidebar';
 import { PanelShell } from './PanelShell';
 import { LinksPanel } from '../panels/LinksPanel';
+import { FlagsPanel } from '../panels/FlagsPanel';
 
 const TABS: { id: LeftPanelTab; label: string; icon: React.ReactNode }[] = [
   { id: 'pages', label: 'Thumbnails', icon: <Files size={16} /> },
   { id: 'bookmarks', label: 'Bookmarks', icon: <Bookmark size={16} /> },
   { id: 'layers', label: 'Layers', icon: <Layers size={16} /> },
   { id: 'links', label: 'Links', icon: <Link2 size={16} /> },
+  { id: 'flags', label: 'Flags', icon: <Flag size={16} /> },
 ];
 
 // ---------------------------------------------------------------- Marcadores (índice del PDF)
@@ -271,6 +273,7 @@ export const LeftDock: React.FC = () => {
       {leftOpen && pdfDoc && leftTab === 'bookmarks' && <BookmarksPanel />}
       {leftOpen && leftTab === 'layers' && <LayersPanel />}
       {leftOpen && pdfDoc && leftTab === 'links' && <LinksPanel />}
+      {leftOpen && leftTab === 'flags' && <FlagsPanel />}
     </div>
   );
 };

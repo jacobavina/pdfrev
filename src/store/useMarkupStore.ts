@@ -16,6 +16,7 @@ import { DEFAULT_CLOUD_STEP } from '../core/markup/revisionCloud';
 import { dashArrayFor, LineStyleId } from '../core/markup/lineStyles';
 import { isPatternLineStyle, PATTERN_MARKUP_TYPES } from '../core/markup/linePatterns';
 import { applyFormat, canCopyFormat, canPasteFormat, captureFormat, type MarkupFormat } from '../core/markup/formatPainter';
+import { isFlagged, withFlag } from '../core/markup/flags';
 import { UpdateMarkupStatusCommand, MarkupStatusTarget } from './history/UpdateMarkupStatusCommand';
 import { UpdateMarkupCustomFieldCommand } from './history/UpdateMarkupCustomFieldCommand';
 import {
@@ -112,6 +113,8 @@ interface MarkupState {
   pasteFormatToSelection: () => number;
   /** Oculta marcas sin borrarlas (ADR-0109); `ids` null = todas. Devuelve cuántas cambiaron. */
   setMarkupsHidden: (ids: string[] | null, hidden: boolean) => number;
+  /** Pone o quita la bandera (ADR-0117); `ids` null = todas las marcas. Devuelve cuántas cambiaron. */
+  setMarkupsFlagged: (ids: string[] | null, flagged: boolean) => number;
   setClipboardMarkups: (clipboardMarkups: Markup[]) => void;
   pasteMarkups: (targetPageIndex?: number, offset?: { x: number; y: number }) => void;
   duplicateSelectedMarkups: () => void;
@@ -1216,6 +1219,29 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
         execute: () => apply(after),
         undo: () =>
           set((state) => ({ markups: state.markups.map((m) => before.get(m.id) ?? m), isDirty: true })),
+      });
+      syncHistoryFlags();
+      return after.size;
+    },
+
+    setMarkupsFlagged: (ids, flagged) => {
+      const { markups } = get();
+      const now = new Date().toISOString();
+      const before = new Map<string, Markup>();
+      const after = new Map<string, Markup>();
+      for (const m of markups) {
+        if (ids && !ids.includes(m.id)) continue;
+        if (isFlagged(m) === flagged) continue;
+        before.set(m.id, m);
+        after.set(m.id, withFlag(m, flagged, now));
+      }
+      if (after.size === 0) return 0;
+      const apply = (map: Map<string, Markup>) =>
+        set((state) => ({ markups: state.markups.map((m) => map.get(m.id) ?? m), isDirty: true }));
+      markupHistory.execute({
+        description: flagged ? `Flag ${after.size} markup${after.size === 1 ? '' : 's'}` : `Remove ${after.size} flag${after.size === 1 ? '' : 's'}`,
+        execute: () => apply(after),
+        undo: () => apply(before),
       });
       syncHistoryFlags();
       return after.size;

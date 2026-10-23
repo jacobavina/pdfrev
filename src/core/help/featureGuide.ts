@@ -508,6 +508,18 @@ export const FEATURE_GUIDE: GuideSection[] = [
     title: 'Pages and documents',
     entries: [
       {
+        id: 'flags-panel',
+        title: 'Flags',
+        summary: 'Mark markups with a flag to come back to them later. The Flags panel lists every flagged markup by page.',
+        steps: [
+          'Select the markups and press Ctrl+Alt+F (or Edit ▸ Flag, or Flag in the right-click menu). A flag appears at the top-right corner of each one; press it again to remove the flags.',
+          'Open the panel with the flag button of the left rail or View ▸ Panels ▸ Flags Panel. Click a row to go to the markup; the crossed flag removes it; Remove all clears them (Undo brings them back).',
+          'Flags are saved in the PDF with the markup and survive copy and paste. They are a note for you: they are not printed or flattened.',
+        ],
+        where: 'Edit ▸ Flag',
+        shortcut: 'Ctrl+Alt+F',
+      },
+      {
         id: 'links-panel',
         title: 'Links panel',
         summary: 'Lists every link of the document by page: the hyperlinks you added and the links the PDF already had, with the broken ones marked.',

@@ -259,6 +259,7 @@
 | `P5-D.15` | Headers & Footers, Replace Pages y Split Document | **Cerrado** | ADR-0114. Seis textos con campos por página, sustitución de páginas con otro PDF (marcas conservadas o remapeadas) y reparto en varios PDF con sus marcas. Falta verificarlo en ventana nativa; en escritorio Split pide la carpeta. |
 | `P5-D.16` | Print | **Cerrado** | ADR-0115. `Ctrl+P` / `File ▸ Print…`: páginas, con o sin marcas, ajustar o tamaño real, calidad y blanco y negro, y diálogo de impresión del sistema. Falta probarlo en ventana nativa con una impresora real. También endurece dos E2E que fallaron una vez con la máquina cargada. |
 | `P5-D.17` | Panel Links | **Cerrado** | ADR-0116. Pestaña Links del riel izquierdo con los enlaces de REA y del PDF por página, rotos marcados y filtro. Falta verificarlo en ventana nativa con un PDF con enlaces. |
+| `P5-D.18` | Flags | **Cerrado** | ADR-0117. Bandera en las marcas (`Ctrl+Alt+F`), dibujada sobre la hoja, guardada en el PDF y listada en el panel Flags. Falta verificarlo en ventana nativa. |
 
 ---
 

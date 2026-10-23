@@ -111,6 +111,17 @@ export const FEATURE_GUIDE: GuideSection[] = [
         where: 'View ▸ Rotate View',
       },
       {
+        id: 'window-controls',
+        title: 'Full screen, hide panels and always on top',
+        summary: 'Give the drawing the whole window, or keep the window above other programs while you work from another document.',
+        steps: [
+          'Full Screen (F11) uses the whole screen; press F11 again to return. Hide Panels (Shift+F4) closes the thumbnails, the side panels and the markups list; press it again and each one comes back as it was.',
+          'Always On Top (View menu, desktop app only) keeps REA above other windows, useful with a second screen or a reference document.',
+        ],
+        where: 'View ▸ Full Screen / Hide Panels / Always On Top',
+        shortcut: 'F11',
+      },
+      {
         id: 'rulers',
         title: 'Rulers',
         summary: 'Shows rulers in the units of the page scale, so you can read positions on the drawing.',

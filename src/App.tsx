@@ -98,6 +98,8 @@ export const App: React.FC = () => {
 
   // Atajos globales: Ctrl+S (guardar), Ctrl+Shift+S (guardar como), Ctrl+O (abrir), Ctrl+F (buscar), F1 (atajos)
   useEffect(() => {
+    const onFullscreenChange = () => useUiStore.getState().setFullscreenState(document.fullscreenElement !== null);
+    document.addEventListener('fullscreenchange', onFullscreenChange);
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 's' || e.key === 'S')) {
         e.preventDefault();
@@ -147,6 +149,14 @@ export const App: React.FC = () => {
           e.preventDefault();
           useUiStore.getState().setCopyToolDialog(e.key.toLowerCase() === 'm' ? 'multiply' : 'offset');
         }
+      } else if (e.key === 'F11' && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+        // Full Screen (F11, ADR-0120)
+        e.preventDefault();
+        void useUiStore.getState().toggleFullscreen();
+      } else if (e.key === 'F4' && e.shiftKey && !e.ctrlKey && !e.altKey) {
+        // Hide Panels (Shift+F4, ADR-0120)
+        e.preventDefault();
+        useUiStore.getState().togglePanels();
       } else if (e.key === 'F9' && e.shiftKey && !e.altKey) {
         // Show Grid (Shift+F9) y Snap to Grid (Ctrl+Shift+F9), ADR-0106
         e.preventDefault();
@@ -163,7 +173,10 @@ export const App: React.FC = () => {
       }
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown);
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
+    };
   }, [saveNow]);
 
   // Carga inicial: si se pasa un archivo en el arranque ("Abrir con" o CLI, ADR-0087), se abre;

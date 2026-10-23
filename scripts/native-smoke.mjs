@@ -536,6 +536,24 @@ try {
   if (outside?.read) throw new Error('read_revu_toolset leyó un archivo fuera de la carpeta de Revu.');
   console.log('    ✓ read_revu_toolset rechaza rutas fuera de la carpeta de Bluebeam.');
 
+  // Pantalla completa y siempre encima (ADR-0120): los permisos de ventana de la capacidad se ejercitan por el IPC real
+  const windowIpc = await executeAsync(`
+    const done = arguments[arguments.length - 1];
+    const inv = (cmd, args) => window.__TAURI_INTERNALS__.invoke(cmd, { label: 'main', ...args });
+    (async () => {
+      await inv('plugin:window|set_fullscreen', { value: true });
+      const on = await inv('plugin:window|is_fullscreen', {});
+      await inv('plugin:window|set_fullscreen', { value: false });
+      const off = await inv('plugin:window|is_fullscreen', {});
+      await inv('plugin:window|set_always_on_top', { value: true });
+      await inv('plugin:window|set_always_on_top', { value: false });
+      done({ on, off });
+    })().catch((err) => done({ error: String(err) }));
+  `, []);
+  if (windowIpc?.error) throw new Error(`Los permisos de ventana (pantalla completa, siempre encima) fallaron por el IPC nativo: ${windowIpc.error}`);
+  if (windowIpc.on !== true || windowIpc.off !== false) throw new Error(`La pantalla completa no cambió de estado: ${JSON.stringify(windowIpc)}`);
+  console.log('    ✓ Pantalla completa y siempre encima funcionan por el IPC nativo (y la ventana vuelve a su estado).');
+
   // (d) Interacciones reales W3C Actions API (dibujar rectángulo y seleccionarlo)
   console.log('\n  [Sub-verificación D] Acciones de ratón W3C (dibujar y seleccionar rectángulo)...');
 

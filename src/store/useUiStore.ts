@@ -1,3 +1,4 @@
+import { HIDDEN_PANELS, anyPanelOpen, snapshotPanels, type PanelsState } from '../core/ui/panelVisibility';
 import { useEffect } from 'react';
 import { create } from 'zustand';
 import {
@@ -226,6 +227,11 @@ interface UiState {
   copyToolDialog: 'offset' | 'multiply' | null;
   /** Lista del historial de cambios abierta (ADR-0110). */
   undoHistoryOpen: boolean;
+  /** Pantalla completa y siempre encima (ADR-0120). */
+  fullscreen: boolean;
+  alwaysOnTop: boolean;
+  /** Paneles que había abiertos al pulsar Hide Panels; null si no están ocultos. */
+  panelsBackup: PanelsState<RightPanelId | null> | null;
   /** Diálogo de páginas abierto: propiedades del documento, recorte o numeración (ADR-0113). */
   pageToolDialog: 'properties' | 'crop' | 'number' | 'headerFooter' | 'replace' | 'split' | 'print' | null;
   viewMode: ViewMode;
@@ -272,6 +278,11 @@ interface UiState {
   setCombineModalOpen: (open: boolean) => void;
   setCopyToolDialog: (dialog: 'offset' | 'multiply' | null) => void;
   setUndoHistoryOpen: (open: boolean) => void;
+  /** Hide Panels (Shift+F4): oculta todos los paneles y, la segunda vez, los devuelve. Devuelve si quedaron ocultos. */
+  togglePanels: () => boolean;
+  setFullscreenState: (on: boolean) => void;
+  toggleFullscreen: () => Promise<void>;
+  toggleAlwaysOnTop: () => Promise<void>;
   setPageToolDialog: (dialog: 'properties' | 'crop' | 'number' | 'headerFooter' | 'replace' | 'split' | 'print' | null) => void;
   setViewMode: (mode: ViewMode) => void;
   requestFit: (kind: FitKind) => void;
@@ -319,6 +330,38 @@ export const useUiStore = create<UiState>((set, get) => ({
   combineModalOpen: false,
   copyToolDialog: null,
   undoHistoryOpen: false,
+  fullscreen: false,
+  alwaysOnTop: false,
+  panelsBackup: null,
+  togglePanels: () => {
+    const s = get();
+    if (s.panelsBackup) {
+      set({ ...s.panelsBackup, panelsBackup: null });
+      return false;
+    }
+    if (!anyPanelOpen(s)) return false;
+    set({ ...HIDDEN_PANELS, panelsBackup: snapshotPanels(s) });
+    return true;
+  },
+  setFullscreenState: (fullscreen) => set({ fullscreen }),
+  toggleFullscreen: async () => {
+    try {
+      const { setFullscreen } = await import('../services/windowService');
+      set({ fullscreen: await setFullscreen(!get().fullscreen) });
+    } catch (err) {
+      const { showToast } = await import('../services/toastService');
+      showToast(`Could not change full screen: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  },
+  toggleAlwaysOnTop: async () => {
+    try {
+      const { setAlwaysOnTop } = await import('../services/windowService');
+      set({ alwaysOnTop: await setAlwaysOnTop(!get().alwaysOnTop) });
+    } catch (err) {
+      const { showToast } = await import('../services/toastService');
+      showToast(`Could not keep the window on top: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  },
   pageToolDialog: null,
   setPageToolDialog: (pageToolDialog) => set({ pageToolDialog }),
   setUndoHistoryOpen: (undoHistoryOpen) => set({ undoHistoryOpen }),

@@ -262,6 +262,7 @@
 | `P5-D.18` | Flags | **Cerrado** | ADR-0117. Bandera en las marcas (`Ctrl+Alt+F`), dibujada sobre la hoja, guardada en el PDF y listada en el panel Flags. Falta verificarlo en ventana nativa. |
 | `P5-D.19` | Spaces | **Cerrado** | ADR-0118. Mediciones de área con número y nombre, panel con niveles, totales y CSV; el nombre se escribe sobre el plano como etiqueta de la medición. Falta verificarlo en ventana nativa con un plano calibrado. |
 | `P5-D.20` | Sets | **Cerrado** | ADR-0119. Conjuntos de documentos por ruta con panel (crear, añadir, reordenar, abrir uno o todos), solo en escritorio. Falta verificarlo en ventana nativa. |
+| `P5-D.21` | Full Screen, Hide Panels y Always On Top | **Cerrado** | ADR-0120. `F11`, `Shift+F4` y siempre encima (solo escritorio); tres permisos de ventana en la capacidad, ejercitados por el smoke nativo. |
 
 ---
 

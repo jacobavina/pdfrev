@@ -75,6 +75,9 @@ import {
   Flag,
   DoorOpen,
   Library,
+  Maximize,
+  PanelsTopLeft,
+  Pin,
 } from 'lucide-react';
 import { FIELD_TYPES, FieldType } from '../../core/markup/formFields';
 import { fieldTypeIcon } from './fieldIcons';
@@ -113,6 +116,7 @@ import { getRecentFiles, clearRecentFiles, subscribeRecentFiles, RecentFile } fr
 import { useAutoSave } from '../../hooks/useAutoSave';
 import { TOOL_GROUPS } from './toolDefinitions';
 import { PROFILE_LABELS } from '../../core/ui/profiles';
+import { supportsAlwaysOnTop } from '../../services/windowService';
 import { copyFormat, hideSelected, pasteFormat, pasteInPlace, showHidden, toggleFlagSelected } from '../../core/markup/copyActions';
 import { exportFlattenedPdf, unflattenOpenDocument, goToPage, runPageOperation, selectAllOnCurrentPage } from './appActions';
 
@@ -210,6 +214,12 @@ export const MenuBar: React.FC = () => {
     setShowRulers,
     showGrid,
     setShowGrid,
+    fullscreen,
+    alwaysOnTop,
+    panelsBackup,
+    togglePanels,
+    toggleFullscreen,
+    toggleAlwaysOnTop,
     snapToGrid,
     setSnapToGrid,
     autoOpenPanels,
@@ -444,6 +454,9 @@ export const MenuBar: React.FC = () => {
         { icon: <RulersIcon size={16} />, label: 'Rulers', shortcut: 'Ctrl+R', checked: showRulers, onSelect: () => setShowRulers(!showRulers), testId: 'menu-view-rulers' },
         { icon: <Grid3x3 size={16} />, label: 'Show Grid', shortcut: 'Shift+F9', checked: showGrid, onSelect: () => setShowGrid(!showGrid), testId: 'menu-view-grid' },
         { icon: <Crosshair size={16} />, label: 'Snap to Grid', shortcut: 'Ctrl+Shift+F9', checked: snapToGrid, onSelect: () => setSnapToGrid(!snapToGrid), testId: 'menu-view-snap-grid' },
+        { icon: <Maximize size={16} />, label: 'Full Screen', shortcut: 'F11', checked: fullscreen, onSelect: () => void toggleFullscreen(), testId: 'menu-view-fullscreen' },
+        { icon: <PanelsTopLeft size={16} />, label: 'Hide Panels', shortcut: 'Shift+F4', checked: panelsBackup !== null, onSelect: () => togglePanels(), testId: 'menu-view-hide-panels' },
+        { icon: <Pin size={16} />, label: 'Always On Top', checked: alwaysOnTop, disabled: !supportsAlwaysOnTop(), onSelect: () => void toggleAlwaysOnTop(), testId: 'menu-view-always-on-top' },
         'separator',
         // Paneles agrupados (ADR-0112): la lista de View es larga y mezclaba vista, paneles y perfiles
         {

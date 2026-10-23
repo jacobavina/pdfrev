@@ -3518,4 +3518,24 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(page.locator('[data-testid="sets-desktop-only"]')).toContainText('desktop app');
     await expect(page.locator('[data-testid="sets-create"]')).toHaveCount(0);
   });
+
+  test('Hide Panels (ADR-0120): Shift+F4 oculta las miniaturas y la lista de marcas, y la segunda vez las devuelve', async ({ page }) => {
+    await openApp(page);
+    await expect(page.locator('[data-testid="thumbnail-0"]')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="markups-list-panel"]')).toBeVisible();
+    await page.keyboard.press('Shift+F4');
+    await expect(page.locator('[data-testid="thumbnail-0"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid="markups-list-panel"]')).toBeHidden();
+    // El plano ocupa el espacio que dejaron los paneles
+    await expect(page.locator('[data-testid="markup-overlay-svg"]')).toBeVisible();
+    // View muestra la marca de activo y Full Screen y Always On Top existen (esta última desactivada en el navegador)
+    await page.locator('[data-testid="menu-ver"]').click();
+    await expect(page.locator('[data-testid="menu-view-hide-panels"]')).toContainText('Shift+F4');
+    await expect(page.locator('[data-testid="menu-view-fullscreen"]')).toContainText('F11');
+    await expect(page.locator('[data-testid="menu-view-always-on-top"]')).toBeDisabled();
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Shift+F4');
+    await expect(page.locator('[data-testid="thumbnail-0"]')).toBeVisible();
+    await expect(page.locator('[data-testid="markups-list-panel"]')).toBeVisible();
+  });
 });

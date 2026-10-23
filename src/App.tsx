@@ -50,6 +50,7 @@ const HeadersFootersDialog = lazy(() => import('./components/modals/HeadersFoote
 const ReplacePagesDialog = lazy(() => import('./components/modals/ReplacePagesDialog').then((m) => ({ default: m.ReplacePagesDialog })));
 const SplitDocumentDialog = lazy(() => import('./components/modals/SplitDocumentDialog').then((m) => ({ default: m.SplitDocumentDialog })));
 const FullScreenCrosshair = lazy(() => import('./components/shell/FullScreenCrosshair').then((m) => ({ default: m.FullScreenCrosshair })));
+const SketchToScaleDialog = lazy(() => import('./components/modals/SketchToScaleDialog').then((m) => ({ default: m.SketchToScaleDialog })));
 const ReduceSizeDialog = lazy(() => import('./components/modals/ReduceSizeDialog').then((m) => ({ default: m.ReduceSizeDialog })));
 const NumberPagesDialog = lazy(() => import('./components/modals/NumberPagesDialog').then((m) => ({ default: m.NumberPagesDialog })));
 const UndoHistoryDialog = lazy(() => import('./components/modals/UndoHistoryDialog').then((m) => ({ default: m.UndoHistoryDialog })));
@@ -337,6 +338,7 @@ export const App: React.FC = () => {
         <CropPagesDialog />
         <NumberPagesDialog />
         <ReduceSizeDialog />
+        <SketchToScaleDialog />
         <FullScreenCrosshair />
         <HeadersFootersDialog />
         <PrintDialog />

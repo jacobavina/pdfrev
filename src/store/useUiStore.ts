@@ -236,6 +236,8 @@ interface UiState {
   combineModalOpen: boolean;
   /** Diálogo de Offset o Multiply abierto (ADR-0107). */
   copyToolDialog: 'offset' | 'multiply' | null;
+  /** Diálogo de Sketch to Scale abierto (ADR-0128). */
+  sketchScaleOpen: boolean;
   /** Lista del historial de cambios abierta (ADR-0110). */
   undoHistoryOpen: boolean;
   /** Pantalla completa y siempre encima (ADR-0120). */
@@ -290,6 +292,7 @@ interface UiState {
   setShortcutsOpen: (open: boolean) => void;
   setCombineModalOpen: (open: boolean) => void;
   setCopyToolDialog: (dialog: 'offset' | 'multiply' | null) => void;
+  setSketchScaleOpen: (open: boolean) => void;
   setUndoHistoryOpen: (open: boolean) => void;
   /** Hide Panels (Shift+F4): oculta todos los paneles y, la segunda vez, los devuelve. Devuelve si quedaron ocultos. */
   togglePanels: () => boolean;
@@ -343,6 +346,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   setFeatureGuideOpen: (featureGuideOpen) => set({ featureGuideOpen }),
   combineModalOpen: false,
   copyToolDialog: null,
+  sketchScaleOpen: false,
   undoHistoryOpen: false,
   fullscreen: false,
   alwaysOnTop: false,
@@ -380,6 +384,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   setPageToolDialog: (pageToolDialog) => set({ pageToolDialog }),
   setUndoHistoryOpen: (undoHistoryOpen) => set({ undoHistoryOpen }),
   setCopyToolDialog: (copyToolDialog) => set({ copyToolDialog }),
+  setSketchScaleOpen: (sketchScaleOpen) => set({ sketchScaleOpen }),
   setCombineModalOpen: (combineModalOpen) => set({ combineModalOpen }),
   viewMode: readStoredViewMode(),
   fitRequest: null,

@@ -605,6 +605,17 @@ export const FEATURE_GUIDE: GuideSection[] = [
         where: 'File ▸ Batch…',
       },
       {
+        id: 'sketch-to-scale',
+        title: 'Sketch to Scale',
+        summary: 'Draws a shape with exact real-world measurements, using the scale of the page, instead of dragging with the mouse.',
+        steps: [
+          'Choose Edit ▸ Sketch to Scale…, pick a rectangle, circle or ellipse, line (length and angle) or regular polygon (side length and number of sides) and type the measurements in the units of the page scale.',
+          'Press Draw: the shape appears in the middle of the page, selected, with the current markup colours. Drag it into place; Undo removes it.',
+          'If the shape would not fit on the page at that scale, nothing is drawn and you are told why. A page with no scale uses paper millimetres.',
+        ],
+        where: 'Edit ▸ Sketch to Scale…',
+      },
+      {
         id: 'reduce-size',
         title: 'Reduce File Size',
         summary: 'Makes the PDF smaller by lowering the resolution of large images and compressing them again. Lines and text are not touched.',

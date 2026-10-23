@@ -43,6 +43,7 @@
 | Create Page Labels | Document ▸ Page Labels… (ADR-0124) |
 | Batch (Flatten, Number, Rotate, Reduce) | File ▸ Batch… (ADR-0125, ADR-0126) |
 | Full-Screen Crosshair | View ▸ Full-Screen Crosshair, Shift+F8 (ADR-0127) |
+| Sketch to Scale | Edit ▸ Sketch to Scale… (ADR-0128) |
 | Reduce File Size | Document ▸ Reduce File Size… (ADR-0126) |
 | Snapshot (G) | Edit ▸ Snapshot |
 | Rotate Pages, Delete Pages, Extract Pages | Document ▸ Rotate Page 90°, Delete Page, Extract Page… (de una en una) |
@@ -57,7 +58,7 @@
 
 ### Oleada 1: edición y dibujo (la más usada)
 - Full-Screen Crosshair ya está (ADR-0127); Snap to Markup existe con Ctrl+Shift+F7.
-- **Sketch to Scale:** dibujar formas con cota o escala fija.
+- Sketch to Scale ya está (ADR-0128).
 
 ### Oleada 2: documento
   Replace Pages, Split Document, Insert desde archivo y Page Labels ya están: ADR-0114, ADR-0123 y ADR-0124.

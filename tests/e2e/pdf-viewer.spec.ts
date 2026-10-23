@@ -35,7 +35,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     page,
   }) => {
     // 1. Cargar la aplicación
-    await page.goto('/');
+    await openApp(page);
 
     // 2. Verificar que el shell y sus 4 paneles principales existen
     await expect(page.locator('header')).toBeVisible(); // Top bar
@@ -162,7 +162,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   test('Sub-entregable 0.2: Dibuja círculo/elipse, polígono y valida atajo Escape', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openApp(page);
 
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
@@ -225,7 +225,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   test('Sub-entregable 0.3 / 0.4: Botón "Exportar PDF" ejecuta import dinámico y genera descarga de Blob', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openApp(page);
 
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
@@ -258,7 +258,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   test('Sub-entregable A.0: Selección, arrastre con umbral 4px, traslación 50px y reversión atómica con Ctrl+Z', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openApp(page);
 
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
@@ -342,7 +342,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   test('Sub-entregable A.1: Cloud+ como grupo (creación atómica, arrastre conjunto de nube y directriz, y borrado/deshacer en un paso)', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openApp(page);
 
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
@@ -431,7 +431,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   test('Sub-entregable A.2: Multiselección con Marquee por intersección, verificación de lista intacta, arrastre conjunto y undo atómico', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openApp(page);
 
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
@@ -547,7 +547,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   test('Sub-entregable A.3: Creación de Callout con directriz, edición inline, movimiento independiente de ancla y arrastre de la caja con la punta fija', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openApp(page);
 
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
@@ -679,7 +679,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   test('Sub-entregable A.3: Invarianza al zoom de la caja de Callout (mismo tamaño en unidades de página a 100% y 200%)', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openApp(page);
 
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
@@ -778,7 +778,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   test('Sub-entregable A.4: Nota adhesiva técnica stickyNote (atajo N con guarda, popup con 4 colores, commit en confirmación, icono 24x24 pt y reversión atómica)', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openApp(page);
 
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
@@ -897,7 +897,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   test('Sub-entregable A.5: Resaltador vectorial highlightVector (atajo H, guarda de foco, previsualización en vivo, creación atómica, mixBlendMode multiply, umbral de pantalla y undo/redo)', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openApp(page);
 
     const svgOverlay = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(svgOverlay).toBeVisible({ timeout: 15000 });
@@ -1007,7 +1007,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   test('Sub-entregable A.6: Resaltador de texto highlightText (atajo Shift+H vs H, guarda de foco, selección real con offset, cobertura geométrica, escala 200%, multilínea atómica y toast en página sin texto)', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openApp(page);
 
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
@@ -1428,7 +1428,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     page,
   }) => {
     // 1. Cargar la aplicación
-    await page.goto('/');
+    await openApp(page);
 
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
@@ -1533,7 +1533,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   test('Sub-entregable P2-C.3: Columnas personalizadas con parser de gramática cerrada, edición en línea y ordenación', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openApp(page);
 
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
@@ -1722,7 +1722,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     page,
   }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/');
+    await openApp(page);
     await expect(page.locator('[data-testid="markup-overlay-svg"]')).toBeVisible({ timeout: 15000 });
 
     // El contenedor raíz de la app no debe tener contenido más ancho que la ventana
@@ -1745,7 +1745,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="markup-row-calibration-markup-1"]')).toBeVisible();
@@ -1811,7 +1811,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   test('Flechas y tipos de línea (ADR-0018): atajo A, punta abierta de Acrobat, línea discontinua con extremos elegidos en la cinta', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="markup-row-calibration-markup-1"]')).toBeVisible();
@@ -1871,7 +1871,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   test('Vista continua, cota, puntos de control y zoom (ADR-0019/0020/0021): scroll entre páginas, ajustar, Shift+L, deformar nube, doble clic', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="markup-row-calibration-markup-1"]')).toBeVisible();
@@ -1951,7 +1951,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   test('Medición estilo Foxit, sellos y capas del PDF (ADR-0024/0025/0026): preset 1:100, etiqueta, snap, Tools ▸ Stamp', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="markup-row-calibration-markup-1"]')).toBeVisible();
@@ -2007,7 +2007,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   test('Hyperlink, File Attachment y Form (ADR-0027): casilla desde Tools ▸ Form, enlace a página y adjunto', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
@@ -2094,7 +2094,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   test('Mediciones Angle, Radius y Volume con reglas (ADR-0029): atajos Shift+Alt, profundidad y Ctrl+R', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
@@ -2166,7 +2166,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   test('Snap al dibujo, clic-clic y calibración por dos puntos (ADR-0031): cuadrícula del PDF, 140 pies y recálculo', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
@@ -2218,7 +2218,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   test('Estilo de Acrobat en las mediciones (ADR-0032/0033): flechas cerradas, valor dentro de la línea o encima', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
@@ -2254,7 +2254,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(length.locator('line:not([data-testid="distance-leader"])')).toHaveCount(1);
   });
   test('Distancia de Acrobat con líneas de referencia (ADR-0033): tercer clic, flechas cerradas angostas', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
@@ -2283,7 +2283,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(page.locator('[data-testid="markups-list-panel"] tbody tr').filter({ hasText: 'Length' })).toHaveCount(1);
   });
   test('Overlay Pages (ADR-0038): comparar con otra página, colores rojo/azul, alinear y cerrar', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
@@ -2320,7 +2320,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(page.locator('[data-testid="overlay-canvas"]')).toHaveCount(0);
   });
   test('Nube de forma libre, tiradores de Revu y fuente en la barra de propiedades (ADR-0039/0040)', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
@@ -2366,7 +2366,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   });
 
   test('Nube de Revu, tipos de línea con patrón y tamaño de nube en la barra (ADR-0041)', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
@@ -2412,7 +2412,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   });
 
   test('Callout de Revu: se suelta donde va el codo y mover la caja deja la punta fija (ADR-0042)', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
@@ -2459,7 +2459,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   });
 
   test('Al seleccionar una marca se abre su panel de propiedades, y se puede apagar en View (ADR-0043)', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     const props = page.locator('[data-testid="properties-inspector-panel"]');
@@ -2496,7 +2496,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   });
 
   test('Sellos de Revu y Foxit desde el selector de la pestaña Insert (ADR-0045)', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     const box = (await overlaySvg.boundingBox())!;
@@ -2526,7 +2526,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   });
 
   test('Shift endereza el trazo: línea horizontal aunque el cursor se desvíe (ADR-0047)', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     const box = (await overlaySvg.boundingBox())!;
@@ -2548,7 +2548,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   });
 
   test('Vista lado a lado: otra página del documento al mismo zoom, con navegación y Sync (ADR-0049)', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     await page.locator('[data-testid="menu-documento"]').click();
@@ -2579,7 +2579,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   });
 
   test('Overlay Pages: alinear la página comparada con dos pares de puntos (ADR-0050)', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     await page.locator('[data-testid="menu-documento"]').click();
@@ -2614,7 +2614,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
       localStorage.setItem('rea-markups-list-at-start', '0');
       localStorage.setItem('rea-markups-group', '1');
     });
-    await page.goto('/');
+    await openApp(page);
     await expect(page.locator('[data-testid="markup-overlay-svg"]')).toBeVisible({ timeout: 15000 });
     const panel = page.locator('[data-testid="markups-list-panel"]');
     const toggle = page.locator('[data-testid="markups-list-toggle"]');
@@ -2649,7 +2649,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   test('Cloud+ con tiradores: la nube se redimensiona, la llamada queda fija y un Ctrl+Z revierte (ADR-0069)', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
 
@@ -2705,7 +2705,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   test('Escenario S1 (ADR-0074): responde a una marca en MarkupsList, cambia estados, alinea marcas y verifica persistencia', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     const markupsPanel = page.locator('[data-testid="markups-list-panel"]');
@@ -2802,7 +2802,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   test('Escenario S2 (ADR-0080): calibra, mide área con recorte, cuenta puertas, calcula subtotales y exporta .xlsx', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     const markupsPanel = page.locator('[data-testid="markups-list-panel"]');
@@ -2874,7 +2874,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     doc.getPage(0).drawRectangle({ x: 500, y: 350, width: 140, height: 50, color: rgb(0, 0, 0) });
     const revB = Buffer.from(await doc.save());
 
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
@@ -2921,7 +2921,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   });
 
   test('Secuencias numeradas (ADR-0094): cada clic coloca el siguiente número y el formato se elige en el panel', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
@@ -2948,7 +2948,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   });
 
   test('Relleno dinámico (ADR-0095): un clic dentro del rectángulo de control crea su medición de área', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
@@ -2964,7 +2964,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   });
 
   test('Informe de marcas con miniaturas (ADR-0096): el PDF del informe incluye la imagen de la hoja', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     await expect(page.locator('[data-testid="markup-overlay-svg"]')).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
     const download = page.waitForEvent('download');
@@ -2975,7 +2975,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   });
 
   test('Texto separable de la flecha (ADR-0097): el tirador del texto de una distancia la separa de la línea', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
@@ -3017,7 +3017,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   });
 
   test('Perfiles de interfaz (ADR-0098): View ▸ Profiles cambia la disposición y se recuerda al recargar', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     await expect(page.locator('[data-testid="markup-overlay-svg"]')).toBeVisible({ timeout: 15000 });
 
     const choose = async (id: string) => {
@@ -3045,7 +3045,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   });
 
   test('Guía de funciones (ADR-0100): Help ▸ Feature Guide se abre, busca y se cierra', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     await expect(page.locator('[data-testid="markup-overlay-svg"]')).toBeVisible({ timeout: 15000 });
     await page.locator('[data-testid="menu-ayuda"]').click();
     await page.locator('[data-testid="menu-help-guide"]').click();
@@ -3072,7 +3072,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
       '</BluebeamRevuToolSet>',
     ].join('\r\n');
 
-    await page.goto('/');
+    await openApp(page);
     await expect(page.locator('[data-testid="markup-overlay-svg"]')).toBeVisible({ timeout: 15000 });
     // El plano de prueba ya cargado: al terminar de cargar la app pliega el panel derecho, y abrirlo antes lo cerraba
     await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
@@ -3103,7 +3103,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   });
 
   test('Redacción permanente (ADR-0103): una caja sobre el título lo elimina del PDF y deja de poder buscarse', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
@@ -3137,7 +3137,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   });
 
   test('Select Text (ADR-0104): arrastrar sobre el texto del plano lo selecciona para copiarlo', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="pdf-page-container"]').getByText('PLANO DE PRUEBA', { exact: false }).first()).toBeAttached({ timeout: 15000 });
@@ -3158,7 +3158,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   });
 
   test('Offset y Multiply (ADR-0107): Ctrl+M repite el rectángulo en filas y columnas y O abre Offset', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="pdf-page-container"]').getByText('PLANO DE PRUEBA', { exact: false }).first()).toBeAttached({ timeout: 15000 });
@@ -3192,7 +3192,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
 
   test('Menús en ventana baja (ADR-0108): el menú View se desplaza por dentro y su último submenú queda entero a la vista', async ({ page }) => {
     await page.setViewportSize({ width: 900, height: 480 });
-    await page.goto('/');
+    await openApp(page);
     await expect(page.locator('[data-testid="markup-overlay-svg"]')).toBeVisible({ timeout: 15000 });
     await page.locator('[data-testid="menu-ver"]').click();
     const popup = page.locator('[data-testid="menu-popup-ver"]');
@@ -3214,7 +3214,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   });
 
   test('Lasso (ADR-0110): un lazo libre alrededor del rectángulo del plano lo selecciona y devuelve la herramienta Select', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     await expect(overlaySvg.locator('g[data-testid^="markup-g-"]').first()).toBeAttached({ timeout: 15000 });
@@ -3235,7 +3235,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   });
 
   test('Undo History (ADR-0110): la lista muestra los cambios y volver a "Document as opened" los deshace', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
     await expect(overlaySvg).toBeVisible({ timeout: 15000 });
     await expect(overlaySvg.locator('g[data-testid^="markup-g-"]').first()).toBeAttached({ timeout: 15000 });
@@ -3257,7 +3257,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   });
 
   test('Number Pages y Document Properties (ADR-0113): el número estampado aparece como texto de la página y las propiedades se editan', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     await expect(page.locator('[data-testid="markup-overlay-svg"]')).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="pdf-page-container"]').getByText('PLANO DE PRUEBA', { exact: false }).first()).toBeAttached({ timeout: 15000 });
     await page.locator('[data-testid="menu-documento"]').click();
@@ -3279,7 +3279,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   });
 
   test('Crop Pages (ADR-0113): recortar los márgenes de la página 1 cambia su tamaño y Restore full page lo devuelve', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     const container = page.locator('[data-testid="pdf-page-container"]').first();
     await expect(container).toBeVisible({ timeout: 15000 });
     await expect(container.getByText('PLANO DE PRUEBA', { exact: false }).first()).toBeAttached({ timeout: 15000 });
@@ -3302,7 +3302,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   });
 
   test('Headers & Footers (ADR-0114): el texto con campos aparece en la capa de texto de las páginas', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     const container = page.locator('[data-testid="pdf-page-container"]');
     await expect(container.getByText('PLANO DE PRUEBA', { exact: false }).first()).toBeAttached({ timeout: 15000 });
     await page.locator('[data-testid="menu-documento"]').click();
@@ -3316,7 +3316,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   });
 
   test('Replace Pages (ADR-0114): la página 2 se sustituye por la 1 de otro PDF y el documento conserva sus 3 páginas', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     const container = page.locator('[data-testid="pdf-page-container"]');
     await expect(container.getByText('PLANO DE PRUEBA', { exact: false }).first()).toBeAttached({ timeout: 15000 });
     await expect(page.locator('[data-testid="thumbnail-2"]')).toBeVisible({ timeout: 15000 });
@@ -3342,7 +3342,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   });
 
   test('Split Document (ADR-0114): en el navegador descarga un PDF por parte con el nombre de sus páginas', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     await expect(page.locator('[data-testid="pdf-page-container"]').getByText('PLANO DE PRUEBA', { exact: false }).first()).toBeAttached({ timeout: 15000 });
     await page.locator('[data-testid="menu-documento"]').click();
     await page.locator('[data-testid="menu-split-document"]').click();
@@ -3700,5 +3700,19 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     expect(h!.width).toBeGreaterThan(1000);
     await page.keyboard.press('Shift+F8');
     await expect(page.locator('[data-testid="crosshair"]')).toHaveCount(0);
+  });
+  test('Sketch to Scale (ADR-0128): Edit ▸ Sketch to Scale dibuja un rectángulo con medidas y queda como una marca más', async ({ page }) => {
+    await openApp(page);
+    const marks = page.locator('[data-testid="markup-overlay-svg"] g[data-testid^="markup-g-"]');
+    await expect(marks.first()).toBeAttached({ timeout: 15000 });
+    const before = await marks.count();
+    await page.locator('[data-testid="menu-editar"]').click();
+    await page.locator('[data-testid="menu-sketch-to-scale"]').click();
+    await expect(page.locator('[data-testid="sketch-dialog"]')).toBeVisible();
+    await page.locator('[data-testid="sketch-width"]').fill('1');
+    await page.locator('[data-testid="sketch-height"]').fill('1');
+    await page.locator('[data-testid="sketch-apply"]').click();
+    await expect(page.locator('[data-testid="sketch-dialog"]')).toHaveCount(0);
+    await expect(marks).toHaveCount(before + 1);
   });
 });

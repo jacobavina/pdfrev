@@ -586,6 +586,17 @@ export const FEATURE_GUIDE: GuideSection[] = [
         where: 'View ▸ Panels ▸ Links Panel',
       },
       {
+        id: 'batch',
+        title: 'Batch',
+        summary: 'Applies one operation to many PDF files without opening them: flatten the markups, number the pages or rotate every page. The originals are not changed.',
+        steps: [
+          'Choose File ▸ Batch…, add the PDF files, choose the operation and press Run. In the desktop app you pick the folder for the results; in the browser they are downloaded.',
+          'Each result keeps the name with a suffix: _flattened, _numbered or _rotated90. A file that fails (damaged, or with no markups to flatten) is marked with the reason and the rest are still processed.',
+          'Save report writes a CSV with the result of every file. Up to 200 files per batch.',
+        ],
+        where: 'File ▸ Batch…',
+      },
+      {
         id: 'print',
         title: 'Print',
         summary: 'Prints the pages you choose, with or without the markups, then opens the system print dialog to pick the printer, paper and copies.',

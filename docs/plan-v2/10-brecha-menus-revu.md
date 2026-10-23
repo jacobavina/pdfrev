@@ -41,6 +41,7 @@
 | Signatures | View ▸ Panels ▸ Signatures Panel (ADR-0122) |
 | Insert Pages from File | Document ▸ Insert Pages from File… (ADR-0123) |
 | Create Page Labels | Document ▸ Page Labels… (ADR-0124) |
+| Batch (Flatten, Number, Rotate) | File ▸ Batch… (ADR-0125) |
 | Snapshot (G) | Edit ▸ Snapshot |
 | Rotate Pages, Delete Pages, Extract Pages | Document ▸ Rotate Page 90°, Delete Page, Extract Page… (de una en una) |
 | Combine | File ▸ Combine Files… |
@@ -64,7 +65,7 @@
 - Atajo **Shift+H** del hipervínculo.
 
 ### Oleada 4: proceso por lotes y avanzados
-- **Batch:** Flatten, Summary, Headers & Footers, OCR y Rotate sobre varios archivos con informe.
+- **Batch:** Flatten, Number pages y Rotate sobre varios archivos con informe ya están (ADR-0125); faltan OCR, Headers & Footers y Summary como operaciones del lote.
 - **Slip Sheet:** reemplazar láminas antiguas por las nuevas conservando las marcas.
 - **Reduce File Size**, **Security** (ya documentada como pendiente, ver ADR-0099) y **Reuse**.
 

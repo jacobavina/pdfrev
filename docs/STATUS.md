@@ -267,6 +267,7 @@
 | `P5-D.23` | Panel Signatures | **Cerrado** | ADR-0122. Campos de firma por página con estado, Sign… hacia las propiedades, Verify con cuatro desenlaces y lectura de motivo y lugar con acentos. Falta verificarlo en ventana nativa con un PDF firmado real. |
 | `P5-D.24` | Insert Pages from File | **Cerrado** | ADR-0123. Páginas de otro PDF antes, después o al final, con marcas, escalas y viewports corridos. Falta verificarlo en ventana nativa. |
 | `P5-D.25` | Editar etiquetas de página | **Cerrado** | ADR-0124. Rangos con estilo, prefijo y primer número escritos en `/PageLabels`, con vista previa. Falta verificarlo en ventana nativa y en Revu. |
+| `P5-D.26` | Batch | **Cerrado** | ADR-0125. File ▸ Batch…: aplanar marcas, numerar o girar varios PDF con resultados con sufijo, informe CSV y fallos por archivo. Falta verificarlo en ventana nativa con una carpeta de planos. |
 
 ---
 

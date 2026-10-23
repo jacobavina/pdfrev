@@ -42,6 +42,7 @@ const DocumentBar = lazy(() =>
 );
 const DocumentPropertiesDialog = lazy(() => import('./components/modals/DocumentPropertiesDialog').then((m) => ({ default: m.DocumentPropertiesDialog })));
 const CropPagesDialog = lazy(() => import('./components/modals/CropPagesDialog').then((m) => ({ default: m.CropPagesDialog })));
+const BatchDialog = lazy(() => import('./components/modals/BatchDialog').then((m) => ({ default: m.BatchDialog })));
 const PageLabelsDialog = lazy(() => import('./components/modals/PageLabelsDialog').then((m) => ({ default: m.PageLabelsDialog })));
 const InsertPagesDialog = lazy(() => import('./components/modals/InsertPagesDialog').then((m) => ({ default: m.InsertPagesDialog })));
 const PrintDialog = lazy(() => import('./components/modals/PrintDialog').then((m) => ({ default: m.PrintDialog })));
@@ -332,6 +333,7 @@ export const App: React.FC = () => {
         <PrintDialog />
         <InsertPagesDialog />
         <PageLabelsDialog />
+        <BatchDialog />
         <ReplacePagesDialog />
         <SplitDocumentDialog />
       </Suspense>

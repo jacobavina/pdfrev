@@ -340,6 +340,7 @@ export const MenuBar: React.FC = () => {
           testId: 'menu-save-as',
         },
         { icon: <Printer size={16} />, label: 'Print…', shortcut: 'Ctrl+P', onSelect: () => useUiStore.getState().setPageToolDialog('print'), disabled: !hasDoc, testId: 'menu-print' },
+        { icon: <Layers size={16} />, label: 'Batch…', onSelect: () => useUiStore.getState().setPageToolDialog('batch'), testId: 'menu-batch' },
         'separator',
         {
           icon: <FileDown size={16} />,

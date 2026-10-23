@@ -3615,4 +3615,24 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(page.locator('[data-testid="page-label-0"]')).toContainText('Page 1 (P-i)', { timeout: 15000 });
     await expect(page.locator('[data-testid="page-label-2"]')).toContainText('Page 3 (P-iii)');
   });
+
+  test('Batch (ADR-0125): dos PDF se giran sin abrirlos y cada resultado se descarga con su sufijo', async ({ page }) => {
+    await openApp(page);
+    await page.locator('[data-testid="menu-archivo"]').click();
+    await page.locator('[data-testid="menu-batch"]').click();
+    await expect(page.locator('[data-testid="batch-problem"]')).toContainText('Add the PDF files');
+    const chooser = page.waitForEvent('filechooser');
+    await page.locator('[data-testid="batch-add"]').click();
+    await (await chooser).setFiles(['fixtures/test-blueprint.pdf', 'fixtures/test-blueprint-rotated.pdf']);
+    await expect(page.locator('[data-testid="batch-count"]')).toHaveText('2 files');
+    await page.locator('[data-testid="batch-kind-rotate"]').check();
+    await page.locator('[data-testid="batch-degrees"]').selectOption('180');
+    const names: string[] = [];
+    page.on('download', (d) => names.push(d.suggestedFilename()));
+    await page.locator('[data-testid="batch-run"]').click();
+    await expect(page.locator('[data-testid="batch-summary"]')).toContainText('2 of 2 processed', { timeout: 30000 });
+    expect(names.sort()).toEqual(['test-blueprint-rotated_rotated180.pdf', 'test-blueprint_rotated180.pdf']);
+    // El documento abierto no cambió: sigue con sus tres páginas
+    await expect(page.locator('[data-testid="page-indicator"]')).toContainText('/ 3');
+  });
 });

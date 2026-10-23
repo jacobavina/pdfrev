@@ -265,6 +265,7 @@
 | `P5-D.21` | Full Screen, Hide Panels y Always On Top | **Cerrado** | ADR-0120. `F11`, `Shift+F4` y siempre encima (solo escritorio); tres permisos de ventana en la capacidad, ejercitados por el smoke nativo. |
 | `P5-D.22` | Panel Forms | **Cerrado** | ADR-0121. Campos de formulario por página, rellenables desde el panel, con avance, siguiente vacío, vaciar y CSV. Falta verificarlo en ventana nativa con un formulario real. |
 | `P5-D.23` | Panel Signatures | **Cerrado** | ADR-0122. Campos de firma por página con estado, Sign… hacia las propiedades, Verify con cuatro desenlaces y lectura de motivo y lugar con acentos. Falta verificarlo en ventana nativa con un PDF firmado real. |
+| `P5-D.24` | Insert Pages from File | **Cerrado** | ADR-0123. Páginas de otro PDF antes, después o al final, con marcas, escalas y viewports corridos. Falta verificarlo en ventana nativa. |
 
 ---
 

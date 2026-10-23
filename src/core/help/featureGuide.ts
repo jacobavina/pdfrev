@@ -608,6 +608,16 @@ export const FEATURE_GUIDE: GuideSection[] = [
         where: 'Document ▸ Headers & Footers…',
       },
       {
+        id: 'insert-pages',
+        title: 'Insert pages from a file',
+        summary: 'Puts pages of another PDF into this document, before or after the page you are on or at the end.',
+        steps: [
+          'Choose Document ▸ Insert Pages from File…, choose the PDF, type which of its pages to insert (1-3, 5) and where they go.',
+          'The markups, scales and measurement viewports of the pages that come after move with their pages. The change cannot be undone: save a copy first.',
+        ],
+        where: 'Document ▸ Insert Pages from File…',
+      },
+      {
         id: 'replace-pages',
         title: 'Replace pages',
         summary: 'Swaps pages of this document for pages of another PDF, for example when a sheet gets a new revision. The number of pages may change.',

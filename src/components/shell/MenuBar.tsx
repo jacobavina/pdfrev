@@ -563,6 +563,7 @@ export const MenuBar: React.FC = () => {
         { icon: <ListOrdered size={16} />, label: 'Number Pages…', onSelect: () => useUiStore.getState().setPageToolDialog('number'), disabled: !hasDoc, testId: 'menu-number-pages' },
         { icon: <PanelTop size={16} />, label: 'Headers & Footers…', onSelect: () => useUiStore.getState().setPageToolDialog('headerFooter'), disabled: !hasDoc, testId: 'menu-headers-footers' },
         { icon: <Replace size={16} />, label: 'Replace Pages…', onSelect: () => useUiStore.getState().setPageToolDialog('replace'), disabled: !hasDoc, testId: 'menu-replace-pages' },
+        { icon: <FilePlus2 size={16} />, label: 'Insert Pages from File…', onSelect: () => useUiStore.getState().setPageToolDialog('insert'), disabled: !hasDoc, testId: 'menu-insert-pages' },
         { icon: <Scissors size={16} />, label: 'Split Document…', onSelect: () => useUiStore.getState().setPageToolDialog('split'), disabled: !hasDoc, testId: 'menu-split-document' },
         'separator',
         { icon: <FileText size={16} />, label: 'Document Properties…', onSelect: () => useUiStore.getState().setPageToolDialog('properties'), disabled: !hasDoc, testId: 'menu-document-properties' },

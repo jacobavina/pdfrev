@@ -136,3 +136,41 @@ export async function executeSplitDocument(parts: number[][]): Promise<Outcome> 
     return { ok: false, message: `Could not split the document: ${err instanceof Error ? err.message : String(err)}` };
   }
 }
+
+// ── Insert Pages ──────────────────────────────────────────────────────────────────────────────────────────────────
+
+export interface InsertRequest {
+  /** Posición (0-based) antes de la que se insertan las páginas; igual al total es al final. */
+  at: number;
+  source: { name: string; bytes: Uint8Array };
+  /** Páginas del otro PDF que se insertan, en orden (0-based). */
+  sourceIndices: number[];
+}
+
+/** Inserta páginas de otro PDF y corre marcas, escalas y viewports de las páginas que quedan después. */
+export async function executeInsertPages(req: InsertRequest): Promise<Outcome> {
+  const { pdfBytes } = useDocumentStore.getState();
+  if (!pdfBytes) return { ok: false, message: 'No document open.' };
+  try {
+    const { insertPdfPages } = await import('../core/pages/insertPages');
+    const { remapViewportsOnPageInsertion } = await import('../core/pages/replacePages');
+    const ops = await import('../core/pages/pageOperations');
+    const result = await insertPdfPages(pdfBytes, req.at, req.source.bytes, req.sourceIndices);
+    let markups = useMarkupStore.getState().markups;
+    let { calibrations, viewports } = useCalibrationStore.getState();
+    for (let k = 0; k < req.sourceIndices.length; k++) {
+      markups = ops.remapMarkupsOnPageInsertion(markups, req.at + k);
+      calibrations = ops.remapCalibrationsOnPageInsertion(calibrations, req.at + k);
+      viewports = remapViewportsOnPageInsertion(viewports, req.at + k);
+    }
+    useMarkupStore.getState().setMarkups(markups);
+    useCalibrationStore.setState({ calibrations, viewports });
+    await replaceOpenDocument(result.bytes);
+    // Las etiquetas de página por posición ya no corresponden
+    useDocumentStore.setState({ currentPageIndex: Math.min(req.at, result.pagesAfter - 1), pageLabels: null });
+    const n = req.sourceIndices.length;
+    return { ok: true, message: `${n} page${n === 1 ? '' : 's'} inserted (${result.pagesBefore} → ${result.pagesAfter} pages).` };
+  } catch (err) {
+    return { ok: false, message: err instanceof Error ? err.message : String(err) };
+  }
+}

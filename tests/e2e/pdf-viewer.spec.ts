@@ -3582,4 +3582,22 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.locator('[data-testid^="signature-sign-"]').click();
     await expect(page.locator('[data-testid="properties-inspector-panel"]')).toBeVisible();
   });
+
+  test('Insert Pages (ADR-0123): las páginas de otro PDF se insertan al final y el documento pasa de 3 a 5 páginas', async ({ page }) => {
+    await openApp(page);
+    await expect(page.locator('[data-testid="thumbnail-2"]')).toBeVisible({ timeout: 15000 });
+    await page.locator('[data-testid="menu-documento"]').click();
+    await page.locator('[data-testid="menu-insert-pages"]').click();
+    await page.locator('[data-testid="insert-where-end"]').check();
+    const chooser = page.waitForEvent('filechooser');
+    await page.locator('[data-testid="insert-choose"]').click();
+    await (await chooser).setFiles('fixtures/test-blueprint.pdf');
+    await expect(page.locator('[data-testid="insert-source"]')).toContainText('test-blueprint.pdf (3 pages)');
+    await page.locator('[data-testid="insert-pages"]').fill('1-2');
+    await expect(page.locator('[data-testid="insert-summary"]')).toContainText('The document will have 5 pages.');
+    await page.locator('[data-testid="insert-apply"]').click();
+    await expect(page.locator('[data-testid="insert-pages-dialog"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid="thumbnail-4"]')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="page-indicator"]')).toContainText('/ 5');
+  });
 });

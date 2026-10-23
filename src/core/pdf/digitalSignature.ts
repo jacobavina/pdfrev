@@ -1105,6 +1105,25 @@ export async function signPdfWithCertificate(
 }
 
 /**
+ * Texto de una clave de la firma (/Reason, /Location): entre paréntesis o en hexadecimal, y en UTF-16 con BOM cuando
+ * lleva acentos (un motivo o un lugar con "México" no cabe en el literal de PDFDocEncoding).
+ */
+export function readSignatureText(raw: string, key: string): string | undefined {
+  const literal = new RegExp('/' + key + String.raw`\s*\(([^)]*)\)`).exec(raw);
+  if (literal) return literal[1];
+  const hex = new RegExp('/' + key + String.raw`\s*<([0-9A-Fa-f\s]+)>`).exec(raw);
+  if (!hex) return undefined;
+  const clean = hex[1].replace(/\s+/g, '');
+  const bytes = (clean.match(/../g) ?? []).map((h) => parseInt(h, 16));
+  if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
+    let out = '';
+    for (let i = 2; i + 1 < bytes.length; i += 2) out += String.fromCharCode((bytes[i] << 8) | bytes[i + 1]);
+    return out;
+  }
+  return String.fromCharCode(...bytes);
+}
+
+/**
  * Verifica criptográficamente la firma digital PKCS#7 / CMS de un PDF:
  * comprueba `/ByteRange`, el resumen SHA-256 de los rangos de bytes y la firma RSA del `SignerInfo`.
  */
@@ -1210,14 +1229,11 @@ export async function verifyPdfSignature(pdfBytes: Uint8Array): Promise<Verified
     signedAttrsSet as BufferSource
   );
 
-  const reasonMatch = /\/Reason\s*\(([^)]*)\)/.exec(raw);
-  const locationMatch = /\/Location\s*\(([^)]*)\)/.exec(raw);
-
   return {
     valid: digestsMatch && rsaValid,
     signerName,
-    reason: reasonMatch?.[1],
-    location: locationMatch?.[1],
+    reason: readSignatureText(raw, 'Reason'),
+    location: readSignatureText(raw, 'Location'),
     byteRange: [r1Start, r1Len, r2Start, r2Len],
     coversWholeDocument: r2Start + r2Len === pdfBytes.length,
   };

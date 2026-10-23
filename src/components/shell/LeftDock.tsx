@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Files, Bookmark, Layers, Link2, Flag, DoorOpen, Library, TextCursorInput, Eye, EyeOff, ChevronRight, ChevronDown } from 'lucide-react';
+import { Files, Bookmark, Layers, Link2, Flag, DoorOpen, Library, TextCursorInput, Signature, Eye, EyeOff, ChevronRight, ChevronDown } from 'lucide-react';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { listPdfLayers, OptionalContentConfigLike } from '../../core/pdf/pdfLayers';
 import { useMarkupStore } from '../../store/useMarkupStore';
@@ -11,6 +11,7 @@ import { FlagsPanel } from '../panels/FlagsPanel';
 import { SpacesPanel } from '../panels/SpacesPanel';
 import { SetsPanel } from '../panels/SetsPanel';
 import { FormsPanel } from '../panels/FormsPanel';
+import { SignaturesPanel } from '../panels/SignaturesPanel';
 
 const TABS: { id: LeftPanelTab; label: string; icon: React.ReactNode }[] = [
   { id: 'pages', label: 'Thumbnails', icon: <Files size={16} /> },
@@ -21,6 +22,7 @@ const TABS: { id: LeftPanelTab; label: string; icon: React.ReactNode }[] = [
   { id: 'spaces', label: 'Spaces', icon: <DoorOpen size={16} /> },
   { id: 'sets', label: 'Sets', icon: <Library size={16} /> },
   { id: 'forms', label: 'Forms', icon: <TextCursorInput size={16} /> },
+  { id: 'signatures', label: 'Signatures', icon: <Signature size={16} /> },
 ];
 
 // ---------------------------------------------------------------- Marcadores (índice del PDF)
@@ -283,6 +285,7 @@ export const LeftDock: React.FC = () => {
       {leftOpen && leftTab === 'spaces' && <SpacesPanel />}
       {leftOpen && leftTab === 'sets' && <SetsPanel />}
       {leftOpen && leftTab === 'forms' && <FormsPanel />}
+      {leftOpen && leftTab === 'signatures' && <SignaturesPanel />}
     </div>
   );
 };

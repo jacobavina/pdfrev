@@ -38,6 +38,7 @@
 | Sets | View ▸ Panels ▸ Sets Panel, solo escritorio (ADR-0119) |
 | Full Screen, Hide Panels, Always On Top | View ▸ Full Screen (F11), Hide Panels (Shift+F4), Always On Top (ADR-0120) |
 | Forms | View ▸ Panels ▸ Forms Panel (ADR-0121) |
+| Signatures | View ▸ Panels ▸ Signatures Panel (ADR-0122) |
 | Snapshot (G) | Edit ▸ Snapshot |
 | Rotate Pages, Delete Pages, Extract Pages | Document ▸ Rotate Page 90°, Delete Page, Extract Page… (de una en una) |
 | Combine | File ▸ Combine Files… |
@@ -57,7 +58,7 @@
   **Replace Pages**, **Split Document**, **Insert desde archivo** y edición de **Page Labels**.
 
 ### Oleada 3: ventana y paneles
-- Panel propio de Signatures (Links, Flags, Spaces, Sets y Forms ya están: ADR-0116 a ADR-0121).
+- Los seis paneles (Links, Flags, Spaces, Sets, Forms y Signatures) ya están: ADR-0116 a ADR-0122.
 - Atajo **Shift+H** del hipervínculo.
 
 ### Oleada 4: proceso por lotes y avanzados

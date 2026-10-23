@@ -519,6 +519,17 @@ export const FEATURE_GUIDE: GuideSection[] = [
     title: 'Pages and documents',
     entries: [
       {
+        id: 'signatures-panel',
+        title: 'Signatures panel',
+        summary: 'Lists the signature fields of the document, signed or pending, and checks the digital signature of the PDF.',
+        steps: [
+          'Open it with the signature button of the left rail or View ▸ Panels ▸ Signatures Panel. Signed fields show who signed, when, and the reason and place.',
+          'Sign… on a pending field takes you to it and opens its properties, where you sign with your certificate (.pfx / .p12). Next unsigned jumps from field to field.',
+          'Verify checks the signature of the document: valid, valid but changed afterwards (markups added after signing), not valid, or no signature.',
+        ],
+        where: 'View ▸ Panels ▸ Signatures Panel',
+      },
+      {
         id: 'forms-panel',
         title: 'Forms panel',
         summary: 'Lists the form fields of the document by page, with their values, so you can fill a whole form from one place.',

@@ -3561,4 +3561,25 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(page.locator('[data-testid="forms-progress"]')).toHaveText('0 of 1 filled');
     await expect(field.locator('path')).toHaveCount(0);
   });
+
+  test('Signatures (ADR-0122): un campo de firma nuevo aparece sin firmar, Sign… abre sus propiedades y Verify avisa de que el PDF no está firmado', async ({ page }) => {
+    await openApp(page);
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg.locator('g[data-testid^="markup-g-"]').first()).toBeAttached({ timeout: 15000 });
+    const box = (await overlaySvg.boundingBox())!;
+    await page.locator('[data-testid="menu-herramientas"]').click();
+    await page.locator('[data-testid="menu-tools-signature"]').hover();
+    await page.locator('[data-testid="menu-field-signature"]').click();
+    await page.mouse.click(box.x + box.width * 0.7, box.y + box.height * 0.2);
+    await expect(overlaySvg.locator('g[data-testid^="markup-field-"]')).toHaveCount(1);
+    await page.locator('[data-testid="menu-ver"]').click();
+    await page.locator('[data-testid="menu-view-panels"]').hover();
+    await page.locator('[data-testid="menu-panel-signatures"]').click();
+    await expect(page.locator('[data-testid="signatures-count"]')).toHaveText('0 of 1 signed');
+    await expect(page.locator('[data-testid="signatures-panel"] li')).toContainText('Not signed');
+    await page.locator('[data-testid="signatures-verify"]').click();
+    await expect(page.locator('[data-testid="signatures-result"]')).toContainText('has not been signed');
+    await page.locator('[data-testid^="signature-sign-"]').click();
+    await expect(page.locator('[data-testid="properties-inspector-panel"]')).toBeVisible();
+  });
 });

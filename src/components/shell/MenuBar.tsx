@@ -473,6 +473,7 @@ export const MenuBar: React.FC = () => {
             { icon: <DoorOpen size={16} />, label: 'Spaces Panel', onSelect: () => setLeftTab('spaces'), testId: 'menu-panel-spaces' },
             { icon: <Library size={16} />, label: 'Sets Panel', onSelect: () => setLeftTab('sets'), testId: 'menu-panel-sets' },
             { icon: <TextCursorInput size={16} />, label: 'Forms Panel', onSelect: () => setLeftTab('forms'), testId: 'menu-panel-forms' },
+            { icon: <Signature size={16} />, label: 'Signatures Panel', onSelect: () => setLeftTab('signatures'), testId: 'menu-panel-signatures' },
             { icon: <SlidersHorizontal size={16} />, label: 'Properties Panel', onSelect: requestPropertiesPanel, testId: 'menu-panel-properties' },
             { icon: <LengthMeasureIcon size={16} />, label: 'Measurements Panel', onSelect: requestMeasurementsPanel, testId: 'menu-panel-measurements' },
             {

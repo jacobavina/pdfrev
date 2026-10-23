@@ -3422,4 +3422,41 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
     await expect(page.locator('#rea-print-root')).toHaveCount(0);
   });
+
+  test('Panel Links (ADR-0116): un hipervínculo nuevo aparece en el panel, se sigue desde él y se borra con Undo disponible', async ({ page }) => {
+    await openApp(page);
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(page.locator('[data-testid="pdf-page-container"]').getByText('PLANO DE PRUEBA', { exact: false }).first()).toBeAttached({ timeout: 15000 });
+    await page.locator('[data-testid="menu-ver"]').click();
+    await page.locator('[data-testid="menu-view-panels"]').hover();
+    await page.locator('[data-testid="menu-panel-links"]').click();
+    await expect(page.locator('[data-testid="links-panel"]')).toBeVisible();
+    await expect(page.locator('[data-testid="links-empty"]')).toContainText('has no links');
+    // Un enlace a la página 3
+    const box = (await overlaySvg.boundingBox())!;
+    const at = (nx: number, ny: number) => ({ x: box.x + box.width * nx, y: box.y + box.height * ny });
+    await page.locator('[data-testid="ribbon-tab-insert"]').click();
+    await page.locator('[data-testid="tool-link"]').click();
+    const a = at(0.72, 0.55);
+    const b = at(0.92, 0.6);
+    await page.mouse.move(a.x, a.y);
+    await page.mouse.down();
+    await page.mouse.move(b.x, b.y, { steps: 5 });
+    await page.mouse.up();
+    await page.locator('[data-testid="link-mode-page"]').check();
+    await page.locator('[data-testid="link-page"]').fill('3');
+    await page.locator('[data-testid="link-confirm"]').click();
+    const row = page.locator('[data-testid="links-panel"] li').first();
+    await expect(row).toContainText('Page 3');
+    await expect(page.locator('[data-testid="links-count"]')).toHaveText('1');
+    // Seguirlo desde el panel lleva a la página 3
+    await row.locator('button[data-testid^="link-follow-"]').click();
+    await expect(page.locator('[data-testid="page-indicator"]')).toHaveText('3 / 3');
+    // Borrarlo quita la marca y Undo la devuelve
+    await row.locator('button[data-testid^="link-delete-"]').click();
+    await expect(page.locator('[data-testid="links-empty"]')).toBeVisible();
+    await page.locator('[data-testid="menu-editar"]').click();
+    await page.getByRole('menuitem', { name: 'Undo Ctrl+Z' }).click();
+    await expect(page.locator('[data-testid="links-panel"] li')).toHaveCount(1);
+  });
 });

@@ -449,6 +449,7 @@ export const MenuBar: React.FC = () => {
             { icon: <PanelLeft size={16} />, label: 'Thumbnails Panel', onSelect: () => setLeftTab('pages'), testId: 'menu-panel-thumbnails' },
             { icon: <Bookmark size={16} />, label: 'Bookmarks Panel', onSelect: () => setLeftTab('bookmarks'), testId: 'menu-panel-bookmarks' },
             { icon: <Layers size={16} />, label: 'Layers Panel', onSelect: () => setLeftTab('layers'), testId: 'menu-panel-layers' },
+            { icon: <Link2 size={16} />, label: 'Links Panel', onSelect: () => setLeftTab('links'), testId: 'menu-panel-links' },
             { icon: <SlidersHorizontal size={16} />, label: 'Properties Panel', onSelect: requestPropertiesPanel, testId: 'menu-panel-properties' },
             { icon: <LengthMeasureIcon size={16} />, label: 'Measurements Panel', onSelect: requestMeasurementsPanel, testId: 'menu-panel-measurements' },
             {

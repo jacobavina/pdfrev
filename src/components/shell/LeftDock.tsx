@@ -1,29 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Files, Bookmark, Layers, Eye, EyeOff, ChevronRight, ChevronDown } from 'lucide-react';
+import { Files, Bookmark, Layers, Link2, Eye, EyeOff, ChevronRight, ChevronDown } from 'lucide-react';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { listPdfLayers, OptionalContentConfigLike } from '../../core/pdf/pdfLayers';
 import { useMarkupStore } from '../../store/useMarkupStore';
 import { useUiStore, LeftPanelTab, NO_LAYER } from '../../store/useUiStore';
 import { ThumbnailsSidebar } from '../ThumbnailsSidebar';
+import { PanelShell } from './PanelShell';
+import { LinksPanel } from '../panels/LinksPanel';
 
 const TABS: { id: LeftPanelTab; label: string; icon: React.ReactNode }[] = [
   { id: 'pages', label: 'Thumbnails', icon: <Files size={16} /> },
   { id: 'bookmarks', label: 'Bookmarks', icon: <Bookmark size={16} /> },
   { id: 'layers', label: 'Layers', icon: <Layers size={16} /> },
+  { id: 'links', label: 'Links', icon: <Link2 size={16} /> },
 ];
-
-const PanelShell: React.FC<{ title: string; testId: string; children: React.ReactNode }> = ({
-  title,
-  testId,
-  children,
-}) => (
-  <aside data-testid={testId} className="w-60 bg-cad-panel border-r border-cad-border flex flex-col select-none min-h-0 text-xs">
-    <div className="panel-header">
-      <span className="ui-panel-title">{title}</span>
-    </div>
-    <div className="flex-1 overflow-y-auto text-xs text-gray-200">{children}</div>
-  </aside>
-);
 
 // ---------------------------------------------------------------- Marcadores (índice del PDF)
 
@@ -280,6 +270,7 @@ export const LeftDock: React.FC = () => {
       {leftOpen && pdfDoc && leftTab === 'pages' && <ThumbnailsSidebar />}
       {leftOpen && pdfDoc && leftTab === 'bookmarks' && <BookmarksPanel />}
       {leftOpen && leftTab === 'layers' && <LayersPanel />}
+      {leftOpen && pdfDoc && leftTab === 'links' && <LinksPanel />}
     </div>
   );
 };

@@ -508,6 +508,17 @@ export const FEATURE_GUIDE: GuideSection[] = [
     title: 'Pages and documents',
     entries: [
       {
+        id: 'links-panel',
+        title: 'Links panel',
+        summary: 'Lists every link of the document by page: the hyperlinks you added and the links the PDF already had, with the broken ones marked.',
+        steps: [
+          'Open it with the link button of the left rail or View ▸ Panels ▸ Links Panel.',
+          'Click a row to go to its page and select the link; use the arrow or the open button on the row to follow it; the bin deletes links you added (Undo brings them back).',
+          'The filter shows only web and email links, page links or the broken ones: a page that does not exist, no destination, or an address that cannot be opened.',
+        ],
+        where: 'View ▸ Panels ▸ Links Panel',
+      },
+      {
         id: 'print',
         title: 'Print',
         summary: 'Prints the pages you choose, with or without the markups, then opens the system print dialog to pick the printer, paper and copies.',

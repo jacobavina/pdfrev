@@ -3688,4 +3688,17 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const back = await PDFDocument.load(out);
     expect(back.getPageCount()).toBe(1);
   });
+  test('Full-Screen Crosshair (ADR-0127): Shift+F8 dibuja una cruz por el cursor y otra pulsación la quita', async ({ page }) => {
+    await openApp(page);
+    await page.keyboard.press('Shift+F8');
+    await page.mouse.move(500, 300);
+    await expect(page.locator('[data-testid="crosshair-h"]')).toBeVisible();
+    const h = await page.locator('[data-testid="crosshair-h"]').boundingBox();
+    const v = await page.locator('[data-testid="crosshair-v"]').boundingBox();
+    expect(Math.round(h!.y)).toBe(300);
+    expect(Math.round(v!.x)).toBe(500);
+    expect(h!.width).toBeGreaterThan(1000);
+    await page.keyboard.press('Shift+F8');
+    await expect(page.locator('[data-testid="crosshair"]')).toHaveCount(0);
+  });
 });

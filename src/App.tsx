@@ -49,6 +49,7 @@ const PrintDialog = lazy(() => import('./components/modals/PrintDialog').then((m
 const HeadersFootersDialog = lazy(() => import('./components/modals/HeadersFootersDialog').then((m) => ({ default: m.HeadersFootersDialog })));
 const ReplacePagesDialog = lazy(() => import('./components/modals/ReplacePagesDialog').then((m) => ({ default: m.ReplacePagesDialog })));
 const SplitDocumentDialog = lazy(() => import('./components/modals/SplitDocumentDialog').then((m) => ({ default: m.SplitDocumentDialog })));
+const FullScreenCrosshair = lazy(() => import('./components/shell/FullScreenCrosshair').then((m) => ({ default: m.FullScreenCrosshair })));
 const ReduceSizeDialog = lazy(() => import('./components/modals/ReduceSizeDialog').then((m) => ({ default: m.ReduceSizeDialog })));
 const NumberPagesDialog = lazy(() => import('./components/modals/NumberPagesDialog').then((m) => ({ default: m.NumberPagesDialog })));
 const UndoHistoryDialog = lazy(() => import('./components/modals/UndoHistoryDialog').then((m) => ({ default: m.UndoHistoryDialog })));
@@ -161,6 +162,11 @@ export const App: React.FC = () => {
         // Hide Panels (Shift+F4, ADR-0120)
         e.preventDefault();
         useUiStore.getState().togglePanels();
+      } else if (e.key === 'F8' && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // Full-Screen Crosshair (Shift+F8, ADR-0127)
+        e.preventDefault();
+        const ui = useUiStore.getState();
+        ui.setShowCrosshair(!ui.showCrosshair);
       } else if (e.key === 'F9' && e.shiftKey && !e.altKey) {
         // Show Grid (Shift+F9) y Snap to Grid (Ctrl+Shift+F9), ADR-0106
         e.preventDefault();
@@ -331,6 +337,7 @@ export const App: React.FC = () => {
         <CropPagesDialog />
         <NumberPagesDialog />
         <ReduceSizeDialog />
+        <FullScreenCrosshair />
         <HeadersFootersDialog />
         <PrintDialog />
         <InsertPagesDialog />

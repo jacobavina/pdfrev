@@ -143,6 +143,14 @@ export const FEATURE_GUIDE: GuideSection[] = [
         shortcut: 'Shift+F9',
       },
       {
+        id: 'crosshair',
+        title: 'Full-Screen Crosshair',
+        summary: 'Draws a thin line across the whole window, horizontal and vertical, through the cursor. It helps line up elements that are far apart on a large drawing.',
+        steps: ['Choose View ▸ Full-Screen Crosshair or press Shift+F8; repeat to turn it off.', 'It does not change the markups or block the mouse, and it stays on the next time you open the app.'],
+        where: 'View ▸ Full-Screen Crosshair',
+        shortcut: 'Shift+F8',
+      },
+      {
         id: 'dark',
         title: 'Dark mode',
         summary: 'Switches between the light and dark interface, or follows the system theme.',

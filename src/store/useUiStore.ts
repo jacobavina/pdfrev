@@ -132,6 +132,17 @@ function storeGrid(prefs: GridPrefs): void {
   }
 }
 
+const CROSSHAIR_STORAGE_KEY = 'rea-crosshair';
+
+/** Cruz de pantalla completa (ADR-0127), recordada entre sesiones. */
+export function readStoredCrosshair(): boolean {
+  try {
+    return localStorage.getItem(CROSSHAIR_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export function readStoredViewMode(): ViewMode {
   try {
     return localStorage.getItem(VIEW_MODE_STORAGE_KEY) === 'single' ? 'single' : 'continuous';
@@ -244,6 +255,8 @@ interface UiState {
   /** Reglas superior e izquierda en las unidades de la escala (View ▸ Rulers, Ctrl+R; ADR-0029). */
   showRulers: boolean;
   showGrid: boolean;
+  /** Cruz que cruza toda la ventana siguiendo al cursor (ADR-0127). */
+  showCrosshair: boolean;
   snapToGrid: boolean;
   gridSpacing: number | null;
   /** Abrir solo el panel de la marca seleccionada: Properties o Measure (View ▸ Open Panel on Selection, ADR-0043). */
@@ -290,6 +303,7 @@ interface UiState {
   setShowMeasureLabels: (show: boolean) => void;
   setShowRulers: (show: boolean) => void;
   setShowGrid: (show: boolean) => void;
+  setShowCrosshair: (show: boolean) => void;
   setSnapToGrid: (snap: boolean) => void;
   setGridSpacing: (spacing: number | null) => void;
   setAutoOpenPanels: (on: boolean) => void;
@@ -373,6 +387,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   showMeasureLabels: true,
   showRulers: readStoredRulers(),
   showGrid: readStoredGrid().show,
+  showCrosshair: readStoredCrosshair(),
   snapToGrid: readStoredGrid().snap,
   gridSpacing: readStoredGrid().spacing,
   autoOpenPanels: readStoredAutoPanels(),
@@ -457,6 +472,14 @@ export const useUiStore = create<UiState>((set, get) => ({
       // Preferencia no persistible: se aplica solo en esta sesión
     }
     set({ showRulers });
+  },
+  setShowCrosshair: (showCrosshair) => {
+    try {
+      localStorage.setItem(CROSSHAIR_STORAGE_KEY, showCrosshair ? '1' : '0');
+    } catch {
+      // Preferencia no persistible: se aplica solo en esta sesión
+    }
+    set({ showCrosshair });
   },
   setShowGrid: (showGrid) => {
     storeGrid({ show: showGrid, snap: get().snapToGrid, spacing: get().gridSpacing });

@@ -269,6 +269,7 @@
 | `P5-D.25` | Editar etiquetas de página | **Cerrado** | ADR-0124. Rangos con estilo, prefijo y primer número escritos en `/PageLabels`, con vista previa. Falta verificarlo en ventana nativa y en Revu. |
 | `P5-D.26` | Batch | **Cerrado** | ADR-0125. File ▸ Batch…: aplanar marcas, numerar o girar varios PDF con resultados con sufijo, informe CSV y fallos por archivo. Falta verificarlo en ventana nativa con una carpeta de planos. |
 | `P5-D.27` | Reduce File Size | **Cerrado** | ADR-0126. Document ▸ Reduce File Size…: baja la resolución y recomprime las imágenes con tres calidades, informe de ahorro y también como operación de Batch (_reduced). Falta verificarlo en ventana nativa con un plano escaneado real. |
+| `P5-D.28` | Full-Screen Crosshair | **Cerrado** | ADR-0127. View ▸ Full-Screen Crosshair (Shift+F8): cruz que atraviesa toda la ventana por el cursor, recordada entre sesiones. Falta verla en ventana nativa. |
 
 ---
 

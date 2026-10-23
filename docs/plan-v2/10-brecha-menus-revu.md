@@ -34,6 +34,7 @@
 | Print (Ctrl+P) | File ▸ Print… (ADR-0115) |
 | Panel Links | View ▸ Panels ▸ Links Panel y pestaña del riel izquierdo (ADR-0116) |
 | Flags (Ctrl+Alt+F) | Edit ▸ Flag y panel Flags (ADR-0117) |
+| Spaces | Edit ▸ Make Space y panel Spaces (ADR-0118) |
 | Snapshot (G) | Edit ▸ Snapshot |
 | Rotate Pages, Delete Pages, Extract Pages | Document ▸ Rotate Page 90°, Delete Page, Extract Page… (de una en una) |
 | Combine | File ▸ Combine Files… |
@@ -54,7 +55,7 @@
 
 ### Oleada 3: ventana y paneles
 - Full Screen (F11), Hide Panels (Shift+F4), Always On Top.
-- Paneles propios de Spaces, Sets, Forms y Signatures (Links y Flags ya están: ADR-0116 y ADR-0117).
+- Paneles propios de Sets, Forms y Signatures (Links, Flags y Spaces ya están: ADR-0116, ADR-0117 y ADR-0118).
 - Atajo **Shift+H** del hipervínculo.
 
 ### Oleada 4: proceso por lotes y avanzados

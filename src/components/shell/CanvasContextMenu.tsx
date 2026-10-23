@@ -11,6 +11,7 @@ import {
   LockOpen,
   EyeOff,
   Flag,
+  DoorOpen,
   Paintbrush,
   Pipette,
   Check,
@@ -539,6 +540,8 @@ export const CanvasContextMenu: React.FC<{
         () => useMarkupStore.getState().toggleLockSelectedMarkups(),
         { shortcut: 'Ctrl+Shift+L' }
       )}
+      {selected.some((m) => m.type === 'area' && !m.locked) &&
+        item('canvas-menu-make-space', <DoorOpen size={16} />, 'Make Space', () => void import('../../core/measurements/spaceActions').then((m) => m.makeSpacesFromSelection()))}
       {item('canvas-menu-flag', <Flag size={16} />, selected.length > 0 && selected.every(isFlagged) ? 'Remove Flag' : 'Flag', toggleFlagSelected, { shortcut: 'Ctrl+Alt+F' })}
       {item('canvas-menu-hide', <EyeOff size={16} />, 'Hide', hideSelected, { disabled: allLocked })}
 

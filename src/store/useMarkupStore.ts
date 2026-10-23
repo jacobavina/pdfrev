@@ -115,6 +115,8 @@ interface MarkupState {
   setMarkupsHidden: (ids: string[] | null, hidden: boolean) => number;
   /** Pone o quita la bandera (ADR-0117); `ids` null = todas las marcas. Devuelve cuántas cambiaron. */
   setMarkupsFlagged: (ids: string[] | null, flagged: boolean) => number;
+  /** Sustituye marcas existentes por su versión cambiada, en un solo paso de historial; salta las bloqueadas. Devuelve cuántas cambiaron. */
+  replaceMarkups: (updated: Markup[], description: string) => number;
   setClipboardMarkups: (clipboardMarkups: Markup[]) => void;
   pasteMarkups: (targetPageIndex?: number, offset?: { x: number; y: number }) => void;
   duplicateSelectedMarkups: () => void;
@@ -1220,6 +1222,25 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
         undo: () =>
           set((state) => ({ markups: state.markups.map((m) => before.get(m.id) ?? m), isDirty: true })),
       });
+      syncHistoryFlags();
+      return after.size;
+    },
+
+    replaceMarkups: (updated, description) => {
+      const { markups } = get();
+      const byId = new Map(updated.map((m) => [m.id, m]));
+      const before = new Map<string, Markup>();
+      const after = new Map<string, Markup>();
+      for (const m of markups) {
+        const next = byId.get(m.id);
+        if (!next || m.locked) continue;
+        before.set(m.id, m);
+        after.set(m.id, next);
+      }
+      if (after.size === 0) return 0;
+      const apply = (map: Map<string, Markup>) =>
+        set((state) => ({ markups: state.markups.map((m) => map.get(m.id) ?? m), isDirty: true }));
+      markupHistory.execute({ description, execute: () => apply(after), undo: () => apply(before) });
       syncHistoryFlags();
       return after.size;
     },

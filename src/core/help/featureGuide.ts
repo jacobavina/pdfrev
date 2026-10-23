@@ -508,6 +508,17 @@ export const FEATURE_GUIDE: GuideSection[] = [
     title: 'Pages and documents',
     entries: [
       {
+        id: 'spaces-panel',
+        title: 'Spaces',
+        summary: 'Turns Area measurements into named rooms. The Spaces panel lists them by level (page) with number, name, area and perimeter, adds up the totals and exports the table.',
+        steps: [
+          'Draw an Area (Measure tab), select it and choose Edit ▸ Make Space (or Make space in the panel). Several areas at once get Space 1, Space 2…',
+          'Type the number and the name in the panel; press Enter or leave the box to save, Esc to cancel. The label is written on the drawing next to the measurement.',
+          'The CSV button saves a table with level, number, name, area, perimeter and unit. The × on a row stops treating the area as a space; the measurement stays.',
+        ],
+        where: 'View ▸ Panels ▸ Spaces Panel',
+      },
+      {
         id: 'flags-panel',
         title: 'Flags',
         summary: 'Mark markups with a flag to come back to them later. The Flags panel lists every flagged markup by page.',

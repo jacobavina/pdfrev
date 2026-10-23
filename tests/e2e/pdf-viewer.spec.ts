@@ -1647,10 +1647,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   test('Sub-entregable P2-C.5: Cierre Bloque C (Exportación CSV/PDF, Inspector de propiedades y atajo de guardado Ctrl+S)', async ({
     page,
   }) => {
-    await page.goto('/');
-
-    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
-    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await openApp(page);
 
     const markupsPanel = page.locator('[data-testid="markups-list-panel"]');
     await expect(markupsPanel).toBeVisible();
@@ -1658,15 +1655,14 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     const inspectorPanel = page.locator('[data-testid="properties-inspector-panel"]');
     await expect(inspectorPanel).toHaveCount(1);
 
-    // Expandir panel si inicia colapsado
+    // 1. La marca inicial de calibración inicia seleccionada: verificar badge del inspector. Con la carga lenta el botón
+    // de expandir puede tardar en existir o la selección inicial en llegar (ADR-0115): se reintenta hasta 20 s
     const expandBtn = page.locator('[data-testid="expand-properties-btn"]');
-    if (await expandBtn.isVisible()) {
-      await expandBtn.click();
-    }
-
-    // 1. La marca inicial de calibración inicia seleccionada: verificar badge del inspector
     const badge = inspectorPanel.locator('[data-testid="selection-count-badge"]');
-    await expect(badge).toBeVisible();
+    await expect(async () => {
+      if (!(await badge.isVisible()) && (await expandBtn.isVisible())) await expandBtn.click();
+      await expect(badge).toBeVisible({ timeout: 2000 });
+    }).toPass({ timeout: 20000 });
     await expect(badge).toHaveText(/1 markup/);
 
     // 2. Deseleccionar la marca desmarcando su checkbox en MarkupsList -> muestra mensaje vacío
@@ -3477,5 +3473,39 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await page.locator('[data-testid^="flag-remove-"]').click();
     await expect(page.locator('[data-testid="flags-empty"]')).toBeVisible();
     await expect(overlaySvg.locator('[data-testid^="flag-glyph-"]')).toHaveCount(0);
+  });
+
+  test('Spaces (ADR-0118): un Area pasa a ser espacio, se nombra en el panel y el nombre aparece sobre el plano', async ({ page }) => {
+    await openApp(page);
+    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
+    await expect(overlaySvg.locator('g[data-testid^="markup-g-"]').first()).toBeAttached({ timeout: 15000 });
+    await page.locator('[data-testid="ribbon-tab-measure"]').click();
+    await page.locator('[data-testid="tool-measure-area"]').click();
+    const box = (await overlaySvg.boundingBox())!;
+    const at = (nx: number, ny: number) => ({ x: box.x + box.width * nx, y: box.y + box.height * ny });
+    for (const [nx, ny] of [
+      [0.6, 0.2],
+      [0.9, 0.2],
+      [0.9, 0.6],
+      [0.6, 0.6],
+    ]) {
+      const p = at(nx, ny);
+      await page.mouse.click(p.x, p.y);
+    }
+    await page.keyboard.press('Enter');
+    // El área recién dibujada queda seleccionada: Edit ▸ Make Space
+    await page.locator('[data-testid="menu-editar"]').click();
+    await page.locator('[data-testid="menu-make-space"]').click();
+    await page.locator('[data-testid="menu-ver"]').click();
+    await page.locator('[data-testid="menu-view-panels"]').hover();
+    await page.locator('[data-testid="menu-panel-spaces"]').click();
+    await expect(page.locator('[data-testid="spaces-panel"] li')).toHaveCount(1);
+    await page.locator('[data-testid^="space-number-"]').fill('101');
+    await page.locator('[data-testid^="space-number-"]').press('Enter');
+    await page.locator('[data-testid^="space-name-"]').fill('Sala de juntas');
+    await page.locator('[data-testid^="space-name-"]').press('Enter');
+    // El nombre y el número se escriben sobre el plano, junto a la medida
+    await expect(overlaySvg.getByText('101 · Sala de juntas', { exact: false })).toBeAttached({ timeout: 10000 });
+    await expect(page.locator('[data-testid="spaces-total"]')).toContainText('Total · 1 space');
   });
 });

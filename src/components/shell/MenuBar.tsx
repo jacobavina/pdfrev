@@ -73,6 +73,7 @@ import {
   Scissors,
   Printer,
   Flag,
+  DoorOpen,
 } from 'lucide-react';
 import { FIELD_TYPES, FieldType } from '../../core/markup/formFields';
 import { fieldTypeIcon } from './fieldIcons';
@@ -372,6 +373,7 @@ export const MenuBar: React.FC = () => {
         { icon: <CopyPlus size={16} />, label: 'Duplicate', shortcut: 'Ctrl+D', onSelect: () => useMarkupStore.getState().duplicateSelectedMarkups(), disabled: !hasSelection },
         { icon: <OffsetIcon size={16} />, label: 'Offset…', shortcut: 'O', onSelect: () => useUiStore.getState().setCopyToolDialog('offset'), disabled: !hasSelection, testId: 'menu-offset' },
         { icon: <MultiplyIcon size={16} />, label: 'Multiply…', shortcut: 'Ctrl+M', onSelect: () => useUiStore.getState().setCopyToolDialog('multiply'), disabled: !hasSelection, testId: 'menu-multiply' },
+        { icon: <DoorOpen size={16} />, label: 'Make Space', onSelect: () => void import('../../core/measurements/spaceActions').then((m) => m.makeSpacesFromSelection()), disabled: !hasSelection, testId: 'menu-make-space' },
         { icon: <Flag size={16} />, label: 'Flag / Remove Flag', shortcut: 'Ctrl+Alt+F', onSelect: toggleFlagSelected, disabled: !hasSelection, testId: 'menu-flag' },
         { icon: <EyeOff size={16} />, label: 'Hide', onSelect: hideSelected, disabled: !hasSelection, testId: 'menu-hide' },
         { icon: <Eye size={16} />, label: 'Show Hidden Markups', onSelect: showHidden, disabled: !hasHiddenMarkups, testId: 'menu-show-hidden' },
@@ -453,6 +455,7 @@ export const MenuBar: React.FC = () => {
             { icon: <Layers size={16} />, label: 'Layers Panel', onSelect: () => setLeftTab('layers'), testId: 'menu-panel-layers' },
             { icon: <Link2 size={16} />, label: 'Links Panel', onSelect: () => setLeftTab('links'), testId: 'menu-panel-links' },
             { icon: <Flag size={16} />, label: 'Flags Panel', onSelect: () => setLeftTab('flags'), testId: 'menu-panel-flags' },
+            { icon: <DoorOpen size={16} />, label: 'Spaces Panel', onSelect: () => setLeftTab('spaces'), testId: 'menu-panel-spaces' },
             { icon: <SlidersHorizontal size={16} />, label: 'Properties Panel', onSelect: requestPropertiesPanel, testId: 'menu-panel-properties' },
             { icon: <LengthMeasureIcon size={16} />, label: 'Measurements Panel', onSelect: requestMeasurementsPanel, testId: 'menu-panel-measurements' },
             {

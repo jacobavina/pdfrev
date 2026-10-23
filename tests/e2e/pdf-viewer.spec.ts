@@ -1,5 +1,21 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import fs from 'fs';
+import { PDFDocument, PDFName } from 'pdf-lib';
+
+/**
+ * Abre la aplicación y espera a que el visor pinte. Con la máquina cargada la primera carga puede tardar o quedarse
+ * sin pintar (se vio en dos pruebas de una misma pasada, ADR-0115): si no aparece a tiempo se recarga una vez.
+ */
+async function openApp(page: Page): Promise<void> {
+  await page.goto('/');
+  const overlay = page.locator('[data-testid="markup-overlay-svg"]');
+  try {
+    await overlay.waitFor({ state: 'visible', timeout: 12000 });
+  } catch {
+    await page.reload();
+    await overlay.waitFor({ state: 'visible', timeout: 20000 });
+  }
+}
 
 test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   // Estas pruebas hacen clic por coordenadas con el ancho del visor fijo: sin abrir paneles al seleccionar
@@ -1225,23 +1241,22 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     page,
   }) => {
     // 1. Cargar la aplicación
-    await page.goto('/');
+    await openApp(page);
 
     const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
-    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
-
     const toolChestPanel = page.locator('[data-testid="tool-chest-panel"]');
     // Plegado no se ve: se abre desde el riel derecho (ADR-0044)
     await expect(toolChestPanel).toHaveCount(1);
 
-    // 2. Expandir el panel de Tool Chest si está colapsado
+    // 2. Expandir el panel de Tool Chest si está colapsado. Con la carga lenta el botón puede tardar en existir o el
+    // primer clic puede perderse (ADR-0092, ADR-0115): se reintenta hasta que el panel quede abierto, sin pasarse de 20 s
     const expandBtn = page.locator('[data-testid="expand-tool-chest-btn"]');
-    // isVisible() no espera: con la carga lenta el botón aún no existía y el panel no se abría (ADR-0092)
-    await expandBtn.waitFor({ state: 'visible', timeout: 10000 }).catch(() => undefined);
-    if (await expandBtn.isVisible()) {
-      await expandBtn.click();
-    }
-    await expect(toolChestPanel).toHaveAttribute('data-collapsed', 'false');
+    await expect(async () => {
+      if ((await toolChestPanel.getAttribute('data-collapsed')) !== 'false' && (await expandBtn.isVisible())) {
+        await expandBtn.click();
+      }
+      await expect(toolChestPanel).toHaveAttribute('data-collapsed', 'false', { timeout: 2000 });
+    }).toPass({ timeout: 20000 });
 
     // 3. Verificar paleta por defecto "Mis Herramientas" y sección de recientes
     const paletteSelect = page.locator('[data-testid="palette-select"]');
@@ -2881,9 +2896,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   });
 
   test('Aplanar y desaplanar (ADR-0093): el PDF aplanado se reabre y Unflatten devuelve las marcas editables', async ({ page }) => {
-    await page.goto('/');
-    const overlaySvg = page.locator('[data-testid="markup-overlay-svg"]');
-    await expect(overlaySvg).toBeVisible({ timeout: 15000 });
+    await openApp(page);
     await expect(page.locator('[data-testid="markup-g-calibration-markup-1"]')).toHaveCount(1);
 
     // 1. File ▸ Export ▸ PDF with Flattened Markups
@@ -3345,5 +3358,68 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(page.locator('[data-testid="split-document-dialog"]')).toHaveCount(0);
     await expect.poll(() => names.length, { timeout: 15000 }).toBe(2);
     expect(names).toEqual(['test-blueprint_p1-2.pdf', 'test-blueprint_p3.pdf']);
+  });
+
+  test('Print (ADR-0115): Ctrl+P prepara las páginas y la hoja de impresión sale con una página por plano y su tamaño real', async ({ page }) => {
+    // El diálogo del sistema no se puede automatizar: se sustituye window.print y se comprueba lo que se imprimiría
+    await page.addInitScript(() => {
+      (window as unknown as { __printCalls: number }).__printCalls = 0;
+      window.print = () => {
+        (window as unknown as { __printCalls: number }).__printCalls++;
+      };
+    });
+    await openApp(page);
+    await expect(page.locator('[data-testid="pdf-page-container"]').getByText('PLANO DE PRUEBA', { exact: false }).first()).toBeAttached({ timeout: 15000 });
+    await page.keyboard.press('Control+p');
+    await expect(page.locator('[data-testid="print-dialog"]')).toBeVisible();
+    await page.locator('[data-testid="print-scale-actual"]').click();
+    await page.locator('[data-testid="print-dpi"]').selectOption('100');
+    await page.locator('[data-testid="print-apply"]').click();
+    await expect(page.locator('#rea-print-root section')).toHaveCount(3, { timeout: 60000 });
+    await expect(page.locator('[data-testid="print-dialog"]')).toHaveCount(0);
+    expect(await page.evaluate(() => (window as unknown as { __printCalls: number }).__printCalls)).toBe(1);
+    // En pantalla el contenedor no se ve
+    await expect(page.locator('#rea-print-root')).toBeHidden();
+    // Hoja de impresión real de Chromium: tres páginas, cada una del tamaño de la del plano
+    const source = await PDFDocument.load(fs.readFileSync('fixtures/test-blueprint.pdf'));
+    await page.emulateMedia({ media: 'print' });
+    const printed = await PDFDocument.load(await page.pdf({ preferCSSPageSize: true }));
+    expect(printed.getPageCount()).toBe(3);
+    // Cada página lleva su imagen (no sale en blanco): un XObject de tipo Image por plano
+    let images = 0;
+    for (const [, obj] of printed.context.enumerateIndirectObjects()) {
+      const dict = 'dict' in obj ? (obj as { dict: Map<unknown, unknown> & { get: (k: unknown) => unknown } }).dict : null;
+      if (dict && String(dict.get(PDFName.of('Subtype'))) === '/Image') images++;
+    }
+    expect(images).toBeGreaterThanOrEqual(3);
+    printed.getPages().forEach((p, i) => {
+      const expected = source.getPage(i).getSize();
+      expect(Math.abs(p.getWidth() - expected.width)).toBeLessThan(2);
+      expect(Math.abs(p.getHeight() - expected.height)).toBeLessThan(2);
+    });
+    await page.emulateMedia({ media: 'screen' });
+  });
+
+  test('Print (ADR-0115): solo la página actual, ajustada al papel y en horizontal, y la hoja se retira al terminar', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.print = () => undefined;
+    });
+    await openApp(page);
+    await expect(page.locator('[data-testid="pdf-page-container"]').getByText('PLANO DE PRUEBA', { exact: false }).first()).toBeAttached({ timeout: 15000 });
+    await page.locator('[data-testid="menu-archivo"]').click();
+    await page.locator('[data-testid="menu-print"]').click();
+    await page.locator('[data-testid="print-scope-current"]').click();
+    await page.locator('[data-testid="print-gray"]').check();
+    await page.locator('[data-testid="print-apply"]').click();
+    await expect(page.locator('#rea-print-root section')).toHaveCount(1, { timeout: 60000 });
+    await page.emulateMedia({ media: 'print' });
+    const printed = await PDFDocument.load(await page.pdf({ preferCSSPageSize: true }));
+    expect(printed.getPageCount()).toBe(1);
+    // La página del plano es apaisada (800×600): sale en horizontal sobre el papel por defecto
+    expect(printed.getPage(0).getWidth()).toBeGreaterThan(printed.getPage(0).getHeight());
+    await page.emulateMedia({ media: 'screen' });
+    // Al terminar la impresión el sistema avisa y la hoja se retira
+    await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+    await expect(page.locator('#rea-print-root')).toHaveCount(0);
   });
 });

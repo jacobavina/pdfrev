@@ -42,6 +42,7 @@ const DocumentBar = lazy(() =>
 );
 const DocumentPropertiesDialog = lazy(() => import('./components/modals/DocumentPropertiesDialog').then((m) => ({ default: m.DocumentPropertiesDialog })));
 const CropPagesDialog = lazy(() => import('./components/modals/CropPagesDialog').then((m) => ({ default: m.CropPagesDialog })));
+const PrintDialog = lazy(() => import('./components/modals/PrintDialog').then((m) => ({ default: m.PrintDialog })));
 const HeadersFootersDialog = lazy(() => import('./components/modals/HeadersFootersDialog').then((m) => ({ default: m.HeadersFootersDialog })));
 const ReplacePagesDialog = lazy(() => import('./components/modals/ReplacePagesDialog').then((m) => ({ default: m.ReplacePagesDialog })));
 const SplitDocumentDialog = lazy(() => import('./components/modals/SplitDocumentDialog').then((m) => ({ default: m.SplitDocumentDialog })));
@@ -104,6 +105,10 @@ export const App: React.FC = () => {
       } else if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
         e.preventDefault();
         saveNow();
+      } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === 'p' || e.key === 'P')) {
+        // Print (ADR-0115): el diálogo de REA prepara las páginas; sin él se imprimiría la interfaz
+        e.preventDefault();
+        if (useDocumentStore.getState().pdfBytes) useUiStore.getState().setPageToolDialog('print');
       } else if ((e.ctrlKey || e.metaKey) && (e.key === 'o' || e.key === 'O')) {
         e.preventDefault();
         openPdfDialog();
@@ -309,6 +314,7 @@ export const App: React.FC = () => {
         <CropPagesDialog />
         <NumberPagesDialog />
         <HeadersFootersDialog />
+        <PrintDialog />
         <ReplacePagesDialog />
         <SplitDocumentDialog />
       </Suspense>

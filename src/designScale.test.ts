@@ -172,6 +172,7 @@ describe('Escala tipográfica y contraste de la interfaz (ADR-0062)', () => {
       [path.join('src', 'components', 'modals', 'CropPagesDialog.tsx')]: ['shadow-float'],
       [path.join('src', 'components', 'modals', 'NumberPagesDialog.tsx')]: ['shadow-float'],
       [path.join('src', 'components', 'modals', 'HeadersFootersDialog.tsx')]: ['shadow-float'],
+      [path.join('src', 'components', 'modals', 'PrintDialog.tsx')]: ['shadow-float'],
       [path.join('src', 'components', 'modals', 'ReplacePagesDialog.tsx')]: ['shadow-float'],
       [path.join('src', 'components', 'modals', 'SplitDocumentDialog.tsx')]: ['shadow-float'],
       [path.join('src', 'components', 'MarkupsList.tsx')]: ['shadow-float', 'shadow-[inset_0_-1px_0_rgb(var(--cad-border))]'],

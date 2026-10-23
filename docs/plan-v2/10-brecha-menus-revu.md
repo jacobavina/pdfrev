@@ -31,6 +31,7 @@
 | Lasso (Shift+O) y Undo History | Select ▸ Lasso y Edit ▸ Undo History… (ADR-0110) |
 | Document Properties, Crop Pages, Number Pages | Document ▸ Document Properties…, Crop Pages…, Number Pages… (ADR-0113) |
 | Headers & Footers, Replace Pages, Split Document | Document ▸ Headers & Footers…, Replace Pages…, Split Document… (ADR-0114) |
+| Print (Ctrl+P) | File ▸ Print… (ADR-0115) |
 | Snapshot (G) | Edit ▸ Snapshot |
 | Rotate Pages, Delete Pages, Extract Pages | Document ▸ Rotate Page 90°, Delete Page, Extract Page… (de una en una) |
 | Combine | File ▸ Combine Files… |
@@ -48,7 +49,6 @@
 
 ### Oleada 2: documento
   **Replace Pages**, **Split Document**, **Insert desde archivo** y edición de **Page Labels**.
-- **Print.**
 
 ### Oleada 3: ventana y paneles
 - Full Screen (F11), Hide Panels (Shift+F4), Always On Top.

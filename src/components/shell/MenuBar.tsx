@@ -71,6 +71,7 @@ import {
   PanelTop,
   Replace,
   Scissors,
+  Printer,
 } from 'lucide-react';
 import { FIELD_TYPES, FieldType } from '../../core/markup/formFields';
 import { fieldTypeIcon } from './fieldIcons';
@@ -323,6 +324,7 @@ export const MenuBar: React.FC = () => {
           disabled: !hasDoc,
           testId: 'menu-save-as',
         },
+        { icon: <Printer size={16} />, label: 'Print…', shortcut: 'Ctrl+P', onSelect: () => useUiStore.getState().setPageToolDialog('print'), disabled: !hasDoc, testId: 'menu-print' },
         'separator',
         {
           icon: <FileDown size={16} />,

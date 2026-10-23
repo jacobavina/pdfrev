@@ -508,6 +508,18 @@ export const FEATURE_GUIDE: GuideSection[] = [
     title: 'Pages and documents',
     entries: [
       {
+        id: 'print',
+        title: 'Print',
+        summary: 'Prints the pages you choose, with or without the markups, then opens the system print dialog to pick the printer, paper and copies.',
+        steps: [
+          'Press Ctrl+P (or File ▸ Print…), choose the pages, whether the markups come out, the size and the quality.',
+          'Fit to the paper scales each page to the paper you choose next; Actual size prints each page at its real size and needs paper as large as the page.',
+          'Black and white turns colours into greys. Markups on hidden layers and hidden markups are not printed.',
+        ],
+        where: 'File ▸ Print…',
+        shortcut: 'Ctrl+P',
+      },
+      {
         id: 'headers-footers',
         title: 'Headers and footers',
         summary: 'Stamps up to six texts on each chosen page (left, centre and right, at the top and the bottom) with fields that change page by page.',

@@ -227,7 +227,7 @@ interface UiState {
   /** Lista del historial de cambios abierta (ADR-0110). */
   undoHistoryOpen: boolean;
   /** Diálogo de páginas abierto: propiedades del documento, recorte o numeración (ADR-0113). */
-  pageToolDialog: 'properties' | 'crop' | 'number' | 'headerFooter' | 'replace' | 'split' | null;
+  pageToolDialog: 'properties' | 'crop' | 'number' | 'headerFooter' | 'replace' | 'split' | 'print' | null;
   viewMode: ViewMode;
   /** Petición de ajuste del zoom (la resuelve el visor, que conoce el tamaño del área y de la página). */
   fitRequest: { kind: FitKind; seq: number } | null;
@@ -272,7 +272,7 @@ interface UiState {
   setCombineModalOpen: (open: boolean) => void;
   setCopyToolDialog: (dialog: 'offset' | 'multiply' | null) => void;
   setUndoHistoryOpen: (open: boolean) => void;
-  setPageToolDialog: (dialog: 'properties' | 'crop' | 'number' | 'headerFooter' | 'replace' | 'split' | null) => void;
+  setPageToolDialog: (dialog: 'properties' | 'crop' | 'number' | 'headerFooter' | 'replace' | 'split' | 'print' | null) => void;
   setViewMode: (mode: ViewMode) => void;
   requestFit: (kind: FitKind) => void;
   setSnap: (update: Partial<SnapSettings>) => void;

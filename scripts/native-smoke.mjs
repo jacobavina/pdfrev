@@ -574,6 +574,14 @@ try {
   }
   console.log('    ✓ Herramienta Rectángulo activada y verificada vía __REA_TEST_HOOKS__.');
 
+  // En vista continua la página activa puede estar fuera de la ventana (la ventana vuelve de pantalla completa o se
+  // restaura la última página): se trae el lienzo a la vista antes de medirlo para arrastrar sobre él
+  await executeSync(`
+    const c = document.querySelector('#pdf-render-canvas') || document.querySelector('[data-testid="pdf-canvas"]');
+    if (c) c.scrollIntoView({ block: 'center', inline: 'center' });
+  `);
+  await new Promise((r) => setTimeout(r, 500));
+
   // Obtener caja del lienzo principal de renderizado
   const canvasRect = await executeSync(`
     const c = document.querySelector('#pdf-render-canvas') || document.querySelector('[data-testid="pdf-canvas"]');

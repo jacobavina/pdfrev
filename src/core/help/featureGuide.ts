@@ -608,6 +608,16 @@ export const FEATURE_GUIDE: GuideSection[] = [
         where: 'Document ▸ Headers & Footers…',
       },
       {
+        id: 'page-labels',
+        title: 'Page labels',
+        summary: 'Changes the name the viewer shows for each page: "i, ii, iii", "A-101", "Annex 1"… The sheet number of a drawing set, not the position in the file.',
+        steps: [
+          'Choose Document ▸ Page Labels…. Each row starts on a page and runs until the next row: pick the style (1, I, i, A, a or prefix only), a prefix and the first number.',
+          'The dialog shows how the first pages will read. Apply writes the labels into the PDF (save the document to keep them); Remove all labels clears them.',
+        ],
+        where: 'Document ▸ Page Labels…',
+      },
+      {
         id: 'insert-pages',
         title: 'Insert pages from a file',
         summary: 'Puts pages of another PDF into this document, before or after the page you are on or at the end.',

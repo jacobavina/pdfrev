@@ -3600,4 +3600,19 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(page.locator('[data-testid="thumbnail-4"]')).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="page-indicator"]')).toContainText('/ 5');
   });
+
+  test('Page Labels (ADR-0124): un rango en números romanos cambia el nombre de las páginas en las miniaturas', async ({ page }) => {
+    await openApp(page);
+    await expect(page.locator('[data-testid="thumbnail-2"]')).toBeVisible({ timeout: 15000 });
+    await page.locator('[data-testid="menu-documento"]').click();
+    await page.locator('[data-testid="menu-page-labels"]').click();
+    await expect(page.locator('[data-testid="labels-row-0"]')).toBeVisible();
+    await page.locator('[data-testid="labels-style-0"]').selectOption('r');
+    await page.locator('[data-testid="labels-prefix-0"]').fill('P-');
+    await expect(page.locator('[data-testid="labels-preview"]')).toContainText('P-i · P-ii · P-iii');
+    await page.locator('[data-testid="labels-apply"]').click();
+    await expect(page.locator('[data-testid="page-labels-dialog"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid="page-label-0"]')).toContainText('Page 1 (P-i)', { timeout: 15000 });
+    await expect(page.locator('[data-testid="page-label-2"]')).toContainText('Page 3 (P-iii)');
+  });
 });

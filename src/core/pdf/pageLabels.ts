@@ -141,9 +141,7 @@ export function buildPageLabelsMap(
 /**
  * Extrae /PageLabels directamente inspeccionando el árbol de números del catálogo con pdf-lib (carga diferida).
  */
-export async function extractPageLabelsFromPdfBytes(
-  bytes: Uint8Array
-): Promise<Record<number, string> | null> {
+async function parseLabelRanges(bytes: Uint8Array): Promise<{ ranges: PageLabelRange[]; pageCount: number } | null> {
   try {
     const { PDFDocument, PDFName, PDFDict, PDFArray, PDFNumber, PDFString, PDFHexString } =
       await import('pdf-lib');
@@ -222,11 +220,53 @@ export async function extractPageLabelsFromPdfBytes(
       return null;
     }
 
-    return buildPageLabelsMap(ranges, doc.getPageCount());
+    return { ranges, pageCount: doc.getPageCount() };
   } catch (err) {
     console.warn('[PageLabels] Error extracting /PageLabels from bytes:', err);
     return null;
   }
+}
+
+export async function extractPageLabelsFromPdfBytes(
+  bytes: Uint8Array
+): Promise<Record<number, string> | null> {
+  const parsed = await parseLabelRanges(bytes);
+  return parsed ? buildPageLabelsMap(parsed.ranges, parsed.pageCount) : null;
+}
+
+/** Los rangos de etiquetas que tiene el PDF (vacío si no tiene), ordenados por página. */
+export async function readPageLabelRanges(bytes: Uint8Array): Promise<PageLabelRange[]> {
+  const parsed = await parseLabelRanges(bytes);
+  return parsed ? [...parsed.ranges].sort((a, b) => a.startPage - b.startPage) : [];
+}
+
+/**
+ * Escribe los rangos de etiquetas en el catálogo del PDF (/PageLabels con un árbol de números); sin rangos las quita. La
+ * primera página siempre abre un rango: si el primero empieza más tarde se añade uno decimal desde 1, como dicta la norma.
+ */
+export async function writePageLabelRanges(bytes: Uint8Array, ranges: PageLabelRange[]): Promise<Uint8Array> {
+  const { PDFDocument, PDFName, PDFNumber, PDFHexString } = await import('pdf-lib');
+  const doc = await PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false });
+  const catalog = doc.catalog;
+  if (ranges.length === 0) {
+    catalog.delete(PDFName.of('PageLabels'));
+    return doc.save();
+  }
+  const sorted = [...ranges].sort((a, b) => a.startPage - b.startPage);
+  if (sorted[0].startPage > 0) sorted.unshift({ startPage: 0, style: 'D', startNum: 1 });
+  const nums: unknown[] = [];
+  let last = -1;
+  for (const r of sorted) {
+    if (r.startPage === last) continue;
+    last = r.startPage;
+    const entries: Record<string, unknown> = {};
+    if (r.style) entries.S = PDFName.of(r.style);
+    if (r.prefix) entries.P = PDFHexString.fromText(r.prefix);
+    if (r.startNum !== undefined && r.startNum !== 1) entries.St = PDFNumber.of(r.startNum);
+    nums.push(PDFNumber.of(r.startPage), doc.context.obj(entries as never));
+  }
+  catalog.set(PDFName.of('PageLabels'), doc.context.obj({ Nums: nums } as never));
+  return doc.save();
 }
 
 /**

@@ -174,3 +174,19 @@ export async function executeInsertPages(req: InsertRequest): Promise<Outcome> {
     return { ok: false, message: err instanceof Error ? err.message : String(err) };
   }
 }
+
+// ── Page Labels ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** Escribe las etiquetas de página en el PDF abierto (sin rangos las quita) y las pone al día en el visor. */
+export async function executePageLabels(ranges: import('../core/pdf/pageLabels').PageLabelRange[]): Promise<Outcome> {
+  const { pdfBytes, numPages } = useDocumentStore.getState();
+  if (!pdfBytes) return { ok: false, message: 'No document open.' };
+  try {
+    const { writePageLabelRanges, buildPageLabelsMap } = await import('../core/pdf/pageLabels');
+    await replaceOpenDocument(await writePageLabelRanges(pdfBytes, ranges));
+    useDocumentStore.getState().setPageLabels(ranges.length > 0 ? buildPageLabelsMap(ranges, numPages) : null);
+    return { ok: true, message: ranges.length > 0 ? 'Page labels updated. Save the document to keep them.' : 'Page labels removed. Save the document to keep the change.' };
+  } catch (err) {
+    return { ok: false, message: `Could not change the page labels: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}

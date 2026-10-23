@@ -79,6 +79,7 @@ import {
   PanelsTopLeft,
   Pin,
   TextCursorInput,
+  Hash,
 } from 'lucide-react';
 import { FIELD_TYPES, FieldType } from '../../core/markup/formFields';
 import { fieldTypeIcon } from './fieldIcons';
@@ -567,6 +568,7 @@ export const MenuBar: React.FC = () => {
         { icon: <Scissors size={16} />, label: 'Split Document…', onSelect: () => useUiStore.getState().setPageToolDialog('split'), disabled: !hasDoc, testId: 'menu-split-document' },
         'separator',
         { icon: <FileText size={16} />, label: 'Document Properties…', onSelect: () => useUiStore.getState().setPageToolDialog('properties'), disabled: !hasDoc, testId: 'menu-document-properties' },
+        { icon: <Hash size={16} />, label: 'Page Labels…', onSelect: () => useUiStore.getState().setPageToolDialog('labels'), disabled: !hasDoc, testId: 'menu-page-labels' },
         'separator',
         { icon: <Search size={16} />, label: 'Find Text…', shortcut: 'Ctrl+F', onSelect: () => useSearchStore.getState().setIsOpen(true), disabled: !hasDoc },
         'separator',

@@ -508,6 +508,33 @@ export const FEATURE_GUIDE: GuideSection[] = [
     title: 'Pages and documents',
     entries: [
       {
+        id: 'headers-footers',
+        title: 'Headers and footers',
+        summary: 'Stamps up to six texts on each chosen page (left, centre and right, at the top and the bottom) with fields that change page by page.',
+        steps: [
+          'Choose Document ▸ Headers & Footers…, write the texts and pick the pages. Fields: {n} number, {total} last number, {page} sheet, {pages} sheets, {date}, {time}, {file}, {title}.',
+          'The dialog shows how the first page will read. The text becomes part of the page content and cannot be undone: save a copy first.',
+        ],
+        where: 'Document ▸ Headers & Footers…',
+      },
+      {
+        id: 'replace-pages',
+        title: 'Replace pages',
+        summary: 'Swaps pages of this document for pages of another PDF, for example when a sheet gets a new revision. The number of pages may change.',
+        steps: [
+          'Choose Document ▸ Replace Pages…, choose the PDF with the new pages, and type which pages to replace and which ones replace them.',
+          'With the same number of pages you can keep the markups of the replaced pages; otherwise they are removed and the later pages move.',
+        ],
+        where: 'Document ▸ Replace Pages…',
+      },
+      {
+        id: 'split-document',
+        title: 'Split document',
+        summary: 'Saves the pages as several PDF files, one every N pages or with the parts you type (1-3; 4-6; 8). Each file keeps the markups of its pages.',
+        steps: ['Choose Document ▸ Split Document…, set the parts and check the file names in the preview, then press Split. In the desktop app you choose the folder.'],
+        where: 'Document ▸ Split Document…',
+      },
+      {
         id: 'crop-pages',
         title: 'Crop pages',
         summary: 'Trims the margins of one page, a range or all pages. The file keeps the full page, so you can restore it, and the markups move with the new corner.',

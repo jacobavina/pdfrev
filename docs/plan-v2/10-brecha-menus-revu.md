@@ -30,6 +30,7 @@
 | Paste in Place, Format Painter y Hide | Edit ▸ Paste in Place, Copy Format / Paste Format, Hide / Show Hidden Markups (ADR-0109) |
 | Lasso (Shift+O) y Undo History | Select ▸ Lasso y Edit ▸ Undo History… (ADR-0110) |
 | Document Properties, Crop Pages, Number Pages | Document ▸ Document Properties…, Crop Pages…, Number Pages… (ADR-0113) |
+| Headers & Footers, Replace Pages, Split Document | Document ▸ Headers & Footers…, Replace Pages…, Split Document… (ADR-0114) |
 | Snapshot (G) | Edit ▸ Snapshot |
 | Rotate Pages, Delete Pages, Extract Pages | Document ▸ Rotate Page 90°, Delete Page, Extract Page… (de una en una) |
 | Combine | File ▸ Combine Files… |

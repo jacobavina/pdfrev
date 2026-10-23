@@ -67,33 +67,55 @@ const hexToRgb = (hex: string): [number, number, number] => {
   return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
 };
 
+type PdfLibDraw = Pick<typeof import('pdf-lib'), 'rgb' | 'degrees'>;
+
+/** Estampa `raw` en la esquina o el centro de la página vista, girado con ella para que se lea derecho. */
+export function drawStampedText(
+  lib: PdfLibDraw,
+  page: import('pdf-lib').PDFPage,
+  font: import('pdf-lib').PDFFont,
+  raw: string,
+  position: NumberPosition,
+  fontSize: number,
+  margin: number,
+  color: string
+): void {
+  const box = page.getCropBox();
+  const rot = (((page.getRotation().angle % 360) + 360) % 360) as 0 | 90 | 180 | 270;
+  const t: PageTransformInfo = { rotation: rot, widthPt: box.width, heightPt: box.height, originX: box.x, originY: box.y };
+  const size = viewSize(t);
+  // Solo los caracteres que la fuente estándar puede dibujar
+  const charset = new Set(font.getCharacterSet());
+  const text = [...raw].map((ch) => (charset.has(ch.codePointAt(0)!) ? ch : '?')).join('');
+  if (!text) return;
+  const w = font.widthOfTextAtSize(text, fontSize);
+  const at = numberAnchor(size, position, w, fontSize, margin);
+  const origin = normalizedToPdfCoordinates({ x: at.x / size.width, y: at.y / size.height }, t);
+  // Dirección de la línea de texto en el espacio del PDF, para que se lea derecha en la página vista
+  const along = normalizedToPdfCoordinates({ x: (at.x + 1) / size.width, y: at.y / size.height }, t);
+  const angle = (Math.atan2(along.y - origin.y, along.x - origin.x) * 180) / Math.PI;
+  const [r, g, b] = hexToRgb(color);
+  page.drawText(text, { x: origin.x, y: origin.y, size: fontSize, font, color: lib.rgb(r, g, b), rotate: lib.degrees(angle) });
+}
+
+/** Fuente estándar de PDF por nombre. */
+export async function embedStampFont(doc: import('pdf-lib').PDFDocument, font: NumberPagesOptions['font']): Promise<import('pdf-lib').PDFFont> {
+  const { StandardFonts } = await import('pdf-lib');
+  return doc.embedFont(font === 'Times' ? StandardFonts.TimesRoman : font === 'Courier' ? StandardFonts.Courier : StandardFonts.Helvetica);
+}
+
 /** Estampa los números y devuelve el PDF nuevo. */
 export async function numberPdfPages(pdfBytes: Uint8Array, opts: NumberPagesOptions): Promise<Uint8Array> {
-  const { PDFDocument, StandardFonts, rgb, degrees } = await import('pdf-lib');
-  const doc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true, updateMetadata: false });
-  const font = await doc.embedFont(opts.font === 'Times' ? StandardFonts.TimesRoman : opts.font === 'Courier' ? StandardFonts.Courier : StandardFonts.Helvetica);
-  const charset = new Set(font.getCharacterSet());
+  const lib = await import('pdf-lib');
+  const doc = await lib.PDFDocument.load(pdfBytes, { ignoreEncryption: true, updateMetadata: false });
+  const font = await embedStampFont(doc, opts.font);
   const pages = doc.getPages();
   const total = opts.startAt + opts.pages.length - 1;
-  const [r, g, b] = hexToRgb(opts.color);
-
   opts.pages.forEach((pageIndex, k) => {
     const page = pages[pageIndex];
     if (!page) return;
-    const box = page.getCropBox();
-    const rot = (((page.getRotation().angle % 360) + 360) % 360) as 0 | 90 | 180 | 270;
-    const t: PageTransformInfo = { rotation: rot, widthPt: box.width, heightPt: box.height, originX: box.x, originY: box.y };
-    const size = viewSize(t);
     const raw = formatPageNumber(opts.format, { n: opts.startAt + k, total, page: pageIndex + 1, pages: pages.length });
-    // Solo los caracteres que la fuente estándar puede dibujar
-    const text = [...raw].map((ch) => (charset.has(ch.codePointAt(0)!) ? ch : '?')).join('');
-    const w = font.widthOfTextAtSize(text, opts.fontSize);
-    const at = numberAnchor(size, opts.position, w, opts.fontSize, opts.margin);
-    const origin = normalizedToPdfCoordinates({ x: at.x / size.width, y: at.y / size.height }, t);
-    // Dirección de la línea de texto en el espacio del PDF, para que se lea derecha en la página vista
-    const along = normalizedToPdfCoordinates({ x: (at.x + 1) / size.width, y: at.y / size.height }, t);
-    const angle = (Math.atan2(along.y - origin.y, along.x - origin.x) * 180) / Math.PI;
-    page.drawText(text, { x: origin.x, y: origin.y, size: opts.fontSize, font, color: rgb(r, g, b), rotate: degrees(angle) });
+    drawStampedText(lib, page, font, raw, opts.position, opts.fontSize, opts.margin, opts.color);
   });
   return doc.save();
 }

@@ -256,6 +256,7 @@
 | `P5-D.12` | Gramática de iconos de acción y plan de diseño | **Cerrado** | ADR-0111 y `docs/plan-v2/11-plan-de-diseno.md`. Iconos propios para Offset, Multiply, Paste in Place, Redact, Flatten, Unflatten y Fill; pipeta/brocha para el formato; 10 hallazgos con 5 resueltos y 5 propuestos. |
 | `P5-D.13` | Menú View agrupado y miniaturas en una línea | **Cerrado** | ADR-0112. Hallazgos 6, 7 y 8 del plan de diseño. |
 | `P5-D.14` | Document Properties, Crop Pages y Number Pages | **Cerrado** | ADR-0113. Propiedades editables, recorte por CropBox reversible con las marcas remapeadas, y numeración estampada. Falta verificarlo en ventana nativa con planos reales. |
+| `P5-D.15` | Headers & Footers, Replace Pages y Split Document | **Cerrado** | ADR-0114. Seis textos con campos por página, sustitución de páginas con otro PDF (marcas conservadas o remapeadas) y reparto en varios PDF con sus marcas. Falta verificarlo en ventana nativa; en escritorio Split pide la carpeta. |
 
 ---
 

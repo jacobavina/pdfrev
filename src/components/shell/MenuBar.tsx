@@ -68,6 +68,9 @@ import {
   History,
   Crop,
   ListOrdered,
+  PanelTop,
+  Replace,
+  Scissors,
 } from 'lucide-react';
 import { FIELD_TYPES, FieldType } from '../../core/markup/formFields';
 import { fieldTypeIcon } from './fieldIcons';
@@ -531,6 +534,9 @@ export const MenuBar: React.FC = () => {
         { icon: <FileX2 size={16} />, label: 'Delete Page', onSelect: () => runPageOperation('delete'), disabled: !hasDoc || numPages <= 1 },
         { icon: <Crop size={16} />, label: 'Crop Pages…', onSelect: () => useUiStore.getState().setPageToolDialog('crop'), disabled: !hasDoc, testId: 'menu-crop-pages' },
         { icon: <ListOrdered size={16} />, label: 'Number Pages…', onSelect: () => useUiStore.getState().setPageToolDialog('number'), disabled: !hasDoc, testId: 'menu-number-pages' },
+        { icon: <PanelTop size={16} />, label: 'Headers & Footers…', onSelect: () => useUiStore.getState().setPageToolDialog('headerFooter'), disabled: !hasDoc, testId: 'menu-headers-footers' },
+        { icon: <Replace size={16} />, label: 'Replace Pages…', onSelect: () => useUiStore.getState().setPageToolDialog('replace'), disabled: !hasDoc, testId: 'menu-replace-pages' },
+        { icon: <Scissors size={16} />, label: 'Split Document…', onSelect: () => useUiStore.getState().setPageToolDialog('split'), disabled: !hasDoc, testId: 'menu-split-document' },
         'separator',
         { icon: <FileText size={16} />, label: 'Document Properties…', onSelect: () => useUiStore.getState().setPageToolDialog('properties'), disabled: !hasDoc, testId: 'menu-document-properties' },
         'separator',

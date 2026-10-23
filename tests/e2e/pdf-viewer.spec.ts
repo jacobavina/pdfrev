@@ -3290,4 +3290,60 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(page.locator('[data-testid="crop-pages-dialog"]')).toHaveCount(0);
     await expect.poll(async () => Math.round((await page.locator('[data-testid="markup-overlay-svg"]').boundingBox())!.width)).toBe(Math.round(before.width));
   });
+
+  test('Headers & Footers (ADR-0114): el texto con campos aparece en la capa de texto de las páginas', async ({ page }) => {
+    await page.goto('/');
+    const container = page.locator('[data-testid="pdf-page-container"]');
+    await expect(container.getByText('PLANO DE PRUEBA', { exact: false }).first()).toBeAttached({ timeout: 15000 });
+    await page.locator('[data-testid="menu-documento"]').click();
+    await page.locator('[data-testid="menu-headers-footers"]').click();
+    await page.locator('[data-testid="hf-footerCenter"]').fill('');
+    await page.locator('[data-testid="hf-headerLeft"]').fill('Hoja {page} de {pages}');
+    await expect(page.locator('[data-testid="hf-sample"]')).toContainText('Hoja 1 de 3');
+    await page.locator('[data-testid="hf-apply"]').click();
+    await expect(page.locator('[data-testid="headers-footers-dialog"]')).toHaveCount(0);
+    await expect(container.getByText('Hoja 1 de 3', { exact: true }).first()).toBeAttached({ timeout: 15000 });
+  });
+
+  test('Replace Pages (ADR-0114): la página 2 se sustituye por la 1 de otro PDF y el documento conserva sus 3 páginas', async ({ page }) => {
+    await page.goto('/');
+    const container = page.locator('[data-testid="pdf-page-container"]');
+    await expect(container.getByText('PLANO DE PRUEBA', { exact: false }).first()).toBeAttached({ timeout: 15000 });
+    await expect(page.locator('[data-testid="thumbnail-2"]')).toBeVisible({ timeout: 15000 });
+    // En la página 2 están las especificaciones
+    await page.locator('[data-testid="thumbnail-1"]').click();
+    await expect(container.getByText('ESPECIFICACIONES Y NOTAS DE REVISIÓN', { exact: false })).toBeAttached({ timeout: 15000 });
+    await page.locator('[data-testid="menu-documento"]').click();
+    await page.locator('[data-testid="menu-replace-pages"]').click();
+    await expect(page.locator('[data-testid="replace-targets"]')).toHaveValue('2');
+    const chooser = page.waitForEvent('filechooser');
+    await page.locator('[data-testid="replace-choose"]').click();
+    await (await chooser).setFiles('fixtures/test-blueprint.pdf');
+    await expect(page.locator('[data-testid="replace-source"]')).toContainText('test-blueprint.pdf (3 pages)');
+    await page.locator('[data-testid="replace-source-pages"]').fill('1');
+    await expect(page.locator('[data-testid="replace-summary"]')).toContainText('The document will have 3 pages.');
+    await page.locator('[data-testid="replace-apply"]').click();
+    await expect(page.locator('[data-testid="replace-pages-dialog"]')).toHaveCount(0);
+    // La página 2 ahora es la 1 del otro PDF: lleva el título del plano y ya no las especificaciones
+    await page.locator('[data-testid="thumbnail-1"]').click();
+    await expect(container.getByText('PLANO DE PRUEBA - CALIBRACIÓN TÉCNICA (PÁGINA 1)', { exact: false })).toBeAttached({ timeout: 15000 });
+    await expect(container.getByText('ESPECIFICACIONES Y NOTAS DE REVISIÓN', { exact: false })).toHaveCount(0);
+    await expect(page.locator('[data-testid="thumbnail-2"]')).toBeVisible();
+  });
+
+  test('Split Document (ADR-0114): en el navegador descarga un PDF por parte con el nombre de sus páginas', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('[data-testid="pdf-page-container"]').getByText('PLANO DE PRUEBA', { exact: false }).first()).toBeAttached({ timeout: 15000 });
+    await page.locator('[data-testid="menu-documento"]').click();
+    await page.locator('[data-testid="menu-split-document"]').click();
+    await page.locator('[data-testid="split-mode-ranges"]').click();
+    await page.locator('[data-testid="split-ranges"]').fill('1-2; 3');
+    await expect(page.locator('[data-testid="split-preview"]')).toContainText('2 files');
+    const names: string[] = [];
+    page.on('download', (d) => names.push(d.suggestedFilename()));
+    await page.locator('[data-testid="split-apply"]').click();
+    await expect(page.locator('[data-testid="split-document-dialog"]')).toHaveCount(0);
+    await expect.poll(() => names.length, { timeout: 15000 }).toBe(2);
+    expect(names).toEqual(['test-blueprint_p1-2.pdf', 'test-blueprint_p3.pdf']);
+  });
 });

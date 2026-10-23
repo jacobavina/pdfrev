@@ -391,6 +391,14 @@ try {
   }
 
   if (!canvasResult?.ok || canvasResult.nonZeroPixels === 0) {
+    // Evidencia del fallo: captura de la ventana y texto visible, para ver qué pantalla había en lugar del plano
+    try {
+      console.log(`    Captura del fallo: ${await takeScreenshot('pdf-canvas-failure.png')}`);
+      const visible = await executeSync(`return document.body.innerText.slice(0, 600);`);
+      console.log(`    Texto visible: ${JSON.stringify(visible)}`);
+    } catch {
+      // La captura es solo diagnóstico
+    }
     throw new Error(`El canvas no renderizó píxeles reales: ${JSON.stringify(canvasResult)}`);
   }
   console.log(`    ✓ Canvas con dimensiones ${canvasResult.width}x${canvasResult.height} px.`);

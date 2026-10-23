@@ -34,6 +34,17 @@ etiquetas de página, columnas personalizadas y anotaciones importadas y marca e
 - Las propiedades no incluyen metadatos XMP ni fuentes incrustadas, ni cambian la seguridad del documento.
 - Cambiar los bytes del documento no se puede deshacer con Undo (igual que rotar o borrar una página).
 
+## 3.1 Incidente: la ventana nativa se quedaba en blanco
+
+La primera versión leía la versión del PDF con una expresión regular que llevaba escrita la marca de cabecera de PDF
+dentro de un archivo pequeño. Tauri sirve cada archivo de la aplicación con el tipo MIME que adivina por su contenido, y
+uno con esa marca en sus primeros 1024 bytes sale como `application/pdf`: WebView2 se niega a cargarlo como módulo, el
+`import()` de los diálogos falla y React no llega a pintar nada. Los E2E de Playwright (servidor de desarrollo) y la
+compilación de producción en Chromium no lo ven; solo lo vio el smoke test nativo, que se encontró la ventana vacía.
+Ahora la cabecera se busca por sus bytes (`pdfHeaderVersion`) y `src/core/pages/noPdfMagicInBundle.test.ts` prohíbe el
+literal en cualquier archivo de `src/` que no sea de pruebas. El smoke test guarda ahora una captura y el texto visible
+cuando el canvas no aparece.
+
 ## 4. Pruebas
 
 - `src/core/pages/pageBoxes.test.ts` (8), `pageNumbers.test.ts` (8), `documentProperties.test.ts` (6): geometría con
@@ -41,3 +52,4 @@ etiquetas de página, columnas personalizadas y anotaciones importadas y marca e
 - `src/services/documentEditService.test.ts` (7): estado conservado, marcas y viewports remapeados, recorte negado,
   restaurar.
 - `src/components/modals/PageToolDialogs.test.tsx` (6) y dos E2E con la aplicación real.
+- `src/core/pages/noPdfMagicInBundle.test.ts` (1): ningún archivo fuente lleva la marca de cabecera de PDF como texto.

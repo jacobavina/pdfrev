@@ -25,11 +25,24 @@ export interface DocumentProperties {
 
 export type EditableProperties = Pick<DocumentProperties, 'title' | 'author' | 'subject' | 'keywords'>;
 
-/** Versión de PDF de la cabecera (`%PDF-1.7`), o cadena vacía. */
+/**
+ * Versión de PDF de la cabecera (p. ej. "1.7"), o cadena vacía. La marca de cabecera se busca por sus bytes y no como
+ * texto: un literal con ella dentro de los primeros 1024 bytes de un fragmento de la aplicación hace que Tauri lo sirva
+ * como `application/pdf` y el navegador se niegue a cargarlo como módulo (ver `noPdfMagicInBundle.test.ts`).
+ */
 export function pdfHeaderVersion(bytes: Uint8Array): string {
-  const head = new TextDecoder('latin1').decode(bytes.subarray(0, Math.min(bytes.length, 1024)));
-  const m = /%PDF-(\d\.\d)/.exec(head);
-  return m ? m[1] : '';
+  const magic = [0x25, 0x50, 0x44, 0x46, 0x2d];
+  const limit = Math.min(bytes.length, 1024) - magic.length - 3;
+  for (let i = 0; i <= limit; i++) {
+    if (!magic.every((b, k) => bytes[i + k] === b)) continue;
+    const major = bytes[i + 5];
+    const dot = bytes[i + 6];
+    const minor = bytes[i + 7];
+    if (major >= 0x30 && major <= 0x39 && dot === 0x2e && minor >= 0x30 && minor <= 0x39) {
+      return String.fromCharCode(major, dot, minor);
+    }
+  }
+  return '';
 }
 
 /** Palabras clave como lista: separadas por comas o punto y coma, sin vacías ni repetidas. */

@@ -1,7 +1,0 @@
-=== M5 PLANOS GRANDES: OPCION C ===
-Hoja E Densa:
- - Tiempo al parseo inicial: 0.035 ms
- - Memoria: bajo demanda vía Arc
-PDF ~100 MB:
- - Tiempo al parseo inicial: 4.218 ms
- - Memoria: bajo demanda vía Arc

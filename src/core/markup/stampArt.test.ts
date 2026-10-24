@@ -26,7 +26,7 @@ describe('Sellos de Revu y Foxit (ADR-0045)', () => {
   });
 
   it('texto dinámico al colocarlo: Foxit con autor, fecha y hora; Revu con fecha y hora; sellos de fecha', () => {
-    expect(stampTexts(stampById('dyn-approved'), 'jmm_j', ISO).subtitle).toBe('jmm_j, 15/10/2026, 04:18:40 pm');
+    expect(stampTexts(stampById('dyn-approved'), 'reviewer', ISO).subtitle).toBe('reviewer, 15/10/2026, 04:18:40 pm');
     expect(stampTexts(stampById('rv-for-review'), 'Ana', ISO)).toEqual({ title: 'For Review', subtitle: '15/10/2026 04:18:40 pm' });
     expect(stampTexts(stampById('rv-date'), 'Ana', ISO).title).toBe('15/10/2026');
     expect(stampTexts(stampById('rv-eu-date'), 'Ana', ISO).title).toBe('15.10.2026');

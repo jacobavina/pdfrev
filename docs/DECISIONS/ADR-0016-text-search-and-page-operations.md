@@ -3,7 +3,7 @@
 - **Estado:** Aceptado
 - **Fecha:** 2026-10-11
 - **Autores:** Equipo REA
-- **Relacionado con:** [ADR-0002](file:///C:/dev/rea/docs/DECISIONS/ADR-0002-normalized-coordinates-and-viewport-rotation.md), [ADR-0003](file:///C:/dev/rea/docs/DECISIONS/ADR-0003-bbx-persistence-format-versioning.md), [ADR-0011](file:///C:/dev/rea/docs/DECISIONS/ADR-0011-motor-pdf.md), [ADR-0013](file:///C:/dev/rea/docs/DECISIONS/ADR-0013-pdf-interoperability-and-incremental-update.md), [ADR-0015](file:///C:/dev/rea/docs/DECISIONS/ADR-0015-takeoff-measurements-and-calibration.md), [08-plan-orquestador.md](file:///C:/dev/rea/docs/plan-v2/08-plan-orquestador.md)
+- **Relacionado con:** [ADR-0002](./ADR-0002-normalized-coordinates-and-viewport-rotation.md), [ADR-0003](./ADR-0003-bbx-persistence-format-versioning.md), [ADR-0011](./ADR-0011-motor-pdf.md), [ADR-0013](./ADR-0013-pdf-interoperability-and-incremental-update.md), [ADR-0015](./ADR-0015-takeoff-measurements-and-calibration.md), [08-plan-orquestador.md](#)
 
 ---
 

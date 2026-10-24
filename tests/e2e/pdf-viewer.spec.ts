@@ -377,7 +377,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
 
     // Guardar captura para verificación visual de la curvatura y flecha del abombamiento
     await page.screenshot({
-      path: 'C:/Users/jmm_j/.gemini/antigravity/brain/9026c7fb-b4c3-4cb1-906c-879487ed1de7/cloud_visual_verification.png',
+      path: 'tests/native-artifacts/cloud_visual_verification.png',
     });
 
     // Comprobar que en la lista de marcas aparecen cloudPlus y callout

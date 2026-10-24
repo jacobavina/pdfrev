@@ -85,7 +85,7 @@ describe('Estructura de la ventana: menos bandas y lienzo como sujeto (ADR-0064)
     expect(ribbon.querySelector('[role="tablist"]')).toBeNull();
     expect(screen.getByTestId('ribbon-tools')).toHaveClass('h-[52px]');
     const selectGroup = screen.getByTestId('ribbon-group-select');
-    expect(selectGroup.firstElementChild).toHaveClass('h-[32px]', 'shrink-0');
+    expect(selectGroup.firstElementChild).toHaveClass('h-[28px]', 'shrink-0');
     expect(screen.queryByTestId('properties-bar')).toBeNull();
     expect(screen.queryByTestId('ribbon-group-style')).toBeNull();
   });

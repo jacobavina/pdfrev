@@ -3,13 +3,13 @@
 - **Estado:** Aceptado (aprobado por el usuario, 2026-10-11)
 - **Fecha:** 2026-10-11
 - **Autores:** Equipo REA
-- **Relacionado con:** [ADR-0010](file:///C:/dev/rea/docs/DECISIONS/ADR-0010-corpus-fidelidad-local.md), [07-estrategia-de-motor-y-completitud.md](file:///C:/dev/rea/docs/plan-v2/07-estrategia-de-motor-y-completitud.md), [SPIKE-MOTOR.md](file:///C:/dev/rea/docs/perf/SPIKE-MOTOR.md)
+- **Relacionado con:** [ADR-0010](./ADR-0010-corpus-fidelidad-local.md), [07-estrategia-de-motor-y-completitud.md](#), [SPIKE-MOTOR.md](#)
 
 ---
 
 ## 1. Contexto
 
-En el marco del plan v2 y tras la aprobación de la decisión **D-10 (2026-10-11)**, el proyecto REA fijó como meta técnica alcanzar **las funciones y flujos de Bluebeam Revu con el nivel de completitud técnica de pdfcraft**. Para materializar esta visión sin comprometer el calendario ni asumir riesgos arquitectónicos a ciegas, se diseñó el hito de investigación **P3-A.1: Spike de Motor PDF**, evaluando cuatro alternativas sobre un corpus estandarizado de 1,001 documentos PDF (11 fixtures sintéticos controlados + 990 archivos reales de Mozilla PDF.js catalogados bajo [ADR-0010](file:///C:/dev/rea/docs/DECISIONS/ADR-0010-corpus-fidelidad-local.md)):
+En el marco del plan v2 y tras la aprobación de la decisión **D-10 (2026-10-11)**, el proyecto REA fijó como meta técnica alcanzar **las funciones y flujos de Bluebeam Revu con el nivel de completitud técnica de pdfcraft**. Para materializar esta visión sin comprometer el calendario ni asumir riesgos arquitectónicos a ciegas, se diseñó el hito de investigación **P3-A.1: Spike de Motor PDF**, evaluando cuatro alternativas sobre un corpus estandarizado de 1,001 documentos PDF (11 fixtures sintéticos controlados + 990 archivos reales de Mozilla PDF.js catalogados bajo [ADR-0010](./ADR-0010-corpus-fidelidad-local.md)):
 
 1. **Opción A (Actual ampliado):** Renderizado en WebView2 con PDF.js + manipulación de objetos con pdf-lib + escritor incremental append-only propio.
 2. **Opción B (Núcleo propio en Rust desde cero):** Desarrollo in-house de parsers de xref clásica y streams, tablas de objetos, diccionarios y escritor incremental.
@@ -65,7 +65,7 @@ Se propone formalmente al usuario adoptar una **Estrategia Híbrida Gradual y Pr
 | **M9: Coste hasta el objetivo** | **~5.5 semanas** | ~46–60 semanas | ~7.5 semanas | ~14 semanas |
 | **PUNTUACIÓN PONDERADA TOTAL** | **94.5 / 100** | **44.5 / 100** | **87.5 / 100** | **68.0 / 100** |
 
-*Nota:* Las evidencias y comandos literales que respaldan cada cifra se encuentran registrados en [`docs/perf/SPIKE-MOTOR.md`](file:///C:/dev/rea/docs/perf/SPIKE-MOTOR.md).
+*Nota:* Las evidencias y comandos literales que respaldan cada cifra se encuentran registrados en [`docs/perf/SPIKE-MOTOR.md`](#).
 
 ---
 
@@ -73,8 +73,8 @@ Se propone formalmente al usuario adoptar una **Estrategia Híbrida Gradual y Pr
 
 1. **Impacto en el Plan de Fases:**
    - La Fase 3 se desarrolla conforme a la planificación prevista en `docs/plan-v2/03-plan-por-fases.md`, enfocándose en el soporte de anotaciones PDF ISO 32000-1, cálculo de apariencias `/AP`, capas `/OCG` y calibración de planos.
-   - El escritor incremental prototipado en `spikes/motor/opcion-a/incremental-writer.mjs` se traslada a la arquitectura de producción de REA garantizando persistencia atómica en disco ([ADR-0004](file:///C:/dev/rea/docs/DECISIONS/ADR-0004-atomic-rust-commands-io.md)).
+   - El escritor incremental prototipado en `spikes/motor/opcion-a/incremental-writer.mjs` se traslada a la arquitectura de producción de REA garantizando persistencia atómica en disco ([ADR-0004](./ADR-0004-atomic-rust-commands-io.md)).
 2. **Recomendación de Infraestructura (`qpdf`):**
    - Durante el spike se constató la ausencia de la utilidad `qpdf` en el entorno Windows del sistema. Se propone al usuario incorporar `qpdf` (vía `winget install qpdf` o ejecutable portable) para utilizarse como validador de sintaxis independiente en la suite de verificación automatizada a partir del hito P3-G.1.
 3. **Revisión del Usuario:**
-   - La validez visual de las muestras generadas queda sujeta a la inspección manual del usuario en Bluebeam Revu y Adobe Acrobat siguiendo el checklist de [`docs/perf/SPIKE-MOTOR.md`](file:///C:/dev/rea/docs/perf/SPIKE-MOTOR.md) §6.
+   - La validez visual de las muestras generadas queda sujeta a la inspección manual del usuario en Bluebeam Revu y Adobe Acrobat siguiendo el checklist de [`docs/perf/SPIKE-MOTOR.md`](#) §6.

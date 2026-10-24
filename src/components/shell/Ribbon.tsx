@@ -36,7 +36,7 @@ const RibbonGroup: React.FC<{ label: string; children: React.ReactNode; testId?:
   testId,
 }) => (
   <section data-testid={testId} className="ribbon-group">
-    <div className="h-[32px] shrink-0 flex items-center gap-0.5">{children}</div>
+    <div className="h-[28px] shrink-0 flex items-center gap-0.5">{children}</div>
     <div className="ribbon-group-label">{label}</div>
   </section>
 );

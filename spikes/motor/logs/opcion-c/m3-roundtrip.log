@@ -1,7 +1,0 @@
-=== M3 IDA Y VUELTA (ROUND-TRIP) E INCREMENTAL: OPCION C ===
-Archivo base: .\spikes/motor/fixtures\classic-xref.pdf (1310 bytes)
-Guardado incremental generado: .\spikes/motor/out/opcion-c\roundtrip-test.pdf (1610 bytes)
-Bytes originales 100% intactos en prefijo: SI (VERIFICADO)
-Reapertura con pdfcraft-cos: OK
-Validación estructural qpdf: qpdf no disponible en este equipo (verificado)
-Resultado M3: Guardado incremental nativo con pdfcraft-cos superado con éxito.

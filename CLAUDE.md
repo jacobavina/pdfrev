@@ -37,7 +37,7 @@ node scripts/verify.mjs --with-e2e
 ### Ejecución de Suites Individuales
 En Windows PowerShell, configurar siempre el entorno previo si es necesario:
 ```powershell
-$env:PATH = "C:\Program Files\nodejs;C:\Users\jmm_j\.cargo\bin;$env:PATH"; $env:NODE_OPTIONS = "--use-system-ca"
+$env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"; $env:NODE_OPTIONS = "--use-system-ca"
 ```
 
 1. **Pruebas Unitarias (Vitest):**
@@ -67,7 +67,7 @@ $env:PATH = "C:\Program Files\nodejs;C:\Users\jmm_j\.cargo\bin;$env:PATH"; $env:
 ## 3. Mapa de Carpetas y Arquitectura
 
 ```text
-C:\dev\rea\
+pdfrev/
 ├── src/
 │   ├── core/                  # Núcleo puro: funciones matemáticas, geométricas y descriptores SVG (render.ts).
 │   │                          # Sin dependencias de DOM, React, Tauri ni window. Testeable en Node/Vitest puro.

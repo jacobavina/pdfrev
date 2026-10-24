@@ -1,6 +1,0 @@
-=== M7 INTEGRACION EN WINDOWS/TAURI: OPCION D ===
-- Compilación en Windows: Si, pero requiere distribuir dll binaria externa (pdfium.dll, 3.86 MB comprimido, ~13 MB descomprimido)
-- Tamaño del binario compilado: ~3.5 MB exe + 13 MB pdfium.dll = ~16.5 MB huella en disco
-- Transporte de píxeles: Complejo. PDFium renderiza en memoria en el proceso backend de Rust;
-transportar imágenes raster (bitmaps RGBA) hacia el frontend WebView2 para planos de 3600x2400 pt
-requiere un servidor de tiles sobre HTTP/IPC o transferencias pesadas de Base64/SharedMemory.

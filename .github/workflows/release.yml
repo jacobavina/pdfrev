@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  publish-windows:
+    name: Build & Publish Windows Release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: 'src-tauri'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify Quality Gate Suite
+        run: node scripts/verify.mjs
+
+      - name: Build Tauri NSIS Installer
+        run: npx.cmd tauri build --bundles nsis
+
+      - name: Build Headless CLI Binary
+        run: cargo build --release --bin pdfrev-cli --manifest-path src-tauri/Cargo.toml
+
+      - name: Package Portable Zip & Checksums
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $portableDir = "pdfrev-$tag-portable"
+          New-Item -ItemType Directory -Path $portableDir -Force | Out-Null
+          
+          Copy-Item "src-tauri/target/release/pdfrev.exe" "$portableDir/pdfrev.exe"
+          Copy-Item "src-tauri/target/release/pdfrev-cli.exe" "$portableDir/pdfrev-cli.exe"
+          Copy-Item "README.md" "$portableDir/README.md"
+          Copy-Item "LICENSE" "$portableDir/LICENSE"
+
+          $zipName = "pdfrev_${tag}_windows_x64_portable.zip"
+          Compress-Archive -Path "$portableDir/*" -DestinationPath $zipName -Force
+
+          # Locate installer
+          $installer = Get-ChildItem "src-tauri/target/release/bundle/nsis/*.exe" | Select-Object -First 1
+          
+          # Generate SHA256 checksums
+          $filesToHash = @($installer.FullName, $zipName)
+          $hashes = foreach ($f in $filesToHash) {
+              $hash = (Get-FileHash -Path $f -Algorithm SHA256).Hash.ToLower()
+              $leaf = Split-Path $f -Leaf
+              "$hash  $leaf"
+          }
+          $hashes | Out-File -FilePath "SHA256SUMS.txt" -Encoding ascii
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            pdfrev_*_windows_x64_portable.zip
+            SHA256SUMS.txt
+          generate_release_notes: true
+          draft: false
+          prerelease: false

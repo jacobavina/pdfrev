@@ -119,7 +119,7 @@ const cargoCmd = 'cargo';
 const nodeCmd = process.execPath || 'node';
 
 console.log(`============================================================`);
-console.log(`  REA — PUERTA DE CALIDAD AUTOMATIZADA`);
+console.log(`  pdfrev — PUERTA DE CALIDAD AUTOMATIZADA`);
 console.log(
   `  Plataforma: ${process.platform} | Modo E2E: ${
     withE2E ? `Activado (${e2eLoopCount} pasadas)` : 'Omitido'

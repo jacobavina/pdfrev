@@ -1,5 +1,0 @@
-=== M7 INTEGRACION EN WINDOWS/TAURI: OPCION B ===
-- Compilación en Windows: Excelente (Rust nativo vía cargo, 100% compatible con Tauri 2)
-- Tamaño del binario spike: ~1.2 MB en debug, ~400 KB en release
-- Tiempo de compilación inicial: 3.93 s
-- Transporte de píxeles: Inexistente sin motor de render; si se añade rasterizador (e.g. tiny-skia), requeriría transferir millones de píxeles por IPC o memoria compartida al WebView2.

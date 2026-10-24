@@ -1,6 +1,0 @@
-=== M7 INTEGRACION EN WINDOWS/TAURI: OPCION C ===
-- Compilación en Windows: Si (compila limpiamente con rustc 1.99.0 vía Cargo como path dependency)
-- Dependencia externa: No publicado en crates.io (requiere vendorizar subárbol git o git dependency fija)
-- Tamaño del binario spike: ~2.8 MB en debug, ~850 KB en release
-- Tiempo de compilación inicial: 12.12 s
-- Modelo de concurrencia: Arc<Vec<u8>> y copy-on-write overlay excelente para multi-threading

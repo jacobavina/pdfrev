@@ -57,9 +57,13 @@ if (shouldBuild) {
   }
 
   console.log(`  3/3 Copiando binario a ruta aislada de smoke: ${APP_BIN_PATH}...`);
-  const debugBin = path.resolve('src-tauri/target/debug/app.exe');
+  const debugBin = fs.existsSync(path.resolve('src-tauri/target/debug/pdfrev.exe'))
+    ? path.resolve('src-tauri/target/debug/pdfrev.exe')
+    : path.resolve('src-tauri/target/debug/app.exe');
   fs.mkdirSync(path.dirname(APP_BIN_PATH), { recursive: true });
   fs.copyFileSync(debugBin, APP_BIN_PATH);
+  const pdfrevSmokeBin = path.resolve('src-tauri/target/smoke/pdfrev.exe');
+  fs.copyFileSync(debugBin, pdfrevSmokeBin);
   console.log('  ✓ Binario autocontenido generado y ubicado en ruta de smoke.\n');
 }
 

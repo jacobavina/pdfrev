@@ -1,32 +1,65 @@
 # Dependencies
 node_modules/
+.pnp
+.pnp.js
 
 # Production build outputs
 dist/
+dist-ssr/
+*.local
 
-# Test artifacts and reports
+# Rust build target
+src-tauri/target/
+
+# Test artifacts and execution logs
 test-results/
 playwright-report/
 tests/e2e-logs/
-tests/native-artifacts/
+tests/native-artifacts/*.png
+tests/native-artifacts/*.log
+tests/native-artifacts/*.txt
 
 # Generated fixtures runtime persistence
 fixtures/*.bbx.json
+fixtures/*.tmp
 
-# Local fidelity corpus and spike vendor/build artifacts
+# Atomic file operations and backups
+*.tmp
+*.rea-backup
+
+# Internal evaluation, spikes, and scratch directories
 corpus/
-spikes/**/vendor/
-spikes/**/target/
-spikes/**/node_modules/
-spikes/**/out/large/
-spikes/motor/fixtures/sheet-e-dense.pdf
-spikes/motor/fixtures/pages-300.pdf
-spikes/motor/fixtures/large-100mb.pdf
-
-# Orchestrator execution logs
+spikes/
+.impeccable/
 .orquestador/
 plan/
-
-
-# Impeccable design skill (per-developer tooling, installed via npx impeccable)
 .dsh/
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+
+# Editor directories and OS files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*

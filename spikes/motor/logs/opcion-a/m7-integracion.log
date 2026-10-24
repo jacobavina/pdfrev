@@ -1,7 +1,0 @@
-=== M7 INTEGRACION EN WINDOWS/TAURI: OPCION A ===
-- Compilación en Windows: Si (Node.js / Vite build / tsc sin dependencias nativas C++)
-- Tamaño del bundle principal (dist/assets/index-*.js): 657.41 kB (673,192 bytes)
-- Tamaño del worker de PDF.js (pdf.worker.min-*.mjs): 1,375.84 kB
-- Tiempo de build de frontend: 7.57 s
-- Transporte de píxeles a la UI: DIRECTO en DOM/Canvas 2D dentro del WebView2 (0 copias de IPC Rust)
-- IPC requerida: Mínima (solo save_pdf con bytes de parche incremental)

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { MenuBar } from './MenuBar';
 import { useDocumentStore } from '../../store/useDocumentStore';
@@ -30,14 +30,23 @@ describe('Menú Tools ▸ Stamp con miniaturas y filas compactas (ADR-0136)', ()
   });
 
   it('el nombre va sin el sufijo del grupo y el grupo aparece a la derecha; elegir un sello activa la herramienta', () => {
-    openStamps();
-    const item = screen.getByTestId('menu-stamp-rv-approved');
-    expect(item).toHaveTextContent('APPROVED');
-    expect(item).toHaveTextContent('Revu');
-    expect(item).not.toHaveTextContent('APPROVED · Revu');
-    fireEvent.click(item);
-    expect(useToolStore.getState().activeTool).toBe('stamp');
-    expect(useToolStore.getState().activeStampId).toBe('rv-approved');
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      openStamps();
+      const duplicateKeyCalls = errSpy.mock.calls.filter((args) =>
+        args.some((a) => String(a).includes('same key'))
+      );
+      expect(duplicateKeyCalls).toHaveLength(0);
+      const item = screen.getByTestId('menu-stamp-rv-approved');
+      expect(item).toHaveTextContent('APPROVED');
+      expect(item).toHaveTextContent('Revu');
+      expect(item).not.toHaveTextContent('APPROVED · Revu');
+      fireEvent.click(item);
+      expect(useToolStore.getState().activeTool).toBe('stamp');
+      expect(useToolStore.getState().activeStampId).toBe('rv-approved');
+    } finally {
+      errSpy.mockRestore();
+    }
   });
 
   it('las filas de los menús son compactas: relleno vertical mínimo y texto de 12 px', () => {

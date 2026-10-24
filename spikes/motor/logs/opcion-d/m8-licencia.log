@@ -1,8 +1,0 @@
-=== M8 LICENCIA Y PROCEDENCIA: OPCION D ===
-- Origen del binario: https://github.com/bblanchon/pdfium-binaries/releases/download/chromium/8086/pdfium-win-x64.tgz
-- Versión: chromium/8086
-- SHA-256 verificado: 1fd8af952832dbb0eb16d9249f68fe09e5f5ebf7c3dd9f6066ea2720cc28487d
-- Licencia del binario: BSD-3-Clause (Chromium / Google / Foxit Software Inc.) - Permisiva
-- Wrapper Rust: pdfium-render 0.9.4 (MIT o Apache-2.0)
-- Riesgo GPL: Ninguno (0 componentes copyleft)
-- Riesgo de distribución: Empaquetar y mantener binarios DLL compilados de terceros para cada plataforma (Win/Mac/Linux).

@@ -211,7 +211,7 @@ describe('RecentFilesFlow Integration (ADR-0087: Archivos Recientes y Pantalla I
 
       const welcome = await screen.findByTestId('welcome-canvas');
       expect(welcome).toBeInTheDocument();
-      expect(screen.getByText('REA CAD Blueprint Viewer')).toBeInTheDocument();
+      expect(screen.getByText('pdfrev CAD Blueprint Viewer')).toBeInTheDocument();
     });
   });
 });

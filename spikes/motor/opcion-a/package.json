@@ -1,7 +1,0 @@
-{
-  "name": "spike-motor-opcion-a",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "description": "Spike Motor Opción A: Actual Ampliado (PDF.js + pdf-lib + escritor incremental)"
-}

@@ -1,7 +1,8 @@
 {
-  "name": "rea",
+  "name": "pdfrev",
   "private": true,
   "version": "0.1.0",
+  "description": "Local-first, fearless PDF reader, editor and takeoff tool for Windows",
   "type": "module",
   "scripts": {
     "dev": "vite",

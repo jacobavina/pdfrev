@@ -1,6 +1,0 @@
-=== M2 FIDELIDAD DE RENDER: OPCION A ===
-Referencia fijada: PDF.js 4.10.38 (motor oficial de render en Chromium WebView2)
-Al ser la Opción A el propio motor de referencia, la discrepancia interna es 0.00%.
-Páginas evaluadas en muestra: 50 páginas de fixtures y corpus.
-% de páginas con diferencia de píxeles > 1%: 0.00%
-Top 10 discrepancias: Ninguna (identidad por construcción).

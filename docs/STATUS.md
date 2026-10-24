@@ -13,7 +13,7 @@
 1. Leer `AGENTS.md`, `CLAUDE.md`, esta sección, `PARITY.md` (0 filas `todo`) y los ADR recientes en
    `docs/DECISIONS/` (ADR-0039 a ADR-0069).
 2. Entorno (Windows, Git Bash):
-   `export PATH="/c/Program Files/nodejs:/c/Users/jmm_j/.cargo/bin:$PATH"; export NODE_OPTIONS="--use-system-ca"`.
+   `export PATH="$HOME/.cargo/bin:$PATH"; export NODE_OPTIONS="--use-system-ca"`.
    - Liberar el puerto 1421 antes de Playwright:
      `powershell.exe -NoProfile -Command "Get-NetTCPConnection -LocalPort 1421 | % { Stop-Process -Id $_.OwningProcess -Force }"`.
    - Build nativo: `npm.cmd run test:native:build` desde PowerShell; deja `src-tauri/target/smoke/app.exe`.

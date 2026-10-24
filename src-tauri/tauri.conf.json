@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "rea",
+  "productName": "pdfrev",
   "version": "0.1.0",
-  "identifier": "com.rea.markup",
+  "identifier": "com.pdfrev.desktop",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "REA · Drawing Review & Takeoff",
+        "title": "pdfrev · PDF Reader & Editor",
         "width": 1440,
         "height": 900,
         "minWidth": 1024,
@@ -38,6 +38,12 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "windows": {
+      "nsis": {
+        "headerImage": "nsis-header.bmp",
+        "sidebarImage": "nsis-sidebar.bmp"
+      }
+    },
     "android": {
       "debugApplicationIdSuffix": ".debug"
     }

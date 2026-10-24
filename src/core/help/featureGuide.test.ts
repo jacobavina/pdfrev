@@ -34,6 +34,9 @@ describe('Guía de funciones (ADR-0100)', () => {
     expect(searchGuide('Shift+Alt+C').some((e) => e.id === 'count')).toBe(true);
     expect(searchGuide('View Profiles').some((e) => e.id === 'profiles')).toBe(true);
     expect(searchGuide('dynamic fill gap').map((e) => e.id)).toContain('dynamic-fill');
+    expect(searchGuide('Reuse').some((e) => e.id === 'reuse-tools')).toBe(true);
+    expect(searchGuide('More tools').some((e) => e.id === 'ribbon-and-status')).toBe(true);
+    expect(searchGuide('Tools ▸ Stamp').some((e) => e.id === 'stamp')).toBe(true);
     expect(searchGuide('zzzz-no-existe')).toEqual([]);
   });
 });

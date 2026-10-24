@@ -72,7 +72,7 @@ export const WelcomeCanvas: React.FC = () => {
             <FolderOpen size={20} />
           </div>
           <div>
-            <h1 className="text-sm font-semibold text-cad-strong">REA CAD Blueprint Viewer</h1>
+            <h1 className="text-sm font-semibold text-cad-strong">pdfrev CAD Blueprint Viewer</h1>
             <p className="text-xs text-gray-400">Open a PDF blueprint or review takeoff documents</p>
           </div>
         </div>

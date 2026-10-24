@@ -61,6 +61,16 @@ export const FEATURE_GUIDE: GuideSection[] = [
         where: 'Help ▸ Keyboard Shortcuts',
         shortcut: 'F1',
       },
+      {
+        id: 'ribbon-and-status',
+        title: 'More tools menu and active tool in the status bar',
+        summary: 'When the window is narrow, a double-arrow button at the right end of the ribbon lists every tool of the active tab. The status bar always shows which tool is active.',
+        steps: [
+          'Click More tools (») at the right end of the ribbon to pick any tool from a two-column list when the ribbon does not fit in full.',
+          'Check Tool: … in the status bar at the bottom to see the active tool at a glance, even if its button is scrolled out of view.',
+        ],
+        where: 'Ribbon ▸ More tools (») / Status bar',
+      },
     ],
   },
   {
@@ -116,7 +126,7 @@ export const FEATURE_GUIDE: GuideSection[] = [
         summary: 'Give the drawing the whole window, or keep the window above other programs while you work from another document.',
         steps: [
           'Full Screen (F11) uses the whole screen; press F11 again to return. Hide Panels (Shift+F4) closes the thumbnails, the side panels and the markups list; press it again and each one comes back as it was.',
-          'Always On Top (View menu, desktop app only) keeps REA above other windows, useful with a second screen or a reference document.',
+          'Always On Top (View menu, desktop app only) keeps pdfrev above other windows, useful with a second screen or a reference document.',
         ],
         where: 'View ▸ Full Screen / Hide Panels / Always On Top',
         shortcut: 'F11',
@@ -197,6 +207,17 @@ export const FEATURE_GUIDE: GuideSection[] = [
         shortcut: 'V',
       },
       {
+        id: 'reuse-tools',
+        title: 'Reuse tools',
+        summary: 'Keeps the active drawing or measurement tool selected after placing a markup so you can place several in a row, or switches back to Select after a single markup when turned off.',
+        steps: [
+          'Click Reuse in the status bar (or choose Tools ▸ Reuse) to turn it on or off. The choice is remembered next time.',
+          'When Reuse is on, you can draw one rectangle, cloud or measurement after another without picking the tool again.',
+          'When Reuse is off, placing a markup returns to Select (V) right away so you can move or edit it. Count and Numbered Sequence always stay active until you finish.',
+        ],
+        where: 'Status bar ▸ Reuse / Tools ▸ Reuse',
+      },
+      {
         id: 'text',
         title: 'Text box, typewriter, callout and note',
         summary: 'Text box and typewriter place text. A callout points at something with an arrow. A note is a sticky comment.',
@@ -243,9 +264,12 @@ export const FEATURE_GUIDE: GuideSection[] = [
       {
         id: 'stamp',
         title: 'Stamps',
-        summary: 'Places a ready-made stamp such as Approved, Reviewed or a sign-here mark.',
-        steps: ['Open the Insert tab, choose a stamp, then click or drag on the drawing.'],
-        where: 'Insert tab ▸ Stamp',
+        summary: 'Places a ready-made stamp such as Approved, Revised, For Review, Draft Print or a sign-here mark, with live previews and dynamic author and date stamps.',
+        steps: [
+          'Choose Tools ▸ Stamp or open the Insert tab ▸ Stamp to browse the live preview of every stamp by group (Revu, Dynamic, Standard, Sign Here).',
+          'Pick a stamp, then click on the drawing for its default size or drag a box to size it.',
+        ],
+        where: 'Tools ▸ Stamp / Insert tab ▸ Stamp',
         shortcut: 'S',
       },
       {
@@ -398,10 +422,14 @@ export const FEATURE_GUIDE: GuideSection[] = [
       },
       {
         id: 'copy',
-        title: 'Copy, paste, duplicate, lock and delete',
-        summary: 'Standard editing for markups. Locked markups cannot be moved or edited.',
-        steps: ['Ctrl+C, Ctrl+V and Ctrl+D copy, paste and duplicate. Del deletes.', 'Edit ▸ Lock / Unlock protects a markup.'],
-        where: 'Edit menu',
+        title: 'Copy, paste, duplicate, order, lock and delete',
+        summary: 'Standard editing and stacking order for markups. Locked markups cannot be moved or edited.',
+        steps: [
+          'Ctrl+C, Ctrl+V and Ctrl+D copy, paste and duplicate. Del deletes.',
+          'Right-click ▸ Order (Bring to Front, Send to Back, Bring Forward, Send Backward) changes which markup sits on top.',
+          'Edit ▸ Lock / Unlock protects a markup.',
+        ],
+        where: 'Edit menu / Right-click ▸ Order',
         shortcut: 'Ctrl+C / Ctrl+V / Ctrl+D',
       },
       {
@@ -789,7 +817,7 @@ export const FEATURE_GUIDE: GuideSection[] = [
       {
         id: 'flatten',
         title: 'Flatten and unflatten',
-        summary: 'Burns the markups into the page. A PDF flattened by REA can be unflattened to get the editable markups back.',
+        summary: 'Burns the markups into the page. A PDF flattened by pdfrev can be unflattened to get the editable markups back.',
         steps: [
           'File ▸ Export ▸ PDF with Flattened Markups…',
           'Open that file and choose File ▸ Export ▸ Unflatten Markups of This PDF.',

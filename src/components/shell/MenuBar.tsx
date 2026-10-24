@@ -808,11 +808,11 @@ export const MenuBar: React.FC = () => {
       ref={barRef as React.RefObject<HTMLElement>}
       className="h-7 min-w-0 bg-cad-panel border-b border-cad-border flex items-center px-2 text-sm text-gray-200 select-none z-30 relative"
     >
-      <div className="flex items-center gap-1 pr-3 mr-1 border-r border-cad-border shrink-0" aria-label="REA">
+      <div className="flex items-center gap-1 pr-3 mr-1 border-r border-cad-border shrink-0" aria-label="pdfrev">
         <span aria-hidden="true" className="text-cad-accent font-bold leading-none">
-          R
+          P
         </span>
-        <span className="font-semibold text-cad-strong tracking-wide">REA</span>
+        <span className="font-semibold text-cad-strong tracking-wide">pdfrev</span>
       </div>
 
       <nav role="menubar" className="flex items-center shrink-0">
@@ -876,7 +876,7 @@ export const MenuBar: React.FC = () => {
                               <div key={`ssep-${j}`} className="my-0.5 mx-1 border-t border-cad-border" />
                             ) : (
                               <button
-                                key={sub.label}
+                                key={sub.testId ?? `${sub.label}-${j}`}
                                 type="button"
                                 role="menuitem"
                                 data-testid={sub.testId}

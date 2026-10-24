@@ -3,7 +3,7 @@
 - **Estado:** Aceptado (aprobado por el usuario en decisión D-3, 2026-10-11)
 - **Fecha:** 2026-10-11
 - **Autores:** Equipo REA
-- **Relacionado con:** [ADR-0005](file:///C:/dev/rea/docs/DECISIONS/ADR-0005-command-history-manager.md), [ADR-0006](file:///C:/dev/rea/docs/DECISIONS/ADR-0006-shared-markup-render-pipeline.md), [03-plan-por-fases.md](file:///C:/dev/rea/docs/plan-v2/03-plan-por-fases.md)
+- **Relacionado con:** [ADR-0005](./ADR-0005-command-history-manager.md), [ADR-0006](./ADR-0006-shared-markup-render-pipeline.md), [03-plan-por-fases.md](#)
 
 ---
 

@@ -1,6 +1,0 @@
-=== M2 FIDELIDAD DE RENDER: OPCION D (PDFium AGG Rasterizer) ===
-Referencia fijada: PDF.js 4.10.38 en Chromium WebView2.
-PDFium es el motor de renderizado nativo de Google Chrome. Su rasterizador C++ Anti-Grain Geometry (AGG)
-presenta una correlación visual de píxeles superior al 98.5% frente a PDF.js en fuentes TrueType y curvas Bézier.
-Renderizado de prueba de página (800 px ancho): 0.81 ms
-Discrepancia promedio vs PDF.js: < 1.2% (diferencias menores en antialiasing subpíxel).

@@ -3,7 +3,7 @@
 - **Estado:** Aceptado (alineado con ADR-0011 Opción A, 2026-10-11)
 - **Fecha:** 2026-10-11
 - **Autores:** Equipo REA
-- **Relacionado con:** [ADR-0003](file:///C:/dev/rea/docs/DECISIONS/ADR-0003-bbx-persistence-format-versioning.md), [ADR-0011](file:///C:/dev/rea/docs/DECISIONS/ADR-0011-motor-pdf.md), [08-plan-orquestador.md](file:///C:/dev/rea/docs/plan-v2/08-plan-orquestador.md)
+- **Relacionado con:** [ADR-0003](./ADR-0003-bbx-persistence-format-versioning.md), [ADR-0011](./ADR-0011-motor-pdf.md), [08-plan-orquestador.md](#)
 
 ---
 

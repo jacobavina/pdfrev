@@ -1746,9 +1746,18 @@ export function getMarkupSvgDescriptor(
             ? rect.x + width - 6 * textPxPerPt
             : rect.x + 6 * textPxPerPt;
       const strokeW = style.strokeWidth ?? (markup.type === 'typewriter' ? 0 : 1);
-      const hasBorder = strokeW > 0 && style.strokeColor !== 'transparent' && style.strokeColor !== 'none';
+      const bField = markup.customFields?.boxBorder ?? markup.customFields?.calloutBorder;
+      const explicitBorder = bField !== undefined ? (bField === 1 || bField === '1') : undefined;
+      const hasBorder = explicitBorder !== undefined
+        ? explicitBorder && style.strokeColor !== 'transparent' && style.strokeColor !== 'none'
+        : strokeW > 0 && style.strokeColor !== 'transparent' && style.strokeColor !== 'none';
+      const hasFill = Boolean(style.fillColor && style.fillColor !== 'transparent' && style.fillColor !== 'none');
       const defaultFill = markup.type === 'typewriter' ? 'transparent' : '#fffbe8';
-      const fill = style.fillColor || defaultFill;
+      const fill = hasFill
+        ? style.fillColor!
+        : (markup.type === 'typewriter' || style.fillColor === 'transparent' || explicitBorder === false
+          ? 'transparent'
+          : defaultFill);
       return {
         tag: 'g',
         attrs: { className: 'cursor-text', opacity: baseAttrs.opacity ?? 1 },
@@ -1761,8 +1770,8 @@ export function getMarkupSvgDescriptor(
               width,
               height,
               fill,
-              stroke: hasBorder ? style.strokeColor : 'none',
-              strokeWidth: hasBorder ? strokeW : 0,
+              stroke: hasBorder ? (style.strokeColor || 'currentColor') : 'none',
+              strokeWidth: hasBorder ? (strokeW || 1) : 0,
               ...(hasBorder && baseAttrs.strokeDasharray ? { strokeDasharray: baseAttrs.strokeDasharray } : {}),
               rx: 2,
             },

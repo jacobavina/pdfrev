@@ -176,8 +176,7 @@ export async function renderPageToCanvas(
     const textContainer = options.textLayerContainer;
     if (textContainer) {
       textContainer.innerHTML = '';
-      textContainer.style.width = `${Math.floor(viewport.width)}px`;
-      textContainer.style.height = `${Math.floor(viewport.height)}px`;
+      textContainer.removeAttribute('data-main-rotation');
       textContainer.style.setProperty('--scale-factor', `${scale}`);
 
       if (hasText) {

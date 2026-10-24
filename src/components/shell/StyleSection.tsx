@@ -100,19 +100,55 @@ export const StyleSection: React.FC = () => {
   // herramienta de nube)
   // El callout dibuja flecha abierta si no se eligió otra (ADR-0042): la barra lo muestra así
   const calloutContext = editingSelection ? selection[0].type === 'callout' : activeTool === 'callout';
+  const isBoxed = (type: string) => type === 'callout' || type === 'text';
+  const boxBorderContext = editingSelection ? isBoxed(selection[0].type) : (activeTool === 'callout' || activeTool === 'text');
   // Una distancia sin extremos guardados se dibuja con flechas cerradas (Acrobat, ADR-0033)
   const lengthContext = editingSelection ? selection[0].type === 'length' : activeTool === 'length';
-  // Borde de la caja del callout, aparte del relleno (ADR-0042)
+  // Borde de la caja del callout o de texto (ADR-0042, ADR-0138), aparte del relleno
   const boxBorder = editingSelection
-    ? calloutBoxPaint(selection[0]).border
-    : calloutBorder ?? Boolean(style.fillColor && style.fillColor !== 'transparent');
+    ? selection[0].type === 'callout'
+      ? calloutBoxPaint(selection[0]).border
+      : (selection[0].customFields?.boxBorder !== undefined
+          ? (selection[0].customFields.boxBorder === 1 || selection[0].customFields.boxBorder === '1')
+          : Boolean(style.strokeWidth && style.strokeWidth > 0 && style.strokeColor !== 'transparent' && style.strokeColor !== 'none'))
+    : activeTool === 'callout'
+    ? (calloutBorder ?? Boolean(style.fillColor && style.fillColor !== 'transparent'))
+    : Boolean(style.strokeWidth && style.strokeWidth > 0 && style.strokeColor !== 'transparent' && style.strokeColor !== 'none');
   const toggleBoxBorder = () => {
+    const next = !boxBorder;
     if (!editingSelection) {
-      setCalloutBorder(!boxBorder);
+      if (activeTool === 'callout') {
+        setCalloutBorder(next);
+      } else {
+        if (next) {
+          applyStyle({
+            strokeWidth: style.strokeWidth && style.strokeWidth > 0 ? style.strokeWidth : 1,
+            strokeColor: style.strokeColor && style.strokeColor !== 'transparent' && style.strokeColor !== 'none' ? style.strokeColor : STROKE_COLORS[0],
+          });
+        } else {
+          applyStyle({ strokeWidth: 0, strokeColor: 'transparent' });
+        }
+      }
       return;
     }
-    const ids = selection.filter((m) => m.type === 'callout').map((m) => m.id);
-    applyPropertiesToMarkups(ids, { customFields: { calloutBorder: boxBorder ? 0 : 1 } }, boxBorder ? 'Remove text box border' : 'Add text box border');
+    const calloutIds = selection.filter((m) => m.type === 'callout').map((m) => m.id);
+    if (calloutIds.length > 0) {
+      applyPropertiesToMarkups(calloutIds, { customFields: { calloutBorder: next ? 1 : 0 } }, next ? 'Add text box border' : 'Remove text box border');
+    }
+    const textIds = selection.filter((m) => m.type === 'text').map((m) => m.id);
+    if (textIds.length > 0) {
+      applyPropertiesToMarkups(
+        textIds,
+        {
+          customFields: { boxBorder: next ? 1 : 0 },
+          style: {
+            strokeWidth: next ? (style.strokeWidth && style.strokeWidth > 0 ? style.strokeWidth : 1) : 0,
+            strokeColor: next ? (style.strokeColor && style.strokeColor !== 'transparent' && style.strokeColor !== 'none' ? style.strokeColor : STROKE_COLORS[0]) : 'transparent',
+          },
+        },
+        next ? 'Add text box border' : 'Remove text box border'
+      );
+    }
   };
   const lineStyle: LineStyleId = editingSelection
     ? lineStyleOfMarkup(selection[0])
@@ -186,10 +222,40 @@ export const StyleSection: React.FC = () => {
             <ColorPicker
               testId="ribbon-stroke-color"
               title="Line color"
-              value={style.strokeColor}
+              value={style.strokeColor === 'transparent' || style.strokeColor === 'none' ? undefined : style.strokeColor}
               options={STROKE_COLORS.map((c) => ({ value: c, label: c }))}
+              allowNone
               customTestId="prop-stroke-color"
-              onChange={(c) => applyStyle({ strokeColor: c })}
+              onChange={(c) => {
+                if (!c || c === 'transparent' || c === 'none') {
+                  if (editingSelection) {
+                    const tIds = selection.filter((m) => m.type === 'text').map((m) => m.id);
+                    const otherIds = selection.filter((m) => m.type !== 'text').map((m) => m.id);
+                    if (tIds.length > 0) {
+                      applyPropertiesToMarkups(tIds, { style: { strokeColor: 'transparent', strokeWidth: 0 }, customFields: { boxBorder: 0 } }, 'Remove text box border');
+                    }
+                    if (otherIds.length > 0) {
+                      applyPropertiesToMarkups(otherIds, { style: { strokeColor: 'transparent', strokeWidth: 0 } }, 'Edit properties');
+                    }
+                  } else {
+                    applyStyle({ strokeColor: 'transparent', strokeWidth: 0 });
+                  }
+                } else {
+                  const newW = style.strokeWidth === 0 ? 1 : (style.strokeWidth ?? 1);
+                  if (editingSelection) {
+                    const tIds = selection.filter((m) => m.type === 'text').map((m) => m.id);
+                    const otherIds = selection.filter((m) => m.type !== 'text').map((m) => m.id);
+                    if (tIds.length > 0) {
+                      applyPropertiesToMarkups(tIds, { style: { strokeColor: c, strokeWidth: newW }, customFields: { boxBorder: 1 } }, 'Add text box border');
+                    }
+                    if (otherIds.length > 0) {
+                      applyPropertiesToMarkups(otherIds, { style: { strokeColor: c, strokeWidth: newW } }, 'Edit properties');
+                    }
+                  } else {
+                    applyStyle({ strokeColor: c, strokeWidth: newW });
+                  }
+                }
+              }}
             />
             <IconPicker
               compact
@@ -322,11 +388,11 @@ export const StyleSection: React.FC = () => {
             <ColorPicker
               testId="ribbon-fill-color"
               title="Fill color"
-              value={hasFill ? style.fillColor : undefined}
+              value={hasFill && style.fillColor !== 'transparent' && style.fillColor !== 'none' ? style.fillColor : undefined}
               options={STROKE_COLORS.map((c) => ({ value: translucentFill(c, 0.25), label: `Translucent ${c}`, border: c }))}
               allowNone
               customTestId="prop-fill-color"
-              onChange={(c) => applyStyle({ fillColor: c })}
+              onChange={(c) => applyStyle({ fillColor: c || 'transparent' })}
             />
             <IconPicker
               compact
@@ -338,7 +404,7 @@ export const StyleSection: React.FC = () => {
               renderIcon={(id) => <HatchPreview id={id} />}
               onChange={(id) => applyStyle({ hatch: id === 'none' ? undefined : id })}
             />
-            {calloutContext && (
+            {boxBorderContext && (
               <button
                 type="button"
                 data-testid="ribbon-callout-border"

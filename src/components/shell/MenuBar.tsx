@@ -131,6 +131,7 @@ import { supportsAlwaysOnTop } from '../../services/windowService';
 import { copyFormat, hideSelected, pasteFormat, pasteInPlace, showHidden, toggleFlagSelected } from '../../core/markup/copyActions';
 import { StampThumb } from './StampThumb';
 import { exportFlattenedPdf, unflattenOpenDocument, goToPage, runPageOperation, selectAllOnCurrentPage } from './appActions';
+import { showToast } from '../../services/toastService';
 
 type MenuEntry =
   | {
@@ -386,7 +387,21 @@ export const MenuBar: React.FC = () => {
         { icon: <Redo2 size={16} />, label: 'Redo', shortcut: 'Ctrl+Y', onSelect: redo, disabled: !canRedo },
         { icon: <History size={16} />, label: 'Undo History…', onSelect: () => useUiStore.getState().setUndoHistoryOpen(true), testId: 'menu-undo-history' },
         'separator',
-        { icon: <Copy size={16} />, label: 'Copy', shortcut: 'Ctrl+C', onSelect: () => useMarkupStore.getState().copySelectedMarkups(), disabled: !hasSelection },
+        {
+          icon: <Copy size={16} />,
+          label: 'Copy',
+          shortcut: 'Ctrl+C',
+          onSelect: () => {
+            const textSel = typeof window !== 'undefined' ? window.getSelection()?.toString() : undefined;
+            if (textSel && textSel.trim().length > 0) {
+              navigator.clipboard.writeText(textSel).catch(() => {});
+              showToast('Text copied to clipboard');
+              return;
+            }
+            useMarkupStore.getState().copySelectedMarkups();
+          },
+          disabled: !hasSelection && !(typeof window !== 'undefined' && Boolean(window.getSelection()?.toString().trim())),
+        },
         {
           icon: <ClipboardPaste size={16} />,
           label: 'Paste',

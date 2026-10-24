@@ -948,11 +948,14 @@ export function emitMarkupOperators(
       const w = Math.max(80, Math.abs(b.x - a.x));
       const h = Math.max(26, Math.abs(b.y - a.y));
       const strokeW = markup.style.strokeWidth ?? (markup.type === 'typewriter' ? 0 : 1);
-      const hasBorder = strokeParsed !== null && strokeW > 0;
+      const bField = markup.customFields?.boxBorder ?? markup.customFields?.calloutBorder;
+      const explicitBorderOff = bField === 0 || bField === '0';
+      const hasBorder = !explicitBorderOff && strokeParsed !== null && strokeW > 0;
+      const hasExplicitFill = Boolean(markup.style.fillColor && markup.style.fillColor !== 'transparent' && markup.style.fillColor !== 'none');
       const noFill =
         markup.type === 'typewriter' && !markup.style.fillColor
           ? true
-          : markup.style.fillColor === 'transparent' || markup.style.fillColor === 'none';
+          : !hasExplicitFill && (explicitBorderOff || markup.style.fillColor === 'transparent' || markup.style.fillColor === 'none');
       const boxFill = noFill ? null : (fillParsed ?? { r: 1, g: 0.984, b: 0.91 });
       if (hasBorder) lines.push(`${strokeW.toFixed(2)} w`);
       if (boxFill) lines.push(rgbOp(boxFill, 'rg'));

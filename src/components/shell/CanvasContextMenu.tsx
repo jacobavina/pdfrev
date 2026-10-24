@@ -397,7 +397,15 @@ export const CanvasContextMenu: React.FC<{
           disabled: allLocked,
         }
       )}
-      {item('canvas-menu-copy', <Copy size={16} />, 'Copy', () => useMarkupStore.getState().copySelectedMarkups(), {
+      {item('canvas-menu-copy', <Copy size={16} />, 'Copy', () => {
+        const textSel = window.getSelection()?.toString();
+        if (textSel && textSel.trim().length > 0) {
+          navigator.clipboard.writeText(textSel).catch(() => {});
+          showToast('Text copied to clipboard');
+          return;
+        }
+        useMarkupStore.getState().copySelectedMarkups();
+      }, {
         shortcut: 'Ctrl+C',
       })}
       {item('canvas-menu-paste', <Clipboard size={16} />, 'Paste', () => useMarkupStore.getState().pasteMarkups(), {

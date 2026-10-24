@@ -99,4 +99,14 @@ describe('Seleccionar y copiar el texto del plano (ADR-0104)', () => {
     });
     expect(useToolStore.getState().activeTool).toBe('select');
   });
+
+  it('pdf-text-layer no impone width ni height inline que sobreescriban la rotación de PDF.js', async () => {
+    await act(async () => {
+      render(<PdfViewer />);
+    });
+    const textLayer = screen.getByTestId('pdf-text-layer');
+    expect(textLayer.style.width).toBe('');
+    expect(textLayer.style.height).toBe('');
+    expect(textLayer.style.getPropertyValue('--scale-factor')).toBe('1');
+  });
 });

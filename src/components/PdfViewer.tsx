@@ -3377,8 +3377,6 @@ export const PdfViewer: React.FC = () => {
             data-testid="pdf-text-layer"
             className="textLayer"
             style={{
-              width: `${pageViewport.width}px`,
-              height: `${pageViewport.height}px`,
               '--scale-factor': scale || 1.0,
               pointerEvents:
                 activeTool === 'highlightText' ||

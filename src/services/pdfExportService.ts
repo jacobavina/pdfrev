@@ -772,20 +772,26 @@ export async function exportMarkupsToPdf(
           const y = Math.min(p1.y, p2.y);
           const width = Math.max(80, Math.abs(p2.x - p1.x));
           const height = Math.max(26, Math.abs(p2.y - p1.y));
-          const noFill = markup.style.fillColor === 'transparent' || markup.style.fillColor === 'none';
+          const bField = markup.customFields?.boxBorder ?? markup.customFields?.calloutBorder;
+          const explicitBorderOff = bField === 0 || bField === '0';
+          const hasExplicitFill = Boolean(markup.style.fillColor && markup.style.fillColor !== 'transparent' && markup.style.fillColor !== 'none');
+          const noFill = !hasExplicitFill && (explicitBorderOff || markup.style.fillColor === 'transparent' || markup.style.fillColor === 'none');
+          const effectiveStrokeW = explicitBorderOff || markup.style.strokeColor === 'transparent' || markup.style.strokeColor === 'none' ? 0 : strokeWidth;
 
           // Fondo y borde
-          page.drawRectangle({
-            x,
-            y,
-            width,
-            height,
-            color: noFill ? undefined : (fillColorParsed.color ?? rgb(1, 0.98, 0.9)),
-            borderColor: strokeWidth > 0 ? (strokeColorParsed.color ?? rgb(0.8, 0.8, 0.8)) : undefined,
-            borderWidth: strokeWidth > 0 ? strokeWidth : 0,
-            borderDashArray: dashArray,
-            opacity: 0.95,
-          });
+          if (!noFill || effectiveStrokeW > 0) {
+            page.drawRectangle({
+              x,
+              y,
+              width,
+              height,
+              color: noFill ? undefined : (fillColorParsed.color ?? rgb(1, 0.98, 0.9)),
+              borderColor: effectiveStrokeW > 0 ? (strokeColorParsed.color ?? rgb(0.8, 0.8, 0.8)) : undefined,
+              borderWidth: effectiveStrokeW > 0 ? effectiveStrokeW : 0,
+              borderDashArray: dashArray,
+              opacity: 0.95,
+            });
+          }
 
           const rawText = markup.text || 'Text';
           const sanitized = sanitizeTextToWinAnsi(rawText);

@@ -3724,4 +3724,29 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(page.locator('[data-testid="sketch-dialog"]')).toHaveCount(0);
     await expect(marks).toHaveCount(before + 1);
   });
+  test('Slip Sheet (ADR-0129): una revisión sustituye las tres láminas del juego y el visor muestra las nuevas', async ({ page }, testInfo) => {
+    const revision = await PDFDocument.create();
+    for (const n of [1, 2, 3]) revision.addPage([800, 600]).drawText(`REVISION B HOJA ${n}`, { x: 60, y: 300, size: 28 });
+    const input = testInfo.outputPath('revision-b.pdf');
+    fs.mkdirSync(testInfo.outputDir, { recursive: true });
+    fs.writeFileSync(input, await revision.save());
+
+    await openApp(page);
+    const container = page.locator('[data-testid="pdf-page-container"]');
+    await expect(container.getByText('PLANO DE PRUEBA', { exact: false }).first()).toBeAttached({ timeout: 15000 });
+    await page.locator('[data-testid="menu-documento"]').click();
+    await page.locator('[data-testid="menu-slip-sheet"]').click();
+    const chooser = page.waitForEvent('filechooser');
+    await page.locator('[data-testid="slip-choose"]').click();
+    await (await chooser).setFiles(input);
+    await expect(page.locator('[data-testid="slip-source"]')).toContainText('revision-b.pdf · 3 sheets', { timeout: 15000 });
+    // Sin números de lámina en los textos se emparejan por orden
+    await expect(page.locator('[data-testid="slip-by-0"]')).toHaveText('by order');
+    await expect(page.locator('[data-testid="slip-summary"]')).toContainText('3 of 3 pages will be replaced');
+    await page.locator('[data-testid="slip-apply"]').click();
+    await expect(page.locator('[data-testid="slip-dialog"]')).toHaveCount(0);
+    await expect(container.getByText('REVISION B HOJA 1', { exact: false })).toBeAttached({ timeout: 15000 });
+    await expect(container.getByText('PLANO DE PRUEBA', { exact: false })).toHaveCount(0);
+    await expect(page.locator('[data-testid="page-indicator"]')).toContainText('/ 3');
+  });
 });

@@ -190,3 +190,48 @@ export async function executePageLabels(ranges: import('../core/pdf/pageLabels')
     return { ok: false, message: `Could not change the page labels: ${err instanceof Error ? err.message : String(err)}` };
   }
 }
+
+// ── Slip Sheet ──────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** El número de lámina de cada página de un PDF, leído de su texto (null donde no se encuentra). */
+export async function readSheetKeys(bytes: Uint8Array): Promise<(string | null)[]> {
+  const [{ loadPdfDocument }, { sheetKey }] = await Promise.all([import('./pdfService'), import('../core/pages/slipSheet')]);
+  const doc = await loadPdfDocument(bytes);
+  try {
+    const keys: (string | null)[] = [];
+    for (let i = 1; i <= doc.numPages; i++) {
+      const content = await (await doc.getPage(i)).getTextContent();
+      keys.push(sheetKey(content.items.map((it) => ('str' in it ? (it as { str: string }).str : '')).join(' ')));
+    }
+    return keys;
+  } finally {
+    void doc.destroy();
+  }
+}
+
+export interface SlipSheetRequest {
+  source: { name: string; bytes: Uint8Array };
+  pairs: { oldIndex: number; newIndex: number }[];
+  /** Láminas de la revisión sin pareja que se añaden al final. */
+  append: number[];
+  /** Conservar las marcas de las páginas sustituidas (por defecto) o quitarlas. */
+  keepMarkups: boolean;
+}
+
+export async function executeSlipSheet(req: SlipSheetRequest): Promise<Outcome> {
+  const { pdfBytes } = useDocumentStore.getState();
+  if (!pdfBytes) return { ok: false, message: 'No document open.' };
+  try {
+    const { slipSheetPdf } = await import('../core/pages/slipSheet');
+    const result = await slipSheetPdf(pdfBytes, req.source.bytes, req.pairs, req.append);
+    if (!req.keepMarkups) {
+      const replaced = new Set(req.pairs.map((p) => p.oldIndex));
+      useMarkupStore.getState().setMarkups(useMarkupStore.getState().markups.filter((m) => !replaced.has(m.pageIndex)));
+    }
+    await replaceOpenDocument(result.bytes);
+    const extra = result.appended > 0 ? ` and ${result.appended} new sheet${result.appended === 1 ? '' : 's'} added` : '';
+    return { ok: true, message: `${result.replaced} sheet${result.replaced === 1 ? '' : 's'} replaced${extra}. Save the document to keep it.` };
+  } catch (err) {
+    return { ok: false, message: err instanceof Error ? err.message : String(err) };
+  }
+}

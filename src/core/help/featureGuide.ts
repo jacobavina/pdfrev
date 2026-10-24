@@ -605,6 +605,17 @@ export const FEATURE_GUIDE: GuideSection[] = [
         where: 'File ▸ Batch…',
       },
       {
+        id: 'slip-sheet',
+        title: 'Slip Sheet',
+        summary: 'Replaces the sheets of a drawing set with a new revision, matching each page to the new sheet with the same sheet number, and keeps your markups.',
+        steps: [
+          'Choose Document ▸ Slip Sheet…, then the PDF with the new revision. The sheet number (A-101, S-2.01…) is read from the text of each page; if no numbers are found, pages are matched in order.',
+          'Check the list: each page shows the new sheet that will replace it. Change a row to pick another sheet, or Keep this page to leave it as it is.',
+          'Markups stay on their pages (uncheck the option to remove them). New sheets with no match can be added at the end. It cannot be undone with Undo, so save a copy first.',
+        ],
+        where: 'Document ▸ Slip Sheet…',
+      },
+      {
         id: 'sketch-to-scale',
         title: 'Sketch to Scale',
         summary: 'Draws a shape with exact real-world measurements, using the scale of the page, instead of dragging with the mouse.',

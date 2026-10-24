@@ -271,6 +271,7 @@
 | `P5-D.27` | Reduce File Size | **Cerrado** | ADR-0126. Document ▸ Reduce File Size…: baja la resolución y recomprime las imágenes con tres calidades, informe de ahorro y también como operación de Batch (_reduced). Falta verificarlo en ventana nativa con un plano escaneado real. |
 | `P5-D.28` | Full-Screen Crosshair | **Cerrado** | ADR-0127. View ▸ Full-Screen Crosshair (Shift+F8): cruz que atraviesa toda la ventana por el cursor, recordada entre sesiones. Falta verla en ventana nativa. |
 | `P5-D.29` | Sketch to Scale | **Cerrado** | ADR-0128. Edit ▸ Sketch to Scale…: rectángulo, círculo/elipse, línea con ángulo o polígono regular con medidas reales en la escala de la página, centrado en la hoja. Falta verlo en ventana nativa con un plano calibrado. |
+| `P5-D.30` | Slip Sheet | **Cerrado** | ADR-0129. Document ▸ Slip Sheet…: sustituye las láminas del juego por las de una revisión emparejándolas por número de lámina (leído del texto), con emparejamiento manual, marcas conservadas y opción de añadir las láminas nuevas sin pareja. Falta verlo en ventana nativa con un juego real. |
 
 ---
 

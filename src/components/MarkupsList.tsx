@@ -84,6 +84,7 @@ import {
   evaluateDocumentCustomColumns,
 } from '../core/columns';
 import { CustomColumnsDialog } from './modals/CustomColumnsDialog';
+import { MarkupsToolbar } from './markups/MarkupsToolbar';
 
 const LIST_HEIGHT_KEY = 'rea-markups-list-height';
 // Más baja por defecto (ADR-0044): la cinta con pestañas y la barra de propiedades ocupan más alto
@@ -883,11 +884,8 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
           className="absolute -top-1 left-0 right-0 h-2 cursor-row-resize z-20 hover:bg-gray-500/30"
         />
       {/* Barra de cabecera del panel de marcas */}
-      <div
-        className="h-10 border-b border-cad-border shrink-0 bg-cad-panel px-3 flex items-center justify-between gap-3 text-xs"
-      >
-        <div className="flex items-center gap-3 min-w-0">
-          {/* Menú "Markups List ▾" de Revu (ADR-0060): columnas, agrupar por Subject y ocultar */}
+      <MarkupsToolbar
+        menu={
           <div className="relative shrink-0">
             <button
               ref={listMenuBtnRef}
@@ -1007,170 +1005,31 @@ export const MarkupsList: React.FC<{ hidden?: boolean }> = ({ hidden = false }) 
               document.body
             )}
           </div>
-
-          <div
-            data-testid="markups-toolbar"
-            className="flex items-center gap-1.5 min-w-0 text-xs"
-          >
-            {/* Búsqueda rápida por texto o autor */}
-            <input
-              type="search"
-              data-testid="markups-search-input"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search markups..."
-              className="ui-input !h-7 w-40"
-            />
-
-            {/* Filtro por tipo */}
-            <select
-              data-testid="markups-filter-type"
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value as MarkupType | 'all')}
-              className="ui-input"
-            >
-              <option value="all">All types</option>
-              {(Object.keys(MARKUP_TYPE_LABELS) as MarkupType[])
-                .filter((t) => t !== 'highlight')
-                .map((t) => (
-                  <option key={t} value={t}>
-                    {MARKUP_TYPE_LABELS[t]}
-                  </option>
-                ))}
-            </select>
-
-            {/* Filtro por autor */}
-            <select
-              data-testid="markups-filter-author"
-              value={filterAuthor}
-              onChange={(e) => setFilterAuthor(e.target.value)}
-              className="ui-input max-w-[130px] truncate"
-            >
-              <option value="all">All authors</option>
-              {uniqueAuthors.map((auth) => (
-                <option key={auth} value={auth}>
-                  {auth}
-                </option>
-              ))}
-            </select>
-
-            {/* Filtro por estado */}
-            <select
-              data-testid="markups-filter-status"
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as MarkupStatus | 'all')}
-              className="ui-input"
-            >
-              <option value="all">All statuses</option>
-              <option value="pending">Pending</option>
-              <option value="accepted">Accepted</option>
-              <option value="rejected">Rejected</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-
-            {/* Botón reset de filtros */}
-            {hasActiveFilters && (
-              <button
-                onClick={resetFilters}
-                data-testid="markups-reset-filters-btn"
-                className="px-2 py-0.5 bg-cad-hover/70 hover:bg-cad-hover text-gray-300 hover:text-cad-strong rounded text-xs transition-colors"
-                title="Reset all filters"
-              >
-                Reset
-              </button>
-            )}
-
-            {/* Indicador de orden actual */}
-            <span className="text-gray-500 text-2xs whitespace-nowrap pl-1">
-              Sort: <span className="text-gray-300 capitalize">{sortField ?? 'natural'}</span> {sortField ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
-            </span>
-          </div>
-
-            <label className="flex items-center space-x-1.5 text-gray-400 hover:text-gray-200 cursor-pointer ml-3">
-              <input
-                type="checkbox"
-                checked={filterPageOnly}
-                onChange={(e) => setFilterPageOnly(e.target.checked)}
-                className="rounded bg-cad-subtle border-cad-border text-blue-500 focus:ring-0"
-              />
-              <span>Current page only</span>
-            </label>
-        </div>
-
-          <div className="flex items-center space-x-2">
-            <button
-              data-testid="export-csv-button"
-              onClick={handleExportCsv}
-              className="ui-btn !h-7 !px-2"
-              title="Export visible markups to CSV (RFC 4180)"
-            >
-              <FileSpreadsheet size={16} className="text-gray-400" />
-              <span>CSV</span>
-            </button>
-
-            <button
-              data-testid="export-xlsx-button"
-              onClick={handleExportXlsx}
-              className="ui-btn !h-7 !px-2"
-              title="Export takeoff schedule to Excel (.xlsx) with live formulas"
-            >
-              <FileSpreadsheet size={16} className="text-gray-400" />
-              <span>Excel (.xlsx)</span>
-            </button>
-
-            <button
-              data-testid="export-pdf-report-button"
-              onClick={handleExportPdfReport}
-              className="ui-btn !h-7 !px-2"
-              title="Generate PDF summary report with hyperlinks"
-            >
-              <FileText size={16} className="text-gray-400" />
-              <span>PDF Report</span>
-            </button>
-
-            <button
-              data-testid="append-pdf-report-button"
-              onClick={handleAppendPdfReport}
-              className="ui-btn !h-7 !px-2"
-              title="Append summary report with hyperlinks to current PDF"
-            >
-              <FileText size={16} className="text-blue-400" />
-              <span>Append Summary</span>
-            </button>
-
-            <button
-              data-testid="add-custom-column-button"
-              onClick={() => setIsAddColumnModalOpen(true)}
-              className="ui-btn !h-7 !px-2"
-              title="Add custom column"
-            >
-              <Plus size={16} className="text-gray-400" />
-              <span>Column</span>
-            </button>
-
-            {selectedMarkupIds.length > 0 && (
-              <button
-                onClick={deleteSelectedMarkups}
-                className="ui-btn ui-btn-danger !h-7 !px-2"
-                title="Delete selected markups (Del)"
-              >
-                <Trash2 size={16} />
-                <span>Delete ({selectedMarkupIds.length})</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              data-testid="markups-list-hide"
-              onClick={() => setMarkupsListOpen(false)}
-              className="ui-btn !h-7 !w-7 !p-0"
-              title="Hide Markups List (Alt+L)"
-            >
-              <ChevronDown size={16} />
-            </button>
-          </div>
-      </div>
+        }
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        filterType={filterType}
+        onFilterTypeChange={setFilterType}
+        filterAuthor={filterAuthor}
+        onFilterAuthorChange={setFilterAuthor}
+        uniqueAuthors={uniqueAuthors}
+        filterStatus={filterStatus}
+        onFilterStatusChange={setFilterStatus}
+        hasActiveFilters={hasActiveFilters}
+        onResetFilters={resetFilters}
+        sortField={sortField}
+        sortDirection={sortDirection}
+        filterPageOnly={filterPageOnly}
+        onFilterPageOnlyChange={setFilterPageOnly}
+        onExportCsv={handleExportCsv}
+        onExportXlsx={handleExportXlsx}
+        onExportPdfReport={handleExportPdfReport}
+        onAppendPdfReport={handleAppendPdfReport}
+        onOpenAddColumn={() => setIsAddColumnModalOpen(true)}
+        selectedCount={selectedMarkupIds.length}
+        onDeleteSelected={deleteSelectedMarkups}
+        onHideList={() => setMarkupsListOpen(false)}
+      />
 
       {/* Contenedor de la Tabla */}
         <div

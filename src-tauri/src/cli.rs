@@ -498,6 +498,25 @@ pub fn handle_markups_list(input: &Path) -> Result<(serde_json::Value, String), 
                 _ => None,
               });
 
+            let subject = dict
+              .get(b"Subj")
+              .ok()
+              .and_then(|o| match o {
+                Object::String(bytes, _) => Some(decode_pdf_string(bytes)),
+                _ => None,
+              });
+
+            if let Some(ref a) = author {
+              if a.trim().eq_ignore_ascii_case("autocad shx text") {
+                continue;
+              }
+            }
+            if let Some(ref s) = subject {
+              if s.trim().eq_ignore_ascii_case("autocad shx text") {
+                continue;
+              }
+            }
+
             let contents = dict
               .get(b"Contents")
               .ok()

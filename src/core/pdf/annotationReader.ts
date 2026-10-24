@@ -292,6 +292,23 @@ export async function importPdfAnnotations(
       let unitPrice: number | undefined;
       let cost: number | undefined;
 
+      // Filtrar artefactos del sistema de AutoCAD SHX Text (ADR-0137)
+      const normAuthor = author.trim().toLowerCase();
+      const normSubj = subject.trim().toLowerCase();
+      if (
+        !isRea &&
+        (normAuthor === 'autocad shx text' || normSubj === 'autocad shx text')
+      ) {
+        continue;
+      }
+
+      // Filtrar anotaciones no-REA con banderas /F invisibles (Hidden = 2, NoView = 32)
+      const flagsObj = annotDict.get(PDFName.of('F'));
+      const flags = flagsObj instanceof PDFNumber ? flagsObj.asNumber() : 0;
+      if (!isRea && ((flags & 2) !== 0 || (flags & 32) !== 0)) {
+        continue;
+      }
+
       // Colores y grosor
       let strokeColor = pdfColorArrayToHex(annotDict.get(PDFName.of('C'))) || '#000000';
       let fillColor = pdfColorArrayToHex(annotDict.get(PDFName.of('IC')));
@@ -313,6 +330,16 @@ export async function importPdfAnnotations(
           }
           if (values.length > 0) dashArray = values;
         }
+      } else {
+        const borderObj = annotDict.get(PDFName.of('Border'));
+        if (borderObj instanceof PDFArray && borderObj.size() >= 3) {
+          const bw = borderObj.get(2);
+          if (bw instanceof PDFNumber) strokeWidth = bw.asNumber();
+        }
+      }
+
+      if (!isRea && (subtype === 'Square' || subtype === 'Circle') && strokeWidth <= 0 && !fillColor) {
+        continue;
       }
 
       // Fechas

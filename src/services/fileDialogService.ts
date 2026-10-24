@@ -13,6 +13,21 @@ import type { Markup } from '../types/markup';
  * Abre un archivo PDF utilizando el diálogo nativo en Tauri
  * o un input HTML en el navegador.
  */
+async function readLocalPdfBytes(filePath: string): Promise<Uint8Array> {
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const rawBytes = await invoke<number[] | Uint8Array>('read_pdf_file', { filePath });
+    if (rawBytes instanceof Uint8Array) return rawBytes;
+    if (Array.isArray(rawBytes)) return new Uint8Array(rawBytes);
+  } catch {
+    // Fallback a plugin-fs si invoke no está disponible o en entorno de tests
+    const { readFile } = await import('@tauri-apps/plugin-fs');
+    return await readFile(filePath);
+  }
+  const { readFile } = await import('@tauri-apps/plugin-fs');
+  return await readFile(filePath);
+}
+
 export async function openPdfDialog(): Promise<void> {
   const { setLoading, setError } = useDocumentStore.getState();
   setLoading(true);
@@ -20,7 +35,6 @@ export async function openPdfDialog(): Promise<void> {
   try {
     if (isTauriEnvironment()) {
       const { open } = await import('@tauri-apps/plugin-dialog');
-      const { readFile } = await import('@tauri-apps/plugin-fs');
 
       const selected = await open({
         multiple: false,
@@ -35,7 +49,7 @@ export async function openPdfDialog(): Promise<void> {
 
       const filePath = selected;
       const fileName = filePath.split(/[/\\]/).pop() || 'document.pdf';
-      const fileBytes = await readFile(filePath);
+      const fileBytes = await readLocalPdfBytes(filePath);
 
       await loadPdfData(filePath, fileName, fileBytes);
     } else {
@@ -267,8 +281,7 @@ export async function openPdfFromPath(filePath: string): Promise<void> {
   try {
     let bytes: Uint8Array;
     if (isTauriEnvironment()) {
-      const { readFile } = await import('@tauri-apps/plugin-fs');
-      bytes = await readFile(filePath);
+      bytes = await readLocalPdfBytes(filePath);
     } else {
       const response = await fetch(filePath);
       if (!response.ok) {

@@ -11,6 +11,16 @@
     "fs:default",
     "fs:allow-read-file",
     "fs:allow-write-file",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        "$HOME/**/*",
+        "$DOWNLOAD/**/*",
+        "$DOCUMENT/**/*",
+        "$DESKTOP/**/*",
+        "**"
+      ]
+    },
     "core:window:allow-set-fullscreen",
     "core:window:allow-is-fullscreen",
     "core:window:allow-set-always-on-top",

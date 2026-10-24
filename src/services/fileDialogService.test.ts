@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { loadPdfData, summarizeMigrationWarnings } from './fileDialogService';
+import { loadPdfData, summarizeMigrationWarnings, openPdfFromPath } from './fileDialogService';
 import * as bbxPersistenceService from './bbxPersistenceService';
 import * as pdfService from './pdfService';
 import { registerToastListener } from './toastService';
@@ -252,5 +252,20 @@ describe('fileDialogService - Carga de Documentos y Avisos BBX (Z.2 / Z.2b)', ()
 
     expect(useDocumentStore.getState().fileName).toBe('plano1.pdf');
     expect(useMarkupStore.getState().markups.map((m) => m.id)).toContain('m-doc1');
+  });
+  it('openPdfFromPath abre un archivo PDF desde ruta conocida y lo añade a recientes', async () => {
+    const dummyPdfDoc = { numPages: 1 } as unknown as PDFDocumentProxy;
+    vi.spyOn(pdfService, 'loadPdfDocument').mockResolvedValue(dummyPdfDoc);
+    vi.spyOn(bbxPersistenceService, 'loadBbxForPdf').mockResolvedValue(null);
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: async () => fixturePdfBytes.buffer,
+    } as any);
+
+    await openPdfFromPath('C:/proyectos/reciente.pdf');
+
+    expect(useDocumentStore.getState().fileName).toBe('reciente.pdf');
+    expect(useDocumentStore.getState().filePath).toBe('C:/proyectos/reciente.pdf');
   });
 });

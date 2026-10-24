@@ -254,6 +254,9 @@ describe('P2-C.3: evaluador de columnas calculadas, dependencias y ciclos', () =
         },
       ];
 
+      // Pre-calentar el JIT de V8 para evitar latencia de compilación inicial en entornos con alta carga de CPU
+      evaluateDocumentCustomColumns(benchmarkMarkups.slice(0, 50), benchColumns);
+
       const start = performance.now();
       const matrix = evaluateDocumentCustomColumns(benchmarkMarkups, benchColumns);
       const duration = performance.now() - start;

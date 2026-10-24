@@ -470,4 +470,63 @@ describe('PDF Annotation Reader (P3-B.4 / Interoperabilidad e Importación)', ()
     expect(Number.isNaN(dUpdated.getTime())).toBe(false);
     expect(dUpdated.getUTCMinutes()).toBe(45);
   });
+  it('ignora anotaciones de sistema AutoCAD SHX Text y cuadros invisibles con borde cero', async () => {
+    const doc = await PDFDocument.create();
+    const page = doc.addPage([600, 400]);
+
+    // Anotación 1: AutoCAD SHX Text con autor "AutoCAD SHX Text" y /Border [0 0 0]
+    const annot1 = doc.context.obj({
+      Type: 'Annot',
+      Subtype: 'Square',
+      T: PDFString.of('AutoCAD SHX Text'),
+      Contents: PDFString.of('EJE E-4'),
+      Rect: [100, 100, 200, 120],
+      Border: [0, 0, 0],
+      F: 64,
+    });
+    const ref1 = doc.context.register(annot1);
+
+    // Anotación 2: AutoCAD SHX Text con Subj "AutoCAD SHX Text"
+    const annot2 = doc.context.obj({
+      Type: 'Annot',
+      Subtype: 'Square',
+      Subj: PDFString.of('AutoCAD SHX Text'),
+      Contents: PDFString.of('150ft'),
+      Rect: [250, 100, 350, 120],
+      Border: [0, 0, 0],
+    });
+    const ref2 = doc.context.register(annot2);
+
+    // Anotación 3: Cuadro ajeno con borde cero y sin relleno (invisible)
+    const annot3 = doc.context.obj({
+      Type: 'Annot',
+      Subtype: 'Square',
+      Rect: [400, 100, 500, 120],
+      Border: [0, 0, 0],
+    });
+    const ref3 = doc.context.register(annot3);
+
+    // Anotación 4: Marca de usuario legítima visible
+    const annot4 = doc.context.obj({
+      Type: 'Annot',
+      Subtype: 'Square',
+      T: PDFString.of('Ingeniero Residente'),
+      Contents: PDFString.of('Revisar cimentación'),
+      Rect: [50, 200, 150, 300],
+      C: [1, 0, 0], // Rojo
+      Border: [0, 0, 2],
+    });
+    const ref4 = doc.context.register(annot4);
+
+    page.node.set(PDFName.of('Annots'), doc.context.obj([ref1, ref2, ref3, ref4]));
+
+    const pdfBytes = await doc.save();
+    const result = await importPdfAnnotations(pdfBytes);
+
+    // Solo annot4 debe ser importada; annot1, annot2 y annot3 deben ser ignoradas
+    expect(result.markups).toHaveLength(1);
+    expect(result.markups[0].author).toBe('Ingeniero Residente');
+    expect(result.markups[0].text).toBe('Revisar cimentación');
+    expect(result.foreignUnsupportedCount).toBe(0);
+  });
 });

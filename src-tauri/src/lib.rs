@@ -218,6 +218,30 @@ fn save_pdf(file_path: String, bytes: Vec<u8>) -> Result<(), String> {
   Ok(())
 }
 
+#[tauri::command]
+fn read_pdf_file(file_path: String) -> Result<Vec<u8>, String> {
+  let path = Path::new(&file_path);
+
+  // 1. Validar que la ruta es absoluta
+  if !path.is_absolute() {
+    return Err("La ruta debe ser absoluta".to_string());
+  }
+
+  // 2. Validar extensión .pdf estrictamente
+  let ext = path
+    .extension()
+    .and_then(|s| s.to_str())
+    .map(|s| s.to_lowercase())
+    .unwrap_or_default();
+
+  if ext != "pdf" {
+    return Err("El archivo debe terminar en .pdf".to_string());
+  }
+
+  // 3. Leer bytes directamente del sistema de archivos
+  fs::read(path).map_err(|e| format!("No se pudo leer el archivo {}: {}", file_path, e))
+}
+
 /// Valida una URL de enlace (ADR-0027): solo http, https o mailto, sin espacios ni caracteres de control, ni
 /// comillas o símbolos que un intérprete pudiera reinterpretar. Devuelve la URL tal cual si es válida.
 fn validate_link_url(url: &str) -> Result<&str, String> {
@@ -483,6 +507,37 @@ mod tests {
   }
 
   #[test]
+  fn test_read_pdf_file_rejects_relative_path() {
+    let res = read_pdf_file("relative.pdf".to_string());
+    assert!(res.is_err());
+    assert!(res.unwrap_err().contains("absoluta"));
+  }
+
+  #[test]
+  fn test_read_pdf_file_rejects_non_pdf() {
+    let temp_dir = env::temp_dir();
+    let file_path = temp_dir.join("test.txt").to_string_lossy().to_string();
+    let res = read_pdf_file(file_path);
+    assert!(res.is_err());
+    assert!(res.unwrap_err().contains(".pdf"));
+  }
+
+  #[test]
+  fn test_read_pdf_file_success() {
+    let temp_dir = env::temp_dir();
+    let file_path = temp_dir.join("test_read.pdf");
+    let file_path_str = file_path.to_string_lossy().to_string();
+    let test_bytes = b"%PDF-1.4 test header";
+    fs::write(&file_path, test_bytes).unwrap();
+
+    let res = read_pdf_file(file_path_str);
+    assert!(res.is_ok());
+    assert_eq!(res.unwrap(), test_bytes);
+
+    let _ = fs::remove_file(&file_path);
+  }
+
+  #[test]
   fn test_get_startup_file_arg_executes_safely() {
     let _ = get_startup_file_arg();
   }
@@ -503,7 +558,7 @@ pub fn run() {
     })
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_fs::init())
-    .invoke_handler(tauri::generate_handler![write_bbx, read_bbx, save_export_file, save_pdf, open_url, get_startup_file_arg, ocr::ocr_recognize, revu::list_revu_toolsets, revu::read_revu_toolset])
+    .invoke_handler(tauri::generate_handler![write_bbx, read_bbx, save_export_file, save_pdf, read_pdf_file, open_url, get_startup_file_arg, ocr::ocr_recognize, revu::list_revu_toolsets, revu::read_revu_toolset])
     .run(tauri::generate_context!())
     .expect("error while building tauri application");
 }

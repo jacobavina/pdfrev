@@ -1,90 +1,154 @@
 <p align="center">
-  <img src="docs/assets/logo.png" alt="PdfRev Logo" width="128" height="128" />
+  <img src="docs/assets/logo.png" width="128" height="128" alt="PdfRev logo: technical blueprint sheet with precision takeoff caliper">
 </p>
 
 <h1 align="center">PdfRev</h1>
 
 <p align="center">
-  <strong>Local-first, fearless PDF editing, drawing takeoff, and AI-agent automation.</strong>
+  <b>The CAD PDF &amp; takeoff workbench; an open-source, modern PDF reader, markup editor and quantity takeoff studio.</b><br>
+  Calibrate, measure, annotate, organize, combine, split and automate technical drawings in a fast, native app.<br>
+  Windows x64 &middot; Headless CLI for AI Agents &middot; Local-first &middot; Zero telemetry
 </p>
 
 <p align="center">
-  <a href="https://github.com/jacobavina/pdfrev/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/jacobavina/pdfrev/ci.yml?branch=master&style=flat-square&label=CI" alt="CI Status" /></a>
-  <a href="https://github.com/jacobavina/pdfrev/releases/latest"><img src="https://img.shields.io/github/v/release/jacobavina/pdfrev?style=flat-square&color=blue" alt="Latest Release" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License" /></a>
-  <a href="#"><img src="https://img.shields.io/badge/platform-Windows%20x64-blue?style=flat-square" alt="Platform" /></a>
-  <a href="#"><img src="https://img.shields.io/badge/Rust-2024%20edition-orange?style=flat-square" alt="Rust Edition" /></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-0284c7?style=flat-square"></a>
+  <a href="#"><img alt="Written in Rust & React" src="https://img.shields.io/badge/written%20in-Rust%20%26%20React-0f172a?style=flat-square"></a>
+  <a href="#"><img alt="Platform: Windows x64" src="https://img.shields.io/badge/platform-Windows%20x64-0284c7?style=flat-square"></a>
+  <a href="#"><img alt="No account, no telemetry" src="https://img.shields.io/badge/no%20account-no%20telemetry-0f172a?style=flat-square"></a>
+  <a href="https://github.com/jacobavina/pdfrev/actions/workflows/ci.yml"><img alt="CI Status" src="https://img.shields.io/github/actions/workflow/status/jacobavina/pdfrev/ci.yml?branch=master&style=flat-square&label=CI"></a>
+  <a href="https://github.com/jacobavina/pdfrev/releases/latest"><img alt="Latest Release" src="https://img.shields.io/github/v/release/jacobavina/pdfrev?style=flat-square&color=0284c7"></a>
+</p>
+
+<p align="center">
+  <a href="#highlights">Highlights</a> &middot;
+  <a href="#measure-and-takeoff-with-cad-precision">Takeoff &amp; CAD</a> &middot;
+  <a href="#markup-review-and-tool-chest">Markup &amp; Review</a> &middot;
+  <a href="#organize-combine-and-split">Organize &amp; Split</a> &middot;
+  <a href="#built-for-agents-too">Agents CLI</a> &middot;
+  <a href="#how-its-built">Architecture</a> &middot;
+  <a href="#get-started">Get started</a> &middot;
+  <a href="#downloads">Downloads</a> &middot;
+  <a href="#license-and-credits">License</a>
+</p>
+
+<br>
+
+<p align="center">
+  <img src="docs/assets/screenshot-dark.png" alt="PdfRev drawing review and takeoff workstation with calibration, polygon area takeoff and markups list" width="100%">
+  <br>
+  <sub>PdfRev CAD drawing review and takeoff workstation with real-world calibration, polygon area takeoff and markups list.</sub>
 </p>
 
 ---
 
-**PdfRev** is an ultra-fast, local-first PDF viewer, editor, and drawing takeoff workstation built for architecture, engineering, and construction professionals—and designed from day one to be driven programmatically by **AI coding and reasoning agents**.
+## Highlights
 
-Built with **Tauri 2**, **Rust**, and modern **React**, PdfRev provides a native Windows experience with instant startup, 60 FPS panning on dense E-size blueprint drawings, zero telemetry, and high-fidelity interoperability with ISO 32000-1 workflows.
+<table>
+<tr>
+<td width="33%" valign="top">
+
+### Precision Takeoff
+Real-world scale calibration across metric and imperial systems. Area takeoff with multi-polygon cutout subtraction, perimeter, volume, dynamic length, and visual count symbols with instant CSV and Excel cost summaries.
+
+</td>
+<td width="33%" valign="top">
+
+### Fearless
+Incremental and atomic saves append modifications while keeping original bytes intact. Automatic `.rea-backup` snapshots, deep undo/redo history, and active protection against unsaved changes on tab or window close.
+
+</td>
+<td width="33%" valign="top">
+
+### Yours &amp; Scriptable
+Completely local-first with zero accounts, zero cloud dependencies, and zero telemetry. Includes offline Windows Native OCR (`Windows.Media.Ocr`) and a headless CLI (`pdfrev-cli`) built for AI coding and reasoning agents.
+
+</td>
+</tr>
+</table>
 
 ---
 
-## ⚡ Highlights
+## Measure and takeoff with CAD precision
 
-- **🔒 Local-First & Zero Telemetry:** Your drawings and documents never leave your workstation. No cloud logins, no mandatory sync, no background tracking.
-- **📐 Precision Drawing Takeoff:** Real-world scale calibration, Area with multi-polygon Cutout subtraction, Perimeter, Volume, Dynamic Length, and autonomous shape Count takeoff.
-- **🔄 ISO 32000-1 & Tool Set Interoperability:** High-fidelity roundtrip markup editing, `.bbx.json` sidecar storage, standard `/Annots` (`/Square`, `/Circle`, `/Highlight`, `/Ink`, `/Stamp`), status tracking, `.btx` tool set profile import, and threaded comment replies.
-- **🤖 Headless AI Agent CLI (`pdfrev-cli`):** First-class command-line interface for LLMs and autonomous agents to split, combine, inspect markups, extract text, and perform OCR with structured JSON output and standardized POSIX exit codes.
-- **🔍 Windows Native OCR:** Offline text recognition powered directly by `Windows.Media.Ocr`. Zero external models, zero downloads, completely private.
-- **🎨 Cyanotype Blueprint Aesthetic:** Refined interface with both Light and Dark themes engineered around drawing readability.
+PdfRev is engineered specifically for architecture, engineering, and construction drawings:
 
----
-
-## 📸 Screenshots
-
-### Light Mode (Drawing Hall Blueprint Theme)
-![PdfRev Light Mode Screenshot](docs/assets/screenshot-light.png)
-
-### Dark Mode (Night Workstation Theme)
-![PdfRev Dark Mode Screenshot](docs/assets/screenshot-dark.png)
+- **Calibrate to any scale:** Set precision calibration ratios from architectural fractions (`1/4" = 1'-0"`), engineering ratios (`1:50`, `1:100`), or pick two reference points on any dimension line.
+- **Area with polygon cutouts:** Calculate net floor and surface areas. Subtract columns, elevator shafts, or voids with one-click cutout tools; dimensions and cost totals update in real time.
+- **Perimeter &amp; dynamic length:** Trace room boundaries, wall lengths, and run conduits with continuous vertex snapping and customizable line styles.
+- **Volume &amp; depth:** Assign slab depths or trench heights to calculate exact cubic yards or cubic meters for concrete and earthwork estimates.
+- **Symbol count takeoff:** Drop calibrated count markers across drawing sheets with automatic numbering, unit pricing, and instant takeoff schedules.
 
 ---
 
-## 🤖 Headless CLI for AI Agents
+## Markup, review and tool chest
 
-PdfRev includes a dedicated console binary (`pdfrev-cli.exe` or `pdfrev --headless`) designed specifically for AI workflows, automated takeoff pipelines, and background processing. All commands support `--json` output.
+<table>
+<tr>
+<td width="50%"><img src="docs/assets/screenshot-dark.png" alt="PdfRev dark workstation theme"></td>
+<td width="50%"><img src="docs/assets/screenshot-light.png" alt="PdfRev light drawing hall theme"></td>
+</tr>
+<tr>
+<td align="center"><sub>Night Workstation theme with high-contrast CAD geometry</sub></td>
+<td align="center"><sub>Drawing Hall light theme for daytime print review</sub></td>
+</tr>
+</table>
 
-### CLI Commands Matrix
+- **Standard PDF Annotations (ISO 32000-1):** High-fidelity roundtrip editing for `/Square`, `/Circle`, `/Polygon`, `/PolyLine`, `/Highlight`, `/FreeText` (Callouts &amp; Typewriter), and `/Stamp`.
+- **Sidecar persistence (`.bbx.json`):** Retains extended takeoff metadata, custom formula columns, unit costs, and review statuses alongside the PDF without altering original CAD sign-off signatures.
+- **Threaded review comments:** Track markup author, timestamp, status transitions (`Pending`, `Accepted`, `Rejected`, `Completed`, `Cancelled`), and nested replies.
+- **AutoCAD SHX Text Hygiene:** Automatically recognizes and isolates AutoCAD SHX font search artifacts, keeping drawing review tables clean and uncluttered.
+
+---
+
+## Organize, combine and split
+
+- **New blank drawings (`Ctrl+N`):** Generate clean blank drawing canvases matching industry standards: ISO (A4, A3, A2, A1, A0), ANSI (Letter, Tabloid, C, D, E), and ARCH (D, E) with configurable CAD grid, lined, or dotted styles.
+- **Combine files:** Merge multiple PDF sheets into a consolidated drawing package while preserving layers, scale calibration, and annotations.
+- **Split documents:** Divide large plan sets into individual page files or chunked multi-page submittals.
+- **Protection on exit:** Closing tabs or quitting the app (`Alt+F4`, `X`) checks for unsaved changes across all open documents with clear *Save*, *Don't Save*, and *Cancel* controls.
+
+---
+
+## Built for agents, too
+
+PdfRev includes a dedicated headless binary (`pdfrev-cli.exe` or `pdfrev --headless`) designed from the ground up for LLMs, autonomous coding agents, and CI pipelines. Every command supports `--json` output and standardized POSIX exit codes.
+
+### CLI Command Matrix
 
 | Command | Description | Example |
 |---|---|---|
-| `split` | Split a PDF into chunks of N pages | `pdfrev split blueprint.pdf --every 1 --out-dir ./pages --json` |
-| `combine` | Merge multiple PDFs in order into one | `pdfrev combine p1.pdf p2.pdf --output full.pdf --json` |
-| `extract-text` | Extract plain text from all or specific pages | `pdfrev extract-text doc.pdf --page 1 --json` |
-| `markups list` | Extract all markups and annotations | `pdfrev markups list blueprint.pdf --json` |
-| `ocr` | Perform Windows native OCR on images or scans | `pdfrev ocr scan.png --output ocr.txt --json` |
+| `split` | Split a drawing package into chunks of N pages | `pdfrev split plan.pdf --every 1 --out-dir ./sheets --json` |
+| `combine` | Merge multiple PDFs in order into one package | `pdfrev combine s1.pdf s2.pdf --output full_set.pdf --json` |
+| `extract-text` | Extract plain text from all or specific pages | `pdfrev extract-text specs.pdf --page 1 --json` |
+| `markups list` | Extract all markups, takeoffs, and comments as structured JSON | `pdfrev markups list plan.pdf --json` |
+| `ocr` | Offline text recognition powered by Windows Media OCR | `pdfrev ocr scan.png --output ocr.txt --json` |
 
 ### Sample JSON Output
 
 ```bash
-pdfrev --json markups list plan.pdf
+pdfrev --json markups list foundation_plan.pdf
 ```
 
 ```json
 {
-  "input": "plan.pdf",
+  "input": "foundation_plan.pdf",
   "total_markups": 2,
   "markups": [
     {
       "page": 1,
-      "subtype": "Square",
-      "author": "Architect",
-      "contents": "Verify HVAC shaft clearance",
-      "rect": [140.5, 320.0, 290.0, 480.5],
-      "modified": "D:20261015143000Z"
+      "subtype": "Polygon",
+      "author": "Structural Engineer",
+      "contents": "Rebar reinforcement zone B-4",
+      "rect": [240.0, 410.0, 520.0, 680.0],
+      "modified": "D:20261024140000Z"
     },
     {
       "page": 1,
-      "subtype": "Highlight",
-      "author": "Structural Eng",
-      "contents": "Reinforced beam W24x68",
-      "rect": [420.0, 610.0, 580.0, 630.0],
-      "modified": "D:20261015150000Z"
+      "subtype": "FreeText",
+      "author": "Field Inspector",
+      "contents": "Verify grade beam depth >= 36in",
+      "rect": [310.0, 500.0, 480.0, 560.0],
+      "modified": "D:20261024141500Z"
     }
   ]
 }
@@ -92,45 +156,29 @@ pdfrev --json markups list plan.pdf
 
 ---
 
-## 🏗️ Architecture
+## How it's built
 
-```mermaid
-graph TD
-    UI["Frontend (React 18 + TypeScript + Tailwind)"] -->|IPC / Tauri Bridge| Core["Desktop Core (Tauri 2 + WebView2)"]
-    CLI["Headless CLI Binary (pdfrev-cli.exe)"] -->|Rust Commands| Engine["Rust PDF Engine (lopdf + flate2)"]
-    Core --> Engine
-    Engine --> OCR["Native Windows OCR (Windows.Media.Ocr)"]
-    Engine --> IO["Atomic File I/O (.bbx.json, .pdf, .xlsx, .csv)"]
-```
+PdfRev is designed with strict separation between the desktop presentation layer and the native core:
 
-- **Frontend:** React 18, TypeScript, Tailwind CSS, Lucide Icons, PDF.js rendering pipeline.
-- **Desktop Bridge:** Tauri 2 with strict boundary validation and atomic backups.
-- **Rust Core:** `lopdf` PDF dictionary and xref stream manipulation, native memory safety.
-- **Headless Engine:** `clap` CLI subcommands returning structured JSON for AI consumption.
+| Component | Technology | Role |
+|---|---|---|
+| **Frontend Shell** | React 18 &middot; TypeScript &middot; Tailwind CSS | Drawing viewport, tool chest, dock panels, and takeoff tables |
+| **Desktop Bridge** | Tauri 2 &middot; WebView2 | Hardware-accelerated rendering, secure native IPC, window state |
+| **PDF Core Engine** | Rust &middot; `lopdf` &middot; `flate2` | ISO 32000-1 parsing, xref streams, incremental updates |
+| **Automation CLI** | Rust &middot; `clap` &middot; `serde_json` | Headless execution, JSON reporting for AI agents |
+| **Windows OCR** | `Windows.Media.Ocr` | Native Windows 10/11 OCR engine; zero model downloads |
 
----
+### Quality Gates
 
-## 📥 Download & Installation (Windows x64)
-
-### Option 1: Official NSIS Installer (Recommended)
-Download the latest `pdfrev_<version>_x64-setup.exe` from the [Releases](https://github.com/jacobavina/pdfrev/releases/latest) page and run the installer.
-
-### Option 2: Portable Package
-Download `pdfrev_<version>_windows_x64_portable.zip`, extract to any directory, and launch `pdfrev.exe` (GUI) or `pdfrev-cli.exe` (CLI).
-
-> [!NOTE]
-> **Windows SmartScreen & Integrity Verification:**
-> As an independent open-source project without a costly commercial EV/OV code-signing certificate, Windows SmartScreen may present a *"Windows protected your PC"* notification on initial launch. You can safely click **"More info" → "Run anyway"**.
-> 
-> You can verify the cryptographic integrity of any downloaded binary against our official release hashes using PowerShell:
-> ```powershell
-> (Get-FileHash -Algorithm SHA256 .\pdfrev_0.1.0_x64-setup.exe).Hash
-> ```
-> and compare it with the published `SHA256SUMS.txt` on the release page.
+Every release is verified by automated quality gates:
+- **1,475+ Unit Tests:** Comprehensive test coverage across geometry, takeoff math, stamp rendering, and tool pipelines.
+- **390 Scenarios in `PARITY.md`:** Rigorous behavioral parity with CAD drawing standards and ISO 32000-1 specifications.
+- **34 Native Rust Tests (`cargo test`):** Verifying atomic disk I/O, backup rollbacks, PDF stream parsing, and Windows OCR.
+- **Bundle Size Cap:** Main JavaScript chunk strictly enforced under 800 kB ($720\text{ kB}$ measured).
 
 ---
 
-## 🛠️ Building from Source
+## Get started
 
 ### Prerequisites
 - [Node.js](https://nodejs.org/) (v20.x or v22.x LTS)
@@ -138,47 +186,51 @@ Download `pdfrev_<version>_windows_x64_portable.zip`, extract to any directory, 
 - Windows 10 or 11 with C++ Build Tools installed
 
 ```powershell
-# 1. Clone repo
+# 1. Clone the repository
 git clone https://github.com/jacobavina/pdfrev.git
 cd pdfrev
 
 # 2. Install dependencies
 npm install
 
-# 3. Build and verify all automated test suites
+# 3. Run full automated quality verification suite
 node scripts/verify.mjs
 
-# 4. Compile the production installer
+# 4. Compile the Windows production installer
 npx tauri build --bundles nsis
 ```
 
-The compiled binaries and NSIS setup executable will be located in `src-tauri/target/release/bundle/nsis/`.
+The compiled installer `PdfRev_<version>_x64-setup.exe` will be located in `src-tauri/target/release/bundle/nsis/`.
 
 ---
 
-## 🧪 Quality Gates & Test Coverage
+## Downloads
 
-PdfRev enforces a strict automated quality gate before any release:
-- **1,400+ Unit Tests** (Vitest) covering geometry, takeoff mathematics, stamp rendering, and tool pipelines.
-- **Native Rust Tests** (`cargo test`) verifying atomic disk I/O, backup rollbacks, PDF stream parsing, and Windows OCR.
-- **Bundle Size Enforcement:** Main chunk strictly capped under 800 kB.
-- **PARITY Verification:** Automated cross-suite verification ensuring high-fidelity alignment with CAD drawing standards and ISO 32000-1 specifications.
+Official release packages are published on the [GitHub Releases](https://github.com/jacobavina/pdfrev/releases/latest) page:
 
-```powershell
-node scripts/verify.mjs
-```
+| Package | Format | Description |
+|---|---|---|
+| **Official Windows Installer** | `PdfRev_<version>_x64-setup.exe` | NSIS setup wizard with Start Menu &amp; Desktop shortcuts |
+| **Portable Package** | `pdfrev_<version>_windows_x64_portable.zip` | Standalone zip containing `pdfrev.exe` and `pdfrev-cli.exe` |
+| **Cryptographic Hashes** | `SHA256SUMS.txt` | SHA-256 checksums for all official distribution artifacts |
+
+> [!NOTE]
+> **Windows SmartScreen &amp; Integrity Verification:**
+> As an independent open-source project without a costly commercial EV code-signing certificate, Windows SmartScreen may show an *"Unknown publisher"* notification on initial launch. You can safely proceed by clicking **"More info" &rarr; "Run anyway"**.
+> 
+> You can verify the integrity of your download against our official checksums using PowerShell:
+> ```powershell
+> (Get-FileHash -Algorithm SHA256 .\PdfRev_0.1.0_x64-setup.exe).Hash
+> ```
 
 ---
 
-## 📄 License
+## License and credits
 
-This project is licensed under the [MIT License](LICENSE).
-Icons and typography attributions are documented in detail in [ATTRIBUTION.md](ATTRIBUTION.md).
+PdfRev is licensed under the [MIT License](LICENSE).
+Third-party font and icon attributions are documented in [ATTRIBUTION.md](ATTRIBUTION.md).
 
----
-
-## ⚖️ Trademarks & Non-Affiliation Disclaimer
-
+### Trademarks &amp; Non-Affiliation Disclaimer
 PdfRev is an independent open-source project and is not affiliated with, endorsed by, sponsored by, or supported by Bluebeam, Inc., the Nemetschek Group, Adobe Inc., or Foxit Software Inc.
 
-"Bluebeam", "Revu", "Adobe Acrobat", and "Foxit" are registered trademarks of their respective owners. Any references to third-party brand names, tool names, or file formats (such as `.btx`) in this repository or application interface are strictly for describing technical file-format interoperability.
+"Bluebeam", "Revu", "Adobe Acrobat", and "Foxit" are registered trademarks of their respective owners. Any references to third-party brand names or file formats (such as `.btx`) are strictly for describing technical file-format interoperability.

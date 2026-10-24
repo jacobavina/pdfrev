@@ -15,7 +15,7 @@
 | Document | Document Properties, Crop Pages, Number Pages, Headers & Footers, Replace Pages, Split Document, Insert desde archivo, Create Page Labels, Security |
 | Batch | Los mismos procesos sobre varios archivos: Flatten, Summary, Headers & Footers, OCR, Crop & Page Setup, Rotate Pages |
 | Window | Full Screen (F11), Hide Panels (Shift+F4), Always On Top, paneles Spaces, Links, Sets, Flags, Forms y Signatures |
-| Tools | Sketch to Scale, atajo Shift+H del hipervínculo, Reuse |
+| Tools | Reuse (pendiente de saber qué hace en la instalación del usuario) |
 | File | Print |
 
 ## 2. Lo que REA ya tiene, aunque con otro nombre o en otro menú
@@ -43,6 +43,7 @@
 | Create Page Labels | Document ▸ Page Labels… (ADR-0124) |
 | Batch (Flatten, Number, Rotate, Reduce, Headers & Footers) | File ▸ Batch… (ADR-0125, ADR-0126) |
 | Full-Screen Crosshair | View ▸ Full-Screen Crosshair, Shift+F8 (ADR-0127) |
+| Atajo del hipervínculo | Ctrl+K (ADR-0131) |
 | Sketch to Scale | Edit ▸ Sketch to Scale… (ADR-0128) |
 | Slip Sheet | Document ▸ Slip Sheet… (ADR-0129) |
 | Reduce File Size | Document ▸ Reduce File Size… (ADR-0126) |
@@ -66,7 +67,7 @@
 
 ### Oleada 3: ventana y paneles
 - Los seis paneles (Links, Flags, Spaces, Sets, Forms y Signatures) ya están: ADR-0116 a ADR-0122.
-- Atajo **Shift+H** del hipervínculo.
+- Atajo del hipervínculo ya está como Ctrl+K (ADR-0131): el Shift+H de Revu es aquí el resaltado de texto.
 
 ### Oleada 4: proceso por lotes y avanzados
 - **Batch:** Flatten, Number pages y Rotate sobre varios archivos con informe ya están (ADR-0125); Reduce y Headers & Footers también son operaciones del lote (ADR-0126, ADR-0130); faltan OCR (necesita el motor nativo página a página) y Summary.

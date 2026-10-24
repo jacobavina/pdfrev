@@ -757,6 +757,7 @@ export const MenuBar: React.FC = () => {
         {
           icon: <Link2 size={16} />,
           label: 'Hyperlink',
+          shortcut: 'Ctrl+K',
           testId: 'menu-tools-hyperlink',
           checked: activeTool === 'link',
           onSelect: () => setActiveTool('link'),

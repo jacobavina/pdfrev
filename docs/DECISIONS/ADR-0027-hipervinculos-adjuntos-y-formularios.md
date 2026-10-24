@@ -27,7 +27,7 @@
 
 Firmar con certificado digital (PKCS#7) — el campo queda listo para firmarse en Revu/Acrobat —; rellenar en REA
 formularios ajenos; acciones JavaScript de botones; atajos Shift+H (hipervínculo) y F (adjunto) de Revu, que en REA
-están ocupados por resaltado de texto y pluma.
+están ocupados por resaltado de texto y pluma (el hipervínculo tiene ahora Ctrl+K, ADR-0131).
 
 ## 3. Evidencia
 

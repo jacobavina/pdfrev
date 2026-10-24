@@ -279,8 +279,9 @@ export const FEATURE_GUIDE: GuideSection[] = [
         id: 'link',
         title: 'Hyperlinks and attachments',
         summary: 'A hyperlink jumps to a page or opens an address. An attachment embeds a file in the PDF.',
-        steps: ['Choose Tools ▸ Hyperlink or File Attachment, then draw or click on the drawing.', 'Ctrl+click a hyperlink to follow it.'],
+        steps: ['Choose Tools ▸ Hyperlink (or press Ctrl+K) or File Attachment, then draw or click on the drawing.', 'Ctrl+click a hyperlink to follow it.'],
         where: 'Tools ▸ Hyperlink / File Attachment',
+        shortcut: 'Ctrl+K',
       },
       {
         id: 'forms',

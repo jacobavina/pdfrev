@@ -1089,6 +1089,13 @@ export const PdfViewer: React.FC = () => {
         }
       }
 
+      // Hipervínculo (ADR-0131): Ctrl+K activa la herramienta. El Shift+H de Revu es aquí el resaltado de texto
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.code === 'KeyK') {
+        e.preventDefault();
+        useToolStore.getState().setActiveTool('link');
+        return;
+      }
+
       // Bandera (ADR-0117): Ctrl+Alt+F pone o quita la bandera de las marcas seleccionadas
       if ((e.ctrlKey || e.metaKey) && e.altKey && !e.shiftKey && e.code === 'KeyF') {
         e.preventDefault();

@@ -6,6 +6,7 @@ import type { NumberPosition } from '../../core/pages/pageNumbers';
 import { EMPTY_SLOTS, HEADER_FOOTER_FIELDS, hasAnySlot, type HeaderFooterSlots } from '../../core/pages/headersFooters';
 import { QUALITY_PRESETS, type ReduceQuality } from '../../core/pdf/reduceSize';
 import { showToast } from '../../services/toastService';
+import { isTauriEnvironment } from '../../services/bbxPersistenceService';
 
 type Kind = BatchOp['kind'];
 
@@ -57,7 +58,7 @@ export const BatchDialog: React.FC = () => {
     });
   };
 
-  const op = (): BatchOp => (kind === 'flatten' ? { kind } : kind === 'rotate' ? { kind, degrees } : kind === 'reduce' ? { kind, quality } : kind === 'headerFooter' ? { kind, slots } : kind === 'summary' ? { kind } : { kind, format, position, fontSize: 9, marginPt: 28 });
+  const op = (): BatchOp => (kind === 'flatten' ? { kind } : kind === 'rotate' ? { kind, degrees } : kind === 'reduce' ? { kind, quality } : kind === 'headerFooter' ? { kind, slots } : kind === 'summary' || kind === 'ocr' ? { kind } : { kind, format, position, fontSize: 9, marginPt: 28 });
   const problem = files.length === 0 ? 'Add the PDF files to process.' : kind === 'number' && !format.trim() ? 'Write the text to stamp, for example: Page {n} of {total}.' : kind === 'headerFooter' && !hasAnySlot(slots) ? 'Write at least one header or footer text.' : null;
 
   const run = async () => {
@@ -164,6 +165,11 @@ export const BatchDialog: React.FC = () => {
                 </select>
               </div>
             )}
+            <label className={`flex items-center gap-2 ${isTauriEnvironment() ? 'cursor-pointer' : 'opacity-50'}`} title={isTauriEnvironment() ? undefined : 'OCR uses the Windows text recognition engine: only in the desktop app'}>
+              <input type="radio" name="batch-kind" data-testid="batch-kind-ocr" disabled={!isTauriEnvironment()} checked={kind === 'ocr'} onChange={() => setKind('ocr')} className="accent-cad-accent" />
+              Recognise the text of scanned pages (OCR) <span className="text-gray-500">(_ocr)</span>
+            </label>
+            {kind === 'ocr' && <p className="pl-6 text-gray-500">Only pages without selectable text are processed. It can take a while for large scans.</p>}
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="radio" name="batch-kind" data-testid="batch-kind-summary" checked={kind === 'summary'} onChange={() => setKind('summary')} className="accent-cad-accent" />
               List the markups of each file <span className="text-gray-500">(_summary.csv)</span>

@@ -41,7 +41,7 @@
 | Signatures | View ▸ Panels ▸ Signatures Panel (ADR-0122) |
 | Insert Pages from File | Document ▸ Insert Pages from File… (ADR-0123) |
 | Create Page Labels | Document ▸ Page Labels… (ADR-0124) |
-| Batch (Flatten, Number, Rotate, Reduce, Headers & Footers, Summary) | File ▸ Batch… (ADR-0125, ADR-0126) |
+| Batch (Flatten, Number, Rotate, Reduce, Headers & Footers, Summary, OCR) | File ▸ Batch… (ADR-0125, ADR-0126) |
 | Full-Screen Crosshair | View ▸ Full-Screen Crosshair, Shift+F8 (ADR-0127) |
 | Atajo del hipervínculo | Ctrl+K (ADR-0131) |
 | Sketch to Scale | Edit ▸ Sketch to Scale… (ADR-0128) |
@@ -70,7 +70,7 @@
 - Atajo del hipervínculo ya está como Ctrl+K (ADR-0131): el Shift+H de Revu es aquí el resaltado de texto.
 
 ### Oleada 4: proceso por lotes y avanzados
-- **Batch:** Flatten, Number pages y Rotate sobre varios archivos con informe ya están (ADR-0125); Reduce y Headers & Footers también son operaciones del lote (ADR-0126, ADR-0130); Summary también (ADR-0132); falta OCR (necesita el motor nativo página a página).
+- **Batch:** Flatten, Number pages y Rotate sobre varios archivos con informe ya están (ADR-0125); Reduce y Headers & Footers también son operaciones del lote (ADR-0126, ADR-0130); Summary y OCR también (ADR-0132, ADR-0133).
 - Slip Sheet ya está (ADR-0129).
 - **Security** (ya documentada como pendiente, ver ADR-0099) y **Reuse**.
 

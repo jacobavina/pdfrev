@@ -88,3 +88,47 @@ export async function runOcr(scope: 'page' | 'all'): Promise<void> {
     showToast(`OCR failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
+
+export interface OcrBytesResult {
+  bytes: Uint8Array;
+  /** Palabras escritas y páginas reconocidas (las que no tenían texto). */
+  words: number;
+  pages: number;
+  /** Páginas del archivo que ya tenían texto y se dejaron como estaban. */
+  skipped: number;
+  language: string;
+}
+
+/**
+ * OCR de un PDF dado por sus bytes, sin el documento abierto (ADR-0133, Batch): reconoce las páginas que no tienen texto
+ * seleccionable y devuelve el PDF con la capa de texto invisible. Solo en la aplicación de escritorio.
+ */
+export async function ocrPdfBytes(pdfBytes: Uint8Array, onPage?: (done: number, total: number) => void): Promise<OcrBytesResult> {
+  if (!isTauriEnvironment()) throw new Error('OCR uses the Windows text recognition engine and is only available in the desktop app.');
+  const [{ invoke }, { loadPdfDocument }] = await Promise.all([import('@tauri-apps/api/core'), import('./pdfService')]);
+  const doc = await loadPdfDocument(pdfBytes);
+  const total = doc.numPages;
+  const targets: number[] = [];
+  try {
+    for (let i = 1; i <= total; i++) {
+      const content = await (await doc.getPage(i)).getTextContent();
+      if (!content.items.some((it) => 'str' in it && (it as { str: string }).str.trim().length > 0)) targets.push(i - 1);
+    }
+  } finally {
+    void doc.destroy();
+  }
+  let bytes = pdfBytes;
+  let words = 0;
+  let language = '';
+  for (const [n, pageIndex] of targets.entries()) {
+    onPage?.(n, targets.length);
+    const { raster } = await rasterizePage(bytes, pageIndex, undefined, OCR_IMAGE_WIDTH_PX, OCR_MAX_SIDE_PX);
+    const reply = await invoke<OcrReply>('ocr_recognize', { image: Array.from(await rasterToPng(raster)) });
+    language = reply.language || language;
+    const layer = await addInvisibleTextLayer(bytes, pageIndex, reply.words, { width: reply.width, height: reply.height });
+    bytes = layer.pdfBytes;
+    words += layer.written;
+  }
+  onPage?.(targets.length, targets.length);
+  return { bytes, words, pages: targets.length, skipped: total - targets.length, language };
+}

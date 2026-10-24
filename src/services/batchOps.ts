@@ -13,13 +13,14 @@ export type BatchOp =
   | { kind: 'rotate'; degrees: 90 | 180 | 270 }
   | { kind: 'reduce'; quality: ReduceQuality }
   | { kind: 'headerFooter'; slots: HeaderFooterSlots }
-  | { kind: 'summary' };
+  | { kind: 'summary' }
+  | { kind: 'ocr' };
 
 export const MAX_BATCH_FILES = 200;
 
 /** Sufijo del archivo de salida según la operación. */
 export function opSuffix(op: BatchOp): string {
-  return op.kind === 'flatten' ? 'flattened' : op.kind === 'number' ? 'numbered' : op.kind === 'reduce' ? 'reduced' : op.kind === 'headerFooter' ? 'stamped' : op.kind === 'summary' ? 'summary' : `rotated${op.degrees}`;
+  return op.kind === 'flatten' ? 'flattened' : op.kind === 'number' ? 'numbered' : op.kind === 'reduce' ? 'reduced' : op.kind === 'headerFooter' ? 'stamped' : op.kind === 'summary' ? 'summary' : op.kind === 'ocr' ? 'ocr' : `rotated${op.degrees}`;
 }
 
 /** Extensión del archivo de salida: el resumen es una hoja de cálculo CSV y las demás operaciones dan un PDF. */
@@ -126,6 +127,15 @@ async function summaryFile(bytes: Uint8Array): Promise<Uint8Array> {
   return buildCsvContent(markups);
 }
 
+/** OCR de las páginas sin texto (solo escritorio). Falla si no hay nada que reconocer o no se encuentra texto. */
+async function ocrFile(bytes: Uint8Array): Promise<Uint8Array> {
+  const { ocrPdfBytes } = await import('./ocrService');
+  const result = await ocrPdfBytes(bytes);
+  if (result.pages === 0) throw new Error('Every page already has selectable text.');
+  if (result.words === 0) throw new Error('OCR found no text on the pages.');
+  return result.bytes;
+}
+
 /** Aplica la operación a los bytes de un archivo (`name` alimenta el campo {file} de las cabeceras). */
 export async function runBatchOp(bytes: Uint8Array, op: BatchOp, name = ''): Promise<Uint8Array> {
   switch (op.kind) {
@@ -141,6 +151,8 @@ export async function runBatchOp(bytes: Uint8Array, op: BatchOp, name = ''): Pro
       return headerFooterFile(bytes, name, op.slots);
     case 'summary':
       return summaryFile(bytes);
+    case 'ocr':
+      return ocrFile(bytes);
   }
 }
 

@@ -169,4 +169,9 @@ describe('Diálogo Batch (ADR-0125)', () => {
     await waitFor(() => expect(screen.getByTestId('batch-summary')).toHaveTextContent('0 of 1 processed'), { timeout: 15000 });
     expect(screen.getByTestId('batch-file-0')).toHaveTextContent('no markups to summarise');
   });
+  it('OCR solo se ofrece en la aplicación de escritorio: en el navegador la opción está desactivada (ADR-0133)', () => {
+    openBatch();
+    render(<BatchDialog />);
+    expect(screen.getByTestId('batch-kind-ocr')).toBeDisabled();
+  });
 });

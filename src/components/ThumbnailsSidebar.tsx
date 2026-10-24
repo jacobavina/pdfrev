@@ -85,20 +85,12 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
         isActive ? 'bg-cad-accent/10 ring-2 ring-cad-accent' : 'hover:bg-cad-hover ring-1 ring-transparent'
       } ${isDragOver ? 'border-t-2 border-cad-accent bg-cad-hover/80' : ''}`}
     >
-      <div className="bg-white rounded-md overflow-hidden border border-cad-border flex items-center justify-center min-h-[90px] w-full">
+            <div className="relative bg-white rounded-md overflow-hidden border border-cad-border flex items-center justify-center min-h-[90px] w-full">
         <canvas ref={canvasRef} className="max-w-full h-auto block" />
-      </div>
-      <div className="flex items-center justify-between w-full mt-1.5 px-1">
-        <span
-          data-testid={`page-label-${pageIndex}`}
-          title={pageText}
-          className={`min-w-0 flex-1 truncate whitespace-nowrap text-xs font-medium ${
-            isActive ? 'text-cad-accent font-bold' : 'text-gray-400 group-hover:text-gray-200'
-          }`}
+        <div
+          data-testid={`page-actions-${pageIndex}`}
+          className="absolute bottom-1 inset-x-1 flex items-center justify-center space-x-0.5 rounded bg-cad-panel/95 border border-cad-border py-0.5 px-1 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto transition-opacity"
         >
-          {pageText}
-        </span>
-        <div className="flex items-center space-x-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           {totalNumPages > 1 && pageIndex > 0 && (
             <button
               type="button"
@@ -184,6 +176,17 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
             </button>
           )}
         </div>
+      </div>
+      <div className="flex items-center w-full mt-1.5 px-1">
+        <span
+          data-testid={`page-label-${pageIndex}`}
+          title={pageText}
+          className={`min-w-0 flex-1 truncate whitespace-nowrap text-center text-xs font-medium ${
+            isActive ? 'text-cad-accent font-bold' : 'text-gray-400 group-hover:text-gray-200'
+          }`}
+        >
+          {pageText}
+        </span>
       </div>
     </div>
   );

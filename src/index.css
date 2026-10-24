@@ -412,7 +412,9 @@ textarea:focus {
     position: relative;
     display: flex;
     flex-direction: column;
-    padding: 4px 8px 0;
+    justify-content: space-between;
+    gap: 4px;
+    padding: 4px 8px;
     flex-shrink: 0;
   }
   .ribbon-group + .ribbon-group::before {
@@ -432,6 +434,7 @@ textarea:focus {
     color: rgb(var(--gray-500));
     text-align: center;
     line-height: 12px;
+    flex-shrink: 0;
     height: 12px;
     white-space: nowrap;
   }
@@ -470,6 +473,7 @@ textarea:focus {
   .ribbon-tool-label {
     font-size: var(--fs-2xs);
     line-height: 12px;
+    flex-shrink: 0;
     white-space: nowrap;
   }
   .ribbon-tool[aria-pressed='true'] .ribbon-tool-label {

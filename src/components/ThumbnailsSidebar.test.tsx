@@ -151,4 +151,16 @@ describe('ThumbnailsSidebar - Operaciones de Página (Paquete 5)', () => {
     expect(label0).toHaveTextContent('Page 1 (A-101)');
     expect(label1).toHaveTextContent('Page 2 (A-102)');
   });
+
+  it('la etiqueta de página dispone de fila dedicada y los botones de acción viven en el recuadro de la miniatura', async () => {
+    render(<ThumbnailsSidebar />);
+
+    const label0 = screen.getByTestId('page-label-0');
+    expect(label0.parentElement?.children.length).toBe(1);
+    expect(label0).toHaveClass('text-center', 'truncate');
+
+    const actions0 = screen.getByTestId('page-actions-0');
+    expect(actions0).toBeInTheDocument();
+    expect(actions0).toHaveClass('absolute', 'bottom-1');
+  });
 });

@@ -83,6 +83,9 @@ describe('Estructura de la ventana: menos bandas y lienzo como sujeto (ADR-0064)
     // La cinta queda en una sola banda de herramientas, sin fila de pestañas propia ni tira de propiedades
     const ribbon = screen.getByTestId('ribbon');
     expect(ribbon.querySelector('[role="tablist"]')).toBeNull();
+    expect(screen.getByTestId('ribbon-tools')).toHaveClass('h-[56px]');
+    const selectGroup = screen.getByTestId('ribbon-group-select');
+    expect(selectGroup.firstElementChild).toHaveClass('h-[32px]', 'shrink-0');
     expect(screen.queryByTestId('properties-bar')).toBeNull();
     expect(screen.queryByTestId('ribbon-group-style')).toBeNull();
   });
@@ -110,6 +113,9 @@ describe('Estructura de la ventana: menos bandas y lienzo como sujeto (ADR-0064)
     };
     expect(rule('  .ribbon-tool')).toMatch(/border-radius: 0;/);
     expect(rule("  .ribbon-tool[aria-pressed='true']")).not.toMatch(/cad-accent/);
+    expect(rule('  .ribbon-group')).toMatch(/gap: 4px;/);
+    expect(rule('  .ribbon-group')).toMatch(/padding: 4px 8px;/);
+    expect(rule('  .ribbon-group-label')).toMatch(/flex-shrink: 0;/);
     expect(rule('  .ribbon-group + .ribbon-group::before')).toMatch(/width: 1px;/);
     expect(rule('  .panel-header')).toMatch(/border-bottom: 1px solid/);
     // El lienzo es un token del tema, más oscuro que los paneles en ambos temas

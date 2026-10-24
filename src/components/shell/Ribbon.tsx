@@ -36,7 +36,7 @@ const RibbonGroup: React.FC<{ label: string; children: React.ReactNode; testId?:
   testId,
 }) => (
   <section data-testid={testId} className="ribbon-group">
-    <div className="flex-1 flex items-center gap-0.5">{children}</div>
+    <div className="h-[32px] shrink-0 flex items-center gap-0.5">{children}</div>
     <div className="ribbon-group-label">{label}</div>
   </section>
 );
@@ -185,7 +185,7 @@ const RibbonOverflow: React.FC<{
           <div
             role="menu"
             data-testid="ribbon-more-menu"
-            className="absolute right-0 top-[46px] z-50 w-[290px] max-h-[70vh] overflow-y-auto thin-scroll rounded-lg border border-cad-border bg-cad-panel shadow-float p-2 text-xs text-gray-200"
+            className="absolute right-0 top-[52px] z-50 w-[290px] max-h-[70vh] overflow-y-auto thin-scroll rounded-lg border border-cad-border bg-cad-panel shadow-float p-2 text-xs text-gray-200"
           >
             {groups.map((g) => (
               <div key={g.id} className="mb-1.5 last:mb-0">
@@ -274,7 +274,7 @@ export const Ribbon: React.FC<{ showTabs?: boolean }> = ({ showTabs = true }) =>
 
       {/* Herramientas: Select y Pan siempre a la vista; el resto según la pestaña */}
       <div className="flex items-stretch min-w-0">
-      <div ref={toolsRef} data-testid="ribbon-tools" className="flex-1 min-w-0 h-[48px] flex items-stretch overflow-x-auto overflow-y-hidden thin-scroll px-1">
+      <div ref={toolsRef} data-testid="ribbon-tools" className="flex-1 min-w-0 h-[56px] flex items-stretch overflow-x-auto overflow-y-hidden thin-scroll px-1">
         {renderGroup('select')}
         {tab === 'markup' && (
           <>

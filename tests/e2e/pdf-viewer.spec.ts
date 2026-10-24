@@ -3768,4 +3768,14 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     expect(out.length).toBeGreaterThan(fs.statSync('fixtures/test-blueprint.pdf').size);
     expect((await PDFDocument.load(out)).getPageCount()).toBe(3);
   });
+  test('Cinta estrecha (ADR-0134): aparece More tools, elige una herramienta y la barra de estado la muestra', async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 700 });
+    await openApp(page);
+    await expect(page.locator('[data-testid="active-tool"]')).toContainText('Select');
+    await page.locator('[data-testid="ribbon-more"]').click();
+    await expect(page.locator('[data-testid="ribbon-more-menu"]')).toContainText('Typewriter');
+    await page.locator('[data-testid="ribbon-more-circle"]').click();
+    await expect(page.locator('[data-testid="ribbon-more-menu"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid="active-tool"]')).toContainText('Ellipse');
+  });
 });

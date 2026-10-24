@@ -647,6 +647,11 @@ export const PdfViewer: React.FC = () => {
   const [freehandPoints, setFreehandPoints] = useState<MarkupPoint[]>([]);
   const [mouseCursorPoint, setMouseCursorPoint] = useState<MarkupPoint | null>(null);
   const [snapshotFlashRect, setSnapshotFlashRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  // El destello de Snapshot se apaga solo; si el visor se desmonta antes, el temporizador se cancela
+  const snapshotFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (snapshotFlashTimer.current) clearTimeout(snapshotFlashTimer.current);
+  }, []);
 
   // Estado del editor de texto inline (B6 y A.4)
   const [inlineEditing, setInlineEditing] = useState<{
@@ -2529,7 +2534,8 @@ export const PdfViewer: React.FC = () => {
         const width = Math.abs(currentDrawPoint.x - drawingStart.x);
         const height = Math.abs(currentDrawPoint.y - drawingStart.y);
         setSnapshotFlashRect({ x, y, width, height });
-        setTimeout(() => setSnapshotFlashRect(null), 300);
+        if (snapshotFlashTimer.current) clearTimeout(snapshotFlashTimer.current);
+        snapshotFlashTimer.current = setTimeout(() => setSnapshotFlashRect(null), 300);
         void executeSnapshot({ x, y, width, height }, currentPageIndex);
       } else {
         useToolStore.getState().setActiveTool('select');

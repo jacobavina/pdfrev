@@ -47,6 +47,7 @@ describe('Marcas ocultas (Hide) y el bit Hidden de /F (ADR-0109)', () => {
     const shown = (await exportMarkupsToPdf(blueprint, [rect('v')])).pdfBytes.length;
     const hidden = (await exportMarkupsToPdf(blueprint, [rect('h', { hidden: true })])).pdfBytes.length;
     expect(shown).toBeGreaterThan(none + 100);
-    expect(hidden).toBe(none);
+    // El tamaño puede variar unos pocos bytes entre exportaciones (fecha de modificación): lo que importa es que no crece
+    expect(Math.abs(hidden - none)).toBeLessThan(20);
   });
 });

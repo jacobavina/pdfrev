@@ -168,6 +168,7 @@ describe('Escala tipográfica y contraste de la interfaz (ADR-0062)', () => {
       [path.join('src', 'components', 'toolchest', 'RevuToolSetsDialog.tsx')]: ['shadow-float'],
       [path.join('src', 'components', 'modals', 'CopyToolsDialog.tsx')]: ['shadow-float'],
       [path.join('src', 'components', 'modals', 'UndoHistoryDialog.tsx')]: ['shadow-float'],
+      [path.join('src', 'components', 'shell', 'Ribbon.tsx')]: ['shadow-float'],
       [path.join('src', 'components', 'modals', 'DocumentPropertiesDialog.tsx')]: ['shadow-float'],
       [path.join('src', 'components', 'modals', 'CropPagesDialog.tsx')]: ['shadow-float'],
       [path.join('src', 'components', 'modals', 'NumberPagesDialog.tsx')]: ['shadow-float'],

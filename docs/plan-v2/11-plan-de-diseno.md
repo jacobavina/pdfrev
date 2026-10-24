@@ -36,14 +36,14 @@ proyecto, y `impeccable install` descarga de la red, así que no se ejecutó sin
 | 6 | Menús largos (View con 25 entradas) mezclan vista, paneles y perfiles | Media | **Hecho** (ADR-0112): submenú *Panels* |
 | 7 | Etiquetas "Page 1" de las miniaturas se parten en dos líneas con el panel estrecho | Baja | **Hecho** (ADR-0112) |
 | 8 | `Rulers` (regla) y `Measurements Panel` (regla diagonal) parecidos | Baja | **Hecho** (ADR-0112): Rulers ya era una escuadra; Measurements Panel usa el icono de medición |
-| 9 | Cinta Markup: 40 herramientas en un solo carril que se corta en ventanas estrechas | Media | **Propuesto**: colapsar grupos a un botón con desplegable por debajo de 1100 px |
-| 10 | Estado de herramienta activa poco visible en grupos que se desplazan | Baja | **Propuesto**: indicador fijo de la herramienta activa en la barra de estado |
+| 9 | Cinta Markup: 40 herramientas en un solo carril que se corta en ventanas estrechas | Media | **Hecho** (ADR-0134): botón *More tools* con la lista de la pestaña cuando la cinta se corta |
+| 10 | Estado de herramienta activa poco visible en grupos que se desplazan | Baja | **Hecho** (ADR-0134): `Tool: …` fijo en la barra de estado |
 
 ## 4. Orden de trabajo propuesto
 
 1. **Ya hecho:** hallazgos 1–5.
 2. **Hecho también:** 6, 7 y 8 (ADR-0112).
-3. **Después (requiere tu decisión):** 9 y 10, que cambian cómo se ve la cinta.
+3. **Hecho también:** 9 y 10 (ADR-0134), a petición de seguir con lo pendiente; la cinta no cambia cuando cabe entera.
 4. **Cada cambio:** captura antes/después a 2×, `impeccable detect`, `designScale.test.ts`, verify ×3.
 
 ## 5. Criterios de aceptación

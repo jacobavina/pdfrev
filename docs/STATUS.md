@@ -276,6 +276,7 @@
 | `P5-D.32` | Atajo del hipervínculo | **Cerrado** | ADR-0131. Ctrl+K activa la herramienta Hyperlink (el Shift+H de Revu choca con el resaltado de texto de REA); visible en Tools ▸ Hyperlink. |
 | `P5-D.33` | Batch: resumen | **Cerrado** | ADR-0132. Batch gana la operación Summary: un CSV por archivo (_summary.csv) con la lista de sus marcas. Falta verlo en ventana nativa con una carpeta. |
 | `P5-D.34` | Batch: OCR | **Cerrado** | ADR-0133. Batch gana la operación OCR (_ocr, solo escritorio): reconoce con el motor de Windows las páginas sin texto de cada archivo y escribe la capa de texto invisible. Falta verlo en ventana nativa con escaneos reales. |
+| `P5-D.35` | Cinta estrecha y herramienta activa | **Cerrado** | ADR-0134. Botón More tools cuando la cinta se corta y `Tool: …` en la barra de estado. Falta verlo en tu ventana nativa a distintos anchos. |
 
 ---
 

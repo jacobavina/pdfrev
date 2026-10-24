@@ -1,5 +1,5 @@
-import React, { Suspense, lazy, useEffect, useRef } from 'react';
-import { Stamp as StampIcon, Link2, Paperclip } from 'lucide-react';
+import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
+import { Stamp as StampIcon, Link2, Paperclip, ChevronsRight } from 'lucide-react';
 import { stampById } from '../../core/markup/stamps';
 import { FIELD_TYPES, fieldTypeDef } from '../../core/markup/formFields';
 import { fieldTypeIcon } from './fieldIcons';
@@ -108,7 +108,120 @@ export const RibbonTabs: React.FC = () => {
   );
 };
 
+/**
+ * Botón "More tools" (ADR-0134): cuando la ventana es tan estrecha que la cinta se corta, aparece a la derecha y abre la
+ * lista de todas las herramientas de la pestaña, para no tener que desplazar la cinta a ciegas.
+ */
+const RibbonOverflow: React.FC<{
+  scroller: React.RefObject<HTMLDivElement>;
+  tab: RibbonTabId;
+  onPick: (tool: ToolType) => void;
+}> = ({ scroller, tab, onPick }) => {
+  const [overflowing, setOverflowing] = useState(false);
+  const [open, setOpen] = useState(false);
+  const activeTool = useToolStore((s) => s.activeTool);
+  const pdfBytes = useDocumentStore((s) => s.pdfBytes);
+
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const measure = () => setOverflowing(el.scrollWidth > el.clientWidth + 1);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [scroller, tab]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
+
+  if (!overflowing) return null;
+
+  const groups: { id: string; label: string; entries: { type: ToolType; label: string; icon: React.ReactNode; disabled?: boolean }[] }[] = [
+    { id: 'select', label: 'Select', entries: TOOL_GROUPS.find((g) => g.id === 'select')!.tools.map((t) => ({ type: t.type, label: t.short, icon: t.icon })) },
+  ];
+  if (tab === 'markup') {
+    for (const id of ['text', 'draw'] as const) {
+      const g = TOOL_GROUPS.find((x) => x.id === id)!;
+      groups.push({ id, label: g.label, entries: g.tools.map((t) => ({ type: t.type, label: t.short, icon: t.icon })) });
+    }
+  } else if (tab === 'measure') {
+    const g = TOOL_GROUPS.find((x) => x.id === 'measure')!;
+    groups.push({ id: 'measure', label: g.label, entries: g.tools.map((t) => ({ type: t.type, label: t.short, icon: t.icon })) });
+  } else {
+    groups.push({
+      id: 'insert',
+      label: 'Insert',
+      entries: [
+        { type: 'stamp', label: 'Stamp', icon: <StampIcon size={18} />, disabled: !pdfBytes },
+        { type: 'link', label: 'Link', icon: <Link2 size={18} />, disabled: !pdfBytes },
+        { type: 'fileAttachment', label: 'Attach', icon: <Paperclip size={18} />, disabled: !pdfBytes },
+        { type: 'formField', label: 'Field', icon: fieldTypeIcon('text', 18), disabled: !pdfBytes },
+      ],
+    });
+  }
+
+  return (
+    <div className="relative shrink-0 flex items-center pr-1 z-30">
+      <button
+        type="button"
+        data-testid="ribbon-more"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title="More tools: the ribbon is cut off at this window width"
+        onClick={() => setOpen((v) => !v)}
+        className="h-[40px] w-6 grid place-items-center rounded-md bg-cad-ribbon border border-cad-border text-gray-300 hover:text-cad-strong hover:bg-cad-hover"
+      >
+        <ChevronsRight size={16} />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onMouseDown={() => setOpen(false)} />
+          <div
+            role="menu"
+            data-testid="ribbon-more-menu"
+            className="absolute right-0 top-[46px] z-50 w-[290px] max-h-[70vh] overflow-y-auto thin-scroll rounded-lg border border-cad-border bg-cad-panel shadow-float p-2 text-xs text-gray-200"
+          >
+            {groups.map((g) => (
+              <div key={g.id} className="mb-1.5 last:mb-0">
+                <div className="px-1 pb-0.5 text-2xs uppercase tracking-wide text-gray-500">{g.label}</div>
+                <div className="grid grid-cols-2 gap-0.5">
+                  {g.entries.map((e) => (
+                    <button
+                      key={e.type}
+                      type="button"
+                      role="menuitem"
+                      data-testid={`ribbon-more-${e.type}`}
+                      disabled={e.disabled}
+                      onClick={() => {
+                        onPick(e.type);
+                        setOpen(false);
+                      }}
+                      className={`flex items-center gap-1.5 px-1.5 h-7 rounded-md text-left truncate disabled:opacity-40 ${
+                        activeTool === e.type ? 'bg-cad-hover text-cad-strong' : 'hover:bg-cad-hover'
+                      }`}
+                    >
+                      <span className="shrink-0 grid place-items-center w-[18px]">{e.icon}</span>
+                      <span className="truncate">{e.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 export const Ribbon: React.FC<{ showTabs?: boolean }> = ({ showTabs = true }) => {
+  const toolsRef = useRef<HTMLDivElement>(null);
   const { pdfBytes, pageHasText, currentPageIndex } = useDocumentStore();
   const { activeTool, setActiveTool, activeStampId, setActiveStampId, activeFieldType, setActiveFieldType } = useToolStore();
 
@@ -152,7 +265,7 @@ export const Ribbon: React.FC<{ showTabs?: boolean }> = ({ showTabs = true }) =>
   };
 
   return (
-    <div data-testid="ribbon" className="shrink-0 min-w-0 bg-cad-ribbon border-b border-cad-border select-none z-20">
+    <div data-testid="ribbon" className="relative shrink-0 min-w-0 bg-cad-ribbon border-b border-cad-border select-none z-20">
       {showTabs && (
         <div className="h-[28px] flex items-stretch px-2 border-b border-cad-border">
           <RibbonTabs />
@@ -160,7 +273,8 @@ export const Ribbon: React.FC<{ showTabs?: boolean }> = ({ showTabs = true }) =>
       )}
 
       {/* Herramientas: Select y Pan siempre a la vista; el resto según la pestaña */}
-      <div data-testid="ribbon-tools" className="h-[48px] flex items-stretch overflow-x-auto overflow-y-hidden thin-scroll px-1">
+      <div className="flex items-stretch min-w-0">
+      <div ref={toolsRef} data-testid="ribbon-tools" className="flex-1 min-w-0 h-[48px] flex items-stretch overflow-x-auto overflow-y-hidden thin-scroll px-1">
         {renderGroup('select')}
         {tab === 'markup' && (
           <>
@@ -246,6 +360,16 @@ export const Ribbon: React.FC<{ showTabs?: boolean }> = ({ showTabs = true }) =>
         )}
       </div>
 
+      <RibbonOverflow
+        scroller={toolsRef}
+        tab={tab}
+        onPick={(type) => {
+          const def = TOOL_GROUPS.flatMap((g) => g.tools).find((t) => t.type === type);
+          if (def) selectTool(def);
+          else setActiveTool(type);
+        }}
+      />
+      </div>
     </div>
   );
 };

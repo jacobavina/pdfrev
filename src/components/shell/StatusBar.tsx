@@ -5,9 +5,14 @@ import { useMarkupStore } from '../../store/useMarkupStore';
 import { useCalibrationStore } from '../../store/useCalibrationStore';
 import { useSearchStore } from '../../store/useSearchStore';
 import { useUiStore } from '../../store/useUiStore';
+import { useToolStore } from '../../store/useToolStore';
+import { ALL_TOOLS } from './toolDefinitions';
 import { goToPage } from './appActions';
 import { describeCalibration } from '../../core/measurements/scale';
 import { SinglePageIcon, ContinuousIcon, FitPageIcon, FitWidthIcon } from './customIcons';
+
+/** Nombres de las herramientas que no están en la cinta (se activan desde un menú o un atajo). */
+const EXTRA_TOOL_NAMES: Record<string, string> = { link: 'Hyperlink', fileAttachment: 'File Attachment', snapshot: 'Snapshot', selectText: 'Select Text', lasso: 'Lasso' };
 
 const Divider = () => <div className="h-4 w-px bg-cad-border mx-1.5 shrink-0" />;
 
@@ -26,6 +31,8 @@ export const StatusBar: React.FC = () => {
   const requestFit = useUiStore((s) => s.requestFit);
   const markupsListOpen = useUiStore((s) => s.markupsListOpen);
   const toggleMarkupsList = useUiStore((s) => s.toggleMarkupsList);
+  const activeTool = useToolStore((s) => s.activeTool);
+  const activeDef = ALL_TOOLS.find((t) => t.type === activeTool);
   const pageDims = useDocumentStore((s) => s.pageDimensions[s.currentPageIndex]);
   // Tamaño de la hoja activa (la dimensión guardada está en píxeles a la escala del último render)
   const sheetCm =
@@ -184,7 +191,15 @@ export const StatusBar: React.FC = () => {
         {cursorPt ? `X ${fmt(cursorPt.x)}  Y ${fmt(cursorPt.y)} ${calib.unit}` : '—'}
       </span>
 
-      <div className="flex-1" />
+      <Divider />
+
+      {/* Herramienta activa (ADR-0134): siempre visible, aunque la cinta la tenga fuera de la vista */}
+      <span data-testid="active-tool" className="flex items-center gap-1.5 whitespace-nowrap" title={activeDef?.label ?? EXTRA_TOOL_NAMES[activeTool] ?? activeTool}>
+        <span className="text-gray-500">Tool:</span>
+        <span className="text-cad-strong">{activeDef?.short ?? EXTRA_TOOL_NAMES[activeTool] ?? activeTool}</span>
+      </span>
+
+      <div className="flex-1 min-w-3" />
 
       {sheetCm && (
         <>

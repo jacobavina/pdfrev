@@ -25,7 +25,7 @@ export type StampIconId =
   | 'document'
   | 'lock'
   | 'clipboard';
-export type StampGroup = 'Revu' | 'Dynamic' | 'Standard' | 'Sign Here' | 'Construction';
+export type StampGroup = 'Review' | 'Dynamic' | 'Standard' | 'Sign Here' | 'Construction';
 
 export interface StampDef {
   id: string;
@@ -52,20 +52,20 @@ const FX_RED = '#d14b32';
 
 export const STAMPS: StampDef[] = [
   // Revu
-  { id: 'rv-for-review', label: 'For Review', color: '#7cb342', group: 'Revu', kind: 'text', dynamic: 'revu' },
-  { id: 'rv-approved', label: 'APPROVED', color: '#1f2937', group: 'Revu', kind: 'text', dynamic: 'none', bordered: true },
-  { id: 'rv-date', label: 'Date', color: '#e02424', group: 'Revu', kind: 'date', date: 'dmy', dynamic: 'none' },
-  { id: 'rv-datetime', label: 'Date Time', color: '#e02424', group: 'Revu', kind: 'date', date: 'dmy', time: true, dynamic: 'none' },
-  { id: 'rv-draft-print', label: 'Draft Print', color: '#4a86c5', group: 'Revu', kind: 'text', dynamic: 'revu' },
-  { id: 'rv-eu-date', label: 'European Date', color: '#e02424', group: 'Revu', kind: 'date', date: 'dot', dynamic: 'none' },
-  { id: 'rv-eu-datetime', label: 'European Date Time', color: '#e02424', group: 'Revu', kind: 'date', date: 'dot', time: true, dynamic: 'none' },
-  { id: 'rv-preliminary', label: 'Preliminary', color: '#8b1a1a', group: 'Revu', kind: 'text', dynamic: 'revu' },
-  { id: 'rv-proprietary', label: 'Proprietary and Confidential', color: '#e02424', group: 'Revu', kind: 'proprietary', dynamic: 'none' },
-  { id: 'rv-released', label: 'RELEASED', color: '#e02424', group: 'Revu', kind: 'released', dynamic: 'none' },
-  { id: 'rv-revised', label: 'Revised', color: '#f08c00', group: 'Revu', kind: 'text', dynamic: 'revu' },
-  { id: 'rv-tag', label: 'Sample Text', color: '#e02424', group: 'Revu', kind: 'tag', dynamic: 'none' },
-  { id: 'rv-seal', label: 'SEAL', color: '#1f2937', group: 'Revu', kind: 'seal', dynamic: 'none' },
-  { id: 'rv-watermark', label: 'Watermark', color: '#9ca3af', group: 'Revu', kind: 'watermark', dynamic: 'none' },
+  { id: 'rv-for-review', label: 'For Review', color: '#7cb342', group: 'Review', kind: 'text', dynamic: 'revu' },
+  { id: 'rv-approved', label: 'APPROVED', color: '#1f2937', group: 'Review', kind: 'text', dynamic: 'none', bordered: true },
+  { id: 'rv-date', label: 'Date', color: '#e02424', group: 'Review', kind: 'date', date: 'dmy', dynamic: 'none' },
+  { id: 'rv-datetime', label: 'Date Time', color: '#e02424', group: 'Review', kind: 'date', date: 'dmy', time: true, dynamic: 'none' },
+  { id: 'rv-draft-print', label: 'Draft Print', color: '#4a86c5', group: 'Review', kind: 'text', dynamic: 'revu' },
+  { id: 'rv-eu-date', label: 'European Date', color: '#e02424', group: 'Review', kind: 'date', date: 'dot', dynamic: 'none' },
+  { id: 'rv-eu-datetime', label: 'European Date Time', color: '#e02424', group: 'Review', kind: 'date', date: 'dot', time: true, dynamic: 'none' },
+  { id: 'rv-preliminary', label: 'Preliminary', color: '#8b1a1a', group: 'Review', kind: 'text', dynamic: 'revu' },
+  { id: 'rv-proprietary', label: 'Proprietary and Confidential', color: '#e02424', group: 'Review', kind: 'proprietary', dynamic: 'none' },
+  { id: 'rv-released', label: 'RELEASED', color: '#e02424', group: 'Review', kind: 'released', dynamic: 'none' },
+  { id: 'rv-revised', label: 'Revised', color: '#f08c00', group: 'Review', kind: 'text', dynamic: 'revu' },
+  { id: 'rv-tag', label: 'Sample Text', color: '#e02424', group: 'Review', kind: 'tag', dynamic: 'none' },
+  { id: 'rv-seal', label: 'SEAL', color: '#1f2937', group: 'Review', kind: 'seal', dynamic: 'none' },
+  { id: 'rv-watermark', label: 'Watermark', color: '#9ca3af', group: 'Review', kind: 'watermark', dynamic: 'none' },
   // Foxit: dinámicos (autor, fecha y hora)
   { id: 'dyn-approved', label: 'APPROVED', color: FX_GREEN, group: 'Dynamic', kind: 'filled', dynamic: 'foxit' },
   { id: 'dyn-revised', label: 'REVISED', color: FX_GREEN, group: 'Dynamic', kind: 'filled', dynamic: 'foxit' },
@@ -113,7 +113,7 @@ export const STAMPS: StampDef[] = [
   { id: 'for-comment', label: 'FOR COMMENT', color: '#1d4ed8', pdfName: 'ForComment', group: 'Construction' },
 ];
 
-export const STAMP_GROUPS: StampGroup[] = ['Revu', 'Dynamic', 'Standard', 'Sign Here', 'Construction'];
+export const STAMP_GROUPS: StampGroup[] = ['Review', 'Dynamic', 'Standard', 'Sign Here', 'Construction'];
 
 export function stampById(id: string | undefined): StampDef {
   return STAMPS.find((s) => s.id === id) ?? STAMPS.find((s) => s.id === 'approved')!;

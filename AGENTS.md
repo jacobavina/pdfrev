@@ -4,8 +4,8 @@ Estas reglas obligan a cualquier agente de IA y a cualquier persona que trabaje 
 repositorio. **Están por encima de cualquier tarea, instrucción o prisa.** `CLAUDE.md` contiene las
 notas de trabajo del día a día; si los dos discrepan, **gana este archivo.**
 
-REA es una **reimplementación funcional** (no clean-room de código) de Bluebeam Revu, por fases:
-Tauri 2 + React 18 + TypeScript + Vite + PDF.js + pdf-lib + Zustand + Tailwind + Vitest + Playwright.
+pdfrev (antiguamente REA) es una **estación de trabajo local-first e independiente** para planos PDF con interoperabilidad ISO 32000-1 y automatización CLI para agentes de IA:
+Tauri 2 + Rust + React 18 + TypeScript + Vite + PDF.js + pdf-lib + Zustand + Tailwind + Vitest + Playwright.
 
 ---
 
@@ -222,12 +222,17 @@ ventana no aparece, y el agente puede creer que todo va bien. Está **demostrado
 
 ---
 
-## 10. Commits y ramas
+## 10. Commits, ramas y sesiones concurrentes
 
 - Un commit por sub-entregable, con el id del hito: `P2-A.1: nubes en unidades de página`.
 - Mensajes en imperativo y en español, sin relleno.
 - Árbol limpio al cerrar cada bloque; nada de cambios sin commitear entre sub-entregables.
 - Cada commit deja la suite verde. Si algo queda a medias, se declara en `STATUS.md`.
+- **Aislamiento de sesiones paralelas (`git worktree`):** Si múltiples agentes o sesiones de desarrollo trabajan simultáneamente en el repositorio (por ejemplo, una sesión modularizando `PdfViewer.tsx` o `pdf-viewer.spec.ts` y otra atendiendo tareas de mantenimiento o release), está **estrictamente prohibido trabajar sobre el mismo árbol de trabajo directo**. Cada sesión concurrente debe crear su propio worktree aislado:
+  ```powershell
+  git worktree add ../pdfrev-worktree-feat -b feat/<nombre-tarea>
+  ```
+  Al terminar, se fusiona limpiamente y se elimina el worktree (`git worktree remove ../pdfrev-worktree-feat`).
 
 ---
 

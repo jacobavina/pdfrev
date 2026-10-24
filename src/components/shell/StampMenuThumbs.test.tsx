@@ -39,8 +39,8 @@ describe('Menú Tools ▸ Stamp con miniaturas y filas compactas (ADR-0136)', ()
       expect(duplicateKeyCalls).toHaveLength(0);
       const item = screen.getByTestId('menu-stamp-rv-approved');
       expect(item).toHaveTextContent('APPROVED');
-      expect(item).toHaveTextContent('Revu');
-      expect(item).not.toHaveTextContent('APPROVED · Revu');
+      expect(item).toHaveTextContent('Review');
+      expect(item).not.toHaveTextContent('APPROVED · Review');
       fireEvent.click(item);
       expect(useToolStore.getState().activeTool).toBe('stamp');
       expect(useToolStore.getState().activeStampId).toBe('rv-approved');

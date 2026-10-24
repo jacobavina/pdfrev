@@ -1,7 +1,11 @@
-# CLAUDE.md — Notas de trabajo para REA (Revu Engineering Architecture)
+# CLAUDE.md — Notas de trabajo para pdfrev
 
 Este archivo contiene la guía operativa diaria para el desarrollo en el repositorio.
 **Regla de precedencia:** Si alguna instrucción de este archivo contradice a `AGENTS.md`, **prevalece estrictamente `AGENTS.md`**.
+
+> [!NOTE]
+> **Compatibilidad retroactiva de identificadores:**
+> Por estabilidad técnica y compatibilidad con documentos PDF y pruebas preexistentes, ciertos identificadores internos permanecen congelados: las claves de diccionario PDF (`/REA`, `/REACal`), los prefijos CSS `.rea-icon`, las claves `localStorage` (`rea-*`) y `window.__REA_TEST_HOOKS__`.
 
 ---
 

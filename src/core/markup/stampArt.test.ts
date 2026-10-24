@@ -13,9 +13,9 @@ const box = { x: 0, y: 0, w: 120, h: 36 };
 
 describe('Sellos de Revu y Foxit (ADR-0045)', () => {
   it('el catálogo tiene los sellos de Revu, los dinámicos, estándar y de firma de Foxit, y los de obra', () => {
-    expect(STAMP_GROUPS).toEqual(['Revu', 'Dynamic', 'Standard', 'Sign Here', 'Construction']);
+    expect(STAMP_GROUPS).toEqual(['Review', 'Dynamic', 'Standard', 'Sign Here', 'Construction']);
     const labels = (g: string) => STAMPS.filter((s) => s.group === g).map((s) => s.label);
-    expect(labels('Revu')).toEqual(
+    expect(labels('Review')).toEqual(
       expect.arrayContaining(['For Review', 'APPROVED', 'Date', 'Draft Print', 'Preliminary', 'Released'.toUpperCase(), 'Revised', 'Sample Text', 'Watermark'])
     );
     expect(labels('Dynamic')).toEqual(['APPROVED', 'REVISED', 'REVIEWED', 'RECEIVED', 'CONFIDENTIAL']);

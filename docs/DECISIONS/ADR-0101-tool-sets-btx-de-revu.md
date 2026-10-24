@@ -13,6 +13,9 @@ contenido de Bluebeam). Las pruebas usan Tool Sets escritos a mano con la misma 
 
 ## 2. El formato
 
+> [!NOTE]
+> El formato `.btx` no utiliza cifrado criptográfico ni mecanismos de protección DRM; los campos de datos consisten en diccionarios estándar de anotaciones PDF empaquetados mediante compresión `zlib` (Deflate RFC 1951) y codificados en cadenas hexadecimales para su interoperabilidad.
+
 - XML UTF-8 con BOM y CRLF, raíz `<BluebeamRevuToolSet Version="1">`.
 - `<Title>`: el nombre del Tool Set, comprimido con zlib y escrito en hexadecimal.
 - Por herramienta, `<ToolChestItem Version="1">` con:

@@ -20,7 +20,7 @@
 
 **pdfrev** is an ultra-fast, local-first PDF viewer, editor, and drawing takeoff workstation built for architecture, engineering, and construction professionals—and designed from day one to be driven programmatically by **AI coding and reasoning agents**.
 
-Built with **Tauri 2**, **Rust**, and modern **React**, pdfrev provides a native Windows experience with instant startup, 60 FPS panning on dense E-size blueprint drawings, zero telemetry, and seamless interoperability with Bluebeam Revu and Adobe Acrobat.
+Built with **Tauri 2**, **Rust**, and modern **React**, pdfrev provides a native Windows experience with instant startup, 60 FPS panning on dense E-size blueprint drawings, zero telemetry, and high-fidelity interoperability with ISO 32000-1 workflows.
 
 ---
 
@@ -28,7 +28,7 @@ Built with **Tauri 2**, **Rust**, and modern **React**, pdfrev provides a native
 
 - **🔒 Local-First & Zero Telemetry:** Your drawings and documents never leave your workstation. No cloud logins, no mandatory sync, no background tracking.
 - **📐 Precision Drawing Takeoff:** Real-world scale calibration, Area with multi-polygon Cutout subtraction, Perimeter, Volume, Dynamic Length, and autonomous shape Count takeoff.
-- **🔄 Full Bluebeam Revu Interoperability:** Native roundtrip markup editing, `.bbx.json` sidecar storage, standard `/Annots` (`/Square`, `/Circle`, `/Highlight`, `/Ink`, `/Stamp`), status tracking, and threaded comment replies.
+- **🔄 ISO 32000-1 & Tool Set Interoperability:** High-fidelity roundtrip markup editing, `.bbx.json` sidecar storage, standard `/Annots` (`/Square`, `/Circle`, `/Highlight`, `/Ink`, `/Stamp`), status tracking, `.btx` tool set profile import, and threaded comment replies.
 - **🤖 Headless AI Agent CLI (`pdfrev-cli`):** First-class command-line interface for LLMs and autonomous agents to split, combine, inspect markups, extract text, and perform OCR with structured JSON output and standardized POSIX exit codes.
 - **🔍 Windows Native OCR:** Offline text recognition powered directly by `Windows.Media.Ocr`. Zero external models, zero downloads, completely private.
 - **🎨 Cyanotype Blueprint Aesthetic:** Refined interface with both Light and Dark themes engineered around drawing readability.
@@ -118,6 +118,16 @@ Download the latest `pdfrev_<version>_x64-setup.exe` from the [Releases](https:/
 ### Option 2: Portable Package
 Download `pdfrev_<version>_windows_x64_portable.zip`, extract to any directory, and launch `pdfrev.exe` (GUI) or `pdfrev-cli.exe` (CLI).
 
+> [!NOTE]
+> **Windows SmartScreen & Integrity Verification:**
+> As an independent open-source project without a costly commercial EV/OV code-signing certificate, Windows SmartScreen may present a *"Windows protected your PC"* notification on initial launch. You can safely click **"More info" → "Run anyway"**.
+> 
+> You can verify the cryptographic integrity of any downloaded binary against our official release hashes using PowerShell:
+> ```powershell
+> (Get-FileHash -Algorithm SHA256 .\pdfrev_0.1.0_x64-setup.exe).Hash
+> ```
+> and compare it with the published `SHA256SUMS.txt` on the release page.
+
 ---
 
 ## 🛠️ Building from Source
@@ -152,7 +162,7 @@ The compiled binaries and NSIS setup executable will be located in `src-tauri/ta
 - **1,400+ Unit Tests** (Vitest) covering geometry, takeoff mathematics, stamp rendering, and tool pipelines.
 - **Native Rust Tests** (`cargo test`) verifying atomic disk I/O, backup rollbacks, PDF stream parsing, and Windows OCR.
 - **Bundle Size Enforcement:** Main chunk strictly capped under 800 kB.
-- **PARITY Verification:** Automatic checks ensuring complete compliance with Bluebeam Revu drawing standards.
+- **PARITY Verification:** Automated cross-suite verification ensuring high-fidelity alignment with CAD drawing standards and ISO 32000-1 specifications.
 
 ```powershell
 node scripts/verify.mjs
@@ -164,3 +174,11 @@ node scripts/verify.mjs
 
 This project is licensed under the [MIT License](LICENSE).
 Icons and typography attributions are documented in detail in [ATTRIBUTION.md](ATTRIBUTION.md).
+
+---
+
+## ⚖️ Trademarks & Non-Affiliation Disclaimer
+
+`pdfrev` is an independent open-source project and is not affiliated with, endorsed by, sponsored by, or supported by Bluebeam, Inc., the Nemetschek Group, Adobe Inc., or Foxit Software Inc.
+
+"Bluebeam", "Revu", "Adobe Acrobat", and "Foxit" are registered trademarks of their respective owners. Any references to third-party brand names, tool names, or file formats (such as `.btx`) in this repository or application interface are strictly for describing technical file-format interoperability.

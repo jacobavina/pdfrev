@@ -21,6 +21,7 @@ tests/native-artifacts/*.txt
 
 # Generated fixtures runtime persistence
 fixtures/*.bbx.json
+!fixtures/test-blueprint.bbx.json
 fixtures/*.tmp
 
 # Atomic file operations and backups
@@ -34,6 +35,8 @@ spikes/
 .orquestador/
 plan/
 .dsh/
+docs/VALIDACION-PENDIENTE.md
+docs/audits/
 
 # Environment and secrets
 .env

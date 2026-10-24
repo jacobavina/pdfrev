@@ -1,0 +1,34 @@
+{
+  "version": "1.1.0",
+  "pdfFileName": "test-blueprint.pdf",
+  "lastSavedAt": "2026-10-10T06:33:09.313Z",
+  "author": "Revisor Técnico",
+  "markups": [
+    {
+      "id": "08f14f72-e626-44df-a477-1447bf9b3a74",
+      "type": "rectangle",
+      "pageIndex": 0,
+      "points": [
+        {
+          "x": 0.61,
+          "y": 0.23199999809265137
+        },
+        {
+          "x": 0.85,
+          "y": 0.4919999980926514
+        }
+      ],
+      "style": {
+        "strokeColor": "#e02424",
+        "fillColor": "transparent",
+        "strokeWidth": 2,
+        "opacity": 1
+      },
+      "author": "Revisor Técnico",
+      "createdAt": "2026-10-10T06:33:01.111Z",
+      "updatedAt": "2026-10-10T06:33:01.111Z",
+      "status": "pending",
+      "layer": "Anotaciones"
+    }
+  ]
+}

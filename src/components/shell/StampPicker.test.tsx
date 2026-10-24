@@ -17,7 +17,7 @@ describe('Selector de sellos por secciones (ADR-0045)', () => {
     fireEvent.click(screen.getByTestId('ribbon-tab-insert'));
     // Carga diferida del selector (ADR-0045)
     fireEvent.click(await screen.findByTestId('ribbon-stamp-picker'));
-    for (const g of ['revu', 'dynamic', 'standard', 'sign-here', 'construction']) {
+    for (const g of ['review', 'dynamic', 'standard', 'sign-here', 'construction']) {
       expect(screen.getByTestId(`ribbon-stamp-picker-group-${g}`)).toBeInTheDocument();
     }
     const option = screen.getByTestId('ribbon-stamp-picker-option-std-reviewed');

@@ -85,7 +85,7 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
         isActive ? 'bg-cad-accent/10 ring-2 ring-cad-accent' : 'hover:bg-cad-hover ring-1 ring-transparent'
       } ${isDragOver ? 'border-t-2 border-cad-accent bg-cad-hover/80' : ''}`}
     >
-            <div className="relative bg-white rounded-md overflow-hidden border border-cad-border flex items-center justify-center min-h-[90px] w-full">
+      <div className="relative bg-white rounded-md overflow-hidden border border-cad-border flex items-center justify-center min-h-[90px] w-full">
         <canvas ref={canvasRef} className="max-w-full h-auto block" />
         <div
           data-testid={`page-actions-${pageIndex}`}

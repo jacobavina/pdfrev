@@ -597,10 +597,10 @@ export const FEATURE_GUIDE: GuideSection[] = [
       {
         id: 'batch',
         title: 'Batch',
-        summary: 'Applies one operation to many PDF files without opening them: flatten the markups, number the pages, rotate every page, reduce the file size or add headers and footers. The originals are not changed.',
+        summary: 'Applies one operation to many PDF files without opening them: flatten the markups, number the pages, rotate every page, reduce the file size, add headers and footers or list the markups. The originals are not changed.',
         steps: [
           'Choose File ▸ Batch…, add the PDF files, choose the operation and press Run. In the desktop app you pick the folder for the results; in the browser they are downloaded.',
-          'Each result keeps the name with a suffix: _flattened, _numbered, _reduced, _stamped or _rotated90. A file that fails (damaged, or with no markups to flatten) is marked with the reason and the rest are still processed.',
+          'Each result keeps the name with a suffix: _flattened, _numbered, _reduced, _stamped, _summary.csv or _rotated90. A file that fails (damaged, or with no markups to flatten) is marked with the reason and the rest are still processed.',
           'Save report writes a CSV with the result of every file. Up to 200 files per batch.',
         ],
         where: 'File ▸ Batch…',

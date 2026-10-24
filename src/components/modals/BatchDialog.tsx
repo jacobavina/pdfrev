@@ -57,7 +57,7 @@ export const BatchDialog: React.FC = () => {
     });
   };
 
-  const op = (): BatchOp => (kind === 'flatten' ? { kind } : kind === 'rotate' ? { kind, degrees } : kind === 'reduce' ? { kind, quality } : kind === 'headerFooter' ? { kind, slots } : { kind, format, position, fontSize: 9, marginPt: 28 });
+  const op = (): BatchOp => (kind === 'flatten' ? { kind } : kind === 'rotate' ? { kind, degrees } : kind === 'reduce' ? { kind, quality } : kind === 'headerFooter' ? { kind, slots } : kind === 'summary' ? { kind } : { kind, format, position, fontSize: 9, marginPt: 28 });
   const problem = files.length === 0 ? 'Add the PDF files to process.' : kind === 'number' && !format.trim() ? 'Write the text to stamp, for example: Page {n} of {total}.' : kind === 'headerFooter' && !hasAnySlot(slots) ? 'Write at least one header or footer text.' : null;
 
   const run = async () => {
@@ -164,6 +164,10 @@ export const BatchDialog: React.FC = () => {
                 </select>
               </div>
             )}
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="batch-kind" data-testid="batch-kind-summary" checked={kind === 'summary'} onChange={() => setKind('summary')} className="accent-cad-accent" />
+              List the markups of each file <span className="text-gray-500">(_summary.csv)</span>
+            </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="radio" name="batch-kind" data-testid="batch-kind-headerfooter" checked={kind === 'headerFooter'} onChange={() => setKind('headerFooter')} className="accent-cad-accent" />
               Add headers and footers <span className="text-gray-500">(_stamped)</span>

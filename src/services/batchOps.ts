@@ -12,20 +12,25 @@ export type BatchOp =
   | { kind: 'number'; format: string; position: NumberPosition; fontSize: number; marginPt: number }
   | { kind: 'rotate'; degrees: 90 | 180 | 270 }
   | { kind: 'reduce'; quality: ReduceQuality }
-  | { kind: 'headerFooter'; slots: HeaderFooterSlots };
+  | { kind: 'headerFooter'; slots: HeaderFooterSlots }
+  | { kind: 'summary' };
 
 export const MAX_BATCH_FILES = 200;
 
 /** Sufijo del archivo de salida según la operación. */
 export function opSuffix(op: BatchOp): string {
-  return op.kind === 'flatten' ? 'flattened' : op.kind === 'number' ? 'numbered' : op.kind === 'reduce' ? 'reduced' : op.kind === 'headerFooter' ? 'stamped' : `rotated${op.degrees}`;
+  return op.kind === 'flatten' ? 'flattened' : op.kind === 'number' ? 'numbered' : op.kind === 'reduce' ? 'reduced' : op.kind === 'headerFooter' ? 'stamped' : op.kind === 'summary' ? 'summary' : `rotated${op.degrees}`;
 }
+
+/** Extensión del archivo de salida: el resumen es una hoja de cálculo CSV y las demás operaciones dan un PDF. */
+export const opExtension = (op: BatchOp): 'pdf' | 'csv' => (op.kind === 'summary' ? 'csv' : 'pdf');
 
 /** Nombre del archivo de salida; si ya hay otro igual en la lista de salidas, lleva un número. */
 export function outputName(inputName: string, op: BatchOp, taken: Set<string>): string {
   const base = inputName.replace(/\.pdf$/i, '').replace(/[\\/:*?"<>|]+/g, '_') || 'document';
-  let name = `${base}_${opSuffix(op)}.pdf`;
-  for (let i = 2; taken.has(name.toLowerCase()); i++) name = `${base}_${opSuffix(op)}_${i}.pdf`;
+  const ext = opExtension(op);
+  let name = `${base}_${opSuffix(op)}.${ext}`;
+  for (let i = 2; taken.has(name.toLowerCase()); i++) name = `${base}_${opSuffix(op)}_${i}.${ext}`;
   taken.add(name.toLowerCase());
   return name;
 }
@@ -112,6 +117,15 @@ async function headerFooterFile(bytes: Uint8Array, name: string, slots: HeaderFo
   });
 }
 
+/** Resumen de las marcas del archivo como CSV (la misma tabla que File ▸ Export ▸ CSV). */
+async function summaryFile(bytes: Uint8Array): Promise<Uint8Array> {
+  const { importPdfAnnotations } = await import('../core/pdf/annotationReader');
+  const { buildCsvContent } = await import('./exportService');
+  const { markups } = await importPdfAnnotations(bytes);
+  if (markups.length === 0) throw new Error('This file has no markups to summarise.');
+  return buildCsvContent(markups);
+}
+
 /** Aplica la operación a los bytes de un archivo (`name` alimenta el campo {file} de las cabeceras). */
 export async function runBatchOp(bytes: Uint8Array, op: BatchOp, name = ''): Promise<Uint8Array> {
   switch (op.kind) {
@@ -125,6 +139,8 @@ export async function runBatchOp(bytes: Uint8Array, op: BatchOp, name = ''): Pro
       return reduceFile(bytes, op.quality);
     case 'headerFooter':
       return headerFooterFile(bytes, name, op.slots);
+    case 'summary':
+      return summaryFile(bytes);
   }
 }
 

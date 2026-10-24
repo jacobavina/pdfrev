@@ -274,6 +274,7 @@
 | `P5-D.30` | Slip Sheet | **Cerrado** | ADR-0129. Document ▸ Slip Sheet…: sustituye las láminas del juego por las de una revisión emparejándolas por número de lámina (leído del texto), con emparejamiento manual, marcas conservadas y opción de añadir las láminas nuevas sin pareja. Falta verlo en ventana nativa con un juego real. |
 | `P5-D.31` | Batch: cabeceras y pies | **Cerrado** | ADR-0130. Batch gana la operación Headers & Footers (_stamped) con las seis ranuras y los campos {n}, {total}, {file}, {title}, {date}... Falta verlo en ventana nativa con una carpeta. |
 | `P5-D.32` | Atajo del hipervínculo | **Cerrado** | ADR-0131. Ctrl+K activa la herramienta Hyperlink (el Shift+H de Revu choca con el resaltado de texto de REA); visible en Tools ▸ Hyperlink. |
+| `P5-D.33` | Batch: resumen | **Cerrado** | ADR-0132. Batch gana la operación Summary: un CSV por archivo (_summary.csv) con la lista de sus marcas. Falta verlo en ventana nativa con una carpeta. |
 
 ---
 

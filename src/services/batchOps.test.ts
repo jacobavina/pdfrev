@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { PDFDocument, PDFName, PDFArray, PDFRawStream, decodePDFRawStream } from 'pdf-lib';
-import { MAX_BATCH_FILES, batchReportRows, opSuffix, outputName, removeAnnotationsByName, runBatch, runBatchOp, type BatchOp } from './batchOps';
+import { MAX_BATCH_FILES, batchReportRows, opExtension, opSuffix, outputName, removeAnnotationsByName, runBatch, runBatchOp, type BatchOp } from './batchOps';
 import { saveIncrementalMarkups } from '../core/pdf/incrementalWriter';
 import { importPdfAnnotations } from '../core/pdf/annotationReader';
 import type { Markup } from '../types/markup';
@@ -132,5 +132,19 @@ describe('Batch: operaciones sobre varios PDF (ADR-0125)', () => {
       expect(c).toContain(hex(`Hoja ${i + 1} de 3`));
     }
     await expect(runBatchOp(blueprint, { kind: 'headerFooter', slots: { ...slots, headerLeft: '', footerCenter: '  ' } }, 'x.pdf')).rejects.toThrow(/at least one header or footer/);
+  });
+  it('resumen: lista las marcas del archivo como CSV con su propia extensión, y falla si no hay ninguna (ADR-0132)', async () => {
+    const op: BatchOp = { kind: 'summary' };
+    expect(opSuffix(op)).toBe('summary');
+    expect(opExtension(op)).toBe('csv');
+    expect(opExtension({ kind: 'flatten' })).toBe('pdf');
+    expect(outputName('A-101.pdf', op, new Set())).toBe('A-101_summary.csv');
+    const saved = await saveIncrementalMarkups(blueprint, [rect('uno'), rect('dos')]);
+    const csv = Buffer.from(await runBatchOp(saved, op)).toString('utf-8');
+    const lines = csv.replace(String.fromCharCode(0xfeff), '').trim().split('\n').map((l) => l.trim());
+    expect(lines[0]).toMatch(/^Page,Type,Comment,Author/);
+    expect(lines).toHaveLength(3);
+    expect(lines[1].startsWith('1,rectangle')).toBe(true);
+    await expect(runBatchOp(blueprint, op)).rejects.toThrow(/no markups to summarise/);
   });
 });

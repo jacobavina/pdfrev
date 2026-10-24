@@ -158,4 +158,15 @@ describe('Diálogo Batch (ADR-0125)', () => {
     expect(saved.map((x) => x.name)).toEqual(['A-101_stamped.pdf', 'A-102_stamped.pdf']);
     expect(saved[0].size).toBeGreaterThan(blueprint.length);
   });
+  it('resumen: un archivo sin marcas se marca como fallido con el motivo (ADR-0132)', async () => {
+    picks = [{ name: 'sin-marcas.pdf', bytes: blueprint }];
+    openBatch();
+    render(<BatchDialog />);
+    fireEvent.click(screen.getByTestId('batch-add'));
+    await waitFor(() => expect(screen.getByTestId('batch-count')).toHaveTextContent('1 file'));
+    fireEvent.click(screen.getByTestId('batch-kind-summary'));
+    fireEvent.click(screen.getByTestId('batch-run'));
+    await waitFor(() => expect(screen.getByTestId('batch-summary')).toHaveTextContent('0 of 1 processed'), { timeout: 15000 });
+    expect(screen.getByTestId('batch-file-0')).toHaveTextContent('no markups to summarise');
+  });
 });

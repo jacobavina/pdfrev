@@ -69,7 +69,7 @@ export async function chooseBatchSink(): Promise<BatchSink | null> {
   return {
     where: 'your downloads',
     save: async (name, bytes) => {
-      const url = URL.createObjectURL(new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' }));
+      const url = URL.createObjectURL(new Blob([bytes.buffer as ArrayBuffer], { type: name.toLowerCase().endsWith('.csv') ? 'text/csv' : 'application/pdf' }));
       const a = document.createElement('a');
       a.href = url;
       a.download = name;

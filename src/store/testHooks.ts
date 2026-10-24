@@ -8,6 +8,7 @@ export interface ReaTestHooks {
   getLastMarkup: () => { id: string; type: string; author: string; text?: string } | null;
   getActiveTool: () => string;
   getMarkupText: (id: string) => string | undefined;
+  loadPdfData: (filePath: string | null, fileName: string, fileBytes: Uint8Array) => Promise<void>;
 }
 
 if (typeof window !== 'undefined') {
@@ -26,6 +27,8 @@ if (typeof window !== 'undefined') {
       const m = useMarkupStore.getState().markups.find((m) => m.id === id);
       return m?.text;
     },
+    loadPdfData: (filePath, fileName, fileBytes) =>
+      import('../services/fileDialogService').then((m) => m.loadPdfData(filePath, fileName, fileBytes)),
   };
 
   (window as unknown as { __REA_TEST_HOOKS__: ReaTestHooks }).__REA_TEST_HOOKS__ = Object.freeze(hooks);

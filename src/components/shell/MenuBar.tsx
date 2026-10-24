@@ -325,6 +325,13 @@ export const MenuBar: React.FC = () => {
       id: 'archivo',
       label: 'File',
       entries: [
+        {
+          icon: <FilePlus2 size={16} />,
+          label: 'New PDF…',
+          shortcut: 'Ctrl+N',
+          onSelect: () => useUiStore.getState().setPageToolDialog('newPdf'),
+          testId: 'menu-new-pdf',
+        },
         { icon: <FolderOpen size={16} />, label: 'Open PDF…', shortcut: 'Ctrl+O', onSelect: () => openPdfDialog(), testId: 'menu-open' },
         {
           icon: <Clock size={16} />,
@@ -812,7 +819,7 @@ export const MenuBar: React.FC = () => {
         <span aria-hidden="true" className="text-cad-accent font-bold leading-none">
           P
         </span>
-        <span className="font-semibold text-cad-strong tracking-wide">pdfrev</span>
+        <span className="font-semibold text-cad-strong tracking-wide">PdfRev</span>
       </div>
 
       <nav role="menubar" className="flex items-center shrink-0">

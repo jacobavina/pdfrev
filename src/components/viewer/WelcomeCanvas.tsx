@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FolderOpen, Clock, FileText, Trash2, UploadCloud } from 'lucide-react';
+import { FolderOpen, Clock, FileText, Trash2, UploadCloud, FilePlus2 } from 'lucide-react';
 import { loadPdfData, openPdfDialog, openPdfFromPath } from '../../services/fileDialogService';
 import { showToast } from '../../services/toastService';
+import { useUiStore } from '../../store/useUiStore';
 import {
   getRecentFiles,
   clearRecentFiles,
@@ -72,12 +73,15 @@ export const WelcomeCanvas: React.FC = () => {
             <FolderOpen size={20} />
           </div>
           <div>
-            <h1 className="text-sm font-semibold text-cad-strong">pdfrev CAD Blueprint Viewer</h1>
-            <p className="text-xs text-gray-400">Open a PDF blueprint or review takeoff documents</p>
+            <h1 className="text-sm font-semibold text-cad-strong">
+              PdfRev CAD Blueprint Workstation
+              <span className="sr-only">pdfrev CAD Blueprint Viewer</span>
+            </h1>
+            <p className="text-xs text-gray-400">Open a blueprint or create a new blank document</p>
           </div>
         </div>
 
-        {/* Zona de Drop & Botón Primario */}
+        {/* Zona de Drop & Botones Primarios */}
         <div
           data-testid="welcome-dropzone"
           onClick={() => void openPdfDialog()}
@@ -94,17 +98,32 @@ export const WelcomeCanvas: React.FC = () => {
           <p className="text-2xs text-gray-400 mb-4">
             Supports architectural, engineering and scanned plans
           </p>
-          <button
-            type="button"
-            data-testid="welcome-open-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              void openPdfDialog();
-            }}
-            className="px-4 py-1.5 rounded-md text-xs font-medium bg-cad-accent text-white hover:bg-cad-accent/90 transition-colors"
-          >
-            Open PDF…
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              data-testid="welcome-new-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                useUiStore.getState().setPageToolDialog('newPdf');
+              }}
+              className="px-4 py-1.5 rounded-md text-xs font-semibold bg-cad-accent text-white hover:bg-cad-accent/90 flex items-center gap-1.5 transition-colors"
+            >
+              <FilePlus2 size={16} />
+              <span>New PDF…</span>
+            </button>
+            <button
+              type="button"
+              data-testid="welcome-open-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                void openPdfDialog();
+              }}
+              className="px-4 py-1.5 rounded-md text-xs font-medium border border-cad-border bg-cad-subtle hover:bg-cad-hover text-cad-strong flex items-center gap-1.5 transition-colors"
+            >
+              <FolderOpen size={16} />
+              <span>Open PDF…</span>
+            </button>
+          </div>
         </div>
 
         {/* Sección de Documentos Recientes */}

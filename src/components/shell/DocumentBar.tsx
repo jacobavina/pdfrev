@@ -4,13 +4,15 @@ import { useDocumentTabsStore } from '../../store/useDocumentTabsStore';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useMarkupStore } from '../../store/useMarkupStore';
 import { openPdfDialog } from '../../services/fileDialogService';
+import { useUnsavedChangesStore } from '../../services/unsavedChangesService';
 
 /**
  * Barra superior de pestañas multi-documento estilo Bluebeam Revu 21 (ADR-0083).
  * Muestra pestañas de documentos abiertos, conmutación instantánea, indicador de dirty y botón de cierre.
  */
 export const DocumentBar: React.FC = () => {
-  const { tabs, activeTabId, switchTab, closeTab } = useDocumentTabsStore();
+  const { tabs, activeTabId, switchTab } = useDocumentTabsStore();
+  const requestTabClose = useUnsavedChangesStore((s) => s.requestTabClose);
   const { fileName, filePath } = useDocumentStore();
   const activeIsDirty = useMarkupStore((s) => s.isDirty);
 
@@ -87,7 +89,7 @@ export const DocumentBar: React.FC = () => {
               data-testid={`close-tab-btn-${tab.id}`}
               onClick={(e) => {
                 e.stopPropagation();
-                closeTab(tab.id);
+                requestTabClose(tab.id);
               }}
               title={`Close ${currentFileName}`}
               aria-label={`Close ${currentFileName}`}

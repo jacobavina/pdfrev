@@ -1,6 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "pdfrev",
+  "productName": "PdfRev",
+  "mainBinaryName": "pdfrev",
   "version": "0.1.0",
   "identifier": "com.pdfrev.desktop",
   "build": {
@@ -12,7 +13,7 @@
   "app": {
     "windows": [
       {
-        "title": "pdfrev · Drawing Review & Takeoff",
+        "title": "PdfRev · Drawing Review & Takeoff",
         "width": 1440,
         "height": 900,
         "minWidth": 1024,
@@ -41,7 +42,10 @@
     "windows": {
       "nsis": {
         "headerImage": "nsis-header.bmp",
-        "sidebarImage": "nsis-sidebar.bmp"
+        "sidebarImage": "nsis-sidebar.bmp",
+        "installerIcon": "icons/icon.ico",
+        "installMode": "currentUser",
+        "compression": "lzma"
       }
     }
   }

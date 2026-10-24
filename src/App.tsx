@@ -16,6 +16,7 @@ import { useOverlayStore } from './store/useOverlayStore';
 import { useAutoSave } from './hooks/useAutoSave';
 import { loadPdfData, openPdfDialog, openPdfFromPath } from './services/fileDialogService';
 import { isTauriEnvironment } from './services/bbxPersistenceService';
+import { hasAnyUnsavedChanges, useUnsavedChangesStore } from './services/unsavedChangesService';
 
 // Paneles y diálogos que no hacen falta para el primer render: se cargan aparte (bundle principal ≤ 800 kB)
 const MeasurementsPanel = lazy(() =>
@@ -49,6 +50,8 @@ const PrintDialog = lazy(() => import('./components/modals/PrintDialog').then((m
 const HeadersFootersDialog = lazy(() => import('./components/modals/HeadersFootersDialog').then((m) => ({ default: m.HeadersFootersDialog })));
 const ReplacePagesDialog = lazy(() => import('./components/modals/ReplacePagesDialog').then((m) => ({ default: m.ReplacePagesDialog })));
 const SplitDocumentDialog = lazy(() => import('./components/modals/SplitDocumentDialog').then((m) => ({ default: m.SplitDocumentDialog })));
+const NewPdfDialog = lazy(() => import('./components/modals/NewPdfDialog').then((m) => ({ default: m.NewPdfDialog })));
+const UnsavedChangesDialog = lazy(() => import('./components/modals/UnsavedChangesDialog').then((m) => ({ default: m.UnsavedChangesDialog })));
 const FullScreenCrosshair = lazy(() => import('./components/shell/FullScreenCrosshair').then((m) => ({ default: m.FullScreenCrosshair })));
 const SketchToScaleDialog = lazy(() => import('./components/modals/SketchToScaleDialog').then((m) => ({ default: m.SketchToScaleDialog })));
 const SlipSheetDialog = lazy(() => import('./components/modals/SlipSheetDialog').then((m) => ({ default: m.SlipSheetDialog })));
@@ -118,6 +121,9 @@ export const App: React.FC = () => {
         // Print (ADR-0115): el diálogo de REA prepara las páginas; sin él se imprimiría la interfaz
         e.preventDefault();
         if (useDocumentStore.getState().pdfBytes) useUiStore.getState().setPageToolDialog('print');
+      } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === 'n' || e.key === 'N')) {
+        e.preventDefault();
+        useUiStore.getState().setPageToolDialog('newPdf');
       } else if ((e.ctrlKey || e.metaKey) && (e.key === 'o' || e.key === 'O')) {
         e.preventDefault();
         openPdfDialog();
@@ -191,6 +197,42 @@ export const App: React.FC = () => {
     };
   }, [saveNow]);
 
+  // Intercepción de cierre para prevenir pérdida de cambios sin guardar
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+
+    if (isTauriEnvironment()) {
+      import('@tauri-apps/api/window')
+        .then(({ getCurrentWindow }) => {
+          return getCurrentWindow().onCloseRequested((event) => {
+            if (hasAnyUnsavedChanges()) {
+              event.preventDefault();
+              useUnsavedChangesStore.getState().requestAppClose();
+            }
+          });
+        })
+        .then((fn) => {
+          unlisten = fn;
+        })
+        .catch((err) => {
+          console.warn('[App] Could not register onCloseRequested:', err);
+        });
+    } else {
+      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+        if (hasAnyUnsavedChanges()) {
+          e.preventDefault();
+          e.returnValue = '';
+        }
+      };
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }
+
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
+
   // Carga inicial: si se pasa un archivo en el arranque ("Abrir con" o CLI, ADR-0087), se abre;
   // si no, se carga el plano de calibración para desarrollo y E2E
   useEffect(() => {
@@ -208,6 +250,16 @@ export const App: React.FC = () => {
         } catch (tauriErr) {
           console.warn('[Startup] Error consultando argumento de arranque:', tauriErr);
         }
+      }
+
+      // Solo cargamos el plano de calibración si se solicita expresamente vía flag de test o demo
+      const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const isDemoMode = searchParams?.get('demo') === '1' ||
+        (typeof window !== 'undefined' && window.localStorage?.getItem('rea-load-demo') === '1');
+
+      if (!isDemoMode) {
+        setLoading(false);
+        return;
       }
 
       try {
@@ -348,6 +400,8 @@ export const App: React.FC = () => {
         <BatchDialog />
         <ReplacePagesDialog />
         <SplitDocumentDialog />
+        <NewPdfDialog />
+        <UnsavedChangesDialog />
       </Suspense>
       {combineModalOpen && (
         <Suspense fallback={null}>

@@ -116,87 +116,157 @@ $accentPen.Dispose()
 
 $bmp.Save("${masterIconPath.replace(/\\/g, '\\\\')}", [System.Drawing.Imaging.ImageFormat]::Png)
 $g.Dispose()
-$bmp.Dispose()
 
-# --- NSIS HEADER 150x57 BMP ---
+# --- NSIS HEADER (150x57 BMP with 4x supersampling 600x228) ---
+$h4xBmp = New-Object System.Drawing.Bitmap 600, 228, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+$hg4 = [System.Drawing.Graphics]::FromImage($h4xBmp)
+$hg4.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+$hg4.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::ClearTypeGridFit
+$hg4.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+
+# Clean light background matching NSIS MUI2 inner dialogs
+$hBgBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 248, 250, 252))
+$hg4.FillRectangle($hBgBrush, 0, 0, 600, 228)
+$hBgBrush.Dispose()
+
+# Subtle bottom border line
+$hBorderPen = New-Object System.Drawing.Pen ([System.Drawing.Color]::FromArgb(255, 226, 232, 240)), 4.0
+$hg4.DrawLine($hBorderPen, 0, 226, 600, 226)
+$hBorderPen.Dispose()
+
+# Draw miniature master icon on the right
+$hg4.DrawImage($bmp, 420, 34, 160, 160)
+
+# Right-aligned brand typography in header
+$hFont = New-Object System.Drawing.Font ("Segoe UI", 68, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
+$hPdfBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 15, 23, 42))
+$hRevBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 2, 132, 199))
+
+$sizePdf = $hg4.MeasureString("Pdf", $hFont)
+$sizeRev = $hg4.MeasureString("Rev", $hFont)
+$hTextX = 405 - ($sizePdf.Width + $sizeRev.Width - 24)
+$hg4.DrawString("Pdf", $hFont, $hPdfBrush, $hTextX, 60)
+$hg4.DrawString("Rev", $hFont, $hRevBrush, ($hTextX + $sizePdf.Width - 24), 60)
+
+$hSubFont = New-Object System.Drawing.Font ("Segoe UI", 36, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
+$hSubBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 100, 116, 139))
+$hg4.DrawString("CAD Drawing Workstation", $hSubFont, $hSubBrush, ($hTextX + 4), 140)
+
+$hFont.Dispose()
+$hSubFont.Dispose()
+$hPdfBrush.Dispose()
+$hRevBrush.Dispose()
+$hSubBrush.Dispose()
+
+# Downsample header to 150x57 24-bit BMP
 $hBmp = New-Object System.Drawing.Bitmap 150, 57, ([System.Drawing.Imaging.PixelFormat]::Format24bppRgb)
 $hg = [System.Drawing.Graphics]::FromImage($hBmp)
-$hg.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
-$hRect = New-Object System.Drawing.Rectangle 0, 0, 150, 57
-$hGrad = New-Object System.Drawing.Drawing2D.LinearGradientBrush ($hRect, [System.Drawing.Color]::FromArgb(255, 15, 23, 42), [System.Drawing.Color]::FromArgb(255, 24, 38, 68), 0.0)
-$hg.FillRectangle($hGrad, $hRect)
-$hGrad.Dispose()
-
-$hFont = New-Object System.Drawing.Font ("Segoe UI", 13, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
-$hBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 240, 249, 255))
-$hg.DrawString("pdfrev", $hFont, $hBrush, 12, 12)
-$hFont.Dispose()
-
-$hSubFont = New-Object System.Drawing.Font ("Segoe UI", 9, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
-$hSubBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 148, 163, 184))
-$hg.DrawString("PDF Reader & Editor", $hSubFont, $hSubBrush, 12, 30)
-$hSubFont.Dispose()
-$hSubBrush.Dispose()
-$hBrush.Dispose()
-
-# Mini icon on the right
-Draw-RoundedRect $hg (New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 29, 108, 208))) 108 10 36 36 8
-$miniPFont = New-Object System.Drawing.Font ("Segoe UI", 18, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
-$miniPBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::White)
-$hg.DrawString("P", $miniPFont, $miniPBrush, 118, 15)
-$miniPFont.Dispose()
-$miniPBrush.Dispose()
-
+$hg.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+$hg.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
+$hg.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+$hg.DrawImage($h4xBmp, 0, 0, 150, 57)
 $hBmp.Save("${nsisHeaderPath.replace(/\\/g, '\\\\')}", [System.Drawing.Imaging.ImageFormat]::Bmp)
 $hg.Dispose()
 $hBmp.Dispose()
+$hg4.Dispose()
+$h4xBmp.Dispose()
 
-# --- NSIS SIDEBAR 164x314 BMP ---
-$sBmp = New-Object System.Drawing.Bitmap 164, 314, ([System.Drawing.Imaging.PixelFormat]::Format24bppRgb)
-$sg = [System.Drawing.Graphics]::FromImage($sBmp)
-$sg.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
-$sRect = New-Object System.Drawing.Rectangle 0, 0, 164, 314
-$sGrad = New-Object System.Drawing.Drawing2D.LinearGradientBrush ($sRect, [System.Drawing.Color]::FromArgb(255, 12, 19, 36), [System.Drawing.Color]::FromArgb(255, 23, 37, 65), 90.0)
-$sg.FillRectangle($sGrad, $sRect)
+# --- NSIS SIDEBAR (164x314 BMP with 4x supersampling 656x1256) ---
+$s4xBmp = New-Object System.Drawing.Bitmap 656, 1256, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+$sg4 = [System.Drawing.Graphics]::FromImage($s4xBmp)
+$sg4.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+$sg4.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::ClearTypeGridFit
+$sg4.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+
+# Deep blueprint gradient background
+$sRect4 = New-Object System.Drawing.Rectangle 0, 0, 656, 1256
+$sGrad = New-Object System.Drawing.Drawing2D.LinearGradientBrush ($sRect4, [System.Drawing.Color]::FromArgb(255, 7, 11, 20), [System.Drawing.Color]::FromArgb(255, 23, 37, 84), 90.0)
+$sg4.FillRectangle($sGrad, $sRect4)
 $sGrad.Dispose()
 
-# Blueprint lines in sidebar
-$sGridPen = New-Object System.Drawing.Pen ([System.Drawing.Color]::FromArgb(25, 56, 189, 248)), 1.0
-for ($y = 20; $y -lt 314; $y += 30) {
-    $sg.DrawLine($sGridPen, 0, $y, 164, $y)
+# Blueprint technical grid lines
+$sGridPen = New-Object System.Drawing.Pen ([System.Drawing.Color]::FromArgb(35, 56, 189, 248)), 2.0
+for ($y = 80; $y -lt 1256; $y += 120) {
+    $sg4.DrawLine($sGridPen, 0, $y, 656, $y)
 }
-for ($x = 20; $x -lt 164; $x += 30) {
-    $sg.DrawLine($sGridPen, $x, 0, $x, 314)
+for ($x = 80; $x -lt 656; $x += 120) {
+    $sg4.DrawLine($sGridPen, $x, 0, $x, 1256)
 }
 $sGridPen.Dispose()
 
-# Large logo mark on sidebar
-Draw-RoundedRect $sg (New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 29, 108, 208))) 42 60 80 80 18
-Stroke-RoundedRect $sg (New-Object System.Drawing.Pen ([System.Drawing.Color]::FromArgb(200, 56, 189, 248), 2.0)) 42 60 80 80 18
-$spFont = New-Object System.Drawing.Font ("Segoe UI", 44, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
-$spBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::White)
-$sg.DrawString("P", $spFont, $spBrush, 62, 72)
-$spFont.Dispose()
-$spBrush.Dispose()
+# Corner CAD registration marks (+)
+$cadPen = New-Object System.Drawing.Pen ([System.Drawing.Color]::FromArgb(120, 56, 189, 248)), 3.0
+$sg4.DrawLine($cadPen, 32, 24, 32, 48)
+$sg4.DrawLine($cadPen, 20, 36, 44, 36)
+$sg4.DrawLine($cadPen, 624, 24, 624, 48)
+$sg4.DrawLine($cadPen, 612, 36, 636, 36)
+$sg4.DrawLine($cadPen, 32, 1208, 32, 1232)
+$sg4.DrawLine($cadPen, 20, 1220, 44, 1220)
+$sg4.DrawLine($cadPen, 624, 1208, 624, 1232)
+$sg4.DrawLine($cadPen, 612, 1220, 636, 1220)
+$cadPen.Dispose()
 
-$sTitleFont = New-Object System.Drawing.Font ("Segoe UI", 18, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
-$sTitleBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 241, 245, 249))
+# Draw high-res master icon on sidebar (centered: X = (656-320)/2 = 168, Y = 192)
+$sg4.DrawImage($bmp, 168, 192, 320, 320)
+
+# Two-tone title: "Pdf" (white) + "Rev" (cyan)
+$sTitleFont = New-Object System.Drawing.Font ("Segoe UI", 92, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
+$sPdfBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 248, 250, 252))
+$sRevBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 56, 189, 248))
+
+$sSizePdf = $sg4.MeasureString("Pdf", $sTitleFont)
+$sSizeRev = $sg4.MeasureString("Rev", $sTitleFont)
+$sTotalW = $sSizePdf.Width + $sSizeRev.Width - 32
+$sStartX = (656 - $sTotalW) / 2
+$sg4.DrawString("Pdf", $sTitleFont, $sPdfBrush, $sStartX, 560)
+$sg4.DrawString("Rev", $sTitleFont, $sRevBrush, ($sStartX + $sSizePdf.Width - 32), 560)
+$sTitleFont.Dispose()
+$sPdfBrush.Dispose()
+$sRevBrush.Dispose()
+
+# Cyan technical accent line
+$sDivPen = New-Object System.Drawing.Pen ([System.Drawing.Color]::FromArgb(255, 56, 189, 248)), 6.0
+$sg4.DrawLine($sDivPen, 248, 680, 408, 680)
+$sDivPen.Dispose()
+
+# Subtitle
+$sDescFont = New-Object System.Drawing.Font ("Segoe UI", 44, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
+$sDescBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 148, 163, 184))
 $ssf = New-Object System.Drawing.StringFormat
 $ssf.Alignment = [System.Drawing.StringAlignment]::Center
-$sg.DrawString("pdfrev", $sTitleFont, $sTitleBrush, 82, 160, $ssf)
-$sTitleFont.Dispose()
-$sTitleBrush.Dispose()
-
-$sDescFont = New-Object System.Drawing.Font ("Segoe UI", 10, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
-$sDescBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 148, 163, 184))
-$sg.DrawString("Local-first PDF editor\`nand drawing takeoff", $sDescFont, $sDescBrush, 82, 195, $ssf)
+$sg4.DrawString("CAD PDF & Takeoff\`nWorkstation", $sDescFont, $sDescBrush, 328, 715, $ssf)
 $sDescFont.Dispose()
 $sDescBrush.Dispose()
+
+# Bottom pill badge: "Windows x64 · Local-First"
+$pillBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(200, 11, 19, 43))
+Draw-RoundedRect $sg4 $pillBrush 116 1130 424 72 36
+$pillBrush.Dispose()
+
+$pillPen = New-Object System.Drawing.Pen ([System.Drawing.Color]::FromArgb(180, 56, 189, 248)), 3.0
+Stroke-RoundedRect $sg4 $pillPen 116 1130 424 72 36
+$pillPen.Dispose()
+
+$pillFont = New-Object System.Drawing.Font ("Segoe UI", 34, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
+$pillTextBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 224, 242, 254))
+$sg4.DrawString("Windows x64 · Local-First", $pillFont, $pillTextBrush, 328, 1146, $ssf)
+$pillFont.Dispose()
+$pillTextBrush.Dispose()
 $ssf.Dispose()
 
+# Downsample sidebar to 164x314 24-bit BMP
+$sBmp = New-Object System.Drawing.Bitmap 164, 314, ([System.Drawing.Imaging.PixelFormat]::Format24bppRgb)
+$sg = [System.Drawing.Graphics]::FromImage($sBmp)
+$sg.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+$sg.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
+$sg.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+$sg.DrawImage($s4xBmp, 0, 0, 164, 314)
 $sBmp.Save("${nsisSidebarPath.replace(/\\/g, '\\\\')}", [System.Drawing.Imaging.ImageFormat]::Bmp)
 $sg.Dispose()
 $sBmp.Dispose()
+$sg4.Dispose()
+$s4xBmp.Dispose()
+$bmp.Dispose()
 `;
 
 fs.writeFileSync(path.join(rootDir, 'temp-icon-gen.ps1'), psScript, 'utf8');

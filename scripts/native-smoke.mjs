@@ -373,6 +373,19 @@ try {
 
   // (b) El canvas del PDF renderiza píxeles reales (captura PNG como artefacto)
   console.log('\n  [Sub-verificación B] Renderizado de píxeles reales en Canvas principal...');
+
+  // Si arranca en espacio de trabajo vacío, cargamos el fixture de prueba para validar renderizado
+  await executeSync(`
+    const canvas = document.querySelector('#pdf-render-canvas') || document.querySelector('[data-testid="pdf-canvas"]');
+    if (!canvas && window.__REA_TEST_HOOKS__?.loadPdfData) {
+      const resp = await fetch('/fixtures/test-blueprint.pdf');
+      if (resp.ok) {
+        const buf = await resp.arrayBuffer();
+        await window.__REA_TEST_HOOKS__.loadPdfData(null, 'test-blueprint.pdf', new Uint8Array(buf));
+      }
+    }
+  `);
+
   let canvasResult = null;
   for (let i = 0; i < 30; i++) {
     canvasResult = await executeSync(`

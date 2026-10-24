@@ -8,6 +8,9 @@ import { PDFDocument, PDFName } from 'pdf-lib';
  * sin pintar (se vio en dos pruebas de una misma pasada, ADR-0115): si no aparece a tiempo se recarga una vez.
  */
 async function openApp(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    localStorage.setItem('rea-load-demo', '1');
+  });
   await page.goto('/');
   const overlay = page.locator('[data-testid="markup-overlay-svg"]');
   try {
@@ -23,6 +26,7 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
   // (ADR-0043). La apertura automática tiene su propia prueba, que la activa desde View.
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
+      localStorage.setItem('rea-load-demo', '1');
       if (!localStorage.getItem('rea-auto-panels')) localStorage.setItem('rea-auto-panels', '0');
       // La lista de marcas abre cerrada y agrupada por Subject, como en Revu (ADR-0060); estas pruebas la quieren
       // abierta y sin grupos (las filas se buscan por texto). La agrupación tiene su propia prueba.

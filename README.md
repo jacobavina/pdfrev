@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/assets/logo.png" alt="pdfrev Logo" width="128" height="128" />
+  <img src="docs/assets/logo.png" alt="PdfRev Logo" width="128" height="128" />
 </p>
 
-<h1 align="center">pdfrev</h1>
+<h1 align="center">PdfRev</h1>
 
 <p align="center">
   <strong>Local-first, fearless PDF editing, drawing takeoff, and AI-agent automation.</strong>
@@ -18,9 +18,9 @@
 
 ---
 
-**pdfrev** is an ultra-fast, local-first PDF viewer, editor, and drawing takeoff workstation built for architecture, engineering, and construction professionals—and designed from day one to be driven programmatically by **AI coding and reasoning agents**.
+**PdfRev** is an ultra-fast, local-first PDF viewer, editor, and drawing takeoff workstation built for architecture, engineering, and construction professionals—and designed from day one to be driven programmatically by **AI coding and reasoning agents**.
 
-Built with **Tauri 2**, **Rust**, and modern **React**, pdfrev provides a native Windows experience with instant startup, 60 FPS panning on dense E-size blueprint drawings, zero telemetry, and high-fidelity interoperability with ISO 32000-1 workflows.
+Built with **Tauri 2**, **Rust**, and modern **React**, PdfRev provides a native Windows experience with instant startup, 60 FPS panning on dense E-size blueprint drawings, zero telemetry, and high-fidelity interoperability with ISO 32000-1 workflows.
 
 ---
 
@@ -38,16 +38,16 @@ Built with **Tauri 2**, **Rust**, and modern **React**, pdfrev provides a native
 ## 📸 Screenshots
 
 ### Light Mode (Drawing Hall Blueprint Theme)
-![pdfrev Light Mode Screenshot](docs/assets/screenshot-light.png)
+![PdfRev Light Mode Screenshot](docs/assets/screenshot-light.png)
 
 ### Dark Mode (Night Workstation Theme)
-![pdfrev Dark Mode Screenshot](docs/assets/screenshot-dark.png)
+![PdfRev Dark Mode Screenshot](docs/assets/screenshot-dark.png)
 
 ---
 
 ## 🤖 Headless CLI for AI Agents
 
-`pdfrev` includes a dedicated console binary (`pdfrev-cli.exe` or `pdfrev --headless`) designed specifically for AI workflows, automated takeoff pipelines, and background processing. All commands support `--json` output.
+PdfRev includes a dedicated console binary (`pdfrev-cli.exe` or `pdfrev --headless`) designed specifically for AI workflows, automated takeoff pipelines, and background processing. All commands support `--json` output.
 
 ### CLI Commands Matrix
 
@@ -158,7 +158,7 @@ The compiled binaries and NSIS setup executable will be located in `src-tauri/ta
 
 ## 🧪 Quality Gates & Test Coverage
 
-`pdfrev` enforces a strict automated quality gate before any release:
+PdfRev enforces a strict automated quality gate before any release:
 - **1,400+ Unit Tests** (Vitest) covering geometry, takeoff mathematics, stamp rendering, and tool pipelines.
 - **Native Rust Tests** (`cargo test`) verifying atomic disk I/O, backup rollbacks, PDF stream parsing, and Windows OCR.
 - **Bundle Size Enforcement:** Main chunk strictly capped under 800 kB.
@@ -179,6 +179,6 @@ Icons and typography attributions are documented in detail in [ATTRIBUTION.md](A
 
 ## ⚖️ Trademarks & Non-Affiliation Disclaimer
 
-`pdfrev` is an independent open-source project and is not affiliated with, endorsed by, sponsored by, or supported by Bluebeam, Inc., the Nemetschek Group, Adobe Inc., or Foxit Software Inc.
+PdfRev is an independent open-source project and is not affiliated with, endorsed by, sponsored by, or supported by Bluebeam, Inc., the Nemetschek Group, Adobe Inc., or Foxit Software Inc.
 
 "Bluebeam", "Revu", "Adobe Acrobat", and "Foxit" are registered trademarks of their respective owners. Any references to third-party brand names, tool names, or file formats (such as `.btx`) in this repository or application interface are strictly for describing technical file-format interoperability.

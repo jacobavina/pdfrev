@@ -2,6 +2,7 @@ import { useDocumentStore } from '../store/useDocumentStore';
 import { useMarkupStore } from '../store/useMarkupStore';
 import { NO_LAYER, useUiStore } from '../store/useUiStore';
 import { buildPrintCss, printPixels, type PrintDpi, type PrintScale } from '../core/print/printLayout';
+import { loadPdfDocument } from './pdfService';
 
 /**
  * Imprimir (Print, ADR-0115): rasteriza las páginas elegidas (con las marcas aplanadas encima, o sin ellas), las pone en
@@ -51,7 +52,7 @@ export async function printDocument(req: PrintRequest): Promise<{ ok: boolean; m
         bytes = (await exportMarkupsToPdf(pdfBytes, markups)).pdfBytes;
       }
     }
-    const { loadPdfDocument } = await import('./pdfService');
+
     const doc = await loadPdfDocument(bytes);
     const sizes: { widthPt: number; heightPt: number }[] = [];
     try {

@@ -3,6 +3,8 @@ import { useMarkupStore } from '../store/useMarkupStore';
 import { useCalibrationStore } from '../store/useCalibrationStore';
 import type { HeaderFooterOptions } from '../core/pages/headersFooters';
 import { replaceOpenDocument } from './documentEditService';
+import { loadPdfDocument } from './pdfService';
+import { sheetKey } from '../core/pages/slipSheet';
 
 /**
  * Headers & Footers, Replace Pages y Split Document (ADR-0114). Comparten con Crop y Number Pages el mismo cambio de
@@ -195,7 +197,7 @@ export async function executePageLabels(ranges: import('../core/pdf/pageLabels')
 
 /** El número de lámina de cada página de un PDF, leído de su texto (null donde no se encuentra). */
 export async function readSheetKeys(bytes: Uint8Array): Promise<(string | null)[]> {
-  const [{ loadPdfDocument }, { sheetKey }] = await Promise.all([import('./pdfService'), import('../core/pages/slipSheet')]);
+
   const doc = await loadPdfDocument(bytes);
   try {
     const keys: (string | null)[] = [];

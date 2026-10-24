@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FolderOpen, Clock, FileText, Trash2, UploadCloud } from 'lucide-react';
-import { openPdfDialog, openPdfFromPath } from '../../services/fileDialogService';
+import { loadPdfData, openPdfDialog, openPdfFromPath } from '../../services/fileDialogService';
+import { showToast } from '../../services/toastService';
 import {
   getRecentFiles,
   clearRecentFiles,
@@ -39,7 +40,6 @@ export const WelcomeCanvas: React.FC = () => {
         const file = files[0];
         if (file.name.toLowerCase().endsWith('.pdf')) {
           const buffer = await file.arrayBuffer();
-          const { loadPdfData } = await import('../../services/fileDialogService');
           // En entornos de escritorio (Tauri/Chromium), File incluye la propiedad de ruta nativa
           const droppedPath = ('path' in file && typeof (file as { path?: unknown }).path === 'string')
             ? (file as { path: string }).path
@@ -53,7 +53,6 @@ export const WelcomeCanvas: React.FC = () => {
       }
     } catch (dropErr) {
       console.error('[WelcomeCanvas] Error loading dropped file:', dropErr);
-      const { showToast } = await import('../../services/toastService');
       showToast(`Could not load dropped file: ${dropErr instanceof Error ? dropErr.message : String(dropErr)}`);
     }
   };

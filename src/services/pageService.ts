@@ -23,6 +23,7 @@ import { useMarkupStore } from '../store/useMarkupStore';
 import { useCalibrationStore } from '../store/useCalibrationStore';
 import { loadPdfDocument } from './pdfService';
 import { showToast } from './toastService';
+import { loadPdfData } from './fileDialogService';
 
 /**
  * Rota una página específica y actualiza el documento activo en memoria.
@@ -253,7 +254,7 @@ export async function executeCombineDocuments(
 
   try {
     const mergedBytes = await mergePdfDocuments(sources);
-    const { loadPdfData } = await import('./fileDialogService');
+
     await loadPdfData(null, outputName, mergedBytes);
     showToast(`Successfully combined ${sources.length} documents into ${outputName}.`);
     return mergedBytes;

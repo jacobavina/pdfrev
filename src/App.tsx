@@ -14,7 +14,7 @@ import { useSearchStore } from './store/useSearchStore';
 import { useUiStore } from './store/useUiStore';
 import { useOverlayStore } from './store/useOverlayStore';
 import { useAutoSave } from './hooks/useAutoSave';
-import { loadPdfData, openPdfDialog } from './services/fileDialogService';
+import { loadPdfData, openPdfDialog, openPdfFromPath } from './services/fileDialogService';
 import { isTauriEnvironment } from './services/bbxPersistenceService';
 
 // Paneles y diálogos que no hacen falta para el primer render: se cargan aparte (bundle principal ≤ 800 kB)
@@ -202,7 +202,6 @@ export const App: React.FC = () => {
           const { invoke } = await import('@tauri-apps/api/core');
           const startupFile = await invoke<string | null>('get_startup_file_arg');
           if (startupFile) {
-            const { openPdfFromPath } = await import('./services/fileDialogService');
             await openPdfFromPath(startupFile);
             return;
           }

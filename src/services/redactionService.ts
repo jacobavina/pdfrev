@@ -11,6 +11,7 @@ import type { Markup, MarkupPoint } from '../types/markup';
 export { isRedaction, redactionMarkup, redactionsFromMatches, REDACTION_SUBJECT } from '../core/markup/redaction';
 import { rasterizePage, rasterToPng } from './pageRaster';
 import { showToast } from './toastService';
+import { loadPdfDocument } from './pdfService';
 
 /**
  * Redacción permanente (ADR-0103): las marcas de redacción señalan lo que se quiere borrar y "Apply Redactions" lo quita
@@ -185,7 +186,7 @@ export async function applyRedactions(): Promise<void> {
   if (!ok) return;
   try {
     const { pdfBytes, report } = await applyRedactionsToPdf(doc.pdfBytes, marks);
-    const { loadPdfDocument } = await import('./pdfService');
+
     const loaded = await loadPdfDocument(pdfBytes);
     const keep = { page: doc.currentPageIndex, scale: doc.scale };
     const ids = new Set(marks.map((m) => m.id));

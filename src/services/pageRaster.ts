@@ -4,6 +4,8 @@
  * normalizadas de las marcas.
  */
 
+import { loadPdfDocument } from './pdfService';
+
 /** Ancho de rasterización por defecto, en píxeles: suficiente para ver trazos finos sin disparar la memoria. */
 export const RASTER_WIDTH_PX = 1600;
 
@@ -22,7 +24,7 @@ export async function rasterizePage(
   /** Lado máximo en píxeles: el ancho baja si la página es tan alta que su alto pasaría de este límite. */
   maxSide?: number
 ) {
-  const { loadPdfDocument } = await import('./pdfService');
+
   const doc = await loadPdfDocument(bytes);
   try {
     const page = await doc.getPage(Math.min(pageIndex, doc.numPages - 1) + 1);

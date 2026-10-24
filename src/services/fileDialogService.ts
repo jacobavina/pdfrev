@@ -6,6 +6,7 @@ import { useMarkupStore } from '../store/useMarkupStore';
 import { useUiStore } from '../store/useUiStore';
 import { loadPdfDocument } from './pdfService';
 import { showToast } from './toastService';
+import { addRecentFile } from './recentFilesService';
 import type { Markup } from '../types/markup';
 
 /**
@@ -246,7 +247,7 @@ export async function loadPdfData(
   // Registrar en historial de archivos recientes (ADR-0087)
   if (filePath) {
     try {
-      const { addRecentFile } = await import('./recentFilesService');
+
       addRecentFile({ path: filePath, name: fileName, pageCount: numPages });
     } catch (recentErr) {
       console.warn('[RecentFiles] No se pudo registrar archivo reciente:', recentErr);

@@ -1,6 +1,7 @@
 import { useSplitStore } from '../store/useSplitStore';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { showToast } from './toastService';
+import { loadPdfDocument } from './pdfService';
 
 /** Inicio de la vista lado a lado (ADR-0049): con otro PDF (otra revisión) o con otra página del documento. */
 
@@ -9,7 +10,7 @@ export async function startSplitFromFile(): Promise<void> {
     const { pickPdf } = await import('./overlayService');
     const picked = await pickPdf('Compare side by side with another PDF');
     if (!picked) return;
-    const { loadPdfDocument } = await import('./pdfService');
+
     const doc = await loadPdfDocument(picked.bytes);
     const pageCount = doc.numPages;
     await doc.destroy();

@@ -3,6 +3,7 @@ import { useDocumentStore } from '../store/useDocumentStore';
 import { isTauriEnvironment } from './bbxPersistenceService';
 import { rasterizePage, rasterToPng } from './pageRaster';
 import { showToast } from './toastService';
+import { loadPdfDocument } from './pdfService';
 
 /**
  * OCR local con el motor nativo de Windows (ADR-0102): rasteriza la página, el comando de Rust reconoce las palabras y
@@ -74,7 +75,7 @@ export async function runOcr(scope: 'page' | 'all'): Promise<void> {
       showToast('OCR found no text on the page.');
       return;
     }
-    const { loadPdfDocument } = await import('./pdfService');
+
     const doc = await loadPdfDocument(bytes);
     const keep = { page: state.currentPageIndex, scale: state.scale };
     useDocumentStore.getState().setDocument(state.filePath, state.fileName || 'document.pdf', bytes, doc.numPages, doc);
@@ -105,7 +106,7 @@ export interface OcrBytesResult {
  */
 export async function ocrPdfBytes(pdfBytes: Uint8Array, onPage?: (done: number, total: number) => void): Promise<OcrBytesResult> {
   if (!isTauriEnvironment()) throw new Error('OCR uses the Windows text recognition engine and is only available in the desktop app.');
-  const [{ invoke }, { loadPdfDocument }] = await Promise.all([import('@tauri-apps/api/core'), import('./pdfService')]);
+  const { invoke } = await import('@tauri-apps/api/core');
   const doc = await loadPdfDocument(pdfBytes);
   const total = doc.numPages;
   const targets: number[] = [];

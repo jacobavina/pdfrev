@@ -1,6 +1,7 @@
 import { useOverlayStore } from '../store/useOverlayStore';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { showToast } from './toastService';
+import { loadPdfDocument } from './pdfService';
 
 /**
  * Inicio de Overlay Pages (ADR-0038): con otro PDF (otra revisión del plano) o con otra página del documento abierto.
@@ -48,7 +49,7 @@ export async function startOverlayFromFile(): Promise<void> {
   try {
     const picked = await pickPdf();
     if (!picked) return;
-    const { loadPdfDocument } = await import('./pdfService');
+
     const doc = await loadPdfDocument(picked.bytes);
     const pageCount = doc.numPages;
     await doc.destroy();

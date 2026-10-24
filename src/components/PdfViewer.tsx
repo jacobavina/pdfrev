@@ -1,4 +1,5 @@
 import { tok } from './viewer/paint';
+import { copyFormat, pasteFormat, pasteInPlace, toggleFlagSelected } from '../core/markup/copyActions';
 import { DEFAULT_MARKUP_COLOR, ATTACHMENT_COLOR, FORM_FIELD_COLOR, LINK_COLOR, STAMP_FILL, WHITE } from '../core/markup/palette';
 import { isAutosizeText } from '../core/markup/autosizeText';
 import { countMeasurement, countSymbolSizePt } from '../core/markup/countSymbols';
@@ -1104,24 +1105,24 @@ export const PdfViewer: React.FC = () => {
       // Bandera (ADR-0117): Ctrl+Alt+F pone o quita la bandera de las marcas seleccionadas
       if ((e.ctrlKey || e.metaKey) && e.altKey && !e.shiftKey && e.code === 'KeyF') {
         e.preventDefault();
-        void import('../core/markup/copyActions').then((m) => m.toggleFlagSelected());
+        toggleFlagSelected();
         return;
       }
       // Format Painter y Pegar en el sitio (ADR-0109): Ctrl+Shift+C copia el formato de la marca, Ctrl+Alt+V lo pega
       // en la selección y Ctrl+Shift+V pega las marcas copiadas en el mismo sitio
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && (e.key === 'c' || e.key === 'C')) {
         e.preventDefault();
-        void import('../core/markup/copyActions').then((m) => m.copyFormat());
+        copyFormat();
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && (e.key === 'v' || e.key === 'V')) {
         e.preventDefault();
-        void import('../core/markup/copyActions').then((m) => m.pasteInPlace());
+        pasteInPlace();
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.altKey && !e.shiftKey && e.code === 'KeyV') {
         e.preventDefault();
-        void import('../core/markup/copyActions').then((m) => m.pasteFormat());
+        pasteFormat();
         return;
       }
       // Portapapeles: Copiar (Ctrl+C / Cmd+C)

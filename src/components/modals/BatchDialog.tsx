@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { CircleAlert, CircleCheck, Layers, Trash2, X } from 'lucide-react';
 import { useUiStore } from '../../store/useUiStore';
-import { MAX_BATCH_FILES, type BatchInput, type BatchOp, type BatchResult } from '../../services/batchOps';
+import { MAX_BATCH_FILES, runBatch, type BatchInput, type BatchOp, type BatchResult } from '../../services/batchOps';
+import { chooseBatchSink, pickBatchFiles, saveBatchReport } from '../../services/batchService';
 import type { NumberPosition } from '../../core/pages/pageNumbers';
 import { EMPTY_SLOTS, HEADER_FOOTER_FIELDS, hasAnySlot, type HeaderFooterSlots } from '../../core/pages/headersFooters';
 import { QUALITY_PRESETS, type ReduceQuality } from '../../core/pdf/reduceSize';
@@ -47,7 +48,6 @@ export const BatchDialog: React.FC = () => {
   if (!open) return null;
 
   const add = async () => {
-    const { pickBatchFiles } = await import('../../services/batchService');
     const picked = await pickBatchFiles();
     if (picked.length === 0) return;
     setResults(null);
@@ -62,14 +62,12 @@ export const BatchDialog: React.FC = () => {
   const problem = files.length === 0 ? 'Add the PDF files to process.' : kind === 'number' && !format.trim() ? 'Write the text to stamp, for example: Page {n} of {total}.' : kind === 'headerFooter' && !hasAnySlot(slots) ? 'Write at least one header or footer text.' : null;
 
   const run = async () => {
-    const svc = await import('../../services/batchService');
-    const sink = await svc.chooseBatchSink();
+    const sink = await chooseBatchSink();
     if (!sink) return;
     setWhere(sink.where);
     setResults(null);
     setRunning({ done: 0, total: files.length });
     try {
-      const { runBatch } = await import('../../services/batchOps');
       const all = await runBatch(files, op(), sink.save, (done, total) => setRunning({ done, total }));
       setResults(all);
       const failed = all.filter((r) => !r.ok).length;
@@ -231,7 +229,7 @@ export const BatchDialog: React.FC = () => {
           )}
         </div>
         <div className="flex items-center gap-2 px-4 h-12 border-t border-cad-border shrink-0">
-          <button type="button" data-testid="batch-report" disabled={!results} className="ui-btn !px-3 disabled:opacity-40" onClick={() => results && void import('../../services/batchService').then((m) => m.saveBatchReport(results))}>
+          <button type="button" data-testid="batch-report" disabled={!results} className="ui-btn !px-3 disabled:opacity-40" onClick={() => results && void saveBatchReport(results)}>
             Save report
           </button>
           <span className="flex-1" />

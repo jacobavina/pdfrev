@@ -1,6 +1,8 @@
 import { HIDDEN_PANELS, anyPanelOpen, snapshotPanels, type PanelsState } from '../core/ui/panelVisibility';
 import { useEffect } from 'react';
 import { create } from 'zustand';
+import { showToast } from '../services/toastService';
+import { setAlwaysOnTop, setFullscreen } from '../services/windowService';
 import {
   BUILTIN_PROFILES,
   LayoutSnapshot,
@@ -379,19 +381,15 @@ export const useUiStore = create<UiState>((set, get) => ({
   setFullscreenState: (fullscreen) => set({ fullscreen }),
   toggleFullscreen: async () => {
     try {
-      const { setFullscreen } = await import('../services/windowService');
       set({ fullscreen: await setFullscreen(!get().fullscreen) });
     } catch (err) {
-      const { showToast } = await import('../services/toastService');
       showToast(`Could not change full screen: ${err instanceof Error ? err.message : String(err)}`);
     }
   },
   toggleAlwaysOnTop: async () => {
     try {
-      const { setAlwaysOnTop } = await import('../services/windowService');
       set({ alwaysOnTop: await setAlwaysOnTop(!get().alwaysOnTop) });
     } catch (err) {
-      const { showToast } = await import('../services/toastService');
       showToast(`Could not keep the window on top: ${err instanceof Error ? err.message : String(err)}`);
     }
   },

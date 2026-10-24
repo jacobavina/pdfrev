@@ -3,6 +3,7 @@ import { useDocumentTabsStore } from '../store/useDocumentTabsStore';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { isTauriEnvironment } from './bbxPersistenceService';
 import { showToast } from './toastService';
+import { openPdfFromPath } from './fileDialogService';
 
 /**
  * Sets (ADR-0119): elegir archivos, abrir un conjunto y reunir los documentos abiertos. Las rutas solo existen en la
@@ -59,7 +60,7 @@ function reportAdd(r: ReturnType<ReturnType<typeof usePdfSetsStore.getState>['ad
 
 /** Abre un archivo del conjunto (si ya está abierto, va a su pestaña). */
 export async function openSetFile(path: string): Promise<void> {
-  const { openPdfFromPath } = await import('./fileDialogService');
+
   await openPdfFromPath(path);
 }
 
@@ -67,7 +68,7 @@ export async function openSetFile(path: string): Promise<void> {
 export async function openWholeSet(setId: string, onProgress?: (done: number, total: number) => void): Promise<{ opened: number; failed: string[] }> {
   const set = usePdfSetsStore.getState().sets.find((s) => s.id === setId);
   if (!set) return { opened: 0, failed: [] };
-  const { openPdfFromPath } = await import('./fileDialogService');
+
   const failed: string[] = [];
   for (let i = 0; i < set.files.length; i++) {
     onProgress?.(i, set.files.length);

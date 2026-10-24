@@ -1,6 +1,7 @@
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useMarkupStore } from '../../store/useMarkupStore';
 import { showToast } from '../../services/toastService';
+import { loadPdfDocument } from '../../services/pdfService';
 
 /**
  * Acciones de aplicación compartidas por la barra de menús, la cinta y los atajos (ADR-0017).
@@ -50,7 +51,7 @@ export async function unflattenOpenDocument(): Promise<void> {
   try {
     const { unflattenPdf } = await import('../../core/pdf/flattenRecord');
     const { pdfBytes: restored, markups } = await unflattenPdf(pdfBytes);
-    const { loadPdfDocument } = await import('../../services/pdfService');
+
     const doc = await loadPdfDocument(restored);
     const current = useMarkupStore.getState().markups;
     useMarkupStore.getState().setMarkups([...current, ...markups]);

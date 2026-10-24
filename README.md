@@ -53,7 +53,7 @@ Built with **Tauri 2**, **Rust**, and modern **React**, pdfrev provides a native
 
 | Command | Description | Example |
 |---|---|---|
-| `split` | Split a PDF into chunks of $N$ pages | `pdfrev split blueprint.pdf --every 1 --out-dir ./pages --json` |
+| `split` | Split a PDF into chunks of N pages | `pdfrev split blueprint.pdf --every 1 --out-dir ./pages --json` |
 | `combine` | Merge multiple PDFs in order into one | `pdfrev combine p1.pdf p2.pdf --output full.pdf --json` |
 | `extract-text` | Extract plain text from all or specific pages | `pdfrev extract-text doc.pdf --page 1 --json` |
 | `markups list` | Extract all markups and annotations | `pdfrev markups list blueprint.pdf --json` |

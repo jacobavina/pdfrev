@@ -3,11 +3,14 @@
 
 fn main() {
   let args: Vec<String> = std::env::args().collect();
-  if args.len() > 1 && !args[1].starts_with("-psn") {
-    // If CLI arguments were provided, execute in CLI mode
+  if pdfrev_lib::cli::should_run_cli(&args) {
+    #[cfg(windows)]
+    unsafe {
+      use windows::Win32::System::Console::{AttachConsole, ATTACH_PARENT_PROCESS};
+      let _ = AttachConsole(ATTACH_PARENT_PROCESS);
+    }
     pdfrev_lib::cli::run_cli(&args);
   } else {
-    // Otherwise launch desktop GUI
     pdfrev_lib::run();
   }
 }

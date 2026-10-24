@@ -697,7 +697,27 @@ try {
   console.log(`    ✓ Aserción de selección superada: Marca ${newMarkup.id} seleccionada correctamente.`);
 
   const actionsScreenshotPath = await takeScreenshot('native-rectangle-drawn.png');
-  console.log(`    ✓ Artefacto de interacción guardado: ${actionsScreenshotPath}`);
+  console.log(`    ✓ Artefacto de interacción (Dark) guardado: ${actionsScreenshotPath}`);
+
+  // Conmutar a modo claro para capturar también la vista clara oficial de pdfrev
+  await executeSync(`
+    const themeBtn = document.querySelector('[data-testid="theme-toggle-btn"]');
+    if (themeBtn) themeBtn.click();
+  `);
+  await new Promise((r) => setTimeout(r, 400));
+  const lightScreenshotPath = await takeScreenshot('native-rectangle-drawn-light.png');
+  console.log(`    ✓ Artefacto de interacción (Light) guardado: ${lightScreenshotPath}`);
+
+  // Restaurar tema oscuro y actualizar capturas oficiales en docs/assets/
+  await executeSync(`
+    const themeBtn = document.querySelector('[data-testid="theme-toggle-btn"]');
+    if (themeBtn) themeBtn.click();
+  `);
+  const docsAssetsDir = path.resolve('docs/assets');
+  fs.mkdirSync(docsAssetsDir, { recursive: true });
+  fs.copyFileSync(actionsScreenshotPath, path.join(docsAssetsDir, 'screenshot-dark.png'));
+  fs.copyFileSync(lightScreenshotPath, path.join(docsAssetsDir, 'screenshot-light.png'));
+  console.log('    ✓ Capturas oficiales de docs/assets/ (screenshot-dark.png y screenshot-light.png) actualizadas con P pdfrev.');
 
   console.log('\n[5/5] Cerrando sesión WebDriver y finalizando procesos...');
 } finally {

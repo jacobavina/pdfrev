@@ -15,8 +15,29 @@ pub struct Cli {
   #[arg(long, global = true, help = "Output response formatted as structured JSON")]
   pub json: bool,
 
+  #[arg(long, global = true, help = "Run in headless CLI mode for AI agents")]
+  pub headless: bool,
+
   #[command(subcommand)]
   pub command: Commands,
+}
+
+/// Returns true only when command-line arguments request headless CLI execution
+/// (a known subcommand or CLI flag), allowing `pdfrev.exe <file.pdf>` to open the GUI.
+pub fn should_run_cli(args: &[String]) -> bool {
+  if args.len() <= 1 {
+    return false;
+  }
+  const SUBCOMMANDS: &[&str] = &["split", "combine", "extract-text", "markups", "ocr", "help"];
+  const CLI_FLAGS: &[&str] = &["--headless", "--json", "--help", "-h", "--version", "-V"];
+
+  for arg in &args[1..] {
+    let trimmed = arg.as_str();
+    if CLI_FLAGS.contains(&trimmed) || SUBCOMMANDS.contains(&trimmed) {
+      return true;
+    }
+  }
+  false
 }
 
 #[derive(Subcommand, Debug)]
@@ -526,6 +547,73 @@ pub fn handle_markups_list(input: &Path) -> Result<(serde_json::Value, String), 
     }
   }
 
+  // Also inspect sidecar <input>.bbx.json if present (pdfrev native sidecar persistence)
+  let sidecar_path = if input.with_extension("bbx.json").exists() {
+    Some(input.with_extension("bbx.json"))
+  } else {
+    let p = PathBuf::from(format!("{}.bbx.json", input.display()));
+    if p.exists() {
+      Some(p)
+    } else {
+      None
+    }
+  };
+
+  if let Some(sidecar) = sidecar_path {
+    if let Ok(raw_bbx) = fs::read_to_string(&sidecar) {
+      if let Ok(bbx_json) = serde_json::from_str::<serde_json::Value>(&raw_bbx) {
+        if let Some(arr) = bbx_json.get("markups").and_then(|v| v.as_array()) {
+          for item in arr {
+            let page_idx = item.get("pageIndex").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+            let subtype = item
+              .get("type")
+              .and_then(|v| v.as_str())
+              .unwrap_or("Unknown")
+              .to_string();
+            let author = item
+              .get("author")
+              .and_then(|v| v.as_str())
+              .map(|s| s.to_string());
+            let contents = item
+              .get("text")
+              .or_else(|| item.get("comment"))
+              .or_else(|| item.get("subject"))
+              .and_then(|v| v.as_str())
+              .map(|s| s.to_string());
+            let modified = item
+              .get("updatedAt")
+              .or_else(|| item.get("createdAt"))
+              .and_then(|v| v.as_str())
+              .map(|s| s.to_string());
+
+            let rect = item.get("points").and_then(|pts| pts.as_array()).and_then(|pts| {
+              let xs: Vec<f64> = pts.iter().filter_map(|p| p.get("x").and_then(|v| v.as_f64())).collect();
+              let ys: Vec<f64> = pts.iter().filter_map(|p| p.get("y").and_then(|v| v.as_f64())).collect();
+              if !xs.is_empty() && xs.len() == ys.len() {
+                let min_x = xs.iter().cloned().fold(f64::INFINITY, f64::min);
+                let min_y = ys.iter().cloned().fold(f64::INFINITY, f64::min);
+                let max_x = xs.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+                let max_y = ys.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+                Some(vec![min_x, min_y, max_x, max_y])
+              } else {
+                None
+              }
+            });
+
+            markups.push(MarkupItem {
+              page: page_idx + 1,
+              subtype,
+              author,
+              contents,
+              rect,
+              modified,
+            });
+          }
+        }
+      }
+    }
+  }
+
   let total_markups = markups.len();
   let mut lines = Vec::new();
   lines.push(format!("File: {} (Total markups: {})", input.display(), total_markups));
@@ -655,11 +743,61 @@ mod tests {
   }
 
   #[test]
+  fn test_should_run_cli_distinguishes_pdf_path_from_subcommands() {
+    assert!(!should_run_cli(&["pdfrev.exe".to_string()]));
+    assert!(!should_run_cli(&[
+      "pdfrev.exe".to_string(),
+      "C:\\planos\\blueprint.pdf".to_string()
+    ]));
+    assert!(should_run_cli(&[
+      "pdfrev.exe".to_string(),
+      "split".to_string(),
+      "in.pdf".to_string()
+    ]));
+    assert!(should_run_cli(&[
+      "pdfrev.exe".to_string(),
+      "--headless".to_string(),
+      "markups".to_string(),
+      "list".to_string(),
+      "in.pdf".to_string()
+    ]));
+  }
+
+  #[test]
+  fn test_split_and_combine_roundtrip_on_real_fixture() {
+    let fixture = Path::new("../fixtures/test-blueprint.pdf");
+    if !fixture.exists() {
+      return;
+    }
+    let temp_dir = std::env::temp_dir().join(format!("pdfrev_cli_test_{}", std::process::id()));
+    let split_dir = temp_dir.join("split");
+    let combined_pdf = temp_dir.join("combined.pdf");
+
+    let (split_val, _) = handle_split(fixture, 1, &split_dir).expect("split should succeed");
+    assert_eq!(split_val["total_pages"], 3);
+    let files: Vec<PathBuf> = split_val["split_files"]
+      .as_array()
+      .unwrap()
+      .iter()
+      .map(|v| PathBuf::from(v.as_str().unwrap()))
+      .collect();
+    assert_eq!(files.len(), 3);
+
+    let (comb_val, _) = handle_combine(&files, &combined_pdf).expect("combine should succeed");
+    assert_eq!(comb_val["total_pages"], 3);
+    assert!(combined_pdf.exists());
+
+    let _ = fs::remove_dir_all(&temp_dir);
+  }
+
+  #[test]
   fn test_extract_and_markups_on_large_fixture() {
     let fixture = Path::new("../fixtures/large-blueprint-e-size.pdf");
     if fixture.exists() {
       let markups_res = handle_markups_list(fixture);
       assert!(markups_res.is_ok());
+      let (markups_val, _) = markups_res.unwrap();
+      assert!(markups_val["total_markups"].as_u64().unwrap() >= 5000);
 
       let text_res = handle_extract_text(fixture, Some(1));
       assert!(text_res.is_ok());

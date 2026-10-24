@@ -12,6 +12,7 @@ import { useSplitStore } from '../store/useSplitStore';
 import { scrollToCenter, viewCenterOnPage } from '../core/compare/splitSync';
 import type { RenderResult } from '../services/pdfService';
 import { PageCanvas } from './viewer/PageCanvas';
+import { PassiveMarkupOverlay } from './viewer/PassiveMarkupOverlay';
 import {
   screenToNormalized,
   normalizedToScreen,
@@ -4553,25 +4554,7 @@ export const PdfViewer: React.FC = () => {
     </>
   );
 
-  // Marcas de las demás páginas (vista continua): solo lectura; al pasar el cursor la página se activa
-  const renderPassiveOverlay = (pageIndex: number, width: number, height: number) => {
-    const ms = markups.filter((m) => m.pageIndex === pageIndex && isMarkupVisible(m));
-    if (ms.length === 0) return null;
-    const t = { width, height, scale: 1.0, offsetX: 0, offsetY: 0, zoom: scale || 1.0 };
-    return (
-      <svg
-        data-testid={`passive-overlay-${pageIndex}`}
-        width={width}
-        height={height}
-        viewBox={`0 0 ${width} ${height}`}
-        className="absolute inset-0 pointer-events-none"
-      >
-        {ms.map((m) => (
-          <g key={m.id}>{renderSvgDescriptor(getMarkupSvgDescriptor(m, t), `passive-${m.id}`)}</g>
-        ))}
-      </svg>
-    );
-  };
+
 
   return (
     <div
@@ -4653,7 +4636,18 @@ export const PdfViewer: React.FC = () => {
                     <OverlayCanvas pdfDoc={pdfDoc} pageIndex={i} scale={scale} rotation={rotation} width={slotW} height={slotH} />
                   </Suspense>
                 )}
-                {isActive ? activeOverlay : renderPassiveOverlay(i, slotW, slotH)}
+                {isActive ? (
+                  activeOverlay
+                ) : (
+                  <PassiveMarkupOverlay
+                    pageIndex={i}
+                    width={slotW}
+                    height={slotH}
+                    markups={markups}
+                    scale={scale}
+                    isMarkupVisible={isMarkupVisible}
+                  />
+                )}
               </div>
             );
           })}

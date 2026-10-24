@@ -3749,4 +3749,23 @@ test.describe('Fase 1: Motor de Anotaciones y Visor PDF', () => {
     await expect(container.getByText('PLANO DE PRUEBA', { exact: false })).toHaveCount(0);
     await expect(page.locator('[data-testid="page-indicator"]')).toContainText('/ 3');
   });
+  test('Batch con cabeceras y pies (ADR-0130): el PDF descargado lleva el texto estampado y el sufijo _stamped', async ({ page }) => {
+    await openApp(page);
+    await page.locator('[data-testid="menu-archivo"]').click();
+    await page.locator('[data-testid="menu-batch"]').click();
+    const chooser = page.waitForEvent('filechooser');
+    await page.locator('[data-testid="batch-add"]').click();
+    await (await chooser).setFiles(['fixtures/test-blueprint.pdf']);
+    await expect(page.locator('[data-testid="batch-count"]')).toHaveText('1 file');
+    await page.locator('[data-testid="batch-kind-headerfooter"]').check();
+    await page.locator('[data-testid="batch-slot-headerRight"]').fill('Revision B - {file}');
+    const download = page.waitForEvent('download');
+    await page.locator('[data-testid="batch-run"]').click();
+    const d = await download;
+    expect(d.suggestedFilename()).toBe('test-blueprint_stamped.pdf');
+    await expect(page.locator('[data-testid="batch-summary"]')).toContainText('1 of 1 processed', { timeout: 30000 });
+    const out = fs.readFileSync((await d.path())!);
+    expect(out.length).toBeGreaterThan(fs.statSync('fixtures/test-blueprint.pdf').size);
+    expect((await PDFDocument.load(out)).getPageCount()).toBe(3);
+  });
 });

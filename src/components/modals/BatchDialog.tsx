@@ -3,6 +3,7 @@ import { CircleAlert, CircleCheck, Layers, Trash2, X } from 'lucide-react';
 import { useUiStore } from '../../store/useUiStore';
 import { MAX_BATCH_FILES, type BatchInput, type BatchOp, type BatchResult } from '../../services/batchOps';
 import type { NumberPosition } from '../../core/pages/pageNumbers';
+import { EMPTY_SLOTS, HEADER_FOOTER_FIELDS, hasAnySlot, type HeaderFooterSlots } from '../../core/pages/headersFooters';
 import { QUALITY_PRESETS, type ReduceQuality } from '../../core/pdf/reduceSize';
 import { showToast } from '../../services/toastService';
 
@@ -22,6 +23,7 @@ export const BatchDialog: React.FC = () => {
   const [format, setFormat] = useState('Page {n} of {total}');
   const [position, setPosition] = useState<NumberPosition>('bottom-center');
   const [degrees, setDegrees] = useState<90 | 180 | 270>(90);
+  const [slots, setSlots] = useState<HeaderFooterSlots>({ ...EMPTY_SLOTS, footerCenter: 'Page {n} of {total}' });
   const [quality, setQuality] = useState<ReduceQuality>('medium');
   const [running, setRunning] = useState<{ done: number; total: number } | null>(null);
   const [results, setResults] = useState<BatchResult[] | null>(null);
@@ -55,8 +57,8 @@ export const BatchDialog: React.FC = () => {
     });
   };
 
-  const op = (): BatchOp => (kind === 'flatten' ? { kind } : kind === 'rotate' ? { kind, degrees } : kind === 'reduce' ? { kind, quality } : { kind, format, position, fontSize: 9, marginPt: 28 });
-  const problem = files.length === 0 ? 'Add the PDF files to process.' : kind === 'number' && !format.trim() ? 'Write the text to stamp, for example: Page {n} of {total}.' : null;
+  const op = (): BatchOp => (kind === 'flatten' ? { kind } : kind === 'rotate' ? { kind, degrees } : kind === 'reduce' ? { kind, quality } : kind === 'headerFooter' ? { kind, slots } : { kind, format, position, fontSize: 9, marginPt: 28 });
+  const problem = files.length === 0 ? 'Add the PDF files to process.' : kind === 'number' && !format.trim() ? 'Write the text to stamp, for example: Page {n} of {total}.' : kind === 'headerFooter' && !hasAnySlot(slots) ? 'Write at least one header or footer text.' : null;
 
   const run = async () => {
     const svc = await import('../../services/batchService');
@@ -160,6 +162,29 @@ export const BatchDialog: React.FC = () => {
                   <option value={180}>180°</option>
                   <option value={270}>90° counterclockwise</option>
                 </select>
+              </div>
+            )}
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="batch-kind" data-testid="batch-kind-headerfooter" checked={kind === 'headerFooter'} onChange={() => setKind('headerFooter')} className="accent-cad-accent" />
+              Add headers and footers <span className="text-gray-500">(_stamped)</span>
+            </label>
+            {kind === 'headerFooter' && (
+              <div className="pl-6 flex flex-col gap-1">
+                <div className="grid grid-cols-3 gap-1">
+                  {(['headerLeft', 'headerCenter', 'headerRight', 'footerLeft', 'footerCenter', 'footerRight'] as const).map((slot) => (
+                    <input
+                      key={slot}
+                      type="text"
+                      data-testid={`batch-slot-${slot}`}
+                      aria-label={slot.replace(/([A-Z])/g, ' $1').toLowerCase()}
+                      placeholder={slot.replace(/([A-Z])/g, ' $1').toLowerCase()}
+                      value={slots[slot]}
+                      onChange={(e) => setSlots((prev) => ({ ...prev, [slot]: e.target.value }))}
+                      className="ui-input !h-6 min-w-0"
+                    />
+                  ))}
+                </div>
+                <span className="text-gray-500">Fields: {HEADER_FOOTER_FIELDS.join(' ')}</span>
               </div>
             )}
             <label className="flex items-center gap-2 cursor-pointer">

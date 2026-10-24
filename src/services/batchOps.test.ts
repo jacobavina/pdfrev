@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { PDFDocument, PDFName, PDFArray } from 'pdf-lib';
+import { PDFDocument, PDFName, PDFArray, PDFRawStream, decodePDFRawStream } from 'pdf-lib';
 import { MAX_BATCH_FILES, batchReportRows, opSuffix, outputName, removeAnnotationsByName, runBatch, runBatchOp, type BatchOp } from './batchOps';
 import { saveIncrementalMarkups } from '../core/pdf/incrementalWriter';
 import { importPdfAnnotations } from '../core/pdf/annotationReader';
@@ -112,5 +112,25 @@ describe('Batch: operaciones sobre varios PDF (ADR-0125)', () => {
       ['a.pdf', 'OK', 'a_numbered.pdf', 'Done'],
       ['b.pdf', 'Failed', '', 'Invalid PDF'],
     ]);
+  });
+  it('cabeceras y pies: estampa los textos en todas las páginas con el nombre del archivo y falla sin ningún texto', async () => {
+    const slots = { headerLeft: '{file}', headerCenter: '', headerRight: '', footerLeft: '', footerCenter: 'Hoja {n} de {total}', footerRight: '' };
+    expect(opSuffix({ kind: 'headerFooter', slots })).toBe('stamped');
+    const out = await runBatchOp(blueprint, { kind: 'headerFooter', slots }, 'A-101.pdf');
+    const doc = await PDFDocument.load(out);
+    expect(doc.getPageCount()).toBe(3);
+    // El texto estampado se escribe en hexadecimal en el contenido de cada página
+    const hex = (t: string) => Buffer.from(t, 'latin1').toString('hex').toUpperCase();
+    const contentOf = (i: number) => {
+      const contents = doc.getPage(i).node.lookup(PDFName.of('Contents'));
+      const refs = contents instanceof PDFArray ? contents.asArray() : [doc.getPage(i).node.get(PDFName.of('Contents'))];
+      return refs.map((r) => doc.context.lookup(r as never)).filter((o): o is PDFRawStream => o instanceof PDFRawStream).map((st) => Buffer.from(decodePDFRawStream(st).decode()).toString('latin1')).join(' ');
+    };
+    for (let i = 0; i < 3; i++) {
+      const c = contentOf(i).toUpperCase();
+      expect(c).toContain(hex('A-101'));
+      expect(c).toContain(hex(`Hoja ${i + 1} de 3`));
+    }
+    await expect(runBatchOp(blueprint, { kind: 'headerFooter', slots: { ...slots, headerLeft: '', footerCenter: '  ' } }, 'x.pdf')).rejects.toThrow(/at least one header or footer/);
   });
 });

@@ -272,6 +272,7 @@
 | `P5-D.28` | Full-Screen Crosshair | **Cerrado** | ADR-0127. View ▸ Full-Screen Crosshair (Shift+F8): cruz que atraviesa toda la ventana por el cursor, recordada entre sesiones. Falta verla en ventana nativa. |
 | `P5-D.29` | Sketch to Scale | **Cerrado** | ADR-0128. Edit ▸ Sketch to Scale…: rectángulo, círculo/elipse, línea con ángulo o polígono regular con medidas reales en la escala de la página, centrado en la hoja. Falta verlo en ventana nativa con un plano calibrado. |
 | `P5-D.30` | Slip Sheet | **Cerrado** | ADR-0129. Document ▸ Slip Sheet…: sustituye las láminas del juego por las de una revisión emparejándolas por número de lámina (leído del texto), con emparejamiento manual, marcas conservadas y opción de añadir las láminas nuevas sin pareja. Falta verlo en ventana nativa con un juego real. |
+| `P5-D.31` | Batch: cabeceras y pies | **Cerrado** | ADR-0130. Batch gana la operación Headers & Footers (_stamped) con las seis ranuras y los campos {n}, {total}, {file}, {title}, {date}... Falta verlo en ventana nativa con una carpeta. |
 
 ---
 

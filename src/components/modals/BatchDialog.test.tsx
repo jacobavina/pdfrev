@@ -142,4 +142,20 @@ describe('Diálogo Batch (ADR-0125)', () => {
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(useUiStore.getState().pageToolDialog).toBeNull();
   });
+  it('cabeceras y pies: pide al menos un texto y guarda cada archivo con el sufijo _stamped (ADR-0130)', async () => {
+    openBatch();
+    render(<BatchDialog />);
+    fireEvent.click(screen.getByTestId('batch-add'));
+    await waitFor(() => expect(screen.getByTestId('batch-count')).toHaveTextContent('2 files'));
+    fireEvent.click(screen.getByTestId('batch-kind-headerfooter'));
+    expect(screen.getByTestId('batch-slot-footerCenter')).toHaveValue('Page {n} of {total}');
+    change('batch-slot-footerCenter', '');
+    expect(screen.getByTestId('batch-problem')).toHaveTextContent('at least one header or footer');
+    expect(screen.getByTestId('batch-run')).toBeDisabled();
+    change('batch-slot-headerLeft', '{file}');
+    fireEvent.click(screen.getByTestId('batch-run'));
+    await waitFor(() => expect(saved).toHaveLength(2), { timeout: 15000 });
+    expect(saved.map((x) => x.name)).toEqual(['A-101_stamped.pdf', 'A-102_stamped.pdf']);
+    expect(saved[0].size).toBeGreaterThan(blueprint.length);
+  });
 });

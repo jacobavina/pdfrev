@@ -41,7 +41,7 @@
 | Signatures | View ▸ Panels ▸ Signatures Panel (ADR-0122) |
 | Insert Pages from File | Document ▸ Insert Pages from File… (ADR-0123) |
 | Create Page Labels | Document ▸ Page Labels… (ADR-0124) |
-| Batch (Flatten, Number, Rotate, Reduce) | File ▸ Batch… (ADR-0125, ADR-0126) |
+| Batch (Flatten, Number, Rotate, Reduce, Headers & Footers) | File ▸ Batch… (ADR-0125, ADR-0126) |
 | Full-Screen Crosshair | View ▸ Full-Screen Crosshair, Shift+F8 (ADR-0127) |
 | Sketch to Scale | Edit ▸ Sketch to Scale… (ADR-0128) |
 | Slip Sheet | Document ▸ Slip Sheet… (ADR-0129) |
@@ -69,7 +69,7 @@
 - Atajo **Shift+H** del hipervínculo.
 
 ### Oleada 4: proceso por lotes y avanzados
-- **Batch:** Flatten, Number pages y Rotate sobre varios archivos con informe ya están (ADR-0125); faltan OCR, Headers & Footers y Summary como operaciones del lote.
+- **Batch:** Flatten, Number pages y Rotate sobre varios archivos con informe ya están (ADR-0125); Reduce y Headers & Footers también son operaciones del lote (ADR-0126, ADR-0130); faltan OCR (necesita el motor nativo página a página) y Summary.
 - Slip Sheet ya está (ADR-0129).
 - **Security** (ya documentada como pendiente, ver ADR-0099) y **Reuse**.
 

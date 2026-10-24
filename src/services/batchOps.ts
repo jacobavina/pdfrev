@@ -1,5 +1,6 @@
 import type { NumberPosition } from '../core/pages/pageNumbers';
 import type { ReduceQuality } from '../core/pdf/reduceSize';
+import type { HeaderFooterSlots } from '../core/pages/headersFooters';
 
 /**
  * Procesos por lotes (Batch, ADR-0125): una operación aplicada a varios PDF, uno tras otro, sin abrirlos en el visor. Cada
@@ -10,13 +11,14 @@ export type BatchOp =
   | { kind: 'flatten' }
   | { kind: 'number'; format: string; position: NumberPosition; fontSize: number; marginPt: number }
   | { kind: 'rotate'; degrees: 90 | 180 | 270 }
-  | { kind: 'reduce'; quality: ReduceQuality };
+  | { kind: 'reduce'; quality: ReduceQuality }
+  | { kind: 'headerFooter'; slots: HeaderFooterSlots };
 
 export const MAX_BATCH_FILES = 200;
 
 /** Sufijo del archivo de salida según la operación. */
 export function opSuffix(op: BatchOp): string {
-  return op.kind === 'flatten' ? 'flattened' : op.kind === 'number' ? 'numbered' : op.kind === 'reduce' ? 'reduced' : `rotated${op.degrees}`;
+  return op.kind === 'flatten' ? 'flattened' : op.kind === 'number' ? 'numbered' : op.kind === 'reduce' ? 'reduced' : op.kind === 'headerFooter' ? 'stamped' : `rotated${op.degrees}`;
 }
 
 /** Nombre del archivo de salida; si ya hay otro igual en la lista de salidas, lleva un número. */
@@ -90,8 +92,28 @@ async function reduceFile(bytes: Uint8Array, quality: ReduceQuality): Promise<Ui
   return out;
 }
 
-/** Aplica la operación a los bytes de un archivo. */
-export async function runBatchOp(bytes: Uint8Array, op: BatchOp): Promise<Uint8Array> {
+async function headerFooterFile(bytes: Uint8Array, name: string, slots: HeaderFooterSlots): Promise<Uint8Array> {
+  const { stampHeadersFooters, hasAnySlot } = await import('../core/pages/headersFooters');
+  const { DEFAULT_NUMBER_COLOR } = await import('../core/pages/pageNumbers');
+  const { PDFDocument } = await import('pdf-lib');
+  if (!hasAnySlot(slots)) throw new Error('Write at least one header or footer text.');
+  const doc = await PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false });
+  return stampHeadersFooters(bytes, {
+    slots,
+    fontSize: 9,
+    margin: 28,
+    color: DEFAULT_NUMBER_COLOR,
+    font: 'Helvetica',
+    startAt: 1,
+    pages: Array.from({ length: doc.getPageCount() }, (_, i) => i),
+    fileName: name,
+    title: doc.getTitle() ?? '',
+    now: new Date(),
+  });
+}
+
+/** Aplica la operación a los bytes de un archivo (`name` alimenta el campo {file} de las cabeceras). */
+export async function runBatchOp(bytes: Uint8Array, op: BatchOp, name = ''): Promise<Uint8Array> {
   switch (op.kind) {
     case 'flatten':
       return flattenFile(bytes);
@@ -101,6 +123,8 @@ export async function runBatchOp(bytes: Uint8Array, op: BatchOp): Promise<Uint8A
       return numberFile(bytes, op);
     case 'reduce':
       return reduceFile(bytes, op.quality);
+    case 'headerFooter':
+      return headerFooterFile(bytes, name, op.slots);
   }
 }
 
@@ -132,7 +156,7 @@ export async function runBatch(
     const f = files[i];
     let result: BatchResult;
     try {
-      const out = await runBatchOp(f.bytes, op);
+      const out = await runBatchOp(f.bytes, op, f.name);
       const name = outputName(f.name, op, taken);
       await save(name, out);
       result = { input: f.name, ok: true, output: name, message: 'Done' };

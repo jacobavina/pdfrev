@@ -54,7 +54,7 @@ export const StatusBar: React.FC = () => {
   return (
     <footer
       data-testid="status-bar"
-      className="h-[26px] min-w-0 bg-cad-status border-t border-cad-border flex items-center px-2 text-2xs text-gray-400 select-none overflow-x-auto thin-scroll"
+      className="h-6 min-w-0 bg-cad-status border-t border-cad-border flex items-center px-2 text-2xs text-gray-400 select-none overflow-x-auto thin-scroll"
     >
       {/* Lista de marcas (ADR-0060): cerrada, como en Revu, solo queda este botón */}
       <button

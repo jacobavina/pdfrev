@@ -83,7 +83,7 @@ describe('Estructura de la ventana: menos bandas y lienzo como sujeto (ADR-0064)
     // La cinta queda en una sola banda de herramientas, sin fila de pestañas propia ni tira de propiedades
     const ribbon = screen.getByTestId('ribbon');
     expect(ribbon.querySelector('[role="tablist"]')).toBeNull();
-    expect(screen.getByTestId('ribbon-tools')).toHaveClass('h-[56px]');
+    expect(screen.getByTestId('ribbon-tools')).toHaveClass('h-[52px]');
     const selectGroup = screen.getByTestId('ribbon-group-select');
     expect(selectGroup.firstElementChild).toHaveClass('h-[32px]', 'shrink-0');
     expect(screen.queryByTestId('properties-bar')).toBeNull();

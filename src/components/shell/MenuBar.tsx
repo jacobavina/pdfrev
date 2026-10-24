@@ -125,6 +125,7 @@ import { TOOL_GROUPS } from './toolDefinitions';
 import { PROFILE_LABELS } from '../../core/ui/profiles';
 import { supportsAlwaysOnTop } from '../../services/windowService';
 import { copyFormat, hideSelected, pasteFormat, pasteInPlace, showHidden, toggleFlagSelected } from '../../core/markup/copyActions';
+import { StampThumb } from './StampThumb';
 import { exportFlattenedPdf, unflattenOpenDocument, goToPage, runPageOperation, selectAllOnCurrentPage } from './appActions';
 
 type MenuEntry =
@@ -700,8 +701,14 @@ export const MenuBar: React.FC = () => {
           submenu: STAMP_GROUPS.flatMap((group, gi) => [
             ...(gi > 0 ? (['separator'] as MenuEntry[]) : []),
             ...STAMPS.filter((st) => st.group === group).map((st) => ({
-              icon: <span className="w-3 h-3 rounded-sm border-2" style={{ borderColor: st.color }} />,
-              label: group === 'Construction' ? st.label : `${st.label} · ${group}`,
+              // Miniatura con el dibujo real del sello, como la lista de Revu (ADR-0136)
+              icon: (
+                <span className="w-[76px] flex items-center justify-center">
+                  <StampThumb id={st.id} height={22} maxWidth={76} />
+                </span>
+              ),
+              label: st.label,
+              shortcut: group,
               checked: activeTool === 'stamp' && activeStampId === st.id,
               testId: `menu-stamp-${st.id}`,
               disabled: !hasDoc,
@@ -799,7 +806,7 @@ export const MenuBar: React.FC = () => {
   return (
     <header
       ref={barRef as React.RefObject<HTMLElement>}
-      className="h-8 min-w-0 bg-cad-panel border-b border-cad-border flex items-center px-2 text-sm text-gray-200 select-none z-30 relative"
+      className="h-7 min-w-0 bg-cad-panel border-b border-cad-border flex items-center px-2 text-sm text-gray-200 select-none z-30 relative"
     >
       <div className="flex items-center gap-1 pr-3 mr-1 border-r border-cad-border shrink-0" aria-label="REA">
         <span aria-hidden="true" className="text-cad-accent font-bold leading-none">
@@ -819,7 +826,7 @@ export const MenuBar: React.FC = () => {
               data-testid={`menu-${menu.id}`}
               onClick={() => setOpenMenu(openMenu === menu.id ? null : menu.id)}
               onMouseEnter={() => openMenu && setOpenMenu(menu.id)}
-              className={`px-2.5 py-1 rounded-md transition-colors ${
+              className={`px-2 py-0.5 rounded-md transition-colors ${
                 openMenu === menu.id ? 'bg-cad-hover ring-1 ring-gray-500/60 text-cad-strong' : 'hover:bg-cad-hover text-gray-200'
               }`}
             >
@@ -829,11 +836,11 @@ export const MenuBar: React.FC = () => {
               <div
                 role="menu"
                 data-testid={`menu-popup-${menu.id}`}
-                className="absolute left-0 top-full mt-0.5 min-w-[260px] max-h-[calc(100vh-3.5rem)] overflow-y-auto bg-cad-panel border border-cad-border rounded-lg shadow-float p-1 z-50"
+                className="absolute left-0 top-full mt-0.5 min-w-[210px] max-h-[calc(100vh-3.5rem)] overflow-y-auto bg-cad-panel border border-cad-border rounded-lg shadow-float p-0.5 z-50"
               >
                 {menu.entries.map((entry, idx) =>
                   entry === 'separator' ? (
-                    <div key={`sep-${idx}`} className="my-1 mx-1 border-t border-cad-border" />
+                    <div key={`sep-${idx}`} className="my-0.5 mx-1 border-t border-cad-border" />
                   ) : entry.submenu ? (
                     <div
                       key={entry.label}
@@ -847,12 +854,12 @@ export const MenuBar: React.FC = () => {
                         aria-expanded={openSub === entry.label}
                         data-testid={entry.testId}
                         onClick={() => setOpenSub(openSub === entry.label ? null : entry.label)}
-                        className={`w-full flex items-center justify-between gap-6 px-2 py-1.5 rounded-md text-left text-gray-200 hover:bg-cad-hover hover:text-cad-strong ${
+                        className={`w-full flex items-center justify-between gap-5 px-1.5 py-[2px] text-xs rounded-md text-left text-gray-200 hover:bg-cad-hover hover:text-cad-strong ${
                           openSub === entry.label ? 'bg-cad-hover ring-1 ring-gray-500/60 text-cad-strong' : ''
                         }`}
                       >
                         <span className="flex items-center gap-2">
-                          <span className="w-[22px] h-[22px] shrink-0 flex items-center justify-center [&_svg]:w-[15px] [&_svg]:h-[15px]">
+                          <span className="min-w-5 h-5 shrink-0 flex items-center justify-center [&_svg]:w-4 [&_svg]:h-4">
                             {entry.icon}
                           </span>
                           {entry.label}
@@ -862,11 +869,11 @@ export const MenuBar: React.FC = () => {
                       {openSub === entry.label && (
                         <SubmenuPopup
                           testId={`${entry.testId}-popup`}
-                          className="min-w-[240px] overflow-y-auto bg-cad-panel border border-cad-border rounded-lg shadow-float p-1 z-50"
+                          className="min-w-[190px] overflow-y-auto bg-cad-panel border border-cad-border rounded-lg shadow-float p-0.5 z-50"
                         >
                           {entry.submenu.map((sub, j) =>
                             sub === 'separator' ? (
-                              <div key={`ssep-${j}`} className="my-1 border-t border-cad-border" />
+                              <div key={`ssep-${j}`} className="my-0.5 mx-1 border-t border-cad-border" />
                             ) : (
                               <button
                                 key={sub.label}
@@ -880,11 +887,11 @@ export const MenuBar: React.FC = () => {
                                   setOpenSub(null);
                                   sub.onSelect?.();
                                 }}
-                                className="w-full flex items-center justify-between gap-6 px-2 py-1.5 rounded-md text-left text-gray-200 hover:bg-cad-hover hover:text-cad-strong disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-200"
+                                className="w-full flex items-center justify-between gap-5 px-1.5 py-[2px] text-xs rounded-md text-left text-gray-200 hover:bg-cad-hover hover:text-cad-strong disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-200"
                               >
                                 <span className="flex items-center gap-2">
                                   <span
-                                    className={`w-[22px] h-[22px] shrink-0 rounded-sm flex items-center justify-center [&_svg]:w-[15px] [&_svg]:h-[15px] ${
+                                    className={`min-w-5 h-5 shrink-0 rounded-sm flex items-center justify-center [&_svg]:w-4 [&_svg]:h-4 ${
                                       sub.checked ? 'bg-cad-hover ring-1 ring-gray-500/60 text-cad-strong' : ''
                                     }`}
                                   >
@@ -912,11 +919,11 @@ export const MenuBar: React.FC = () => {
                         setOpenMenu(null);
                         entry.onSelect?.();
                       }}
-                      className="w-full flex items-center justify-between gap-6 px-2 py-1.5 rounded-md text-left text-gray-200 hover:bg-cad-hover hover:text-cad-strong disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-200"
+                      className="w-full flex items-center justify-between gap-5 px-1.5 py-[2px] text-xs rounded-md text-left text-gray-200 hover:bg-cad-hover hover:text-cad-strong disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-200"
                     >
                       <span className="flex items-center gap-2">
                         <span
-                          className={`w-[22px] h-[22px] shrink-0 rounded-sm flex items-center justify-center [&_svg]:w-[15px] [&_svg]:h-[15px] ${
+                          className={`min-w-5 h-5 shrink-0 rounded-sm flex items-center justify-center [&_svg]:w-4 [&_svg]:h-4 ${
                             entry.checked && entry.icon ? 'bg-cad-hover ring-1 ring-gray-500/60 text-cad-strong' : ''
                           }`}
                         >

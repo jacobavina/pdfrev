@@ -175,7 +175,7 @@ const RibbonOverflow: React.FC<{
         aria-expanded={open}
         title="More tools: the ribbon is cut off at this window width"
         onClick={() => setOpen((v) => !v)}
-        className="h-[40px] w-6 grid place-items-center rounded-md bg-cad-ribbon border border-cad-border text-gray-300 hover:text-cad-strong hover:bg-cad-hover"
+        className="h-[36px] w-6 grid place-items-center rounded-md bg-cad-ribbon border border-cad-border text-gray-300 hover:text-cad-strong hover:bg-cad-hover"
       >
         <ChevronsRight size={16} />
       </button>
@@ -185,7 +185,7 @@ const RibbonOverflow: React.FC<{
           <div
             role="menu"
             data-testid="ribbon-more-menu"
-            className="absolute right-0 top-[52px] z-50 w-[290px] max-h-[70vh] overflow-y-auto thin-scroll rounded-lg border border-cad-border bg-cad-panel shadow-float p-2 text-xs text-gray-200"
+            className="absolute right-0 top-[40px] z-50 w-[290px] max-h-[70vh] overflow-y-auto thin-scroll rounded-lg border border-cad-border bg-cad-panel shadow-float p-2 text-xs text-gray-200"
           >
             {groups.map((g) => (
               <div key={g.id} className="mb-1.5 last:mb-0">
@@ -267,14 +267,14 @@ export const Ribbon: React.FC<{ showTabs?: boolean }> = ({ showTabs = true }) =>
   return (
     <div data-testid="ribbon" className="relative shrink-0 min-w-0 bg-cad-ribbon border-b border-cad-border select-none z-20">
       {showTabs && (
-        <div className="h-[28px] flex items-stretch px-2 border-b border-cad-border">
+        <div className="h-[24px] flex items-stretch px-2 border-b border-cad-border">
           <RibbonTabs />
         </div>
       )}
 
       {/* Herramientas: Select y Pan siempre a la vista; el resto según la pestaña */}
       <div className="flex items-stretch min-w-0">
-      <div ref={toolsRef} data-testid="ribbon-tools" className="flex-1 min-w-0 h-[56px] flex items-stretch overflow-x-auto overflow-y-hidden thin-scroll px-1">
+      <div ref={toolsRef} data-testid="ribbon-tools" className="flex-1 min-w-0 h-[52px] flex items-stretch overflow-x-auto overflow-y-hidden thin-scroll px-1">
         {renderGroup('select')}
         {tab === 'markup' && (
           <>

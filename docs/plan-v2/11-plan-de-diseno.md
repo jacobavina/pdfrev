@@ -44,7 +44,8 @@ proyecto, y `impeccable install` descarga de la red, así que no se ejecutó sin
 1. **Ya hecho:** hallazgos 1–5.
 2. **Hecho también:** 6, 7 y 8 (ADR-0112).
 3. **Hecho también:** 9 y 10 (ADR-0134), a petición de seguir con lo pendiente; la cinta no cambia cuando cabe entera.
-4. **Cada cambio:** captura antes/después a 2×, `impeccable detect`, `designScale.test.ts`, verify ×3.
+4. **Densidad (ADR-0136):** a petición del usuario tras comparar con Revu, menús, cabecera y barra de estado más compactos y sellos con miniatura.
+5. **Cada cambio:** captura antes/después a 2×, `impeccable detect`, `designScale.test.ts`, verify ×3.
 
 ## 5. Criterios de aceptación
 

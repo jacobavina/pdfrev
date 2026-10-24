@@ -82,4 +82,21 @@ describe('Seleccionar y copiar el texto del plano (ADR-0104)', () => {
     expect(ev.defaultPrevented).toBe(true);
     spy.mockRestore();
   });
+
+  it('la etiqueta corta de Select Text es "SelectText" y no "Copy"', () => {
+    const tool = ALL_TOOLS.find((t) => t.type === 'selectText');
+    expect(tool?.short).toBe('SelectText');
+  });
+
+  it('Escape regresa de Select Text a Select', async () => {
+    useToolStore.setState({ activeTool: 'selectText' });
+    await act(async () => {
+      render(<PdfViewer />);
+    });
+    expect(useToolStore.getState().activeTool).toBe('selectText');
+    act(() => {
+      fireEvent.keyDown(window, { key: 'Escape' });
+    });
+    expect(useToolStore.getState().activeTool).toBe('select');
+  });
 });

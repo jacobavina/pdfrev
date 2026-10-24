@@ -222,6 +222,44 @@ export function getMarkupBounds(
     return { x: x0, y: y0, width: Math.max(...xs) + r - x0, height: Math.max(...ys) + r - y0 };
   }
 
+  if ((markup.type === 'text' || markup.type === 'typewriter') && markup.points.length >= 1) {
+    const W = pageDimensions?.width || 800;
+    const H = pageDimensions?.height || 600;
+    const p1 = markup.points[0];
+    const p2 = markup.points[1] || p1;
+    const minX = Math.min(p1.x, p2.x);
+    const minY = Math.min(p1.y, p2.y);
+    const rawW = Math.abs(p2.x - p1.x);
+    const rawH = Math.abs(p2.y - p1.y);
+    const minW = 80 / W;
+    const minH = (markup.type === 'typewriter' ? 24 : 26) / H;
+    const width = Math.max(rawW, minW);
+    const height = Math.max(rawH, minH);
+
+    let boxMinX = minX;
+    let boxMinY = minY;
+    let boxMaxX = minX + width;
+    let boxMaxY = minY + height;
+
+    if (markup.leaders && Array.isArray(markup.leaders)) {
+      for (const leader of markup.leaders) {
+        for (const pt of leader) {
+          if (pt.x < boxMinX) boxMinX = pt.x;
+          if (pt.x > boxMaxX) boxMaxX = pt.x;
+          if (pt.y < boxMinY) boxMinY = pt.y;
+          if (pt.y > boxMaxY) boxMaxY = pt.y;
+        }
+      }
+    }
+
+    return {
+      x: boxMinX,
+      y: boxMinY,
+      width: Math.max(0.0001, boxMaxX - boxMinX),
+      height: Math.max(0.0001, boxMaxY - boxMinY),
+    };
+  }
+
   for (const pt of markup.points) {
     if (pt.x < minX) minX = pt.x;
     if (pt.x > maxX) maxX = pt.x;
@@ -650,21 +688,38 @@ export function hitTestMarkup(
   }
 
   // 7. Texto (interior de la caja)
-  if (markup.type === 'text') {
+  // 7. Texto y Máquina de escribir (interior de la caja renderizada)
+  if (markup.type === 'text' || markup.type === 'typewriter') {
     if (markup.points.length === 0) return false;
+    const W = pageDimensions?.width || 800;
+    const H = pageDimensions?.height || 600;
     const p1 = markup.points[0];
-    const p2 = markup.points[1] || { x: p1.x + 0.1, y: p1.y + 0.03 };
+    const p2 = markup.points[1] || p1;
     const minX = Math.min(p1.x, p2.x);
-    const maxX = Math.max(p1.x, p2.x);
     const minY = Math.min(p1.y, p2.y);
-    const maxY = Math.max(p1.y, p2.y);
-
-    return (
-      point.x >= minX - tolerance &&
-      point.x <= maxX + tolerance &&
-      point.y >= minY - tolerance &&
-      point.y <= maxY + tolerance
-    );
+    const rawW = Math.abs(p2.x - p1.x);
+    const rawH = Math.abs(p2.y - p1.y);
+    const minW = 80 / W;
+    const minH = (markup.type === 'typewriter' ? 24 : 26) / H;
+    const textBox: BoundingBox = {
+      x: minX,
+      y: minY,
+      width: Math.max(rawW, minW),
+      height: Math.max(rawH, minH),
+    };
+    if (isPointInBounds(point, textBox, tolerance)) {
+      return true;
+    }
+    if (markup.leaders && Array.isArray(markup.leaders)) {
+      for (const leader of markup.leaders) {
+        for (let i = 0; i < leader.length - 1; i++) {
+          if (distanceToSegment(point, leader[i], leader[i + 1]) <= tolerance) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
   }
 
   // 8. StickyNote (caja del icono de tamaño estándar)

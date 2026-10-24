@@ -1037,7 +1037,7 @@ export const PdfViewer: React.FC = () => {
           setDrawingStart(null);
           setCurrentDrawPoint(null);
           setInlineEditing(null);
-        } else if (activeTool === 'calibrate' || activeTool === 'snapshot' || activeTool === 'zoom') {
+        } else if (activeTool === 'calibrate' || activeTool === 'snapshot' || activeTool === 'zoom' || activeTool === 'selectText') {
           // Sin trazo en curso, Esc abandona la calibración, instantánea o zoom (como en Revu)
           useToolStore.getState().setActiveTool('select');
         }
@@ -1886,7 +1886,11 @@ export const PdfViewer: React.FC = () => {
     if (activeTool === 'select') {
       const pageMarkups = markups.filter((m) => m.pageIndex === currentPageIndex && isMarkupVisible(m));
       const isAdditive = Boolean(e.ctrlKey || e.metaKey || e.shiftKey);
-      const hit = pageSpatialIndex.hitTest(pt, 0.015, pageDims);
+      let hit = pageSpatialIndex.hitTest(pt, 0.015, pageDims);
+      if (!hit && selectedMarkupIds.length > 0) {
+        const selected = pageMarkups.filter((m) => selectedMarkupIds.includes(m.id));
+        hit = selected.find((m) => hitTestMarkup(pt, m, 0.015, pageDims));
+      }
 
       if (hit && hit.type === 'link' && (e.ctrlKey || e.metaKey)) {
         followMarkupLink(hit);
@@ -2448,8 +2452,21 @@ export const PdfViewer: React.FC = () => {
     // Finalización de arrastre o Marquee en modo selección
     if (activeTool === 'select') {
       if (marqueeStateRef.current) {
+        const start = marqueeStateRef.current.start;
+        const cur = marqueeStateRef.current.current;
+        const unscaledW = pageViewport.width / (scale || 1.0);
+        const unscaledH = pageViewport.height / (scale || 1.0);
+        const dx = Math.abs(cur.x - start.x) * unscaledW;
+        const dy = Math.abs(cur.y - start.y) * unscaledH;
         marqueeStateRef.current = null;
         setMarqueeState(null);
+        if (
+          useMarkupStore.getState().selectedMarkupIds.length === 0 &&
+          (dx > 25 || dy > 25) &&
+          pageHasText[currentPageIndex] !== false
+        ) {
+          showToast('To select and copy text from the drawing, click "Select Text" on the ribbon or press Shift+T');
+        }
         return;
       }
       if (dragStateRef.current) {
@@ -2804,7 +2821,9 @@ export const PdfViewer: React.FC = () => {
           activeTool === 'highlightVector' ||
           activeTool === 'underline' ||
           activeTool === 'strikeOut' ||
-          activeTool === 'squiggly';
+          activeTool === 'squiggly' ||
+          activeTool === 'text' ||
+          activeTool === 'typewriter';
         const points = isBoxTool
           ? [
               { x: minX, y: minY },
@@ -2899,13 +2918,25 @@ export const PdfViewer: React.FC = () => {
           const b = { x: currentDrawPoint.x * unscaledW, y: currentDrawPoint.y * unscaledH };
           const c = defaultDimensionLinePoint(a, b, DIMENSION_DEFAULT_OFFSET_PT);
           markupPoints = [drawingStart, currentDrawPoint, { x: c.x / unscaledW, y: c.y / unscaledH }];
-        } else if (activeTool === 'typewriter') {
+        } else if (activeTool === 'text' || activeTool === 'typewriter') {
           const wPt = Math.abs(currentDrawPoint.x - drawingStart.x) * unscaledW;
           const hPt = Math.abs(currentDrawPoint.y - drawingStart.y) * unscaledH;
           if (wPt < 8 && hPt < 8) {
+            const defaultH = activeTool === 'typewriter' ? 24 : 30;
             markupPoints = [
               drawingStart,
-              { x: drawingStart.x + 120 / unscaledW, y: drawingStart.y + 24 / unscaledH },
+              { x: drawingStart.x + 120 / unscaledW, y: drawingStart.y + defaultH / unscaledH },
+            ];
+          } else {
+            const minX = Math.min(drawingStart.x, currentDrawPoint.x);
+            const minY = Math.min(drawingStart.y, currentDrawPoint.y);
+            const maxX = Math.max(drawingStart.x, currentDrawPoint.x);
+            const maxY = Math.max(drawingStart.y, currentDrawPoint.y);
+            const effW = Math.max(maxX - minX, 80 / unscaledW);
+            const effH = Math.max(maxY - minY, (activeTool === 'typewriter' ? 24 : 26) / unscaledH);
+            markupPoints = [
+              { x: minX, y: minY },
+              { x: minX + effW, y: minY + effH },
             ];
           }
         }
@@ -2962,7 +2993,7 @@ export const PdfViewer: React.FC = () => {
           setInlineEditing({
             markupId: newId,
             initialText: activeTool === 'typewriter' ? '' : 'Note',
-            position: drawingStart,
+            position: markupPoints[0],
           });
         }
       }

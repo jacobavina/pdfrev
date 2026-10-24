@@ -85,6 +85,10 @@ import {
   Pin,
   TextCursorInput,
   Hash,
+  MousePointer,
+  TextSelect,
+  Hand,
+  LassoSelect,
 } from 'lucide-react';
 import { FIELD_TYPES, FieldType } from '../../core/markup/formFields';
 import { fieldTypeIcon } from './fieldIcons';
@@ -433,6 +437,15 @@ export const MenuBar: React.FC = () => {
         },
         'separator',
         { icon: <BoxSelect size={16} />, label: 'Select All on Page', shortcut: 'Ctrl+A', onSelect: selectAllOnCurrentPage, disabled: !hasDoc },
+        {
+          icon: <TextSelect size={16} />,
+          label: 'Select Text',
+          shortcut: 'Shift+T',
+          checked: activeTool === 'selectText',
+          onSelect: () => useToolStore.getState().setActiveTool('selectText'),
+          disabled: !hasDoc,
+          testId: 'menu-edit-select-text',
+        },
       ],
     },
     {
@@ -691,6 +704,18 @@ export const MenuBar: React.FC = () => {
       id: 'herramientas',
       label: 'Tools',
       entries: [
+        {
+          icon: <MousePointer size={16} />,
+          label: 'Select',
+          testId: 'menu-tools-select',
+          submenu: [
+            toolEntry('select', 'Select', 'V', <MousePointer size={16} />),
+            toolEntry('selectText', 'Select Text', 'Shift+T', <TextSelect size={16} />),
+            toolEntry('lasso', 'Lasso', 'Shift+O', <LassoSelect size={16} />),
+            toolEntry('pan', 'Pan', 'Shift+V', <Hand size={16} />),
+          ],
+        },
+        'separator',
         {
           icon: <PenLine size={16} />,
           label: 'Markup',

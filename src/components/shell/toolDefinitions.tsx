@@ -67,8 +67,8 @@ export const TOOL_GROUPS: ToolGroup[] = [
       { type: 'pan', label: 'Pan (Shift+V, or hold Space)', short: 'Pan', icon: <Hand size={18} />, shortcut: 'Shift+V' },
       {
         type: 'selectText',
-        label: 'Select Text (Shift+T): drag over the text of the drawing, then Ctrl+C to copy it',
-        short: 'Copy',
+        label: 'Select Text (Shift+T): drag over document text to select, then Ctrl+C to copy',
+        short: 'SelectText',
         icon: <TextSelect size={18} />,
         shortcut: 'Shift+T',
         testId: 'tool-select-text',

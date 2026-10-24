@@ -593,6 +593,44 @@ describe('Coordinate Conversion and Hit-Testing', () => {
       it('caso: perímetro (borde de la caja de texto)', () => {
         expect(hitTestMarkup({ x: 0.2, y: 0.25 }, textMarkup, 0.015)).toBe(true);
       });
+
+      it('texto creado por clic simple (puntos idénticos) tiene bounds mínimos de renderizado y hitTest responde en su interior', () => {
+        const pageDims = { width: 800, height: 600 };
+        const singleClickText: Markup = {
+          ...textMarkup,
+          id: 'text-single-click',
+          points: [{ x: 0.5, y: 0.5 }, { x: 0.5, y: 0.5 }],
+          leaders: undefined,
+        };
+        const bounds = getMarkupBounds(singleClickText, pageDims);
+        expect(bounds.width).toBeCloseTo(80 / 800, 4);
+        expect(bounds.height).toBeCloseTo(26 / 600, 4);
+        const interiorPoint = { x: 0.5 + 40 / 800, y: 0.5 + 13 / 600 };
+        expect(hitTestMarkup(interiorPoint, singleClickText, 0.015, pageDims)).toBe(true);
+      });
+
+      it('typewriter: hit-testing y bounds respetan dimensiones mínimas', () => {
+        const pageDims = { width: 800, height: 600 };
+        const typewriterMarkup: Markup = {
+          id: 'tw-test',
+          type: 'typewriter',
+          pageIndex: 0,
+          points: [
+            { x: 0.3, y: 0.3 },
+            { x: 0.3 + 120 / 800, y: 0.3 + 24 / 600 },
+          ],
+          style: baseStyle,
+          author: 'Tester',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: 'pending',
+        };
+        const bounds = getMarkupBounds(typewriterMarkup, pageDims);
+        expect(bounds.width).toBeCloseTo(120 / 800, 4);
+        expect(bounds.height).toBeCloseTo(24 / 600, 4);
+        expect(hitTestMarkup({ x: 0.35, y: 0.32 }, typewriterMarkup, 0.015, pageDims)).toBe(true);
+        expect(hitTestMarkup({ x: 0.1, y: 0.1 }, typewriterMarkup, 0.015, pageDims)).toBe(false);
+      });
     });
 
     describe('stickyNote: 3 casos (interior, exterior-pero-dentro-del-bbox, perímetro)', () => {

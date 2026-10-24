@@ -459,4 +459,54 @@ describe('Sub-entregable A.0: Interacción de Selección y Arrastre (dragInterac
 
     expect(upResult.moves).toHaveLength(3);
   });
+
+  it('permite seleccionar y arrastrar un cuadro de texto (text) creado con dimensiones por defecto o clic', () => {
+    const textMarkup: Markup = {
+      id: 'text-1',
+      type: 'text',
+      pageIndex: 0,
+      points: [
+        { x: 0.2, y: 0.2 },
+        { x: 0.2, y: 0.2 }, // Clic simple
+      ],
+      text: 'Nota de revisión',
+      style: { strokeColor: '#000000', fillColor: '#fffbe8', strokeWidth: 1, opacity: 1 },
+      author: 'Tester',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: 'pending',
+    };
+    const selectMarkup = vi.fn();
+    const deselectAll = vi.fn();
+
+    // Clic dentro del recuadro mínimo renderizado (80x26 pt en página 1000x800)
+    const dragState = handleSelectMouseDown({
+      point: { x: 0.23, y: 0.21 },
+      screenX: 230,
+      screenY: 168,
+      isCtrl: false,
+      pageMarkups: [textMarkup],
+      selectedMarkupIds: [],
+      selectMarkup,
+      deselectAll,
+      pageDimensions: { width: 1000, height: 800 },
+    });
+
+    expect(dragState).not.toBeNull();
+    expect(selectMarkup).toHaveBeenCalledWith('text-1', false);
+
+    // Arrastrar 100px a la derecha y 50px abajo
+    const moveResult = handleSelectMouseMove({
+      screenX: 330,
+      screenY: 218,
+      dragState: dragState!,
+      viewportTransform: mockTransform,
+      pageDimensions: { width: 1000, height: 800 },
+    });
+
+    expect(moveResult.hasMovedPastThreshold).toBe(true);
+    expect(moveResult.updatedMarkups).toHaveLength(1);
+    expect(moveResult.updatedMarkups![0].points[0].x).toBeCloseTo(0.3, 4);
+    expect(moveResult.updatedMarkups![0].points[0].y).toBeCloseTo(0.2625, 4);
+  });
 });

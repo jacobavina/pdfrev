@@ -31,6 +31,8 @@ export const StatusBar: React.FC = () => {
   const requestFit = useUiStore((s) => s.requestFit);
   const markupsListOpen = useUiStore((s) => s.markupsListOpen);
   const toggleMarkupsList = useUiStore((s) => s.toggleMarkupsList);
+  const reuseTools = useUiStore((s) => s.reuseTools);
+  const toggleReuseTools = useUiStore((s) => s.toggleReuseTools);
   const activeTool = useToolStore((s) => s.activeTool);
   const activeDef = ALL_TOOLS.find((t) => t.type === activeTool);
   const pageDims = useDocumentStore((s) => s.pageDimensions[s.currentPageIndex]);
@@ -198,6 +200,22 @@ export const StatusBar: React.FC = () => {
         <span className="text-gray-500">Tool:</span>
         <span className="text-cad-strong">{activeDef?.short ?? EXTRA_TOOL_NAMES[activeTool] ?? activeTool}</span>
       </span>
+
+      {/* Modo Reuse de herramientas (ADR-0135): mantiene la herramienta activa tras trazar una marca */}
+      <button
+        type="button"
+        data-testid="reuse-tools-toggle"
+        onClick={toggleReuseTools}
+        aria-pressed={reuseTools}
+        className={`h-[20px] px-1.5 ml-1 rounded text-2xs transition-colors ${
+          reuseTools
+            ? 'bg-cad-hover text-cad-strong font-medium'
+            : 'text-gray-500 hover:bg-cad-hover hover:text-cad-strong'
+        }`}
+        title={`Reuse Tools (keep tool active after drawing): ${reuseTools ? 'On' : 'Off'}`}
+      >
+        Reuse
+      </button>
 
       <div className="flex-1 min-w-3" />
 

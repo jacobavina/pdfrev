@@ -58,6 +58,7 @@ import {
   Blend,
   Diff,
   FileSearch,
+  Repeat,
   ListStart,
   ListX,
   Merge,
@@ -240,6 +241,8 @@ export const MenuBar: React.FC = () => {
     customLayout,
     applyProfile,
     saveCustomProfile,
+    reuseTools,
+    toggleReuseTools,
   } = useUiStore();
   const { saveNow } = useAutoSave(0);
 
@@ -770,6 +773,14 @@ export const MenuBar: React.FC = () => {
           checked: activeTool === 'fileAttachment',
           onSelect: () => setActiveTool('fileAttachment'),
           disabled: !hasDoc,
+        },
+        'separator',
+        {
+          icon: <Repeat size={16} />,
+          label: 'Reuse',
+          testId: 'menu-tools-reuse',
+          checked: reuseTools,
+          onSelect: toggleReuseTools,
         },
         'separator',
         { icon: <LengthMeasureIcon size={16} />, label: 'Measurements Panel', onSelect: requestMeasurementsPanel },

@@ -143,6 +143,17 @@ export function readStoredCrosshair(): boolean {
   }
 }
 
+const REUSE_TOOLS_STORAGE_KEY = 'rea-reuse-tools';
+
+/** Modo Reuse de herramientas (ADR-0135), activo por defecto (true) y recordado entre sesiones. */
+export function readStoredReuseTools(): boolean {
+  try {
+    return localStorage.getItem(REUSE_TOOLS_STORAGE_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
+
 export function readStoredViewMode(): ViewMode {
   try {
     return localStorage.getItem(VIEW_MODE_STORAGE_KEY) === 'single' ? 'single' : 'continuous';
@@ -316,6 +327,10 @@ interface UiState {
   setPageDimensionsPt: (dims: { width: number; height: number } | null) => void;
   startCutout: (markupId: string) => void;
   cancelCutout: () => void;
+  /** Modo Reuse de herramientas (ADR-0135): mantiene la herramienta activa tras trazar una marca. */
+  reuseTools: boolean;
+  setReuseTools: (reuse: boolean) => void;
+  toggleReuseTools: () => void;
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
@@ -398,6 +413,19 @@ export const useUiStore = create<UiState>((set, get) => ({
   autoOpenPanels: readStoredAutoPanels(),
   profile: readStoredProfile(),
   customLayout: readStoredCustomLayout(),
+  reuseTools: readStoredReuseTools(),
+  setReuseTools: (reuseTools) => {
+    try {
+      localStorage.setItem(REUSE_TOOLS_STORAGE_KEY, reuseTools ? '1' : '0');
+    } catch {
+      // Ignorar fallo de almacenamiento
+    }
+    set({ reuseTools });
+  },
+  toggleReuseTools: () => {
+    const next = !get().reuseTools;
+    get().setReuseTools(next);
+  },
 
   setTheme: (theme) => {
     applyTheme(theme);

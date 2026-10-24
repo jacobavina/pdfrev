@@ -1652,6 +1652,17 @@ export const PdfViewer: React.FC = () => {
     };
     addMarkups([cloudMarkup, calloutMarkup], 'Create Cloud+');
     useToolChestStore.getState().recordRecent(cloudMarkup);
+    checkAutoRevertTool(activeTool);
+  };
+
+  /** Auto-revierte a herramienta 'select' si el modo Reuse está desactivado (ADR-0135). */
+  const checkAutoRevertTool = (tool: ToolType) => {
+    if (tool === 'select' || tool === 'count' || tool === 'sequence' || tool === 'lasso' || tool === 'selectText' || tool === 'pan') {
+      return;
+    }
+    if (!useUiStore.getState().reuseTools) {
+      useToolStore.getState().setActiveTool('select');
+    }
   };
 
   /** Borde elegido en la barra para los callouts nuevos (ADR-0042). */
@@ -1689,6 +1700,7 @@ export const PdfViewer: React.FC = () => {
     };
     addMarkup(cloud);
     useToolChestStore.getState().recordRecent(cloud);
+    checkAutoRevertTool(activeTool);
   };
 
   /**
@@ -1778,6 +1790,7 @@ export const PdfViewer: React.FC = () => {
     };
     addMarkup(newMarkup);
     useToolChestStore.getState().recordRecent(newMarkup);
+    checkAutoRevertTool(activeTool);
   };
 
   // Clic derecho sobre una marca: seleccionarla (si no lo estaba) y abrir el menú contextual
@@ -2509,6 +2522,8 @@ export const PdfViewer: React.FC = () => {
         };
         addMarkup(newMarkup);
         useToolChestStore.getState().recordRecent(newMarkup);
+        checkAutoRevertTool(activeTool);
+        checkAutoRevertTool(activeTool);
       }
       setFreehandPoints([]);
       return;
@@ -2592,6 +2607,7 @@ export const PdfViewer: React.FC = () => {
       if (drawingStart && currentDrawPoint) createInteractiveMarkup(activeTool, drawingStart, currentDrawPoint);
       setDrawingStart(null);
       setCurrentDrawPoint(null);
+      checkAutoRevertTool(activeTool);
       return;
     }
 
@@ -2684,6 +2700,7 @@ export const PdfViewer: React.FC = () => {
         addMarkup(stamp);
         useToolChestStore.getState().recordRecent(stamp);
         setSelectedMarkupIds([id]);
+        checkAutoRevertTool(activeTool);
       }
       setDrawingStart(null);
       setCurrentDrawPoint(null);
@@ -2728,6 +2745,7 @@ export const PdfViewer: React.FC = () => {
         const mark = redactionMarkup(currentPageIndex, drawingStart, currentDrawPoint, author || 'Reviewer', activeLayer);
         addMarkup(mark);
         setSelectedMarkupIds([mark.id]);
+        checkAutoRevertTool(activeTool);
       } else if (activeTool === 'callout') {
         const newId = uuidv4();
         const initialText = 'Note';
@@ -2765,6 +2783,7 @@ export const PdfViewer: React.FC = () => {
         addMarkup(calloutMarkup);
         useToolChestStore.getState().recordRecent(calloutMarkup);
         setSelectedMarkupIds([newId]);
+        checkAutoRevertTool(activeTool);
         setInlineEditing({
           markupId: newId,
           initialText,
@@ -2923,6 +2942,7 @@ export const PdfViewer: React.FC = () => {
 
         addMarkup(newMarkup);
         useToolChestStore.getState().recordRecent(newMarkup);
+        checkAutoRevertTool(activeTool);
 
         // La cota queda lista para escribir su texto (como en Revu)
         if (activeTool === 'dimension') {

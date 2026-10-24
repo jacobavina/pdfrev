@@ -2,7 +2,8 @@ import { useCalibrationStore } from '../store/useCalibrationStore';
 import { useAttachmentStore } from '../store/useAttachmentStore';
 import { PDFDocument, PDFArray, PDFDict, PDFName, PDFRef } from 'pdf-lib';
 import { isTauriEnvironment } from './bbxPersistenceService';
-import { annotationKeyFor, isSignedSignatureField, saveIncrementalMarkups } from '../core/pdf/incrementalWriter';
+import { annotationKeyFor, isSignedSignatureField } from '../core/pdf/incrementalWriter';
+import { executeIncrementalSave } from './pdfSaveWorkerClient';
 import { useUiStore } from '../store/useUiStore';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { Markup } from '../types/markup';
@@ -76,7 +77,7 @@ export async function savePdfIncremental(
     const calibrations = useCalibrationStore.getState().changedCalibrations();
     const viewports = useCalibrationStore.getState().changedViewports();
     const attachments = useAttachmentStore.getState().files;
-    const updatedBytes = await saveIncrementalMarkups(originalBytes, markups, {}, {
+    const updatedBytes = await executeIncrementalSave(originalBytes, markups, {}, {
       importedIds,
       calibrations,
       viewports,

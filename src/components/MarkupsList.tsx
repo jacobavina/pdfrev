@@ -19,10 +19,6 @@ import {
   HelpCircle,
   Briefcase,
   Check,
-  Plus,
-  AlertTriangle,
-  FileSpreadsheet,
-  FileText,
   Lock,
   LockOpen,
   Stamp,
@@ -65,15 +61,13 @@ import { useToolChestStore } from '../store/useToolChestStore';
 import { useUiStore } from '../store/useUiStore';
 import { formatDateForDisplay } from '../utils/dateUtils';
 import { showToast } from '../services/toastService';
-import { markupTypeLabel, MARKUP_TYPE_LABELS } from '../core/markup/typeLabels';
+import { markupTypeLabel } from '../core/markup/typeLabels';
 
 import {
   Markup,
   MarkupStatus,
   MarkupType,
   BbxCustomColumn,
-  BbxCustomColumnType,
-  CANONICAL_CUSTOM_COLUMN_TYPES,
 } from '../types/markup';
 import {
   filterAndSortMarkups,

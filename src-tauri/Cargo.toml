@@ -1,6 +1,6 @@
 [package]
 name = "pdfrev"
-version = "0.1.1"
+version = "0.1.2"
 description = "pdfrev - Fast, local-first PDF viewer and editor"
 authors = ["pdfrev contributors"]
 license = "MIT"

@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import type { CaptionStyle } from '../core/markup/measureCaption';
 import { MarkupStyle, MarkupType } from '../types/markup';
 import type { FieldType } from '../core/markup/formFields';
-import { DEFAULT_SEQUENCE, formatSequence, SequenceConfig } from '../core/markup/sequences';
+import { DEFAULT_SEQUENCE, formatSequence, SequenceConfig, clampSequenceScale } from '../core/markup/sequences';
 
 const LEADERS_KEY = 'rea-measure-leaders';
 function readStoredLeaders(): boolean {
@@ -63,6 +63,8 @@ interface ToolState {
   autoSizeText: boolean;
   /** Secuencia numerada de marcadores (ADR-0094). */
   sequence: SequenceConfig;
+  sequenceScale: number;
+  setSequenceScale: (scale: number) => void;
   /** Relleno dinámico (ADR-0095): píxeles de hueco que se cierran en el contorno. */
   dynamicFillGap: number;
   setDynamicFillGap: (gap: number) => void;
@@ -112,6 +114,7 @@ export const useToolStore = create<ToolState>((set, get) => ({
   activeCountId: null,
   autoSizeText: false,
   sequence: DEFAULT_SEQUENCE,
+  sequenceScale: 100,
   dynamicFillGap: 3,
   measureCaption: 'inline',
   // Flujo de Acrobat por defecto (ADR-0035): clic, clic y un tercer clic para desplazar la línea
@@ -141,6 +144,7 @@ export const useToolStore = create<ToolState>((set, get) => ({
   },
   setCalloutBorder: (calloutBorder) => set({ calloutBorder }),
   setDynamicFillGap: (gap) => set({ dynamicFillGap: Number.isFinite(gap) ? Math.max(0, Math.min(20, Math.round(gap))) : 3 }),
+  setSequenceScale: (scale) => set({ sequenceScale: clampSequenceScale(scale) }),
   setSequence: (patch) =>
     set((state) => {
       const next = { ...state.sequence, ...patch };

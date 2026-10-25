@@ -1021,5 +1021,38 @@ describe('PDF Export Service (Sub-entregable 0.3 - H1 Vector Export)', () => {
       const streams = getDecompressedStreams(loadedDoc, 0);
       expect(streams.join('\n')).toContain(`${STICKY_NOTE_SIZE_PT} ${STICKY_NOTE_SIZE_PT} re`);
     });
+
+    it('exporta marcas de tipo Sequence con escala reducida (50 %) dibujando el texto sin descartarlo por padding', async () => {
+      const seqMarkup: Markup = {
+        id: 'seq-scaled-50',
+        type: 'text',
+        subject: 'Sequence',
+        pageIndex: 0,
+        points: [
+          { x: 0.1, y: 0.1 },
+          { x: 0.1 + 15 / 612, y: 0.1 + 11 / 792 },
+        ],
+        text: '99',
+        textFormat: { align: 'center', bold: true },
+        style: {
+          strokeColor: '#e02424',
+          fillColor: '#ffffff',
+          strokeWidth: 1,
+          opacity: 1,
+        },
+        customFields: { sequenceIndex: 99, sequenceScale: 50 },
+        author: 'Reviewer',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'pending',
+      };
+
+      const res = await exportMarkupsToPdf(originalPdfBytes, [seqMarkup]);
+      expect(res.pdfBytes.byteLength).toBeGreaterThan(0);
+      const loadedDoc = await PDFDocument.load(res.pdfBytes);
+      const streams = getDecompressedStreams(loadedDoc, 0);
+      const streamContent = streams.join('\n');
+      expect(streamContent).toContain('99');
+    });
   });
 });

@@ -12,7 +12,7 @@ import { CountSymbolPreview, COUNT_SYMBOL_OPTIONS } from './CountPreview';
 import { isAutosizeText } from '../../core/markup/autosizeText';
 import { clampCountScale, countItems, countScaleOf, countSymbolOf, CountSymbolId } from '../../core/markup/countSymbols';
 import { calloutBoxPaint } from '../../core/markup/calloutLayout';
-import { formatSequence, SEQUENCE_FORMATS, SequenceFormat } from '../../core/markup/sequences';
+import { formatSequence, SEQUENCE_FORMATS, SequenceFormat, clampSequenceScale, sequenceScaleOf } from '../../core/markup/sequences';
 import {
   IconPicker,
   LineStylePreview,
@@ -61,13 +61,15 @@ export const StyleSection: React.FC = () => {
     autoSizeText,
     sequence,
     setSequence,
+    sequenceScale,
+    setSequenceScale,
     dynamicFillGap,
     setDynamicFillGap,
   } = useToolStore();
 
   // Barra de propiedades contextual (ADR-0040), como la de Revu: con marcas seleccionadas edita la selección; sin
   // selección, el estilo de las marcas nuevas
-  const { markups, selectedMarkupIds, applyPropertiesToMarkups, applyLineStyle } = useMarkupStore();
+  const { markups, selectedMarkupIds, applyPropertiesToMarkups, applyLineStyle, rescaleSequenceMarkups } = useMarkupStore();
   const selection = markups.filter((m) => selectedMarkupIds.includes(m.id) && !m.locked);
   // Con una herramienta de dibujo activa, la barra define el estilo de lo que se va a dibujar (como Revu)
   const editingSelection = selection.length > 0 && (activeTool === 'select' || activeTool === 'pan');
@@ -211,6 +213,18 @@ export const StyleSection: React.FC = () => {
     const fields = { countSymbol: patch.countSymbol ?? countSymbolValue, countScale: patch.countScale ?? countScaleValue };
     applyPropertiesToMarkups(countTargets.map((m) => m.id), { customFields: fields }, patch.countSymbol ? 'Count symbol' : 'Count scale');
   };
+  // Secuencia de Revu (ADR-0094): formato, prefijo, sufijo, siguiente y escala (%)
+  const selSequences = editingSelection ? selection.filter((m) => m.type === 'text' && m.subject === 'Sequence') : [];
+  const sequenceContext = editingSelection ? selSequences.length > 0 && selSequences.length === selection.length : activeTool === 'sequence';
+  const sequenceScaleValue = editingSelection && selSequences[0] ? sequenceScaleOf(selSequences[0]) : sequenceScale;
+  const changeSequenceScale = (scale: number) => {
+    const clamped = clampSequenceScale(scale);
+    setSequenceScale(clamped);
+    if (editingSelection && selSequences.length > 0) {
+      rescaleSequenceMarkups(selSequences.map((m) => m.id), clamped);
+    }
+  };
+
   // El patrón discontinuo es proporcional al grosor: se recalcula al cambiar de grosor
   const changeWidth = (w: number) => applyStyle({ strokeWidth: w, dashArray: dashArrayFor(lineStyle, w) });
 
@@ -284,52 +298,70 @@ export const StyleSection: React.FC = () => {
             />
           </div>
 
-          {activeTool === 'sequence' && !editingSelection && (
+          {sequenceContext && (
             <div className="prop-section" data-testid="ribbon-sequence-group" title="Numbered sequence">
               <span className="prop-label">Sequence</span>
-              <select
-                data-testid="ribbon-sequence-format"
-                aria-label="Sequence format"
-                value={sequence.format}
-                onChange={(e) => setSequence({ format: e.target.value as SequenceFormat })}
-                className="h-6 rounded-md border border-cad-border bg-cad-field px-1 text-xs text-gray-200"
-              >
-                {SEQUENCE_FORMATS.map((f) => (
-                  <option key={f.value} value={f.value}>
-                    {f.label}
-                  </option>
-                ))}
-              </select>
-              <input
-                data-testid="ribbon-sequence-prefix"
-                aria-label="Sequence prefix"
-                placeholder="Prefix"
-                value={sequence.prefix}
-                onChange={(e) => setSequence({ prefix: e.target.value })}
-                className="h-6 w-14 rounded-md border border-cad-border bg-cad-field px-1 text-xs text-gray-200"
-              />
-              <input
-                data-testid="ribbon-sequence-suffix"
-                aria-label="Sequence suffix"
-                placeholder="Suffix"
-                value={sequence.suffix}
-                onChange={(e) => setSequence({ suffix: e.target.value })}
-                className="h-6 w-14 rounded-md border border-cad-border bg-cad-field px-1 text-xs text-gray-200"
-              />
-              <label className="flex items-center gap-1 text-xs text-gray-400">
-                Next
+              {!editingSelection && (
+                <>
+                  <select
+                    data-testid="ribbon-sequence-format"
+                    aria-label="Sequence format"
+                    value={sequence.format}
+                    onChange={(e) => setSequence({ format: e.target.value as SequenceFormat })}
+                    className="h-6 rounded-md border border-cad-border bg-cad-field px-1 text-xs text-gray-200"
+                  >
+                    {SEQUENCE_FORMATS.map((f) => (
+                      <option key={f.value} value={f.value}>
+                        {f.label}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    data-testid="ribbon-sequence-prefix"
+                    aria-label="Sequence prefix"
+                    placeholder="Prefix"
+                    value={sequence.prefix}
+                    onChange={(e) => setSequence({ prefix: e.target.value })}
+                    className="h-6 w-14 rounded-md border border-cad-border bg-cad-field px-1 text-xs text-gray-200"
+                  />
+                  <input
+                    data-testid="ribbon-sequence-suffix"
+                    aria-label="Sequence suffix"
+                    placeholder="Suffix"
+                    value={sequence.suffix}
+                    onChange={(e) => setSequence({ suffix: e.target.value })}
+                    className="h-6 w-14 rounded-md border border-cad-border bg-cad-field px-1 text-xs text-gray-200"
+                  />
+                  <label className="flex items-center gap-1 text-xs text-gray-400">
+                    Next
+                    <input
+                      data-testid="ribbon-sequence-next"
+                      type="number"
+                      min={1}
+                      value={sequence.next}
+                      onChange={(e) => setSequence({ next: Number(e.target.value) })}
+                      className="ui-data h-6 w-14 rounded-md border border-cad-border bg-cad-field px-1 text-xs text-gray-200"
+                    />
+                  </label>
+                  <span data-testid="ribbon-sequence-preview" className="ui-data text-xs text-gray-300">
+                    {formatSequence(sequence.next, sequence)}
+                  </span>
+                </>
+              )}
+              <label className="flex items-center gap-1 text-2xs text-gray-400" title="Sequence scale (%)">
+                Scale
                 <input
-                  data-testid="ribbon-sequence-next"
                   type="number"
-                  min={1}
-                  value={sequence.next}
-                  onChange={(e) => setSequence({ next: Number(e.target.value) })}
-                  className="ui-data h-6 w-14 rounded-md border border-cad-border bg-cad-field px-1 text-xs text-gray-200"
+                  data-testid="ribbon-sequence-scale"
+                  min={10}
+                  max={1000}
+                  step={10}
+                  value={sequenceScaleValue}
+                  onChange={(e) => changeSequenceScale(Number(e.target.value))}
+                  className="ui-input !h-6 !w-14 !px-1 ui-data"
                 />
+                %
               </label>
-              <span data-testid="ribbon-sequence-preview" className="ui-data text-xs text-gray-300">
-                {formatSequence(sequence.next, sequence)}
-              </span>
             </div>
           )}
 

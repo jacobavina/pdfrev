@@ -1,4 +1,5 @@
 import { effectiveTextSize } from './autosizeText';
+import { sequenceScaleOf } from './sequences';
 import { countSymbolOf, countSymbolsPath, countSymbolSizePt } from './countSymbols';
 import React from 'react';
 import {
@@ -1729,16 +1730,22 @@ export function getMarkupSvgDescriptor(
     // C1: Rama text devuelve tag 'text' válido con borde, relleno y alineación (ADR-0074)
     case 'text':
     case 'typewriter': {
+      const isSequence = markup.subject === 'Sequence';
       const rect = getRectGeometry(p1Screen, p2Screen);
-      const width = Math.max(80, rect.width);
-      const height = Math.max(26, rect.height);
+      const width = isSequence ? Math.max(6, rect.width) : Math.max(80, rect.width);
+      const height = isSequence ? Math.max(6, rect.height) : Math.max(26, rect.height);
       // Como el /AP (ADR-0061): texto envuelto en la caja, en pt de página con el zoom; con Autosize Text, el tamaño
       // que la llena
       const textPxPerPt = transform.zoom ?? transform.scale ?? 1;
       const boxFont = markupFontOf(markup, 12, BOX_TEXT_COLOR);
-      const textSize = effectiveTextSize(markup, boxFont.size, width / textPxPerPt, height / textPxPerPt, 'text');
-      const textLines = wrapCalloutText(markup.text || (markup.type === 'typewriter' ? '' : 'Note'), width / textPxPerPt - 12, textSize);
-      const align = markup.textFormat?.align ?? 'left';
+      const seqScale = isSequence ? sequenceScaleOf(markup) : 100;
+      const baseFontSize = isSequence ? Math.max(4, Math.round((11 * seqScale) / 100)) : boxFont.size;
+      const textSize = effectiveTextSize(markup, baseFontSize, width / textPxPerPt, height / textPxPerPt, 'text');
+      const maxW = isSequence ? Math.max(4, width / textPxPerPt - 2) : width / textPxPerPt - 12;
+      const textLines = wrapCalloutText(markup.text || (markup.type === 'typewriter' ? '' : 'Note'), maxW, textSize);
+      const lineHeightPx = (textSize + 2) * textPxPerPt;
+      const seqCenterBaseY = rect.y + height / 2 + (textSize * textPxPerPt) * 0.35 - ((textLines.length - 1) * lineHeightPx) / 2;
+      const align = markup.textFormat?.align ?? (isSequence ? 'center' : 'left');
       const textX =
         align === 'center'
           ? rect.x + width / 2
@@ -1781,7 +1788,9 @@ export function getMarkupSvgDescriptor(
               tag: 'text',
               attrs: {
                 x: textX,
-                y: rect.y + (4 + textSize + i * (textSize + 2)) * textPxPerPt,
+                y: isSequence
+                  ? seqCenterBaseY + i * lineHeightPx
+                  : rect.y + (4 + textSize + i * (textSize + 2)) * textPxPerPt,
                 fontSize: textSize * textPxPerPt,
                 ...fontAttrs(boxFont),
                 ...(align === 'center' ? { textAnchor: 'middle' } : align === 'right' ? { textAnchor: 'end' } : {}),

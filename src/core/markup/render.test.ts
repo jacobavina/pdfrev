@@ -774,5 +774,62 @@ describe('Pure Markup Rendering (src/core/markup/render.ts - Criterio 1)', () =>
         expect(desc.children![0].attrs.preserveAspectRatio).toBe('none');
       });
     });
+
+    describe('Marcador Sequence con escala', () => {
+      it('renderiza el cuadro SVG con las dimensiones reales sin clamp a 80x26 y centra el texto', () => {
+        const transform = { width: 800, height: 600, scale: 1.0, offsetX: 0, offsetY: 0 };
+        const seq100: Markup = {
+          id: 'seq-100',
+          type: 'text',
+          subject: 'Sequence',
+          pageIndex: 0,
+          points: [{ x: 0.1, y: 0.1 }, { x: 0.1 + 30 / 800, y: 0.1 + 22 / 600 }],
+          text: '1',
+          textFormat: { align: 'center', bold: true },
+          style: { strokeColor: '#e02424', strokeWidth: 1.5, fillColor: '#ffffff', opacity: 1 },
+          customFields: { sequenceIndex: 1, sequenceScale: 100 },
+          author: 'User',
+          status: 'pending',
+          createdAt: '',
+          updatedAt: '',
+        };
+
+        const desc = getMarkupSvgDescriptor(seq100, transform);
+        const rect = desc.children![0];
+        const text = desc.children![1];
+
+        expect(rect.attrs.width).toBeCloseTo(30, 1);
+        expect(rect.attrs.height).toBeCloseTo(22, 1);
+        expect(text.attrs.fontSize).toBe(11);
+        expect(text.attrs.textAnchor).toBe('middle');
+      });
+
+      it('escala la tipografía y no clampa tamaños pequeños a 80x26 cuando sequenceScale es 50 %', () => {
+        const transform = { width: 800, height: 600, scale: 1.0, offsetX: 0, offsetY: 0 };
+        const seq50: Markup = {
+          id: 'seq-50',
+          type: 'text',
+          subject: 'Sequence',
+          pageIndex: 0,
+          points: [{ x: 0.1, y: 0.1 }, { x: 0.1 + 15 / 800, y: 0.1 + 11 / 600 }],
+          text: '2',
+          textFormat: { align: 'center', bold: true },
+          style: { strokeColor: '#e02424', strokeWidth: 1.5, fillColor: '#ffffff', opacity: 1 },
+          customFields: { sequenceIndex: 2, sequenceScale: 50 },
+          author: 'User',
+          status: 'pending',
+          createdAt: '',
+          updatedAt: '',
+        };
+
+        const desc = getMarkupSvgDescriptor(seq50, transform);
+        const rect = desc.children![0];
+        const text = desc.children![1];
+
+        expect(rect.attrs.width).toBeCloseTo(15, 1);
+        expect(rect.attrs.height).toBeCloseTo(11, 1);
+        expect(text.attrs.fontSize).toBe(6);
+      });
+    });
   });
 });

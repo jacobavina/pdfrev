@@ -20,8 +20,29 @@ export interface SequenceConfig {
   next: number;
 }
 
-/** Tamaño del cuadro de un marcador de secuencia, en pt de página. */
+/** Tamaño del cuadro de un marcador de secuencia, en pt de página (al 100 %). */
 export const SEQUENCE_BOX_PT = { width: 30, height: 22 };
+export const SEQUENCE_SCALE_MIN = 10;
+export const SEQUENCE_SCALE_MAX = 1000;
+
+/** Escala de la secuencia en %, entre 10 y 1000 (100 por defecto). */
+export function clampSequenceScale(v: unknown): number {
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) && n > 0 ? Math.max(SEQUENCE_SCALE_MIN, Math.min(SEQUENCE_SCALE_MAX, Math.round(n))) : 100;
+}
+
+export function sequenceScaleOf(markup: { customFields?: Record<string, string | number> }): number {
+  return clampSequenceScale(markup.customFields?.sequenceScale ?? 100);
+}
+
+/** Dimensiones de la caja de la secuencia en pt según el porcentaje de escala. */
+export function sequenceBoxPt(scalePercent = 100): { width: number; height: number } {
+  const s = clampSequenceScale(scalePercent);
+  return {
+    width: (SEQUENCE_BOX_PT.width * s) / 100,
+    height: (SEQUENCE_BOX_PT.height * s) / 100,
+  };
+}
 
 export const DEFAULT_SEQUENCE: SequenceConfig = { format: '1', prefix: '', suffix: '', next: 1 };
 

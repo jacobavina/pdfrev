@@ -1,4 +1,5 @@
 import { effectiveTextSize } from '../markup/autosizeText';
+import { sequenceScaleOf } from '../markup/sequences';
 import { countSymbolOf, countSymbolsPath, countSymbolSizePt } from '../markup/countSymbols';
 import { hatchOutlineD, hatchStrokes, markupHatch, pathBox } from '../markup/hatch';
 import {
@@ -945,8 +946,11 @@ export function emitMarkupOperators(
       const b = toVis(markup.points[1] ?? markup.points[0]);
       const x = Math.min(a.x, b.x);
       const y = Math.min(a.y, b.y);
-      const w = Math.max(80, Math.abs(b.x - a.x));
-      const h = Math.max(26, Math.abs(b.y - a.y));
+      const isSequence = markup.subject === 'Sequence';
+      const rawW = Math.abs(b.x - a.x);
+      const rawH = Math.abs(b.y - a.y);
+      const w = isSequence ? Math.max(6, rawW) : Math.max(80, rawW);
+      const h = isSequence ? Math.max(6, rawH) : Math.max(26, rawH);
       const strokeW = markup.style.strokeWidth ?? (markup.type === 'typewriter' ? 0 : 1);
       const bField = markup.customFields?.boxBorder ?? markup.customFields?.calloutBorder;
       const explicitBorderOff = bField === 0 || bField === '0';
@@ -961,13 +965,21 @@ export function emitMarkupOperators(
       if (boxFill) lines.push(rgbOp(boxFill, 'rg'));
       pathPdf([visToPdf({ x, y }), visToPdf({ x: x + w, y }), visToPdf({ x: x + w, y: y + h }), visToPdf({ x, y: y + h })], true);
       lines.push(boxFill && hasBorder ? 'B' : boxFill ? 'f' : hasBorder ? 'S' : 'n');
-      const tb = boxFont(12);
+      const seqScale = isSequence ? sequenceScaleOf(markup) : 100;
+      const baseFontSize = isSequence ? Math.max(4, Math.round((11 * seqScale) / 100)) : 12;
+      const tb = boxFont(baseFontSize);
       // Autosize Text (ADR-0061): el tamaño que llena la caja
       const fontSize = effectiveTextSize(markup, tb.font.size, w, h, 'text');
-      const align = markup.textFormat?.align ?? 'left';
+      const align = markup.textFormat?.align ?? (isSequence ? 'center' : 'left');
       const textX = align === 'center' ? x + w / 2 : align === 'right' ? x + w - 6 : x + 6;
-      wrapCalloutText(markup.text || '', w - 12, fontSize).forEach((line, i) => {
-        const baseline = y + 4 + fontSize + i * (fontSize + 2);
+      const maxW = isSequence ? Math.max(4, w - 2) : w - 12;
+      const opLines = wrapCalloutText(markup.text || '', maxW, fontSize);
+      const opLineH = fontSize + 2;
+      const opSeqCenterY = y + h / 2 + fontSize * 0.35 - ((opLines.length - 1) * opLineH) / 2;
+      opLines.forEach((line, i) => {
+        const baseline = isSequence
+          ? opSeqCenterY + i * opLineH
+          : y + 4 + fontSize + i * (fontSize + 2);
         if (baseline <= y + h) textVis(line, { x: textX, y: baseline }, fontSize, tb.color, align, false, tb.font);
       });
       break;

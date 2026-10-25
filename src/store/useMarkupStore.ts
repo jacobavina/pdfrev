@@ -17,6 +17,7 @@ import { dashArrayFor, LineStyleId } from '../core/markup/lineStyles';
 import { isPatternLineStyle, PATTERN_MARKUP_TYPES } from '../core/markup/linePatterns';
 import { applyFormat, canCopyFormat, canPasteFormat, captureFormat, type MarkupFormat } from '../core/markup/formatPainter';
 import { isFlagged, withFlag } from '../core/markup/flags';
+import { clampSequenceScale, sequenceScaleOf } from '../core/markup/sequences';
 import { UpdateMarkupStatusCommand, MarkupStatusTarget } from './history/UpdateMarkupStatusCommand';
 import { UpdateMarkupCustomFieldCommand } from './history/UpdateMarkupCustomFieldCommand';
 import {
@@ -77,6 +78,7 @@ interface MarkupState {
     },
     description?: string
   ) => void;
+  rescaleSequenceMarkups: (ids: string[], newScale: number) => void;
   updateMarkupStatus: (id: string, status: MarkupStatus) => void;
   /** Respuestas en hilo (/IRT, /RT /R) con comando deshacible (ADR-0071). */
   addMarkupReply: (
@@ -393,6 +395,96 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
                     textFormat: prev.textFormat ? { ...prev.textFormat } : undefined,
                   }
                 : m;
+            }),
+            isDirty: true,
+          }));
+        },
+      };
+
+      markupHistory.execute(command);
+      syncHistoryFlags();
+    },
+
+    rescaleSequenceMarkups: (ids: string[], newScale: number) => {
+      if (ids.length === 0) return;
+      const currentMarkups = get().markups;
+      const targets = currentMarkups.filter(
+        (m) => ids.includes(m.id) && !m.locked && m.subject === 'Sequence'
+      );
+      if (targets.length === 0) return;
+
+      const clamped = clampSequenceScale(newScale);
+      const changes: {
+        id: string;
+        oldPoints: MarkupPoint[];
+        newPoints: MarkupPoint[];
+        oldCustomFields?: Record<string, string | number>;
+        newCustomFields: Record<string, string | number>;
+      }[] = [];
+
+      for (const m of targets) {
+        const oldScale = sequenceScaleOf(m);
+        if (oldScale === clamped && m.points.length >= 2) continue;
+        const scaleRatio = clamped / (oldScale || 100);
+        const pts = m.points;
+        if (pts.length >= 2) {
+          const minX = Math.min(pts[0].x, pts[1].x);
+          const maxX = Math.max(pts[0].x, pts[1].x);
+          const minY = Math.min(pts[0].y, pts[1].y);
+          const maxY = Math.max(pts[0].y, pts[1].y);
+          const cx = (minX + maxX) / 2;
+          const cy = (minY + maxY) / 2;
+          const halfW = ((maxX - minX) * scaleRatio) / 2;
+          const halfH = ((maxY - minY) * scaleRatio) / 2;
+          const nextPoints = [
+            { x: cx - halfW, y: cy - halfH },
+            { x: cx + halfW, y: cy + halfH },
+          ];
+          changes.push({
+            id: m.id,
+            oldPoints: pts.map((p) => ({ ...p })),
+            newPoints: nextPoints,
+            oldCustomFields: m.customFields ? { ...m.customFields } : undefined,
+            newCustomFields: { ...(m.customFields ?? {}), sequenceScale: clamped },
+          });
+        }
+      }
+
+      if (changes.length === 0) return;
+
+      const now = new Date().toISOString();
+      const command: Command = {
+        description: 'Sequence scale',
+        execute: () => {
+          set((state) => ({
+            markups: state.markups.map((m) => {
+              const ch = changes.find((c) => c.id === m.id);
+              if (ch) {
+                return {
+                  ...m,
+                  points: ch.newPoints.map((p) => ({ ...p })),
+                  customFields: { ...ch.newCustomFields },
+                  updatedAt: now,
+                };
+              }
+              return m;
+            }),
+            isDirty: true,
+          }));
+        },
+        undo: () => {
+          set((state) => ({
+            markups: state.markups.map((m) => {
+              const ch = changes.find((c) => c.id === m.id);
+              if (ch) {
+                return {
+                  ...m,
+                  points: ch.oldPoints.map((p) => ({ ...p })),
+                  customFields: ch.oldCustomFields ? { ...ch.oldCustomFields } : undefined,
+                  updatedAt: now,
+                };
+              }
+              return m;
             }),
             isDirty: true,
           }));

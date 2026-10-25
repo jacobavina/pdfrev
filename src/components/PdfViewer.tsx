@@ -86,7 +86,7 @@ import { showToast } from '../services/toastService';
 import { executeSnapshot } from '../services/snapshotService';
 import { ORTHO_TOOLS, SQUARE_TOOLS, orthoConstrain, squareConstrain } from '../core/markup/ortho';
 import { stampById } from '../core/markup/stamps';
-import { SEQUENCE_BOX_PT } from '../core/markup/sequences';
+import { sequenceBoxPt, clampSequenceScale } from '../core/markup/sequences';
 import { dynamicFillArea } from '../services/dynamicFillService';
 import { redactionMarkup } from '../core/markup/redaction';
 import { stampTexts, stampDefaultSize } from '../core/markup/stampArt';
@@ -2633,10 +2633,12 @@ export const PdfViewer: React.FC = () => {
     // Secuencia numerada (ADR-0094): cada clic coloca el siguiente número como cuadro de texto centrado
     if (activeTool === 'sequence') {
       if (drawingStart) {
+        const { sequenceScale } = useToolStore.getState();
+        const boxPt = sequenceBoxPt(sequenceScale);
         const pw = Math.max(1, pageViewport.width / (scale || 1));
         const ph = Math.max(1, pageViewport.height / (scale || 1));
-        const w = SEQUENCE_BOX_PT.width / pw;
-        const h = SEQUENCE_BOX_PT.height / ph;
+        const w = boxPt.width / pw;
+        const h = boxPt.height / ph;
         const x = Math.max(0, Math.min(1 - w, drawingStart.x - w / 2));
         const y = Math.max(0, Math.min(1 - h, drawingStart.y - h / 2));
         const { text, index } = useToolStore.getState().takeNextSequence();
@@ -2659,7 +2661,7 @@ export const PdfViewer: React.FC = () => {
           status: 'pending',
           layer: activeLayer,
           subject: 'Sequence',
-          customFields: { sequenceIndex: index },
+          customFields: { sequenceIndex: index, sequenceScale: clampSequenceScale(sequenceScale) },
         };
         addMarkup(marker);
         setSelectedMarkupIds([id]);

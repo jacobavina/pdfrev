@@ -1,4 +1,5 @@
 import { countSymbolOf } from '../core/markup/countSymbols';
+import { sequenceScaleOf } from '../core/markup/sequences';
 import { revisionCloudPathNormalized, cloudParams } from '../core/markup/revisionCloud';
 import { markupLinePattern } from '../core/markup/linePatterns';
 import { calloutBoxPaint } from '../core/markup/calloutLayout';
@@ -770,8 +771,11 @@ export async function exportMarkupsToPdf(
           );
           const x = Math.min(p1.x, p2.x);
           const y = Math.min(p1.y, p2.y);
-          const width = Math.max(80, Math.abs(p2.x - p1.x));
-          const height = Math.max(26, Math.abs(p2.y - p1.y));
+          const isSequence = markup.subject === 'Sequence';
+          const rawW = Math.abs(p2.x - p1.x);
+          const rawH = Math.abs(p2.y - p1.y);
+          const width = isSequence ? Math.max(6, rawW) : Math.max(80, rawW);
+          const height = isSequence ? Math.max(6, rawH) : Math.max(26, rawH);
           const bField = markup.customFields?.boxBorder ?? markup.customFields?.calloutBorder;
           const explicitBorderOff = bField === 0 || bField === '0';
           const hasExplicitFill = Boolean(markup.style.fillColor && markup.style.fillColor !== 'transparent' && markup.style.fillColor !== 'none');
@@ -797,13 +801,18 @@ export async function exportMarkupsToPdf(
           const sanitized = sanitizeTextToWinAnsi(rawText);
           totalReplacedCharacters += sanitized.replacedCount;
 
-          const fontSize = markup.style.fontSize ?? 10;
-          const lines = wrapText(sanitized.text, width - 12, fontSize, helveticaFont);
-          const align = markup.textFormat?.align ?? 'left';
+          const seqScale = isSequence ? sequenceScaleOf(markup) : 100;
+          const fontSize = isSequence
+            ? Math.max(4, Math.round((11 * seqScale) / 100))
+            : (markup.style.fontSize ?? 10);
+          const lines = wrapText(sanitized.text, isSequence ? Math.max(4, width - 2) : width - 12, fontSize, helveticaFont);
+          const align = markup.textFormat?.align ?? (isSequence ? 'center' : 'left');
 
-          let lineY = y + height - fontSize - 6;
+          let lineY = isSequence
+            ? y + (height - fontSize) / 2 + ((lines.length - 1) * (fontSize + 2)) / 2
+            : y + height - fontSize - 6;
           for (const line of lines) {
-            if (lineY < y + 4) break;
+            if (isSequence ? lineY < y : lineY < y + 4) break;
             const lineWidth = helveticaFont.widthOfTextAtSize(line, fontSize);
             const lineX =
               align === 'center'

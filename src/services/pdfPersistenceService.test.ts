@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { savePdfIncremental } from './pdfPersistenceService';
+import { savePdfIncremental, validateSavedPdf } from './pdfPersistenceService';
 import * as incrementalWriter from '../core/pdf/incrementalWriter';
 import * as bbxPersistenceService from './bbxPersistenceService';
 import { useDocumentStore } from '../store/useDocumentStore';
@@ -28,8 +28,6 @@ describe('pdfPersistenceService (P3-B.3 y B.4)', () => {
   ];
 
   it('guarda incrementalmente y actualiza los bytes del documento en el store', async () => {
-    // PDF real: desde la auditoría 2026-10-11 el resultado se valida (abre, páginas, sin duplicados)
-    // antes de escribirse, así que un PDF falso ya no basta.
     const originalBytes = new Uint8Array(
       fs.readFileSync(path.resolve(__dirname, '../../fixtures/test-blueprint.pdf'))
     );
@@ -95,5 +93,37 @@ describe('pdfPersistenceService (P3-B.3 y B.4)', () => {
     expect(result.success).toBe(true);
     expect(result.bytes).toBeDefined();
     expect(result.error).toBeUndefined();
+  });
+
+  it('no bloquea el guardado si una marca en memoria no aparece en /Annots del PDF serializado', async () => {
+    const originalBytes = new Uint8Array(
+      fs.readFileSync(path.resolve(__dirname, '../../fixtures/test-blueprint.pdf'))
+    );
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    // Guardar primero m1 de forma normal
+    const saveResult = await savePdfIncremental('C:/documentos/plano.pdf', originalBytes, dummyMarkups);
+    expect(saveResult.success).toBe(true);
+
+    // Validar pasando una marca extra inexistente en /Annots
+    const phantomMarkup: Markup = {
+      id: '00219271-1b29-4b85-9dcd-435b8850565d',
+      type: 'text',
+      pageIndex: 0,
+      points: [{ x: 0.2, y: 0.2 }],
+      style: { strokeColor: '#000000', strokeWidth: 1, opacity: 1 },
+      author: 'Tester',
+      createdAt: '2026-10-26T10:00:00Z',
+      updatedAt: '2026-10-26T10:00:00Z',
+      status: 'pending',
+    };
+
+    await expect(
+      validateSavedPdf(originalBytes, saveResult.bytes!, [...dummyMarkups, phantomMarkup])
+    ).resolves.not.toThrow();
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('00219271-1b29-4b85-9dcd-435b8850565d was not serialized to /Annots')
+    );
   });
 });

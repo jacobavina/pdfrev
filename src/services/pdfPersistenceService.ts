@@ -17,8 +17,8 @@ export interface SavePdfResult {
 
 /**
  * Comprueba el PDF generado antes de escribirlo: los bytes originales siguen intactos como prefijo,
- * abre con pdf-lib, conserva el número de páginas y cada marca del modelo aparece exactamente una vez
- * como anotación de REA (sin duplicados). Lanza error si algo no cuadra.
+ * abre con pdf-lib, conserva el número de páginas y rechaza marcas duplicadas (n > 1).
+ * Las marcas no serializadas (n === 0) emiten advertencia en consola pero jamás abortan el guardado del usuario (ADR-0028).
  */
 export async function validateSavedPdf(
   originalBytes: Uint8Array,
@@ -61,8 +61,8 @@ export async function validateSavedPdf(
     }
     if (n === 0) {
       const foreignNum = m.customFields?.foreignWidgetObjNum;
-      if (typeof foreignNum === "number") continue;
-      throw new Error(`Validation: markup ${m.id} appears 0 times in the saved PDF`);
+      if (typeof foreignNum === 'number') continue;
+      console.warn(`[PDF Validation] Markup ${m.id} was not serialized to /Annots, continuing save...`);
     }
   }
 }
@@ -84,7 +84,7 @@ export async function savePdfIncremental(
     const attachments = useAttachmentStore.getState().files;
     const pageCount = useDocumentStore.getState().numPages || 1;
     const normalizedMarkups = markups.map((m) => {
-      const rawIdx = typeof m.pageIndex === "number" && Number.isFinite(m.pageIndex) ? Math.floor(m.pageIndex) : 0;
+      const rawIdx = typeof m.pageIndex === 'number' && Number.isFinite(m.pageIndex) ? Math.floor(m.pageIndex) : 0;
       const clampedIdx = Math.max(0, Math.min(pageCount - 1, rawIdx));
       return m.pageIndex === clampedIdx ? m : { ...m, pageIndex: clampedIdx };
     });

@@ -123,7 +123,7 @@ export function toPdfName(key: string): string {
  * Debe coincidir con el que asigna `importPdfAnnotations` al leer.
  */
 export function annotationKeyFor(dict: PDFDict, ref?: PDFRef): string | undefined {
-  const nm = dict.get(PDFName.of('NM'));
+  const nm = dict.lookup(PDFName.of('NM'));
   if (nm instanceof PDFString || nm instanceof PDFHexString) {
     const text = nm.decodeText();
     if (text) return text;
@@ -393,11 +393,14 @@ export async function saveIncrementalMarkups(
     const foreignNum = m.customFields?.foreignWidgetObjNum;
     return !signedKeys.has(m.id) && !(typeof foreignNum === 'number' && signedObjNums.has(foreignNum));
   });
+  const uniqueWritableMap = new Map<string, Markup>();
+  for (const m of writable) uniqueWritableMap.set(m.id, m);
+  const deduplicatedWritable = Array.from(uniqueWritableMap.values());
 
   // Capas de marcas como contenido opcional (ADR-0046): un /OCG por capa, que Revu y Acrobat listan en su panel
   // de capas y con el que muestran u ocultan las anotaciones
   const layerOcg = new Map<string, number>();
-  for (const m of writable) {
+  for (const m of deduplicatedWritable) {
     if (m.layer && !layerOcg.has(m.layer)) layerOcg.set(m.layer, writer.allocateObjectNumber());
   }
   for (const [name, num] of layerOcg) {
@@ -405,11 +408,11 @@ export async function saveIncrementalMarkups(
   }
 
   // Ids que el modelo reescribe en este guardado y que el usuario borró desde la importación
-  const replacedIds = new Set<string>([...writable.map((m) => m.id), ...(options.importedIds ?? [])]);
+  const replacedIds = new Set<string>([...deduplicatedWritable.map((m) => m.id), ...(options.importedIds ?? [])]);
 
   // Agrupar marcas por índice de página válido (0 <= pageIndex < pages.length)
   const markupsByPage = new Map<number, Markup[]>();
-  for (const m of writable) {
+  for (const m of deduplicatedWritable) {
     const rawIdx = typeof m.pageIndex === 'number' && Number.isFinite(m.pageIndex) ? Math.floor(m.pageIndex) : 0;
     const clampedIdx = Math.max(0, Math.min(pages.length - 1, rawIdx));
     const list = markupsByPage.get(clampedIdx) || [];
@@ -421,7 +424,7 @@ export async function saveIncrementalMarkups(
   const newFieldRefs: string[] = [];
   const foreignParentsToUpdate = new Map<number, { ft: FieldType; value: string }>();
   const radioGroups = new Map<string, { objNum: number; kids: string[]; value: string | null }>();
-  for (const m of writable) {
+  for (const m of deduplicatedWritable) {
     if (m.type === 'formField' && fieldTypeOf(m) === 'radio' && typeof m.customFields?.foreignParentObjNum !== 'number') {
       const group = String(m.customFields?.fieldName ?? 'Group1');
       if (!radioGroups.has(group)) radioGroups.set(group, { objNum: writer.allocateObjectNumber(), kids: [], value: null });
@@ -476,7 +479,8 @@ export async function saveIncrementalMarkups(
       const rt = it.dict.get(PDFName.of('RT'));
       if (irt instanceof PDFRef && rt?.toString() !== '/Group') continue;
       if (it.dict.get(PDFName.of('Subtype'))?.toString() === '/Popup') continue;
-      const isRea = it.dict.get(PDFName.of('REA')) instanceof PDFDict;
+      const reaVal = it.dict.lookup(PDFName.of('REA'));
+      const isRea = reaVal instanceof PDFDict;
       const key = annotationKeyFor(it.dict, it.ref);
       if (isRea || (key !== undefined && replacedIds.has(key))) {
         it.drop = true;
@@ -1050,7 +1054,19 @@ ${markup.layer && layerOcg.has(markup.layer) ? `  /OC ${layerOcg.get(markup.laye
       });
 
       // Actualizar el nodo de la página en pdf-lib y obtener su serialización
-      const newAnnotsArray = pdfDoc.context.obj([...keptObjects, ...newRefs]);
+      const annotRefsSet = new Set<number>();
+      const combinedRefs: PDFObject[] = [];
+      for (const item of [...keptObjects, ...newRefs]) {
+        if (item instanceof PDFRef) {
+          if (!annotRefsSet.has(item.objectNumber)) {
+            annotRefsSet.add(item.objectNumber);
+            combinedRefs.push(item);
+          }
+        } else {
+          combinedRefs.push(item);
+        }
+      }
+      const newAnnotsArray = pdfDoc.context.obj(combinedRefs);
       page.node.set(PDFName.of('Annots'), newAnnotsArray);
 
       // Escribir el diccionario actualizado de la página

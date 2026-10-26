@@ -203,11 +203,15 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
       const command: Command = {
         description: desc,
         execute: () => {
-          set((state) => ({
-            markups: [...state.markups, ...normalizedMarkups],
-            selectedMarkupIds: ids,
-            isDirty: true,
-          }));
+          set((state) => {
+            const incomingIds = new Set(normalizedMarkups.map((m) => m.id));
+            const existingWithoutIncoming = state.markups.filter((m) => !incomingIds.has(m.id));
+            return {
+              markups: [...existingWithoutIncoming, ...normalizedMarkups],
+              selectedMarkupIds: ids,
+              isDirty: true,
+            };
+          });
         },
         undo: () => {
           set((state) => ({

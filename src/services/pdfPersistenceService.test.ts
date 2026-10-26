@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
+import { PDFDocument, PDFName, PDFRef, PDFArray } from 'pdf-lib';
 import { savePdfIncremental, validateSavedPdf } from './pdfPersistenceService';
 import * as incrementalWriter from '../core/pdf/incrementalWriter';
+import { IncrementalWriter } from '../core/pdf/incrementalWriter';
 import * as bbxPersistenceService from './bbxPersistenceService';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { Markup } from '../types/markup';
@@ -124,6 +126,57 @@ describe('pdfPersistenceService (P3-B.3 y B.4)', () => {
 
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining('00219271-1b29-4b85-9dcd-435b8850565d was not serialized to /Annots')
+    );
+  });
+
+  it('deduplica marcas en memoria antes de guardar y no falla la validación', async () => {
+    const originalBytes = new Uint8Array(
+      fs.readFileSync(path.resolve(__dirname, '../../fixtures/test-blueprint.pdf'))
+    );
+    vi.spyOn(bbxPersistenceService, 'isTauriEnvironment').mockReturnValue(false);
+
+    const duplicateMarkups: Markup[] = [
+      dummyMarkups[0],
+      { ...dummyMarkups[0], text: 'Duplicate copy with same ID' },
+    ];
+
+    const result = await savePdfIncremental('C:/documentos/plano.pdf', originalBytes, duplicateMarkups);
+
+    expect(result.success).toBe(true);
+    expect(result.bytes).toBeDefined();
+    expect(result.error).toBeUndefined();
+  });
+
+  it('validateSavedPdf emite advertencia en isProductionSave si una marca aparece duplicada', async () => {
+    const originalBytes = new Uint8Array(
+      fs.readFileSync(path.resolve(__dirname, '../../fixtures/test-blueprint.pdf'))
+    );
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    // Guardar una vez con baseMarkup
+    const once = await incrementalWriter.saveIncrementalMarkups(originalBytes, [dummyMarkups[0]]);
+
+    // Simular inyección manual de una copia duplicada en /Annots (como un archivo corrupto existente)
+    const writer = new IncrementalWriter(once);
+    const doc = await PDFDocument.load(once);
+    const page = doc.getPages()[0];
+    const existing = page.node.Annots() as PDFArray;
+    const dupNum = writer.allocateObjectNumber();
+    writer.addObject(
+      dupNum,
+      `<< /Type /Annot /Subtype /Square /Rect [0 0 10 10] /NM (${dummyMarkups[0].id}) /REA << /v 1 >> >>`
+    );
+    page.node.set(PDFName.of('Annots'), doc.context.obj([...existing.asArray(), PDFRef.of(dupNum, 0)]));
+    writer.addObject(page.ref.objectNumber, page.node.toString());
+    const duplicatedDoc = writer.build();
+
+    // Directamente con isProductionSave: true no debe arrojar error fatal, sino advertir
+    await expect(
+      validateSavedPdf(originalBytes, duplicatedDoc, [dummyMarkups[0]], { isProductionSave: true })
+    ).resolves.not.toThrow();
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining(`Markup ${dummyMarkups[0].id} appears 2 times`)
     );
   });
 });

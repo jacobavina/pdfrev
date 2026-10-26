@@ -42,6 +42,40 @@ export async function validateSavedPdf(
   if (orig.getPageCount() !== saved.getPageCount()) {
     throw new Error('Validation: the page count changed while saving');
   }
+  // Verificación de integridad de contenido (ADR-0046, ISO 32000-1):
+  // Asegurar que ningún flujo de contenido (/Contents) de las páginas originales fue sobrescrito
+  // por Form XObjects o diccionarios de anotaciones.
+  for (let p = 0; p < orig.getPageCount(); p++) {
+    const origContents = orig.getPage(p).node.Contents();
+    if (!origContents) continue;
+    const contentRefs: PDFRef[] = [];
+    if (origContents instanceof PDFRef) {
+      contentRefs.push(origContents);
+    } else if (origContents instanceof PDFArray) {
+      for (let c = 0; c < origContents.size(); c++) {
+        const item = origContents.get(c);
+        if (item instanceof PDFRef) contentRefs.push(item);
+      }
+    }
+    for (const ref of contentRefs) {
+      const savedObj = saved.context.lookup(ref);
+      const dict =
+        savedObj instanceof PDFDict
+          ? savedObj
+          : (savedObj as any)?.dict instanceof PDFDict
+            ? (savedObj as any).dict
+            : undefined;
+      if (dict) {
+        const type = dict.get(PDFName.of('Type'))?.toString();
+        const subtype = dict.get(PDFName.of('Subtype'))?.toString();
+        if (type === '/Annot' || subtype === '/Form') {
+          throw new Error(
+            `Validation: page ${p + 1} content stream object ${ref.objectNumber} was overwritten by an annotation or Form XObject`
+          );
+        }
+      }
+    }
+  }
   const seen = new Map<string, number>();
   for (const page of saved.getPages()) {
     const annots = page.node.Annots();

@@ -1,7 +1,7 @@
 {
   "name": "pdfrev",
   "private": true,
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Local-first, fearless PDF reader, editor and takeoff tool for Windows",
   "type": "module",
   "scripts": {

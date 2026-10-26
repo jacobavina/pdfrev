@@ -386,5 +386,53 @@ describe('Incremental Writer (P3-B.1 / ISO 32000-1 §7.5.6)', () => {
       const duplicated = writer.build();
       await expect(validateSavedPdf(originalBytes, duplicated, [baseMarkup])).rejects.toThrow(/2 times/);
     });
+
+    it('no colisiona con números de objetos existentes en PDFs linearizados con trailer parcial', async () => {
+      const synthetic = `%PDF-1.5
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /Contents 100 0 R >>
+endobj
+100 0 obj
+<< /Length 10 >>
+stream
+1 2 3 4 5 6 7 8 9 0
+endstream
+endobj
+107 0 obj
+<< /Type /XObject >>
+endobj
+xref
+0 1
+0000000000 65535 f 
+trailer
+<< /Size 51 /Root 1 0 R >>
+startxref
+120
+%%EOF
+`;
+      const syntheticBytes = new TextEncoder().encode(synthetic);
+      const writer = new IncrementalWriter(syntheticBytes);
+      const allocated = writer.allocateObjectNumber();
+      expect(allocated).toBeGreaterThanOrEqual(108);
+    });
+
+    it('la validación detecta si un flujo /Contents fue sobrescrito', async () => {
+      const pDoc = await PDFDocument.load(originalBytes);
+      const c = pDoc.getPages()[0].node.Contents();
+      const cRef = c instanceof PDFRef ? c : (c as PDFArray).get(0) as PDFRef;
+      expect(cRef).toBeInstanceOf(PDFRef);
+
+      const writer = new IncrementalWriter(originalBytes);
+      writer.addObject(cRef.objectNumber, '<< /Type /Annot /Subtype /Square /Rect [0 0 10 10] >>');
+      const corrupted = writer.build();
+
+      await expect(validateSavedPdf(originalBytes, corrupted, [])).rejects.toThrow(/content stream object/);
+    });
   });
 });

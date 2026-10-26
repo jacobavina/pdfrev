@@ -234,11 +234,66 @@ export class IncrementalWriter {
       this.prevSize = sizeMatch ? parseInt(sizeMatch[1], 10) : 20;
 
       const rootMatch = tail.match(/\/Root\s+(\d+\s+\d+\s+R)/);
-      this.rootRef = rootMatch ? rootMatch[1] : '1 0 R';
-      this.infoRef = null;
+      this.rootRef = rootMatch ? rootMatch[1] : null;
+      const infoMatch = tail.match(/\/Info\s+(\d+\s+\d+\s+R)/);
+      this.infoRef = infoMatch ? infoMatch[1] : null;
     }
 
-    this.nextObjNum = this.prevSize;
+    // Escaneo preventivo en el archivo completo para encontrar el número de objeto más alto existente
+    // y el mayor /Size declarado en cualquier trailer o XRef stream.
+    // Esto es crítico en PDFs linearizados (Fast Web View) o con múltiples secciones XRef,
+    // donde el trailer o XRef stream final antes de %%EOF puede cubrir solo un subconjunto de objetos.
+    let maxObjNum = 0;
+    const objDefRe = /(\d+)\s+\d+\s+obj/g;
+    let match: RegExpExecArray | null;
+    while ((match = objDefRe.exec(raw)) !== null) {
+      const n = parseInt(match[1], 10);
+      if (n > maxObjNum) maxObjNum = n;
+    }
+
+    let maxSize = 0;
+    const sizeRe = /\/Size\s+(\d+)/g;
+    while ((match = sizeRe.exec(raw)) !== null) {
+      const s = parseInt(match[1], 10);
+      if (s > maxSize) maxSize = s;
+    }
+
+    if (!this.rootRef) {
+      const allRoots = [...raw.matchAll(/\/Root\s+(\d+\s+\d+\s+R)/g)];
+      if (allRoots.length > 0) {
+        this.rootRef = allRoots[allRoots.length - 1][1];
+      }
+    }
+    if (!this.infoRef) {
+      const allInfos = [...raw.matchAll(/\/Info\s+(\d+\s+\d+\s+R)/g)];
+      if (allInfos.length > 0) {
+        this.infoRef = allInfos[allInfos.length - 1][1];
+      }
+    }
+
+    this.nextObjNum = Math.max(this.prevSize, maxObjNum + 1, maxSize);
+  }
+
+  public ensureNextObjectNumber(minNext: number): void {
+    if (Number.isFinite(minNext) && minNext > this.nextObjNum) {
+      this.nextObjNum = minNext;
+    }
+  }
+
+  public getRootRef(): string | null {
+    return this.rootRef;
+  }
+
+  public setRootRef(root: string): void {
+    if (root) this.rootRef = root;
+  }
+
+  public getInfoRef(): string | null {
+    return this.infoRef;
+  }
+
+  public setInfoRef(info: string): void {
+    if (info) this.infoRef = info;
   }
 
   public allocateObjectNumber(): number {
@@ -372,6 +427,28 @@ export async function saveIncrementalMarkups(
   // Cargar el documento original con pdf-lib para inspeccionar estructura de páginas y /Annots
   const pdfDoc = await PDFDocument.load(originalBytes);
   const pages = pdfDoc.getPages();
+
+  // Garantizar que la asignación de números de objeto en IncrementalWriter comience
+  // estrictamente DESPUÉS del mayor objeto conocido por pdf-lib (ADR-0046, ISO 32000-1 §7.5.6)
+  if (typeof pdfDoc.context.largestObjectNumber === 'number') {
+    writer.ensureNextObjectNumber(pdfDoc.context.largestObjectNumber + 1);
+  }
+
+  // Asegurar que Root e Info apuntan a los objetos canónicos del catálogo y metadatos
+  const trailerInfo = (pdfDoc.context as unknown as { trailerInfo?: { Root?: PDFRef; Info?: PDFRef } }).trailerInfo;
+  if (trailerInfo?.Root instanceof PDFRef) {
+    writer.setRootRef(`${trailerInfo.Root.objectNumber} ${trailerInfo.Root.generationNumber} R`);
+  } else if (!writer.getRootRef()) {
+    for (const [ref, obj] of pdfDoc.context.enumerateIndirectObjects()) {
+      if (obj === pdfDoc.catalog) {
+        writer.setRootRef(`${ref.objectNumber} ${ref.generationNumber} R`);
+        break;
+      }
+    }
+  }
+  if (trailerInfo?.Info instanceof PDFRef) {
+    writer.setInfoRef(`${trailerInfo.Info.objectNumber} ${trailerInfo.Info.generationNumber} R`);
+  }
 
   // Campos de firma ya firmados (ADR-0058): se conservan tal cual, con su objeto original, aunque su marca siga en el
   // modelo. La marca está bloqueada: sus cambios de geometría o estilo no se escriben.

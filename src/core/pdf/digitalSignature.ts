@@ -981,6 +981,9 @@ export async function signPdfWithCertificate(
   // Paso 2: Añadir revisión incremental con el diccionario /Type /Sig, /V en el widget y /SigFlags 3 en /AcroForm
   const writer = new IncrementalWriter(baseBytes);
   const pdfDoc = await PDFDocument.load(baseBytes);
+  if (typeof pdfDoc.context.largestObjectNumber === 'number') {
+    writer.ensureNextObjectNumber(pdfDoc.context.largestObjectNumber + 1);
+  }
   const pages = pdfDoc.getPages();
   const page = pages[updatedMarkup.pageIndex];
   if (!page) {

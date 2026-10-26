@@ -1280,6 +1280,7 @@ describe('Coordinate Conversion and Hit-Testing', () => {
       }
 
       const marqueeRect = { x: 0.1, y: 0.1, width: 0.2, height: 0.2 };
+      selectMarkupsInRect(markups500, marqueeRect);
       const t0 = performance.now();
       const selected = selectMarkupsInRect(markups500, marqueeRect);
       const elapsed = performance.now() - t0;

@@ -194,6 +194,7 @@ describe('Escala tipográfica y contraste de la interfaz (ADR-0062)', () => {
       [path.join('src', 'components', 'PdfViewer.tsx')]: ['shadow-float'],
       [path.join('src', 'components', 'viewer', 'OverlayBar.tsx')]: ['shadow-float'],
       [path.join('src', 'components', 'viewer', 'CalibrateHint.tsx')]: ['shadow-float'],
+      [path.join('src', 'components', 'viewer', 'markupHoverTooltip.tsx')]: ['shadow-float'],
     };
     const floatUtil = () => /(?<![\w-])shadow-[\w\[\]()\/.,:%\-]+/g;
     // El detector caza una sombra decorativa en una tarjeta y deja pasar la clase propia de la hoja

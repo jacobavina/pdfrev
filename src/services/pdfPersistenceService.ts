@@ -56,8 +56,13 @@ export async function validateSavedPdf(
   }
   for (const m of markups) {
     const n = seen.get(m.id) ?? 0;
-    if (n !== 1) {
+    if (n > 1) {
       throw new Error(`Validation: markup ${m.id} appears ${n} times in the saved PDF`);
+    }
+    if (n === 0) {
+      const foreignNum = m.customFields?.foreignWidgetObjNum;
+      if (typeof foreignNum === "number") continue;
+      throw new Error(`Validation: markup ${m.id} appears 0 times in the saved PDF`);
     }
   }
 }
@@ -77,7 +82,13 @@ export async function savePdfIncremental(
     const calibrations = useCalibrationStore.getState().changedCalibrations();
     const viewports = useCalibrationStore.getState().changedViewports();
     const attachments = useAttachmentStore.getState().files;
-    const updatedBytes = await executeIncrementalSave(originalBytes, markups, {}, {
+    const pageCount = useDocumentStore.getState().numPages || 1;
+    const normalizedMarkups = markups.map((m) => {
+      const rawIdx = typeof m.pageIndex === "number" && Number.isFinite(m.pageIndex) ? Math.floor(m.pageIndex) : 0;
+      const clampedIdx = Math.max(0, Math.min(pageCount - 1, rawIdx));
+      return m.pageIndex === clampedIdx ? m : { ...m, pageIndex: clampedIdx };
+    });
+    const updatedBytes = await executeIncrementalSave(originalBytes, normalizedMarkups, {}, {
       importedIds,
       calibrations,
       viewports,
@@ -86,7 +97,7 @@ export async function savePdfIncremental(
     });
 
     // Validación ANTES de escribir en disco: si falla, el archivo del usuario no se toca
-    await validateSavedPdf(originalBytes, updatedBytes, markups);
+    await validateSavedPdf(originalBytes, updatedBytes, normalizedMarkups);
 
     if (isTauriEnvironment()) {
       const { invoke } = await import('@tauri-apps/api/core');

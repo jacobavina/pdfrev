@@ -191,16 +191,20 @@ export const useMarkupStore = create<MarkupState>((set, get) => {
 
     addMarkups: (newMarkups: Markup[], description?: string) => {
       if (newMarkups.length === 0) return;
-      const ids = newMarkups.map((m) => m.id);
+      const normalizedMarkups = newMarkups.map((m) => {
+        if (typeof m.pageIndex === "number" && Number.isFinite(m.pageIndex) && m.pageIndex >= 0) return m;
+        return { ...m, pageIndex: 0 };
+      });
+      const ids = normalizedMarkups.map((m) => m.id);
       const desc =
         description ||
-        (newMarkups.length === 1 ? `Add ${newMarkups[0].type}` : `Create ${newMarkups.length} markups`);
+        (normalizedMarkups.length === 1 ? `Add ${normalizedMarkups[0].type}` : `Create ${normalizedMarkups.length} markups`);
 
       const command: Command = {
         description: desc,
         execute: () => {
           set((state) => ({
-            markups: [...state.markups, ...newMarkups],
+            markups: [...state.markups, ...normalizedMarkups],
             selectedMarkupIds: ids,
             isDirty: true,
           }));

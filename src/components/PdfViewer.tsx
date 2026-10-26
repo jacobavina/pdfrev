@@ -87,6 +87,7 @@ import { executeSnapshot } from '../services/snapshotService';
 import { ORTHO_TOOLS, SQUARE_TOOLS, orthoConstrain, squareConstrain } from '../core/markup/ortho';
 import { stampById } from '../core/markup/stamps';
 import { sequenceBoxPt, clampSequenceScale } from '../core/markup/sequences';
+import { MarkupHoverTooltip, MarkupHoverInfo, getMarkupHoverContent } from './viewer/markupHoverTooltip';
 import { dynamicFillArea } from '../services/dynamicFillService';
 import { redactionMarkup } from '../core/markup/redaction';
 import { stampTexts, stampDefaultSize } from '../core/markup/stampArt';
@@ -404,6 +405,8 @@ export const PdfViewer: React.FC = () => {
   } | null>(null);
   // Control de zoom del doble clic (ADR-0021): posición en pantalla
   const [zoomWidget, setZoomWidget] = useState<{ x: number; y: number } | null>(null);
+  // Nube de información al pasar el mouse sobre una marca (ADR-0136 / URGE)
+  const [hoverTooltip, setHoverTooltip] = useState<MarkupHoverInfo | null>(null);
   // Hipervínculo en creación (caja ya dibujada, falta el destino) y enlaces propios del PDF en la página activa
   const [linkDraft, setLinkDraft] = useState<MarkupPoint[] | null>(null);
   const [pdfLinks, setPdfLinks] = useState<PdfLinkArea[]>([]);
@@ -1833,6 +1836,7 @@ export const PdfViewer: React.FC = () => {
 
   // Inicio de interacción con el ratón
   const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
+    setHoverTooltip(null);
     // Pan (ADR-0052): arrastrar con la herramienta Pan o con el botón central desplaza el plano, como en Revu
     if (e.button === 1 || (e.button === 0 && activeTool === 'pan')) {
       startPan(e);
@@ -2220,6 +2224,40 @@ export const PdfViewer: React.FC = () => {
 
     if (drawingStart) {
       setCurrentDrawPoint(pt);
+    }
+
+    // Nube flotante de información CAD sobre la marca al posar el mouse (ADR-0136 / URGE)
+    const isInteracting = Boolean(
+      dragStateRef.current ||
+      vertexDragRef.current ||
+      anchorDragRef.current ||
+      marqueeStateRef.current ||
+      drawingStart ||
+      freehandPoints.length > 0 ||
+      polygonPoints.length > 0 ||
+      lassoRef.current ||
+      panning ||
+      inlineEditing
+    );
+
+    if (isInteracting) {
+      if (hoverTooltip) setHoverTooltip(null);
+    } else {
+      const pageDims = {
+        width: pageViewport.width / (scale || 1.0),
+        height: pageViewport.height / (scale || 1.0),
+      };
+      const hit = pageSpatialIndex.hitTest(pt, 0.015, pageDims);
+      if (hit) {
+        setHoverTooltip({
+          author: hit.author?.trim() || 'Reviewer',
+          content: getMarkupHoverContent(hit),
+          x: e.clientX,
+          y: e.clientY,
+        });
+      } else if (hoverTooltip) {
+        setHoverTooltip(null);
+      }
     }
   };
 
@@ -3555,6 +3593,7 @@ export const PdfViewer: React.FC = () => {
               setCursorPt(null);
               setSnapIndicator(null);
               finishLasso();
+              setHoverTooltip(null);
             }}
             onContextMenu={handleContextMenu}
             onDoubleClick={handleDoubleClick}
@@ -4751,6 +4790,8 @@ export const PdfViewer: React.FC = () => {
           />
         </React.Suspense>
       )}
+
+      {hoverTooltip && <MarkupHoverTooltip info={hoverTooltip} />}
     </div>
   );
 };

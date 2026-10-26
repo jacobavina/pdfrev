@@ -407,12 +407,14 @@ export async function saveIncrementalMarkups(
   // Ids que el modelo reescribe en este guardado y que el usuario borró desde la importación
   const replacedIds = new Set<string>([...writable.map((m) => m.id), ...(options.importedIds ?? [])]);
 
-  // Agrupar marcas por índice de página
+  // Agrupar marcas por índice de página válido (0 <= pageIndex < pages.length)
   const markupsByPage = new Map<number, Markup[]>();
   for (const m of writable) {
-    const list = markupsByPage.get(m.pageIndex) || [];
-    list.push(m);
-    markupsByPage.set(m.pageIndex, list);
+    const rawIdx = typeof m.pageIndex === 'number' && Number.isFinite(m.pageIndex) ? Math.floor(m.pageIndex) : 0;
+    const clampedIdx = Math.max(0, Math.min(pages.length - 1, rawIdx));
+    const list = markupsByPage.get(clampedIdx) || [];
+    list.push(m.pageIndex === clampedIdx ? m : { ...m, pageIndex: clampedIdx });
+    markupsByPage.set(clampedIdx, list);
   }
 
   // Formularios (ADR-0027 / ADR-0055): campos de primer nivel, grupos de botones de opción y padres /Parent ajenos

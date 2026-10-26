@@ -19,7 +19,7 @@
     "make-large-fixtures": "tsx scripts/make-large-fixtures.ts"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2.2.0",
+    "@tauri-apps/api": "^2.12.4",
     "@tauri-apps/plugin-dialog": "^2.2.0",
     "@tauri-apps/plugin-fs": "^2.2.0",
     "exceljs": "^4.4.0",

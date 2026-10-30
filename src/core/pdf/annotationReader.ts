@@ -20,7 +20,7 @@ import {
   MarkupType,
   LineEndingStyle,
 } from '../../types/markup';
-import { pdfToNormalizedCoordinates, PageTransformInfo } from './operators';
+import { getPageTransformFromPdfLib, pdfToNormalizedCoordinates } from './operators';
 import { calibrationFromMeasure, readPageCalibration } from './pdfScale';
 import {
   DEFAULT_PAGE_CALIBRATION,
@@ -123,27 +123,221 @@ function resolveRootParentId(dict: PDFDict, pdfDoc: PDFDocument): string {
   return curRef ? annotationIdFor(curDict, curRef, '') : '';
 }
 
+function rgb01ToHex(r01: number, g01: number, b01: number): string {
+  const clamp = (v: number) => Math.round(Math.max(0, Math.min(1, v)) * 255);
+  const toHex = (n: number) => n.toString(16).padStart(2, '0');
+  return `#${toHex(clamp(r01))}${toHex(clamp(g01))}${toHex(clamp(b01))}`;
+}
+
 /**
- * Convierte un array de números [r, g, b] a formato CSS hexadecimal #rrggbb.
+ * Convierte un array de color PDF (DeviceGray [g], DeviceRGB [r, g, b] o DeviceCMYK [c, m, y, k]) a #rrggbb.
  */
 function pdfColorArrayToHex(arr: unknown): string | undefined {
-  if (arr instanceof PDFArray && arr.size() >= 3) {
-    const rNum = arr.get(0);
-    const gNum = arr.get(1);
-    const bNum = arr.get(2);
-    if (
-      rNum instanceof PDFNumber &&
-      gNum instanceof PDFNumber &&
-      bNum instanceof PDFNumber
-    ) {
-      const r = Math.round(Math.max(0, Math.min(1, rNum.asNumber())) * 255);
-      const g = Math.round(Math.max(0, Math.min(1, gNum.asNumber())) * 255);
-      const b = Math.round(Math.max(0, Math.min(1, bNum.asNumber())) * 255);
-      const toHex = (n: number) => n.toString(16).padStart(2, '0');
-      return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-    }
+  if (!(arr instanceof PDFArray)) return undefined;
+  const nums: number[] = [];
+  for (let i = 0; i < arr.size(); i++) {
+    const v = arr.get(i);
+    if (!(v instanceof PDFNumber) || !Number.isFinite(v.asNumber())) return undefined;
+    nums.push(v.asNumber());
+  }
+  if (nums.length === 1) {
+    return rgb01ToHex(nums[0], nums[0], nums[0]);
+  }
+  if (nums.length === 3) {
+    return rgb01ToHex(nums[0], nums[1], nums[2]);
+  }
+  if (nums.length === 4) {
+    const [c, m, y, k] = nums.map((v) => Math.max(0, Math.min(1, v)));
+    return rgb01ToHex((1 - c) * (1 - k), (1 - m) * (1 - k), (1 - y) * (1 - k));
   }
   return undefined;
+}
+
+function isCloudyAnnotation(annotDict: PDFDict, intent: string): boolean {
+  if (intent === 'PolygonCloud') return true;
+  const beObj = annotDict.lookup(PDFName.of('BE'));
+  if (beObj instanceof PDFDict) {
+    const sObj = beObj.get(PDFName.of('S'));
+    if (sObj instanceof PDFName && sObj.asString() === '/C') return true;
+  }
+  return false;
+}
+
+function decodePdfStreamText(raw: string): string {
+  return raw
+    .replace(/\\([nrtbf()\\])/g, (_, ch: string) => {
+      if (ch === 'n') return '\n';
+      if (ch === 'r') return '\r';
+      if (ch === 't') return '\t';
+      return ch;
+    })
+    .replace(/\\([0-7]{1,3})/g, (_, oct: string) => String.fromCharCode(parseInt(oct, 8)));
+}
+
+function extractForeignStampApInfo(annotDict: PDFDict): { texts: string[]; color?: string; hasStream: boolean } {
+  const texts: string[] = [];
+  let color: string | undefined;
+  let fallbackColor: string | undefined;
+  let hasStream = false;
+  try {
+    const apDict = annotDict.lookup(PDFName.of('AP'));
+    const nObj = apDict instanceof PDFDict ? apDict.lookup(PDFName.of('N')) : null;
+    const streams: PDFRawStream[] = [];
+    if (nObj instanceof PDFRawStream) {
+      streams.push(nObj);
+    } else if (nObj instanceof PDFDict) {
+      for (const [, val] of nObj.entries()) {
+        const resolved = annotDict.context.lookup(val);
+        if (resolved instanceof PDFRawStream) streams.push(resolved);
+      }
+    }
+    for (let sIdx = 0; sIdx < streams.length; sIdx++) {
+      const st = streams[sIdx];
+      hasStream = true;
+      const res = st.dict.lookup(PDFName.of('Resources'));
+      const xobj = res instanceof PDFDict ? res.lookup(PDFName.of('XObject')) : null;
+      if (xobj instanceof PDFDict && streams.length < 6) {
+        for (const [, subRef] of xobj.entries()) {
+          const sub = annotDict.context.lookup(subRef);
+          if (sub instanceof PDFRawStream && sub.dict.get(PDFName.of('Subtype'))?.toString() !== '/Image') {
+            streams.push(sub);
+          }
+        }
+      }
+      const ops = new TextDecoder('latin1').decode(decodePDFRawStream(st).decode());
+      const tjRe = /\(((?:\\.|[^\\()])*)\)\s*Tj\b/g;
+      let m: RegExpExecArray | null;
+      while ((m = tjRe.exec(ops)) !== null) {
+        const t = decodePdfStreamText(m[1]).trim();
+        if (t && !texts.includes(t)) texts.push(t);
+      }
+      const tjArrRe = /\[((?:[^\]]|\n)*?)\]\s*TJ\b/g;
+      while ((m = tjArrRe.exec(ops)) !== null) {
+        const inner = m[1];
+        const parts: string[] = [];
+        const partRe = /\(((?:\\.|[^\\()])*)\)/g;
+        let pm: RegExpExecArray | null;
+        while ((pm = partRe.exec(inner)) !== null) {
+          parts.push(decodePdfStreamText(pm[1]));
+        }
+        const joined = parts.join('').trim();
+        if (joined && !texts.includes(joined)) texts.push(joined);
+      }
+      const rgbRe = /(?:^|\s)(0(?:\.\d+)?|1(?:\.0+)?|\.\d+)\s+(0(?:\.\d+)?|1(?:\.0+)?|\.\d+)\s+(0(?:\.\d+)?|1(?:\.0+)?|\.\d+)\s+(?:RG|rg)\b/gm;
+      while ((m = rgbRe.exec(ops)) !== null) {
+        const r = Number(m[1]);
+        const g = Number(m[2]);
+        const b = Number(m[3]);
+        const isWhite = r > 0.94 && g > 0.94 && b > 0.94;
+        const isBlack = r < 0.08 && g < 0.08 && b < 0.08;
+        if (!isWhite && !isBlack && !color) color = rgb01ToHex(r, g, b);
+        else if (!isWhite && !fallbackColor) fallbackColor = rgb01ToHex(r, g, b);
+      }
+      const cmykRe = /(?:^|\s)(0(?:\.\d+)?|1(?:\.0+)?|\.\d+)\s+(0(?:\.\d+)?|1(?:\.0+)?|\.\d+)\s+(0(?:\.\d+)?|1(?:\.0+)?|\.\d+)\s+(0(?:\.\d+)?|1(?:\.0+)?|\.\d+)\s+(?:K|k)\b/gm;
+      while ((m = cmykRe.exec(ops)) !== null) {
+        const ck = Math.max(0, Math.min(1, Number(m[1])));
+        const my = Math.max(0, Math.min(1, Number(m[2])));
+        const yk = Math.max(0, Math.min(1, Number(m[3])));
+        const kk = Math.max(0, Math.min(1, Number(m[4])));
+        const hex = rgb01ToHex((1 - ck) * (1 - kk), (1 - my) * (1 - kk), (1 - yk) * (1 - kk));
+        if (!color) color = hex;
+      }
+      const grayRe = /(?:^|\s)(0(?:\.\d+)?|1(?:\.0+)?|\.\d+)\s+(?:G|g)\b/gm;
+      while ((m = grayRe.exec(ops)) !== null) {
+        const gr = Number(m[1]);
+        if (gr > 0.08 && gr < 0.94 && !color) color = rgb01ToHex(gr, gr, gr);
+      }
+    }
+  } catch {
+    // Si un stream externo usa un filtro no estándar, degradar limpiamente a metadatos del diccionario
+  }
+  return { texts, color: color ?? fallbackColor, hasStream };
+}
+
+function humanizePdfStampName(rawName: string): string {
+  const cleaned = rawName
+    .replace(/^[#/]+/, '')
+    .replace(/^(SB|SH|Revu|FX|Std|Dyn)/i, '')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .trim();
+  return cleaned || 'STAMP';
+}
+
+function parsePdfTextAppearance(daStr: string, dsStr: string): {
+  fontSize?: number;
+  fontFamily?: string;
+  textColor?: string;
+  bold?: boolean;
+  italic?: boolean;
+  align?: 'left' | 'center' | 'right';
+} {
+  const out: {
+    fontSize?: number;
+    fontFamily?: string;
+    textColor?: string;
+    bold?: boolean;
+    italic?: boolean;
+    align?: 'left' | 'center' | 'right';
+  } = {};
+
+  const tfMatch = /(?:\s|^)\/([^\s/]+)\s+([\d.]+)\s+Tf\b/.exec(daStr) ?? /([\d.]+)\s+Tf\b/.exec(daStr);
+  let fontToken = '';
+  if (tfMatch) {
+    if (tfMatch.length >= 3) {
+      fontToken = tfMatch[1];
+      const sz = Number(tfMatch[2]);
+      if (sz > 0) out.fontSize = sz;
+    } else {
+      const sz = Number(tfMatch[1]);
+      if (sz > 0) out.fontSize = sz;
+    }
+  }
+  if (!out.fontSize && dsStr) {
+    const dsSize = /font-size\s*:\s*([\d.]+)/i.exec(dsStr) ?? /font\s*:[^;]*?\b([\d.]+)\s*pt\b/i.exec(dsStr);
+    if (dsSize && Number(dsSize[1]) > 0) out.fontSize = Number(dsSize[1]);
+  }
+
+  const dsFont = /font-family\s*:\s*([^;]+)/i.exec(dsStr)?.[1] ?? /font\s*:([^;]+)/i.exec(dsStr)?.[1] ?? '';
+  const combinedFont = `${fontToken} ${dsFont}`.toLowerCase();
+  if (combinedFont.trim()) {
+    if (/cour|mono|consolas/.test(combinedFont)) out.fontFamily = 'Courier';
+    else if (/tiro|times|serif|georgia/.test(combinedFont)) out.fontFamily = 'Times';
+    else if (/helv|arial|sans|hebo|heob/.test(combinedFont)) out.fontFamily = 'Helvetica';
+  }
+  if (/bold|bo\b|-bd/i.test(fontToken) || /font-weight\s*:\s*(?:bold|[6-9]00)/i.test(dsStr) || /font\s*:[^;]*\bbold\b/i.test(dsStr)) {
+    out.bold = true;
+  }
+  if (
+    /italic|oblique|it\b|ob\b/i.test(fontToken) ||
+    /font-style\s*:\s*(?:italic|oblique)/i.test(dsStr) ||
+    /font\s*:[^;]*\b(?:italic|oblique)\b/i.test(dsStr)
+  ) {
+    out.italic = true;
+  }
+
+  const rgbMatch = /(?:^|\s)([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+(?:rg|RG)\b/.exec(daStr);
+  const cmykMatch = /(?:^|\s)([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+(?:k|K)\b/.exec(daStr);
+  const grayMatch = /(?:^|\s)([\d.]+)\s+(?:g|G)\b/.exec(daStr);
+  if (rgbMatch) {
+    out.textColor = rgb01ToHex(Number(rgbMatch[1]), Number(rgbMatch[2]), Number(rgbMatch[3]));
+  } else if (cmykMatch) {
+    const [c, m, y, k] = [1, 2, 3, 4].map((i) => Math.max(0, Math.min(1, Number(cmykMatch[i]))));
+    out.textColor = rgb01ToHex((1 - c) * (1 - k), (1 - m) * (1 - k), (1 - y) * (1 - k));
+  } else if (grayMatch) {
+    const g = Number(grayMatch[1]);
+    out.textColor = rgb01ToHex(g, g, g);
+  } else if (dsStr) {
+    const dsColor = /(?:^|;|\s)color\s*:\s*(#[0-9a-fA-F]{3,6}|rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\))/i.exec(dsStr);
+    if (dsColor) out.textColor = dsColor[1];
+  }
+
+  if (dsStr) {
+    const dsAlign = /text-align\s*:\s*(left|center|right)/i.exec(dsStr);
+    if (dsAlign) out.align = dsAlign[1].toLowerCase() as 'left' | 'center' | 'right';
+  }
+
+  return out;
 }
 
 /**
@@ -172,13 +366,7 @@ export async function importPdfAnnotations(
     const annotsObj = page.node.Annots();
     if (!(annotsObj instanceof PDFArray)) continue;
 
-    const transform: PageTransformInfo = {
-      rotation: (page.getRotation().angle as 0 | 90 | 180 | 270) || 0,
-      widthPt: page.getWidth(),
-      heightPt: page.getHeight(),
-      originX: 0,
-      originY: 0,
-    };
+    const transform = getPageTransformFromPdfLib(page);
     const pageCalibration = readPageCalibration(page.node, transform.rotation);
     const isRotated = transform.rotation === 90 || transform.rotation === 270;
     const visualDims = {
@@ -281,7 +469,7 @@ export async function importPdfAnnotations(
 
       // Contenido y autor
       const contentsObj = annotDict.get(PDFName.of('Contents'));
-      const text = extractPdfStringValue(contentsObj);
+      let text = extractPdfStringValue(contentsObj);
 
       const authorObj = annotDict.get(PDFName.of('T'));
       const author = extractPdfStringValue(authorObj) || 'External author';
@@ -310,8 +498,8 @@ export async function importPdfAnnotations(
       }
 
       // Colores y grosor
-      let strokeColor = pdfColorArrayToHex(annotDict.get(PDFName.of('C'))) || '#000000';
-      let fillColor = pdfColorArrayToHex(annotDict.get(PDFName.of('IC')));
+      let strokeColor = pdfColorArrayToHex(annotDict.lookup(PDFName.of('C'))) || '#000000';
+      let fillColor = pdfColorArrayToHex(annotDict.lookup(PDFName.of('IC')));
 
       let strokeWidth = 1;
       let dashArray: number[] | undefined;
@@ -506,11 +694,19 @@ export async function importPdfAnnotations(
             }
           }
         }
-      } else if (subtype === 'Polygon') {
-        // Volumen y conteo de Revu (ADR-0051)
+      } else if (subtype === 'Polygon' || (!isRea && subtype === 'Square' && isCloudyAnnotation(annotDict, intent))) {
+        // Volumen y conteo de Revu (ADR-0051) y nubes poligonales/rectangulares
         if (!isRea) {
           markupType =
-            intent === 'PolygonDimension' ? 'area' : intent === 'PolygonVolume' ? 'volume' : intent === 'PolygonCount' ? 'count' : 'polygon';
+            isCloudyAnnotation(annotDict, intent)
+              ? 'cloud'
+              : intent === 'PolygonDimension'
+                ? 'area'
+                : intent === 'PolygonVolume'
+                  ? 'volume'
+                  : intent === 'PolygonCount'
+                    ? 'count'
+                    : 'polygon';
         }
         const vObj = annotDict.get(PDFName.of('Vertices'));
         if (vObj instanceof PDFArray && vObj.size() >= 4) {
@@ -612,24 +808,53 @@ export async function importPdfAnnotations(
               : intent === 'FreeTextTypeWriter'
               ? 'typewriter'
               : 'text';
+          // Cuadros de texto ajenos: si no hay /C explícito, borde transparente; si no hay /IC, relleno transparente
+          if (!annotDict.lookup(PDFName.of('C'))) {
+            strokeColor = 'transparent';
+            strokeWidth = 0;
+            customFields.boxBorder = 0;
+          } else {
+            customFields.boxBorder = 1;
+          }
+          if (!annotDict.lookup(PDFName.of('IC'))) {
+            fillColor = 'transparent';
+          }
         }
       } else if (subtype === 'Stamp') {
         if (!isRea) {
           markupType = 'stamp';
           const nameObj = annotDict.get(PDFName.of('Name'));
-          const rawName = nameObj instanceof PDFName ? decodePdfName(nameObj.asString()) : 'Approved';
+          const rawName = nameObj instanceof PDFName ? decodePdfName(nameObj.asString()) : '';
           const norm = rawName.toLowerCase().replace(/[^a-z0-9]/g, '');
-          const matched =
-            STAMPS.find(
-              (s) =>
-                s.pdfName?.toLowerCase() === rawName.toLowerCase() ||
-                `rea${s.id.replace(/[^a-z0-9]/gi, '').toLowerCase()}` === norm ||
-                s.id.replace(/[^a-z0-9]/gi, '').toLowerCase() === norm ||
-                s.label.replace(/[^a-z0-9]/gi, '').toLowerCase() === norm
-            ) ?? STAMPS.find((s) => s.id === 'approved')!;
-          customFields.stampId = matched.id;
-          if ((matched.dynamic ?? 'by') === 'by') {
-            customFields.stampSubtitle = stampSubtitle(author, createdAt);
+          const matched = rawName
+            ? STAMPS.find(
+                (s) =>
+                  s.pdfName?.toLowerCase() === rawName.toLowerCase() ||
+                  `rea${s.id.replace(/[^a-z0-9]/gi, '').toLowerCase()}` === norm ||
+                  s.id.replace(/[^a-z0-9]/gi, '').toLowerCase() === norm ||
+                  s.label.replace(/[^a-z0-9]/gi, '').toLowerCase() === norm
+              )
+            : undefined;
+          const apInfo = extractForeignStampApInfo(annotDict);
+          if (matched) {
+            customFields.stampId = matched.id;
+            if (matched.dynamic === 'foxit' || matched.dynamic === 'revu') {
+              customFields.stampSubtitle = stampSubtitle(author, createdAt);
+            }
+            if (!annotDict.lookup(PDFName.of('C'))) {
+              strokeColor = apInfo.color || matched.color;
+            }
+          } else {
+            // Sello ajeno o personalizado: preservar su título real y color sin sustituir por APPROVED ni forzar subtítulo inventado
+            const candidateText =
+              text ||
+              subject ||
+              (apInfo.texts.length > 0 ? apInfo.texts.join(' ') : undefined) ||
+              (rawName ? humanizePdfStampName(rawName) : 'STAMP');
+            text = candidateText;
+            if (!annotDict.lookup(PDFName.of('C'))) {
+              strokeColor = apInfo.color || '#1d4ed8';
+            }
           }
         }
       } else if (subtype === 'Widget') {
@@ -637,8 +862,8 @@ export async function importPdfAnnotations(
           markupType = 'formField';
           const wInfo = importForeignWidget(annotDict, annotRefOrDict);
           Object.assign(customFields, wInfo.fields);
-          if (!annotDict.get(PDFName.of('C')) && wInfo.strokeColor) strokeColor = wInfo.strokeColor;
-          if (!annotDict.get(PDFName.of('IC')) && wInfo.fillColor) fillColor = wInfo.fillColor;
+          if (!annotDict.lookup(PDFName.of('C')) && wInfo.strokeColor) strokeColor = wInfo.strokeColor;
+          if (!annotDict.lookup(PDFName.of('IC')) && wInfo.fillColor) fillColor = wInfo.fillColor;
         }
       } else if (
         !isRea &&
@@ -897,10 +1122,6 @@ export async function importPdfAnnotations(
       if (caFillObj instanceof PDFNumber && caFillObj.asNumber() >= 0 && caFillObj.asNumber() <= 1 && subtype !== 'Highlight') {
         fillOpacity = caFillObj.asNumber();
       }
-      let fontSize: number | undefined;
-      const daMatch = /([\d.]+)\s+Tf/.exec(extractPdfStringValue(annotDict.get(PDFName.of('DA'))));
-      if (daMatch && Number(daMatch[1]) > 0) fontSize = Number(daMatch[1]);
-
       // Alineación de texto estándar (/Q: 0=left, 1=center, 2=right) y formato (ADR-0074)
       let textAlign: 'left' | 'center' | 'right' | undefined = reaAlign;
       const qObj = annotDict.get(PDFName.of('Q'));
@@ -909,6 +1130,19 @@ export async function importPdfAnnotations(
         if (qNum === 1) textAlign = 'center';
         else if (qNum === 2) textAlign = 'right';
         else if (qNum === 0 && (reaAlign !== undefined || !isRea)) textAlign = 'left';
+      }
+
+      let fontSize: number | undefined;
+      const daStr = extractPdfStringValue(annotDict.get(PDFName.of('DA')));
+      const dsStr = extractPdfStringValue(annotDict.get(PDFName.of('DS')));
+      if (daStr || dsStr) {
+        const parsedApp = parsePdfTextAppearance(daStr, dsStr);
+        if (parsedApp.fontSize && !fontSize) fontSize = parsedApp.fontSize;
+        if (parsedApp.fontFamily && !fontFamily) fontFamily = parsedApp.fontFamily;
+        if (parsedApp.textColor && !textColor) textColor = parsedApp.textColor;
+        if (parsedApp.bold && !reaBold) reaBold = true;
+        if (parsedApp.italic && !reaItalic) reaItalic = true;
+        if (parsedApp.align && textAlign === undefined) textAlign = parsedApp.align;
       }
       const textFormat =
         textAlign !== undefined || reaBold || reaItalic

@@ -80,6 +80,27 @@ export interface PageTransformInfo {
   originY: number;
 }
 
+export interface PdfPageBoxLike {
+  getRotation(): { angle: number };
+  getCropBox(): { x: number; y: number; width: number; height: number };
+  getMediaBox(): { x: number; y: number; width: number; height: number };
+}
+
+/**
+ * Deriva la transformación geométrica real de una página PDF (respetando CropBox, origen y rotación).
+ */
+export function getPageTransformFromPdfLib(page: PdfPageBoxLike): PageTransformInfo {
+  const rot = (((page.getRotation().angle % 360) + 360) % 360) as 0 | 90 | 180 | 270;
+  const box = page.getCropBox() || page.getMediaBox();
+  return {
+    rotation: rot,
+    widthPt: Math.max(1, box.width || 1),
+    heightPt: Math.max(1, box.height || 1),
+    originX: box.x,
+    originY: box.y,
+  };
+}
+
 export interface EmittedOperatorsResult {
   operators: string;
   bbox: [number, number, number, number]; // [minX, minY, maxX, maxY]

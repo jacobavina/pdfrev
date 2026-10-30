@@ -529,4 +529,119 @@ describe('PDF Annotation Reader (P3-B.4 / Interoperabilidad e Importación)', ()
     expect(result.markups[0].text).toBe('Revisar cimentación');
     expect(result.foreignUnsupportedCount).toBe(0);
   });
+
+  it('preserva proporción 1:1 y posición exacta de sellos y anotaciones en páginas con CropBox desplazado y rotaciones', async () => {
+    const doc = await PDFDocument.create();
+    // MediaBox 800x600, pero CropBox desplazado en (50, 100) con tamaño 500x400
+    const page = doc.addPage([800, 600]);
+    page.setCropBox(50, 100, 500, 400);
+
+    // Cuadrado perfecto de 100x100 pt en coordenadas PDF: [100, 200, 200, 300]
+    const squareRef = doc.context.register(
+      doc.context.obj({
+        Type: 'Annot',
+        Subtype: 'Square',
+        NM: PDFString.of('crop-square-1'),
+        Rect: [100, 200, 200, 300],
+        C: [0, 0.4, 0.8],
+        Border: [0, 0, 2],
+      })
+    );
+
+    // Sello cuadrado de 80x80 pt en [250, 220, 330, 300]
+    const stampRef = doc.context.register(
+      doc.context.obj({
+        Type: 'Annot',
+        Subtype: 'Stamp',
+        NM: PDFString.of('crop-stamp-1'),
+        Name: PDFName.of('CustomCompanySeal'),
+        Subj: PDFString.of('VISADO ESTRUCTURAL'),
+        Rect: [250, 220, 330, 300],
+        T: PDFString.of('Colegio de Ingenieros'),
+      })
+    );
+
+    page.node.set(PDFName.of('Annots'), doc.context.obj([squareRef, stampRef]));
+    const pdfBytes = await doc.save();
+
+    const { markups } = await importPdfAnnotations(pdfBytes);
+    expect(markups).toHaveLength(2);
+
+    const sq = markups.find((m) => m.id === 'crop-square-1')!;
+    expect(sq.points[0].x).toBeCloseTo(0.1, 4);
+    expect(sq.points[0].y).toBeCloseTo(0.5, 4);
+    expect(sq.points[1].x).toBeCloseTo(0.3, 4);
+    expect(sq.points[1].y).toBeCloseTo(0.75, 4);
+    // Al proyectar en el viewport del CropBox (500x400), mantiene proporción exacta 100x100 pt
+    const widthOnViewport = (sq.points[1].x - sq.points[0].x) * 500;
+    const heightOnViewport = (sq.points[1].y - sq.points[0].y) * 400;
+    expect(widthOnViewport).toBeCloseTo(100, 2);
+    expect(heightOnViewport).toBeCloseTo(100, 2);
+
+    const st = markups.find((m) => m.id === 'crop-stamp-1')!;
+    expect(st.type).toBe('stamp');
+    const stampW = (st.points[1].x - st.points[0].x) * 500;
+    const stampH = (st.points[1].y - st.points[0].y) * 400;
+    expect(stampW).toBeCloseTo(80, 2);
+    expect(stampH).toBeCloseTo(80, 2);
+    // El sello personalizado conserva su rótulo real y no se reemplaza por APPROVED ni texto negro #000000
+    expect(st.text).toBe('VISADO ESTRUCTURAL');
+    expect(st.customFields?.stampSubtitle ?? '').toBe('');
+    expect(st.style.strokeColor).not.toBe('#000000');
+
+    // Round-trip incremental: al guardar y reabrir un PDF con CropBox, las coordenadas no se desplazan
+    const savedBytes = await saveIncrementalMarkups(pdfBytes, markups);
+    const { markups: afterSave } = await importPdfAnnotations(savedBytes);
+    const sqAfter = afterSave.find((m) => m.id === 'crop-square-1')!;
+    expect(sqAfter.points[0].x).toBeCloseTo(0.1, 3);
+    expect(sqAfter.points[0].y).toBeCloseTo(0.5, 3);
+    expect(sqAfter.points[1].x).toBeCloseTo(0.3, 3);
+    expect(sqAfter.points[1].y).toBeCloseTo(0.75, 3);
+  });
+
+  it('preserva formato de FreeText ajeno (/DA color y fuente, sin fondo amarillo ni borde negro forzado) y nubes /BE', async () => {
+    const doc = await PDFDocument.create();
+    const page = doc.addPage([600, 400]);
+
+    // FreeText ajeno sin borde (/C ausente) ni relleno (/IC ausente), con fuente Courier 14pt roja en /DA
+    const ftRef = doc.context.register(
+      doc.context.obj({
+        Type: 'Annot',
+        Subtype: 'FreeText',
+        NM: PDFString.of('ext-ft-1'),
+        Rect: [100, 200, 145, 218],
+        Contents: PDFString.of('COTA +3.50'),
+        DA: PDFString.of('/Cour 14 Tf 0.8 0.1 0.1 rg'),
+        Border: [0, 0, 0],
+      })
+    );
+
+    // Nube de revisión ajena (/Subtype /Polygon con /BE << /S /C /I 1 >>)
+    const cloudRef = doc.context.register(
+      doc.context.obj({
+        Type: 'Annot',
+        Subtype: 'Polygon',
+        NM: PDFString.of('ext-cloud-1'),
+        Rect: [200, 100, 350, 220],
+        Vertices: [200, 100, 350, 100, 350, 220, 200, 220],
+        BE: { S: PDFName.of('C'), I: 1 },
+        C: [1, 0, 0],
+      })
+    );
+
+    page.node.set(PDFName.of('Annots'), doc.context.obj([ftRef, cloudRef]));
+    const pdfBytes = await doc.save();
+
+    const { markups } = await importPdfAnnotations(pdfBytes);
+    const ft = markups.find((m) => m.id === 'ext-ft-1')!;
+    expect(ft.type).toBe('text');
+    expect(ft.style.fontFamily).toBe('Courier');
+    expect(ft.style.fontSize).toBe(14);
+    expect(ft.style.textColor).toBe('#cc1a1a');
+    expect(ft.style.fillColor).toBe('transparent');
+    expect(ft.style.strokeWidth).toBe(0);
+
+    const cl = markups.find((m) => m.id === 'ext-cloud-1')!;
+    expect(cl.type).toBe('cloud');
+  });
 });

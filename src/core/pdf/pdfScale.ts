@@ -347,7 +347,7 @@ export async function importPdfViewports(bytes: Uint8Array): Promise<Record<numb
   const out: Record<number, MeasurementViewport[]> = {};
   doc.getPages().forEach((page, i) => {
     const rot = (((page.getRotation().angle % 360) + 360) % 360) as 0 | 90 | 180 | 270;
-    const mb = page.getMediaBox();
+    const mb = page.getCropBox() || page.getMediaBox();
     const vps = readPageViewports(page.node, rot, [mb.x, mb.y, mb.x + mb.width, mb.y + mb.height], i);
     if (vps.length > 0) out[i] = vps;
   });

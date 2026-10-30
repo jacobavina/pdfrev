@@ -28,6 +28,7 @@ import {
 import {
   emitMarkupOperators,
   calloutPdfLayout,
+  getPageTransformFromPdfLib,
   normalizedToPdfCoordinates,
   parseCssColorRgb,
   PageTransformInfo,
@@ -515,13 +516,7 @@ export async function saveIncrementalMarkups(
     const pageRef = page.ref;
     const pageObjNum = pageRef.objectNumber;
 
-    const transform = transformInfoMap[pIdx] || {
-      rotation: (page.getRotation().angle as 0 | 90 | 180 | 270) || 0,
-      widthPt: page.getWidth(),
-      heightPt: page.getHeight(),
-      originX: 0,
-      originY: 0,
-    };
+    const transform = transformInfoMap[pIdx] || getPageTransformFromPdfLib(page);
 
     // Escala vigente de la página para el /Measure de cada medición (ADR-0030): la definida en REA, la que ya
     // trae el PDF o, sin ninguna, milímetros de papel (lo mismo que muestra el visor)
@@ -1103,7 +1098,7 @@ ${markup.layer && layerOcg.has(markup.layer) ? `  /OC ${layerOcg.get(markup.laye
     const pageViewports = options.viewports?.[pIdx];
     let vpChanged = false;
     if (pageCalibration || (pageViewports && pageViewports.length > 0)) {
-      const mb = page.getMediaBox();
+      const mb = page.getCropBox() || page.getMediaBox();
       const calToUse =
         pageCalibration ??
         readPageCalibration(page.node, transform.rotation) ??
